@@ -3,582 +3,601 @@ layout: landing
 ---
 
 <style>
-.lp a,
-.lp a:link,
-.lp a:visited,
-.lp a:hover,
-.lp a:active {
-  color: inherit;
-  text-decoration: none;
+  html:has(#lp-root),
+  body:has(#lp-root) {
+    --bg: #faf9f6;
+    --ink: #24231f;
+    --muted: #706d65;
+    --line: #e3e0d8;
+    --accent: #345b91;
+    --code: #f0eee8;
+
+    background: var(--bg) !important;
+    color: var(--ink);
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html.lp-site-dark:has(#lp-root),
+  body.lp-site-dark:has(#lp-root) {
+    --bg: #08090b;
+    --ink: #e7e7e4;
+    --muted: #92938f;
+    --line: #25262a;
+    --accent: #91b8f5;
+    --code: #111214;
+
+    background: var(--bg) !important;
+    color: var(--ink);
+    color-scheme: dark;
+  }
+
+  body:has(#lp-root) main,
+  body:has(#lp-root) #content,
+  body:has(#lp-root) .book-page,
+  body:has(#lp-root) .book-section,
+  body:has(#lp-root) .content {
+    max-width: none !important;
+    background: transparent !important;
+  }
+
+  body:has(#lp-root) {
+    overflow-x: hidden;
+  }
+
+  #lp-root {
+    --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    --pad: clamp(1rem, 4vw, 3.5rem);
+
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 max(var(--pad), env(safe-area-inset-right)) 3rem max(var(--pad), env(safe-area-inset-left));
+    font: 1rem/1.7 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    overflow-wrap: break-word;
+  }
+
+  #lp-root,
+  #lp-root * {
+    box-sizing: border-box;
+  }
+
+  #lp-root img,
+  #lp-root video {
+    max-width: 100%;
+  }
+
+  #lp-root a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  #lp-root a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  #lp-root a:focus-visible,
+  #lp-root button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  #lp-root p {
+    margin: 0 0 1rem;
+  }
+
+  #lp-root .lp-muted {
+    color: var(--muted);
+  }
+
+  #lp-root .lp-hero {
+    max-width: 880px;
+  }
+
+  #lp-root h1 {
+    margin: 0 0 0.5rem;
+    font-size: clamp(2.4rem, 6.5vw, 4.4rem);
+    font-weight: 750;
+    line-height: 1;
+    letter-spacing: -0.05em;
+  }
+
+  #lp-root .lp-tagline {
+    margin: 0 0 1.1rem;
+    color: var(--accent);
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+  }
+
+  #lp-root .lp-lead {
+    max-width: 42rem;
+    margin: 0;
+    color: var(--muted);
+    font-size: clamp(1rem, 1.5vw, 1.1rem);
+    line-height: 1.75;
+  }
+
+  #lp-root .lp-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.7rem 1.4rem;
+    margin-top: 1.6rem;
+  }
+
+  #lp-root .lp-button,
+  #lp-root .lp-button-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 7.5rem;
+    height: 2.5rem;
+    padding: 0 1.25rem;
+    border-radius: 6px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: opacity 0.15s, transform 0.15s, border-color 0.15s, color 0.15s, background-color 0.15s;
+  }
+
+  #lp-root .lp-button {
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--bg) !important;
+  }
+
+  #lp-root .lp-button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  #lp-root .lp-button-secondary {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink) !important;
+  }
+
+  #lp-root .lp-button-secondary:hover {
+    border-color: var(--accent);
+    color: var(--accent) !important;
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    transform: translateY(-1px);
+  }
+
+  #lp-root .lp-button:active,
+  #lp-root .lp-button-secondary:active {
+    transform: translateY(0);
+  }
+
+  #lp-root .lp-shot {
+    margin: clamp(2rem, 4vw, 3.2rem) 0 0;
+    margin-inline: 0;
+  }
+
+  #lp-root .lp-window {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #08090b;
+  }
+
+  #lp-root .lp-window video {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1280 / 768;
+    object-fit: contain;
+  }
+
+  #lp-root .lp-shot figcaption {
+    margin-top: 0.65rem;
+    color: var(--muted);
+    font-size: 0.84rem;
+  }
+
+  #lp-root section {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) minmax(0, 3fr);
+    gap: 1rem clamp(2rem, 6vw, 5rem);
+    margin-top: clamp(3rem, 6vw, 5rem);
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--line);
+    scroll-margin-top: 1.5rem;
+  }
+
+  #lp-root section > * {
+    min-width: 0;
+  }
+
+  #lp-root h2 {
+    margin: 0;
+    font-size: clamp(1.15rem, 1.8vw, 1.35rem);
+    line-height: 1.4;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+
+  #lp-root .lp-probe-groups {
+    display: grid;
+    gap: 2rem;
+  }
+
+  #lp-root h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+
+  #lp-root dl.lp-probes {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    gap: 0.5rem 1.5rem;
+    margin: 0;
+  }
+
+  #lp-root dl.lp-probes dt {
+    font-family: var(--mono);
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  #lp-root dl.lp-probes dt small {
+    margin-left: 0.4rem;
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 0.72rem;
+  }
+
+  #lp-root dl.lp-probes dd {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.94rem;
+  }
+
+  #lp-root .lp-cmd {
+    max-width: 820px;
+    margin: 0 0 1.2rem;
+  }
+
+  #lp-root .lp-cmd:last-child {
+    margin-bottom: 0;
+  }
+
+  #lp-root .lp-cmd-label {
+    margin: 0 0 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  #lp-root .lp-cmd-box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--code);  
 }
 
-/* ── LIGHT tokens (default) ── */
-.lp {
-  --ac:    #2563eb;
-  --ac-bg: rgba(37,99,235,0.07);
-  --ac-br: rgba(37,99,235,0.18);
-  --tx:    #0f172a;
-  --tx2:   #64748b;
-  --bg:    #ffffff;
-  --bg2:   #f8fafc;
-  --br:    #e2e8f0;
-  --br2:   #94a3b8;
-  --mono:  'SF Mono','Fira Code','Roboto Mono',monospace;
-}
+  #lp-root .lp-cmd-box code {
+    flex: 1;
+    min-width: 0;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+    padding: 5px 10px;
+  }
 
-html.dark-theme .lp,
-body.dark .lp,
-[data-theme="dark"] .lp,
-.lp.lp--dark {
-  --ac:    #60a5fa;
-  --ac-bg: rgba(96,165,250,0.08);
-  --ac-br: rgba(96,165,250,0.2);
-  --tx:    #f1f5f9;
-  --tx2:   #94a3b8;
-  --bg:    #000000;
-  --bg2:   #0d1117;
-  --br:    #1e293b;
-  --br2:   #475569;
-}
+  #lp-root .lp-copy {
+    flex: 0 0 auto;
+    padding: 0.2rem 0.65rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
 
-/* ── KEYFRAMES ── */
-@keyframes fadeUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-@keyframes fadeIn  { from{opacity:0} to{opacity:1} }
-@keyframes shimmer { 0%,100%{opacity:1} 50%{opacity:.6} }
+  #lp-root .lp-copy:hover {
+    color: var(--ink);
+  }
 
-/* ── BASE ── */
-*, *::before, *::after { box-sizing: border-box; }
+  #lp-root .lp-footer {
+    margin-top: clamp(4rem, 8vw, 7rem);
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1.5rem;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
 
-.lp {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-  font-family: system-ui,-apple-system,sans-serif;
-  color: var(--tx);
-  background: var(--bg);
-  direction: rtl;
-}
+  #lp-root .lp-footer a {
+    color: var(--muted);
+  }
 
-/* ── HERO ── */
-.lp .hero {
-  text-align: center;
-  padding: 2rem 0 3.5rem;
-  animation: fadeUp .6s ease both;
-}
+  #lp-root .lp-footer a:hover {
+    color: var(--accent);
+  }
 
-.lp .hero-badge {
-  display: inline-block;
-  padding: .28rem .85rem;
-  border-radius: 999px;
-  border: 1px solid var(--ac-br);
-  background: var(--ac-bg);
-  color: var(--ac) !important;
-  font-size: .72rem;
-  font-weight: 600;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  margin-bottom: 1.8rem;
-  animation: fadeIn .5s .1s ease both;
-  direction: ltr;
-}
+  #lp-root .lp-foot-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+  }
 
-.lp .hero h1 {
-  font-size: clamp(2.2rem,5.5vw,3.6rem);
-  font-weight: 800;
-  line-height: 1.2;
-  margin: 0 0 1.2rem;
-  letter-spacing: -.03em;
-  color: var(--tx);
-  animation: fadeUp .6s .15s ease both;
-}
+  @media (max-width: 820px) {
+    #lp-root section {
+      grid-template-columns: 1fr;
+      gap: 0.6rem;
+      padding-top: 1.3rem;
+    }
 
-.lp .hero p {
-  font-size: 1.05rem;
-  color: var(--tx2);
-  max-width: 480px;
-  margin: 0 auto 2.4rem;
-  line-height: 1.7;
-  animation: fadeUp .6s .25s ease both;
-}
+    #lp-root dl.lp-probes {
+      grid-template-columns: 1fr;
+      gap: 0.3rem 0;
+    }
 
-.lp .hero-actions {
-  display: flex;
-  gap: .75rem;
-  justify-content: center;
-  flex-wrap: wrap;
-  animation: fadeUp .6s .35s ease both;
-}
+    #lp-root dl.lp-probes dt {
+      margin-top: 0.6rem;
+    }
+  }
 
-/* ── BUTTONS ── */
-.lp .btn-p {
-  display: inline-flex !important;
-  align-items: center;
-  gap: .4rem;
-  padding: .75rem 1.6rem;
-  background: var(--ac) !important;
-  color: #fff !important;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: .93rem;
-  text-decoration: none !important;
-  border: none;
-  cursor: pointer;
-  transition: filter .2s, transform .15s;
-  width: auto;
-}
-.lp .btn-p:hover { filter: brightness(1.12); transform: translateY(-2px); }
+  @media (max-width: 560px) {
+    #lp-root .lp-cmd-box {
+      flex-direction: column;
+      gap: 0.6rem;
+    }
 
-.lp .btn-o {
-  display: inline-flex !important;
-  align-items: center;
-  gap: .4rem;
-  padding: .75rem 1.6rem;
-  background: transparent !important;
-  color: var(--tx) !important;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: .93rem;
-  text-decoration: none !important;
-  border: 1px solid var(--br2) !important;
-  cursor: pointer;
-  transition: border-color .2s, color .2s, transform .15s;
-  width: auto;
-}
-.lp .btn-o:hover { border-color: var(--ac) !important; color: var(--ac) !important; transform: translateY(-2px); }
+    #lp-root .lp-copy {
+      align-self: flex-start;
+    }
 
-/* ── STAR NUDGE ── */
-.lp .star-nudge {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: .8rem 1.1rem;
-  border: 1px solid var(--br);
-  border-radius: 8px;
-  background: var(--bg2);
-  margin: 1.5rem 0 0;
-  animation: fadeUp .6s .45s ease both;
-  transition: border-color .2s;
-}
-.lp .star-nudge:hover { border-color: var(--ac-br); }
+    #lp-root .lp-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
 
-.lp .star-nudge-icon {
-  color: var(--ac);
-  flex-shrink: 0;
-  animation: shimmer 2.5s ease-in-out infinite;
-}
+    #lp-root .lp-button,
+    #lp-root .lp-button-secondary {
+      width: 100%;
+    }
 
-.lp .star-nudge p {
-  flex: 1;
-  margin: 0;
-  font-size: .84rem;
-  color: var(--tx2);
-  line-height: 1.5;
-}
-.lp .star-nudge p strong { color: var(--tx); font-weight: 600; }
+    #lp-root .lp-footer {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
 
-.lp .star-link {
-  display: inline-flex !important;
-  align-items: center;
-  gap: .35rem;
-  padding: .42rem .9rem;
-  border: 1px solid var(--br2) !important;
-  border-radius: 6px;
-  background: var(--bg) !important;
-  color: var(--tx) !important;
-  font-size: .81rem;
-  font-weight: 600;
-  text-decoration: none !important;
-  flex-shrink: 0;
-  transition: border-color .2s, color .2s;
-}
-.lp .star-link:hover { border-color: var(--ac) !important; color: var(--ac) !important; }
-
-/* ── STATS ── */
-.lp .stats {
-  display: grid;
-  grid-template-columns: repeat(4,1fr);
-  border: 1px solid var(--br);
-  border-radius: 10px;
-  overflow: hidden;
-  margin: 2rem 0 3.5rem;
-}
-.lp .stat-item {
-  padding: 1.4rem 1rem;
-  text-align: center;
-  background: var(--bg);
-  border-right: 1px solid var(--br);
-  transition: background .2s;
-}
-.lp .stat-item:last-child { border-right: none; }
-.lp .stat-item:hover { background: var(--bg2); }
-.lp .stat-num {
-  display: block;
-  font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: -.03em;
-  color: var(--ac);
-  margin-bottom: .15rem;
-}
-.lp .stat-label {
-  font-size: .7rem;
-  color: var(--tx2);
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  font-weight: 500;
-}
-
-/* ── SCROLL REVEAL ── */
-.lp .reveal {
-  opacity: 0;
-  transform: translateY(16px);
-  transition: opacity .55s ease, transform .55s ease;
-}
-.lp .reveal.visible { opacity: 1; transform: translateY(0); }
-
-/* ── SECTION TITLE ── */
-.lp .stitle { text-align: center; margin-bottom: 1.8rem; }
-.lp .stitle h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0 0 .35rem;
-  letter-spacing: -.02em;
-  color: var(--tx);
-}
-.lp .stitle p { color: var(--tx2); font-size: .92rem; margin: 0; }
-
-/* ── FEATURES ── */
-.lp .features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
-  border: 1px solid var(--br);
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 3.5rem;
-}
-.lp .feature {
-  padding: 1.5rem;
-  background: var(--bg);
-  border-right: 1px solid var(--br);
-  border-bottom: 1px solid var(--br);
-  transition: background .2s;
-}
-.lp .feature:hover { background: var(--bg2); }
-.lp .fi {
-  width: 34px; height: 34px;
-  border-radius: 7px;
-  background: var(--ac-bg);
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: .9rem;
-  font-size: 1rem;
-  transition: transform .2s;
-}
-.lp .feature:hover .fi { transform: scale(1.1); }
-.lp .feature h3 { font-size: .9rem; font-weight: 700; margin: 0 0 .35rem; color: var(--tx); }
-.lp .feature p  { font-size: .83rem; color: var(--tx2); margin: 0; line-height: 1.6; }
-
-/* ── PROTOCOLS ── */
-.lp .proto-section { margin-bottom: 3.5rem; }
-.lp .proto-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit,minmax(190px,1fr));
-  gap: .55rem;
-}
-.lp .proto-card {
-  display: flex;
-  align-items: center;
-  gap: .85rem;
-  padding: .85rem 1rem;
-  border: 1px solid var(--br);
-  border-radius: 7px;
-  background: var(--bg);
-  transition: border-color .2s, transform .15s;
-}
-.lp .proto-card:hover { border-color: var(--ac-br); transform: translateY(-1px); }
-.lp .ptag {
-  font-size: .63rem; font-weight: 700;
-  padding: .18rem .42rem;
-  border-radius: 3px;
-  background: var(--ac-bg);
-  color: var(--ac) !important;
-  white-space: nowrap; flex-shrink: 0;
-  letter-spacing: .04em;
-}
-.lp .pname { font-size: .86rem; font-weight: 600; margin: 0 0 .1rem; color: var(--tx); }
-.lp .pdesc { font-size: .74rem; color: var(--tx2); margin: 0; }
-
-/* ── INSTALL ── */
-.lp .install-section { margin-bottom: 3.5rem; }
-.lp .install-block {
-  border: 1px solid var(--br);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--bg);
-}
-.lp .install-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--br);
-  background: var(--bg2);
-  padding: 0 .5rem;
-}
-.lp .tab-btn {
-  padding: .65rem 1rem;
-  font-size: .81rem; font-weight: 500;
-  color: var(--tx2);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  user-select: none;
-  background: none;
-  border-top: none; border-left: none; border-right: none;
-  transition: color .15s, border-color .15s;
-  font-family: inherit;
-}
-.lp .tab-btn.active { color: var(--ac) !important; border-bottom-color: var(--ac); }
-.lp .tab-btn:hover:not(.active) { color: var(--tx); }
-.lp .tab-pane { display: none; }
-.lp .tab-pane.active { display: block; }
-.lp .install-cmd {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.1rem 1.3rem;
-  direction: ltr;
-}
-.lp .install-cmd code {
-  flex: 1;
-  font-size: .8rem;
-  color: var(--tx);
-  word-break: break-all;
-  background: none; border: none; padding: 0;
-  font-family: var(--mono);
-}
-.lp .copy-btn {
-  flex-shrink: 0;
-  font-size: .74rem;
-  padding: .28rem .7rem;
-  border: 1px solid var(--br2);
-  border-radius: 4px;
-  cursor: pointer;
-  background: var(--bg2);
-  color: var(--tx2);
-  font-family: inherit;
-  transition: color .15s, border-color .15s;
-}
-.lp .copy-btn:hover { color: var(--ac); border-color: var(--ac); }
-.lp .install-note {
-  padding: .55rem 1.3rem .7rem;
-  font-size: .77rem;
-  color: var(--tx2);
-  border-top: 1px solid var(--br);
-  background: var(--bg2);
-}
-.lp .install-note a { color: var(--ac) !important; text-decoration: none; }
-.lp .install-note a:hover { text-decoration: underline; }
-
-/* ── FOOTER CTA ── */
-.lp .footer-cta {
-  text-align: center;
-  padding: 3rem 1rem 4rem;
-  border-top: 1px solid var(--br);
-}
-.lp .footer-cta h2 {
-  font-size: 1.5rem; font-weight: 700;
-  margin: 0 0 .5rem;
-  letter-spacing: -.02em;
-  color: var(--tx);
-}
-.lp .footer-cta p { color: var(--tx2); margin: 0 0 2rem; }
-.lp .btn-group { display: flex; gap: .8rem; justify-content: center; flex-wrap: wrap; }
-
-/* ── RESPONSIVE ── */
-@media(max-width:580px){
-  .lp .stats { grid-template-columns: repeat(2,1fr); }
-  .lp .stat-item:nth-child(2){ border-right: none; }
-  .lp .star-nudge { flex-direction: column; text-align: center; }
-}
+  @media (pointer: coarse) {
+    #lp-root .lp-copy,
+    #lp-root .lp-button,
+    #lp-root .lp-button-secondary {
+      min-height: 2.75rem;
+    }
+  }
 </style>
 
-<div class="lp" id="lp-root">
 
-<!-- HERO -->
-<div class="hero">
-  <div class="hero-badge">v2.11.0 · حالا در دسترس است</div>
-  <h1>همه‌چیز را اسکن کن.<br>با بیشترین سرعت.</h1>
-  <p>bgscan یک اسکنر سریع شبکه است که با Go ساخته شده و چند پروتکل را در یک موتور زنجیره‌ای و یک رابط سادهٔ ترمینالی کنار هم می‌آورد.</p>
-  <div class="hero-actions">
-    <a href="" class="btn-p lp-docs-link">شروع کنید ←</a>
-    <a href="https://github.com/MohsenBg/bgscan" class="btn-o">
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-      مشاهده در GitHub
-    </a>
-  </div>
-</div>
 
-<!-- STAR NUDGE -->
-<div class="star-nudge">
-  <svg class="star-nudge-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-  <p><strong>اگر bgscan برایتان مفید بوده، خوشحال می‌شوم با یک ستاره در GitHub از پروژه حمایت کنید.</strong> همین کار باعث می‌شود افراد بیشتری پروژه را ببینند و به ادامهٔ توسعهٔ آن کمک می‌کند.</p>
-  <a href="https://github.com/MohsenBg/bgscan" class="star-link">ستاره‌دادن در GitHub</a>
-</div>
-
-<!-- STATS -->
-<div class="stats reveal">
-  <div class="stat-item"><span class="stat-num">۱۱</span><span class="stat-label">پروتکل‌ها</span></div>
-  <div class="stat-item"><span class="stat-num">100%</span><span class="stat-label">Go</span></div>
-  <div class="stat-item"><span class="stat-num">۴</span><span class="stat-label">پلتفرم‌ها</span></div>
-  <div class="stat-item"><span class="stat-num">GPL-3.0</span><span class="stat-label">مجوز</span></div>
-</div>
-
-<!-- FEATURES -->
-<div class="stitle reveal">
-  <h2>برای سرعت و کنترل ساخته شده</h2>
-  <p>هر چیزی که برای بررسی جدی شبکه لازم دارید، در یک ابزار جمع شده است.</p>
-</div>
-<div class="features reveal">
-  <div class="feature"><div class="fi">⚡</div><h3>اسکن هم‌زمان</h3><p>چند پروتکل را هم‌زمان روی هزاران هدف اجرا کنید، بدون این‌که برنامه کند شود.</p></div>
-  <div class="feature"><div class="fi">🔗</div><h3>موتور زنجیره‌ای</h3><p>مراحل اسکن را با حالت‌های Stream، Sequential یا Batch به هم وصل کنید.</p></div>
-  <div class="feature"><div class="fi">🖥️</div><h3>رابط ترمینالی ساده</h3><p>با رابط Bubble Tea اسکن کنید، وضعیت را ببینید و نتیجه‌ها را همان لحظه بررسی کنید؛ بدون مرورگر.</p></div>
-  <div class="feature"><div class="fi">💾</div><h3>ذخیره و اجرای دوباره</h3><p>نتیجه‌ها را ذخیره کنید و بعداً اسکن‌های جدید را روی همان داده‌ها اجرا کنید. مدیریت Outboundهای Xray هم داخل برنامه هست.</p></div>
-  <div class="feature"><div class="fi">🌐</div><h3>DNS پیشرفته</h3><p>اسکن ریزالورهای DNS همراه با بررسی ضد هجکینگ و شش پروتکل تونل: DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed.</p></div>
-  <div class="feature"><div class="fi">🛰️</div><h3>اتصال به Xray</h3><p>Outboundهای Xray را مستقیم داخل اسکنر ذخیره کنید، مدیریت کنید و اتصالشان را بررسی کنید.</p></div>
-</div>
-
-<!-- PROTOCOLS -->
-<div class="proto-section">
-  <div class="stitle reveal">
-    <h2>۱۱ پروتکل، یک ابزار</h2>
-    <p>از لایهٔ ۳ تا لایهٔ ۷؛ پروتکل‌هایی که برای بررسی دقیق شبکه لازم دارید.</p>
-  </div>
-  <div class="proto-grid reveal">
-    <div class="proto-card"><span class="ptag">L3</span><div><p class="pname">ICMP</p><p class="pdesc">پیداکردن میزبان و Ping</p></div></div>
-    <div class="proto-card"><span class="ptag">L4</span><div><p class="pname">TCP</p><p class="pdesc">اتصال و Handshake</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">HTTP</p><p class="pdesc">HTTP/1.1 · HTTP/2 · QUIC</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNS</p><p class="pdesc">پرس‌وجوی پیشرفته + Fallback</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNSTT</p><p class="pdesc">اعتبارسنجی با SOCKS و SSH</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">VayDNS</p><p class="pdesc">اعتبارسنجی با SOCKS و SSH</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Slipstream</p><p class="pdesc">اعتبارسنجی با SOCKS و SSH</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">MasterDNS</p><p class="pdesc">اعتبارسنجی تونل رمزنگاری‌شده</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">StormDNS</p><p class="pdesc">اعتبارسنجی تونل رمزنگاری‌شده</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">TheFeed</p><p class="pdesc">اعتبارسنجی فید رمزنگاری‌شده</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Xray</p><p class="pdesc">تست Outboundها</p></div></div>
-  </div>
-</div>
-
-<!-- INSTALL -->
-<div class="install-section">
-  <div class="stitle reveal">
-    <h2>نصب با یک دستور</h2>
-    <p>روی Linux، macOS، Windows و Android (Termux) اجرا می‌شود.</p>
-  </div>
-  <div class="install-block reveal">
-    <div class="install-tabs">
-      <button class="tab-btn active" onclick="swTab(event,'linux')">لینوکس / مک</button>
-      <button class="tab-btn" onclick="swTab(event,'windows')">ویندوز</button>
-      <button class="tab-btn" onclick="swTab(event,'android')">اندروید</button>
-    </div>
-    <div id="tab-linux" class="tab-pane active">
-      <div class="install-cmd">
-        <code>curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh</code>
-        <button class="copy-btn" onclick="cpCmd(this)">کپی</button>
+<div id="lp-root">
+  <main>
+    <header class="lp-hero">
+      <h1 id="lp-title">BGScan</h1>
+      <p class="lp-tagline">اسکنری با قابلیت زنجیره‌کردن پروب‌ها</p>
+      <p class="lp-lead">BGScan یه اسکنر چندپروتکلیه که با Go نوشته شده. از پروتکل‌هایی مثل TCP، ICMP، HTTP و DNS پشتیبانی می‌کنه و امکان تست تونل‌های DNS و Outboundهای اکس‌ری رو هم داره. می‌تونی هر پروب رو جدا اجرا کنی یا چند پروب رو به هم وصل کنی تا نتیجهٔ هر مرحله ورودی مرحلهٔ بعدی باشه. نتیجهٔ اسکن‌ها رو هم می‌تونی به‌صورت CSV ذخیره کنی و توی اسکن‌های بعدی دوباره ازشون استفاده کنی. تعداد Workerها، Timeout و تنظیمات اختصاصی هر پروب هم قابل تنظیمه.</p>
+      <div class="lp-actions">
+        <a class="lp-button lp-docs-link" href="/docs/">مستندات</a>
+        <a class="lp-button-secondary" href="https://github.com/MohsenBg/bgscan">گیت‌هاب</a>
       </div>
-    </div>
-    <div id="tab-windows" class="tab-pane">
-      <div class="install-cmd">
-        <code>irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.ps1 | iex</code>
-        <button class="copy-btn" onclick="cpCmd(this)">کپی</button>
+    </header>
+    <figure class="lp-shot">
+      <div class="lp-window">
+        <video autoplay loop muted playsinline preload="auto" width="1280" height="768" aria-label="اجرای اسکن با BGScan در ترمینال">
+          <source src="/bgscan/bgscan-demo.mp4" type="video/mp4">
+        </video>
       </div>
-    </div>
-    <div id="tab-android" class="tab-pane">
-      <div class="install-cmd">
-        <code>{ command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh</code>
-        <button class="copy-btn" onclick="cpCmd(this)">کپی</button>
+      <figcaption>اجرای اسکن زنجیره‌ای توی ترمینال</figcaption>
+    </figure>
+    <section aria-labelledby="lp-probes-title">
+      <h2 id="lp-probes-title">پروب‌ها</h2>
+      <div class="lp-body">
+        <p class="lp-muted">پروب‌های تونل DNS جداگانه فهرست شدن. این پروب‌ها پروتکل‌های مشخص تونل رو تست می‌کنن، نه درخواست‌های معمول DNS. تعداد Workerها، Timeoutها و تنظیمات هر پروب رو می‌تونی جداگانه و با TOML تنظیم کنی.</p>
+        <div class="lp-probe-groups">
+          <div>
+            <h3>بررسی دسترسی</h3>
+            <dl class="lp-probes">
+              <dt>ICMP <small>L3</small></dt>
+              <dd>بررسی در دسترس بودن میزبان و تست پینگ.</dd>
+              <dt>TCP <small>L4</small></dt>
+              <dd>برقراری اتصال و بررسی دست‌دادن TCP.</dd>
+            </dl>
+          </div>
+          <div>
+            <h3>وب و DNS</h3>
+            <dl class="lp-probes">
+              <dt>HTTP <small>L7</small></dt>
+              <dd>پشتیبانی از HTTP/1.1، HTTP/2 و HTTP/3 روی QUIC.</dd>
+              <dt>DNS <small>L7</small></dt>
+              <dd>ارسال درخواست به Resolverها، با امکان استفاده از جایگزین و بررسی دست‌کاری پاسخ‌ها.</dd>
+            </dl>
+          </div>
+          <div>
+            <h3>تونل‌های DNS</h3>
+            <dl class="lp-probes">
+              <dt>DNSTT <small>L7</small></dt>
+              <dd>بررسی تونل با اتصال پایه از طریق SOCKS و SSH.</dd>
+              <dt>VayDNS <small>L7</small></dt>
+              <dd>بررسی تونل با اتصال پایه از طریق SOCKS و SSH.</dd>
+              <dt>Slipstream <small>L7</small></dt>
+              <dd>تست تونل DNS با کلاینت Slipstream.</dd>
+              <dt>MasterDNS <small>L7</small></dt>
+              <dd>تست تونل با امکان تنظیم رمزنگاری و پیدا کردن MTU مناسب.</dd>
+              <dt>StormDNS <small>L7</small></dt>
+              <dd>تست تونل با امکان تنظیم رمزنگاری و پیدا کردن MTU مناسب.</dd>
+              <dt>TheFeed <small>L7</small></dt>
+              <dd>تست تونل‌های رمزنگاری‌شده روی ترنسپورت‌های پشتیبانی‌شده.</dd>
+            </dl>
+          </div>
+          <div>
+            <h3>Outboundها</h3>
+            <dl class="lp-probes">
+              <dt>Xray <small>L7</small></dt>
+              <dd>بررسی Outboundهای اکس‌ری و تست اتصال یا سرعت.</dd>
+            </dl>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="install-note">فایل‌های آمادهٔ اجرا را می‌توانید از <a href="https://github.com/MohsenBg/bgscan/releases">صفحهٔ Releases</a> بگیرید.</div>
-  </div>
+    </section>
+    <section id="lp-install" aria-labelledby="lp-install-title">
+      <h2 id="lp-install-title">نصب</h2>
+      <div class="lp-body">
+        <p class="lp-muted">اسکریپت نصب، نسخه مناسب سیستم‌عاملت رو خودش انتخاب می‌کنه. اگه خواستی، می‌تونی فایل‌های آماده رو هم از <a href="https://github.com/MohsenBg/bgscan/releases">صفحه انتشارها</a> بگیری.</p>
+        <div class="lp-cmd" id="lp-install-unix" >
+          <p class="lp-cmd-label">لینوکس و مک</p>
+          <div class="lp-cmd-box" dir="ltr">
+            <code>curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh</code>
+            <button class="lp-copy" type="button">کپی</button>
+          </div>
+        </div>
+        <div class="lp-cmd" id="lp-install-windows">
+          <p class="lp-cmd-label">ویندوز (PowerShell)</p>
+          <div class="lp-cmd-box" dir="ltr">
+            <code>irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.ps1 | iex</code>
+            <button class="lp-copy" type="button">کپی</button>
+          </div>
+        </div>
+        <div class="lp-cmd" id="lp-install-android">
+          <p class="lp-cmd-label">اندروید (Termux)</p>
+          <div class="lp-cmd-box" dir="ltr">
+            <code>{ command -v curl >/dev/null 2>&amp;1 || pkg install -y curl; } &amp;&amp; curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh</code>
+            <button class="lp-copy" type="button">کپی</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <footer class="lp-footer">
+      <span>BGScan · نوشته‌شده با Go · مجوز GPL-3.0 · نسخه 2.12.0</span>
+      <nav class="lp-foot-links" aria-label="لینک‌ها">
+        <a class="lp-docs-link" href="/docs/">مستندات</a>
+        <a href="https://github.com/MohsenBg/bgscan">گیت‌هاب</a>
+        <a href="https://github.com/MohsenBg/bgscan/releases">انتشارها</a>
+        <a href="https://github.com/MohsenBg/bgscan/issues">گزارش مشکل</a>
+      </nav>
+    </footer>
+  </main>
 </div>
-
-<!-- FOOTER CTA -->
-<div class="footer-cta reveal">
-  <h2>آماده‌اید اسکن را شروع کنید؟</h2>
-  <p>مستندات را بخوانید، آخرین نسخه را بگیرید و اگر پروژه به کارتان آمد، در GitHub یک ستاره بدهید.</p>
-  <div class="btn-group">
-    <a href="" class="btn-p lp-docs-link">شروع کنید ←</a>
-    <a href="https://github.com/MohsenBg/bgscan" class="btn-o">
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-      مشاهده در GitHub
-    </a>
-  </div>
-</div>
-
-</div><!-- /.lp -->
 
 <script>
-(function(){
-  var lp = document.getElementById('lp-root');
-  if (!lp) return;
+  (function () {
+    var root = document.getElementById('lp-root');
+    if (!root) return;
 
-  /* ── sync dark theme ── */
-  function syncTheme() {
-    var isDark = document.documentElement.classList.contains('dark-theme');
-    lp.classList.toggle('lp--dark', isDark);
-  }
+    var html = document.documentElement;
+    var body = document.body;
 
-  syncTheme();
-  var mo = new MutationObserver(syncTheme);
-  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class','data-theme','style'] });
-  mo.observe(document.body,            { attributes: true, attributeFilter: ['class','data-theme','style'] });
+    function isDark() {
+      var t = (
+        html.getAttribute('data-theme') ||
+        body.getAttribute('data-theme') ||
+        ''
+      ).toLowerCase();
 
-  /* ── docs links ── */
-  document.querySelectorAll('.lp-docs-link').forEach(function(a){
-    a.setAttribute('href', window.DOCS_URL || '/docs/');
-  });
+      return t === 'dark' ||
+        html.classList.contains('dark') ||
+        html.classList.contains('dark-theme') ||
+        html.classList.contains('dark-mode') ||
+        body.classList.contains('dark') ||
+        body.classList.contains('dark-mode');
+    }
 
-  /* ── tab switcher ── */
-  window.swTab = function(e, id){
-    document.querySelectorAll('.lp .tab-btn').forEach(function(b){ b.classList.remove('active'); });
-    document.querySelectorAll('.lp .tab-pane').forEach(function(p){ p.classList.remove('active'); });
-    e.target.classList.add('active');
-    document.getElementById('tab-'+id).classList.add('active');
-  };
+    function sync() {
+      var d = isDark();
+      html.classList.toggle('lp-site-dark', d);
+      body.classList.toggle('lp-site-dark', d);
+    }
 
-  /* ── copy button ── */
-  window.cpCmd = function(btn){
-    navigator.clipboard.writeText(btn.previousElementSibling.textContent).then(function(){
-      btn.textContent = 'Copied!';
-      setTimeout(function(){ btn.textContent = 'Copy'; }, 1800);
+    sync();
+
+    new MutationObserver(sync).observe(html, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme', 'style']
     });
-  };
 
-  /* ── scroll reveal ── */
-  var revEls = document.querySelectorAll('.lp .reveal');
-  if (revEls.length && 'IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function(entries){
-      entries.forEach(function(e){
-        if (e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); }
+    new MutationObserver(sync).observe(body, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme', 'style']
+    });
+
+    var isFa = /\/fa(\/|$)/.test(location.pathname);
+    var base = location.pathname
+      .replace(/\/fa(\/.*)?$/, '')
+      .replace(/\/$/, '');
+
+    root.querySelectorAll('.lp-docs-link').forEach(function (a) {
+      a.setAttribute('href', base + (isFa ? '/fa' : '') + '/docs/');
+    });
+
+    function fallback(text) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;opacity:0';
+      body.appendChild(ta);
+      ta.select();
+
+      var ok = false;
+
+      try {
+        ok = document.execCommand('copy');
+      } catch (e) {}
+
+      body.removeChild(ta);
+      return ok;
+    }
+
+    root.querySelectorAll('.lp-copy').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var code = btn.parentNode.querySelector('code');
+        if (!code) return;
+
+        var text = code.textContent.replace(/\s+/g, ' ').trim();
+
+        function done(ok) {
+          btn.textContent = ok ? 'کپی شد' : 'انتخاب کن';
+          setTimeout(function () {
+            btn.textContent = 'کپی';
+          }, 1600);
+        }
+
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(
+            function () {
+              done(true);
+            },
+            function () {
+              done(fallback(text));
+            }
+          );
+        } else {
+          done(fallback(text));
+        }
       });
-    }, { threshold: 0.12 });
-    revEls.forEach(function(el){ io.observe(el); });
-  } else {
-    revEls.forEach(function(el){ el.classList.add('visible'); });
-  }
-
-  var path = window.location.pathname;
-  
-  // Get the base prefix by finding where /fa or the end of known segments is
-  // e.g. /bgscaner/fa/  -> base=/bgscaner, lang=/fa
-  // e.g. /bgscaner/     -> base=/bgscaner, lang=
-  // e.g. /              -> base=, lang=
-  
-  var isFa = /\/fa(\/|$)/.test(path);
-  var base = path
-    .replace(/\/fa(\/.*)?$/, '')
-    .replace(/\/$/, '');
-  
-  var docsUrl = base + (isFa ? '/fa' : '') + '/docs/';
-  
-  document.querySelectorAll('.lp-docs-link').forEach(function(a) {
-    a.setAttribute('href', docsUrl);
-  });
-})();
+    });
+  })();
 </script>

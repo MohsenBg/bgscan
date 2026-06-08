@@ -5,46 +5,42 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strings"
 	"time"
 )
 
-// TCPProbe performs a TCP reachability test against a target IP address.
+// TCPProbe performs a lightweight TCP connectivity probe against a target IP address.
 //
-// It establishes a TCP connection to the specified port and measures
-// connection latency. A successful TCP handshake indicates that the
-// remote host is reachable on that port.
+// It is designed to verify Layer-4 transport reachability and measure handshake latency
+// (RTT) without relying on or making assumptions about application-layer protocols
+// (such as HTTP, SSH, or TLS).
 //
-// In addition to connectivity testing, TCPProbe performs two lightweight
-// checks:
+// The probe executes up to a specified number of attempts (tries) and returns
+// immediately upon the first successful connection handshake.
 //
-//   - A short read window to detect simple DPI-injected responses
-//     (e.g., "blocked", "filter", "deny").
-//   - A minimal write operation to verify connection stability.
+// Internally, it:
+//   - Establishes a raw TCP connection using net.Dialer
+//   - Measures the round-trip time (RTT) taken to complete the 3-way handshake
+//   - Cleanly closes the connection immediately to release network resources
 //
-// TCPProbe does not maintain background goroutines or shared state,
-// and is safe to use concurrently if each invocation uses its own instance.
+// This probe is optimized for high-throughput network scanning and does not attempt
+// application protocol negotiation or banner parsing.
 type TCPProbe struct {
-	// port is the TCP port number (as string) used for dialing.
-	port string
-
-	// timeout defines the maximum duration for establishing the TCP connection.
+	port    string
 	timeout time.Duration
-
-	// dialer is the configured net.Dialer used for context-aware dialing.
-	dialer net.Dialer
-
-	// tries defines how many times Run will attempt a Ping before failing.
-	tries uint16
+	dialer  net.Dialer
+	tries   uint16
 }
 
-// NewTCPProbe returns a configured TCPProbe for the given port and timeout.
+// NewTCPProbe creates, configures, and returns a new TCPProbe instance.
 //
 // Parameters:
-//   - port: TCP port number as a string (e.g., "80", "443").
-//   - timeout: maximum duration allowed for connection establishment.
+//   - port: The target destination port string (e.g., "80", "443").
+//   - timeout: The max duration to wait for an individual connection attempt to establish.
+//   - tries: The maximum number of retry attempts before declaring the target unreachable.
 //
-// The returned value implements the Probe interface.
+// Example:
+//
+//	p := NewTCPProbe("443", 3*time.Second, 3)
 func NewTCPProbe(port string, timeout time.Duration, tries uint16) Probe {
 	return &TCPProbe{
 		port:    port,
@@ -56,32 +52,24 @@ func NewTCPProbe(port string, timeout time.Duration, tries uint16) Probe {
 	}
 }
 
-// Init implements [Probe].
+// Init initializes the probe instance.
 //
-// TCPProbe does not allocate persistent resources or spawn background
-// goroutines, so Init currently performs no initialization and returns nil.
-//
-// The method exists to satisfy the common Probe lifecycle.
+// TCPProbe does not require persistent state initialization and always returns nil.
+// This method exists to satisfy the global Probe interface lifecycle.
 func (p *TCPProbe) Init(ctx context.Context) error {
 	return nil
 }
 
-// Run executes the TCP probe against the provided IP address.
+// Run executes the TCP probe loop against the given target IP address.
 //
-// The procedure:
+// It attempts to establish a raw TCP connection to the destination ip:port.
+// If a connection succeeds, it captures the network latency and stops.
 //
-//  1. Validates the input context for early cancellation.
-//  2. Attempts to establish a TCP connection using DialContext.
-//  3. Measures connection latency from dial start to completion.
-//  4. Performs a short read (120ms deadline) to detect potential
-//     DPI-injected responses.
-//  5. Performs a minimal write to confirm connection stability.
+// If an attempt fails due to a network timeout, it logs the failure and retries until
+// the maximum try threshold is exhausted. Non-timeout errors (e.g., Connection Refused)
+// fail fast and abort immediately to speed up scan routines.
 //
-// If the TCP handshake succeeds and no suspicious response is detected,
-// Run returns an IPScanResult containing the measured latency.
-//
-// If the context is canceled, the connection fails, or a DPI-like
-// injected response is detected, an error is returned.
+// Returns an IPScanResult struct on success, or an error detailing the root cause of failure.
 func (p *TCPProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -102,49 +90,23 @@ func (p *TCPProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, er
 			return nil, err
 		}
 
-		// Brief read window to detect injections or filtering behavior.
-		_ = conn.SetReadDeadline(time.Now().Add(120 * time.Millisecond))
-
-		buf := make([]byte, 64)
-		n, readErr := conn.Read(buf)
-		if readErr == nil && n > 0 {
-			data := string(buf[:n])
-
-			// Basic heuristic for common filtering/DPI responses.
-			if strings.Contains(data, "blocked") ||
-				strings.Contains(data, "filter") ||
-				strings.Contains(data, "deny") {
-				conn.Close()
-				return nil, fmt.Errorf("dpi injected response")
-			}
-		}
-
-		// Minimal write to verify connection stability.
-		_ = conn.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
-		if _, err = conn.Write([]byte{0}); err != nil {
-			conn.Close()
-			lastErr = err
-			if isTimeout(err) {
-				continue
-			}
-			return nil, err
-		}
+		rtt := time.Since(start)
 
 		conn.Close()
 
 		return &result.IPScanResult{
 			IP:      ip,
-			Latency: time.Since(start),
+			Latency: rtt,
 		}, nil
 	}
 
 	return nil, fmt.Errorf("tcp probe failed after %d tries: %w", p.tries, lastErr)
 }
 
-// Close implements the Probe interface.
+// Close releases any persistent infrastructure or network resources held by the probe.
 //
-// TCPProbe maintains no long-lived resources, open sockets, or background
-// goroutines. Close currently performs no action and always returns nil.
+// Since TCPProbe drops sockets instantly inside Run, it holds no persistent state,
 func (p *TCPProbe) Close() error {
 	return nil
 }
+

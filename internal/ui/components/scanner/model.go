@@ -8,7 +8,7 @@ import (
 	"bgscan/internal/ui/components/basic/progress"
 	"bgscan/internal/ui/components/basic/table"
 	"bgscan/internal/ui/components/basic/tabs"
-	"bgscan/internal/ui/components/menus/ipviewer"
+	"bgscan/internal/ui/components/tables/ipviewer"
 	"bgscan/internal/ui/shared/env"
 	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
@@ -100,7 +100,7 @@ func New(layout *layout.Layout, maxIPs int, scn *scanner.Scanner) *Model {
 		return m.immediateTick()
 	})
 
-	paddingY := lipgloss.Height(m.renderProgress(m.currentTab)) + lipgloss.Height(m.tabs.View()) + 10
+	paddingY := lipgloss.Height(m.renderProgress(m.currentTab)) + lipgloss.Height(m.tabs.View())
 	for _, v := range m.ipViewers {
 		if viewer, ok := v.(*ipviewer.Model); ok {
 			viewer.Table().SetPaddingY(paddingY)

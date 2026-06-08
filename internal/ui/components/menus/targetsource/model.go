@@ -4,9 +4,9 @@ import (
 	"bgscan/internal/core/iplist"
 	"bgscan/internal/core/result"
 	"bgscan/internal/ui/components/basic/menu"
-	iplistMenu "bgscan/internal/ui/components/menus/iplist"
-	resultlistMenu "bgscan/internal/ui/components/menus/resultlist"
 	"bgscan/internal/ui/components/menus/scantype"
+	iplistTable "bgscan/internal/ui/components/tables/iplist"
+	resultlistTable "bgscan/internal/ui/components/tables/resultlist"
 	"bgscan/internal/ui/shared/env"
 	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
@@ -49,16 +49,16 @@ func New(layout *layout.Layout) *Model {
 // OpenIPList opens the IP file picker overlay.
 // onSelect is called by the iplist component once the user picks a file.
 func (m *Model) OpenIPList(onSelect func(*iplist.IPFileInfo) tea.Cmd) tea.Msg {
-	return ui.OpenComponentMsg{Component: iplistMenu.New(m.layout, "Select IP File", onSelect)}
+	return ui.OpenComponentMsg{Component: iplistTable.New(m.layout, "Select IP File", onSelect)}
 }
 
 // OpenResultIPList opens the ResultIP file picker overlay.
 // onSelect is called by the resultlist component once the user picks a file.
 func (m *Model) OpenResultIPList(onSelect func(*result.ResultFile) tea.Cmd) tea.Msg {
-	return ui.OpenComponentMsg{Component: resultlistMenu.New(m.layout, "Select IP Result File", onSelect)}
+	var maxRenderIp uint32 = 10_000
+	return ui.OpenComponentMsg{Component: resultlistTable.New(m.layout, "Select IP Result File", maxRenderIp, onSelect)}
 }
 
-// ═══ Init ═══
 func (m *Model) Init() tea.Cmd {
 	return nil
 }

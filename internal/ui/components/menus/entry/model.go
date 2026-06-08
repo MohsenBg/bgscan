@@ -2,11 +2,11 @@ package entry
 
 import (
 	"bgscan/internal/ui/components/basic/menu"
-	"bgscan/internal/ui/components/menus/iplist"
 	"bgscan/internal/ui/components/menus/logs"
-	"bgscan/internal/ui/components/menus/outbounds"
-	"bgscan/internal/ui/components/menus/resultlist"
 	"bgscan/internal/ui/components/menus/targetsource"
+	"bgscan/internal/ui/components/tables/iplist"
+	"bgscan/internal/ui/components/tables/outbounds"
+	"bgscan/internal/ui/components/tables/resultlist"
 	"bgscan/internal/ui/shared/env"
 	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
@@ -70,8 +70,9 @@ func newMainMenu(layout *layout.Layout) *menu.Model {
 			}
 		}),
 		menu.NewMenuItem("▲", "Result Files", "r", func() tea.Msg {
+			var maxRenderIp uint32 = 10_000
 			return ui.OpenComponentMsg{
-				Component: resultlist.New(layout, "Result Files", nil),
+				Component: resultlist.New(layout, "Result Files", maxRenderIp, nil),
 			}
 		}),
 		menu.NewMenuItem("X", "Xray Outbound", "x", func() tea.Msg {
@@ -91,3 +92,4 @@ func newMainMenu(layout *layout.Layout) *menu.Model {
 	}
 	return menu.New(items, "Main Menu", layout)
 }
+

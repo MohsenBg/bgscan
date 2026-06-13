@@ -35,7 +35,7 @@ func (p *provider) Columns() []table.Column {
 }
 
 func (p *provider) Load() ([]xray.XrayOutboundsFile, error) {
-	outbounds, err := xray.GetOutboundsTemplates()
+	outbounds, err := xray.ListOutboundTemplates()
 	if err != nil {
 		logger.UIError("Failed to load outbounds: %s", err.Error())
 		return nil, err

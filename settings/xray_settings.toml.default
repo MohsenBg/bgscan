@@ -6,10 +6,6 @@ timeout = 6000
 # Larger values increase test throughput but also increase bandwidth and CPU usage.
 workers = 32
 
-# Shuffle the order of IPs before scanning.
-# This helps distribute requests evenly and avoids sequential patterns.
-shuffle_ips = true
-
 # Type of connectivity test to perform.
 # 0 = ConnectivityOnly      → Test if server is reachable (basic connection)
 # 1 = DownloadSpeedOnly     → Measure only download performance

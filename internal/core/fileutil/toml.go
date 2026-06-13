@@ -1,4 +1,4 @@
-package filemanager
+package fileutil
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ import (
 // WriteTOMLFile writes data to a TOML file at the specified path.
 // The directory will be created if it does not exist.
 func WriteTOMLFile(path string, data any) error {
-	if err := ensureDir(path); err != nil {
+	if err := EnsureDir(path); err != nil {
 		return err
 	}
 

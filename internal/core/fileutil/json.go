@@ -1,4 +1,4 @@
-package filemanager
+package fileutil
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ import (
 // The directory will be created if it does not exist.
 // Existing files are overwritten.
 func WriteJSONFile(path string, data any) error {
-	if err := ensureDir(path); err != nil {
+	if err := EnsureDir(path); err != nil {
 		return err
 	}
 

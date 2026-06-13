@@ -1,4 +1,4 @@
-package filemanager
+package fileutil
 
 import (
 	"os"
@@ -62,4 +62,3 @@ func ListFiles(
 
 	return files, nil
 }
-

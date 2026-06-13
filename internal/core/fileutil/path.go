@@ -1,4 +1,4 @@
-package filemanager
+package fileutil
 
 import (
 	"fmt"
@@ -7,11 +7,7 @@ import (
 	"strings"
 )
 
-// ═══════════════════════════════════════════════════════════
-// Path Operations
-// ═══════════════════════════════════════════════════════════
-
-// GetCurrentPath returns the absolute path of the current working directory
+// GetCurrentPath returns the absolute path of the current working directory.
 func GetCurrentPath() (string, error) {
 	path, err := os.Getwd()
 	if err != nil {
@@ -20,7 +16,7 @@ func GetCurrentPath() (string, error) {
 	return path, nil
 }
 
-// CheckFileExists checks if a file exists at the given path
+// CheckFileExists checks if a regular file exists at the given path.
 func CheckFileExists(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -29,13 +25,26 @@ func CheckFileExists(path string) bool {
 	return !info.IsDir()
 }
 
+// StripExt removes the extension from a file name or path.
 func StripExt(name string) string {
-	ext := filepath.Ext(name)
-	return strings.TrimSuffix(name, ext)
+	return strings.TrimSuffix(name, filepath.Ext(name))
 }
 
+// HasExt checks case-insensitively if a path has the specified extension (e.g., ".json").
 func HasExt(name, ext string) bool {
 	return strings.EqualFold(filepath.Ext(name), ext)
+}
+
+// EnsureDir checks and creates the target path's parent directory structures.
+func EnsureDir(path string) error {
+	dir := filepath.Dir(path)
+	if dir == "." || dir == "" {
+		return nil
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("ensure directory tree %q failed: %w", dir, err)
+	}
+	return nil
 }
 
 func GetOrCreateBaseDir(path string) (string, error) {
@@ -67,3 +76,4 @@ func GetOrCreateBaseDir(path string) (string, error) {
 
 	return absPath, nil
 }
+

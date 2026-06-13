@@ -4,192 +4,181 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
+	"math/bits"
 	"math/rand"
+	"net/netip"
 	"os"
+	"strings"
+	"time"
 )
 
-// Chunk size for in‑memory shuffling before writing to temporary files.
-const chunkSize = 100_000
+// NewMasterIndexer parses data records through the CSV engine to register positions.
+func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
+	indexer := &MasterIndexer{
+		FilePath:      filePath,
+		CIDRBlocks:    make([]CIDRBlock, 0),
+		SingleOffsets: make([]int64, 0),
+	}
 
-// chunkMeta holds metadata for each intermediate shuffled temp file.
-type chunkMeta struct {
-	path      string // temporary chunk file path
-	remaining int    // number of lines in the chunk
-}
+	err := ReadCSV(filePath, func(row IPList, offset int64) error {
+		if !row.Enable {
+			return nil
+		}
 
-// ShuffleFileFullyMemorySafe performs a full shuffle of an IP list file
-// without loading the entire dataset into memory.
-//
-// Design:
-//   - Reads active IPs via StreamActiveIPs()
-//   - Splits them into fixed‑size chunks
-//   - Each chunk is shuffled independently and stored on disk
-//   - Finally, merges all chunks using weighted random selection.
-//
-// Returns: path to the final shuffled temporary file.
-func ShuffleFileFullyMemorySafe(ctx context.Context, ipFile string) (string, error) {
-	chunks := make([]chunkMeta, 0, 16) // pre‑allocate small slice; typical use has <16 chunks
-	chunk := make([]string, 0, chunkSize)
-
-	ips := make(chan string)
-	go func() {
-		defer close(ips)
-		_ = StreamActiveIPs(ctx, ipFile, 0, ips)
-	}()
-
-	// Process incoming IPs in chunks
-	for ip := range ips {
-		chunk = append(chunk, fmt.Sprintf("%s,1", ip))
-		if len(chunk) >= chunkSize {
-			meta, err := writeShuffledChunk(chunk)
+		if row.IsCIDR() {
+			prefix, err := netip.ParsePrefix(row.IP)
 			if err != nil {
-				return "", fmt.Errorf("writing chunk: %w", err)
+				return nil
 			}
-			chunks = append(chunks, meta)
-			chunk = make([]string, 0, chunkSize)
+			addr := prefix.Masked().Addr()
+			maxBits := 32
+			if addr.Is6() {
+				maxBits = 128
+			}
+			count := uint64(1) << (maxBits - prefix.Bits())
+
+			indexer.CIDRBlocks = append(indexer.CIDRBlocks, CIDRBlock{
+				StartIP:   addr,
+				TotalIPs:  count,
+				GlobalIdx: indexer.TotalCIDRIPs,
+			})
+			indexer.TotalCIDRIPs += count
+		} else {
+			indexer.SingleOffsets = append(indexer.SingleOffsets, offset)
+			indexer.TotalSingles++
 		}
-	}
-
-	// Flush remaining entries
-	if len(chunk) > 0 {
-		meta, err := writeShuffledChunk(chunk)
-		if err != nil {
-			return "", fmt.Errorf("writing final chunk: %w", err)
-		}
-		chunks = append(chunks, meta)
-	}
-
-	// Prepare final merged file
-	finalFile, err := os.CreateTemp("", "shuffled_final_*.txt")
-	if err != nil {
-		return "", fmt.Errorf("create final temp: %w", err)
-	}
-	finalPath := finalFile.Name()
-	finalFile.Close()
-
-	if err := mergeChunksRandomlyWeighted(chunks, finalPath); err != nil {
-		return "", fmt.Errorf("merging shuffled chunks: %w", err)
-	}
-
-	// Cleanup temporary chunk files
-	for _, c := range chunks {
-		_ = os.Remove(c.path)
-	}
-
-	return finalPath, nil
-}
-
-// writeShuffledChunk writes one chunk of shuffled IPs to a temporary file.
-func writeShuffledChunk(chunk []string) (chunkMeta, error) {
-	rand.Shuffle(len(chunk), func(i, j int) {
-		chunk[i], chunk[j] = chunk[j], chunk[i]
+		return nil
 	})
 
-	tmpFile, err := os.CreateTemp("", "chunk_*.txt")
 	if err != nil {
-		return chunkMeta{}, fmt.Errorf("create temp chunk: %w", err)
-	}
-	defer tmpFile.Close()
-
-	writer := bufio.NewWriterSize(tmpFile, 64*1024)
-	for _, line := range chunk {
-		if _, err := fmt.Fprintln(writer, line); err != nil {
-			return chunkMeta{}, fmt.Errorf("write chunk: %w", err)
-		}
-	}
-	if err := writer.Flush(); err != nil {
-		return chunkMeta{}, fmt.Errorf("flush chunk writer: %w", err)
+		return nil, err
 	}
 
-	return chunkMeta{
-		path:      tmpFile.Name(),
-		remaining: len(chunk),
-	}, nil
+	indexer.GrandTotal = indexer.TotalCIDRIPs + indexer.TotalSingles
+	return indexer, nil
 }
 
-// mergeChunksRandomlyWeighted merges all shuffled chunk files into one final file
-// using weighted random selection proportional to remaining items per chunk.
-//
-// Ensures uniform probability distribution across all source chunks
-// while streaming line‑by‑line from disk (constant memory footprint).
-func mergeChunksRandomlyWeighted(chunkMetas []chunkMeta, outputPath string) error {
-	type chunkState struct {
-		file      *os.File
-		scanner   *bufio.Scanner
-		remaining int
-		current   string
-	}
-
-	var (
-		chunks         []*chunkState
-		totalRemaining int
-	)
-
-	// Initialize scanners for each chunk
-	for _, meta := range chunkMetas {
-		f, err := os.Open(meta.path)
-		if err != nil {
-			return fmt.Errorf("open chunk %s: %w", meta.path, err)
-		}
-		sc := bufio.NewScanner(f)
-		if sc.Scan() {
-			chunks = append(chunks, &chunkState{
-				file:      f,
-				scanner:   sc,
-				remaining: meta.remaining,
-				current:   sc.Text(),
-			})
-			totalRemaining += meta.remaining
-		} else {
-			f.Close() // empty chunk
-		}
-	}
-
-	outFile, err := os.Create(outputPath)
+// streamActiveIPsShuffled handles the LCG generation engine routines.
+func streamActiveIPsShuffled(ctx context.Context, path string, limit int, out chan<- string) error {
+	indexer, err := NewMasterIndexer(path)
 	if err != nil {
-		return fmt.Errorf("create output file: %w", err)
+		return fmt.Errorf("shuffled pre-scan initialization failed: %w", err)
 	}
-	defer outFile.Close()
 
-	writer := bufio.NewWriterSize(outFile, 128*1024) // larger buffer for faster merge
+	if indexer.GrandTotal == 0 {
+		return nil
+	}
 
-	for totalRemaining > 0 {
-		r := rand.Intn(totalRemaining)
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-		cumulative := 0
-		var chosen *chunkState
+	mBits := bits.Len64(indexer.GrandTotal)
+	if indexer.GrandTotal&(indexer.GrandTotal-1) == 0 {
+		mBits--
+	}
+	mSize := uint64(1) << mBits
 
-		for _, ch := range chunks { // weighted random pick
-			if ch.remaining <= 0 {
+	a := uint64(6364136223846793005) | 1
+	c := uint64(1442695040888963407)
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	state := rng.Uint64() % mSize
+
+	var dispatched uint64 = 0
+	count := 0
+
+	for dispatched < indexer.GrandTotal {
+		if limit > 0 && count >= limit {
+			break
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		state = (state*a + c) % mSize
+
+		if state >= indexer.GrandTotal {
+			continue
+		}
+
+		if state < indexer.TotalCIDRIPs {
+			generatedIP := indexer.getIPFromCIDRBlocks(state)
+			select {
+			case out <- generatedIP.String():
+				count++
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		} else {
+			singleIdx := state - indexer.TotalCIDRIPs
+			offset := indexer.SingleOffsets[singleIdx]
+
+			generatedIP, err := readIPAtCSVOffset(file, offset)
+			if err != nil {
 				continue
 			}
-			cumulative += ch.remaining
-			if r < cumulative {
-				chosen = ch
-				break
+			select {
+			case out <- generatedIP.String():
+				count++
+			case <-ctx.Done():
+				return ctx.Err()
 			}
 		}
-
-		if chosen == nil {
-			break // all exhausted
-		}
-
-		fmt.Fprintln(writer, chosen.current)
-
-		totalRemaining--
-		chosen.remaining--
-
-		if chosen.scanner.Scan() {
-			chosen.current = chosen.scanner.Text()
-		} else {
-			_ = chosen.file.Close()
-			chosen.remaining = 0
-		}
-	}
-
-	if err := writer.Flush(); err != nil {
-		return fmt.Errorf("flush output writer: %w", err)
+		dispatched++
 	}
 
 	return nil
+}
+
+func (mi *MasterIndexer) getIPFromCIDRBlocks(globalIdx uint64) netip.Addr {
+	low, high := 0, len(mi.CIDRBlocks)-1
+	var target CIDRBlock
+
+	for low <= high {
+		mid := (low + high) / 2
+		if mi.CIDRBlocks[mid].GlobalIdx <= globalIdx {
+			target = mi.CIDRBlocks[mid]
+			low = mid + 1
+		} else {
+			high = mid - 1
+		}
+	}
+
+	offset := globalIdx - target.GlobalIdx
+	ipAddr := target.StartIP
+	for range offset {
+		ipAddr = ipAddr.Next()
+	}
+	return ipAddr
+}
+
+func readIPAtCSVOffset(file *os.File, offset int64) (netip.Addr, error) {
+	_, err := file.Seek(offset, 0)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+
+	reader := bufio.NewReader(file)
+	lineBytes, err := reader.ReadBytes('\n')
+	if err != nil && err != io.EOF {
+		return netip.Addr{}, err
+	}
+
+	line := strings.TrimSpace(string(lineBytes))
+	if parts := strings.Split(line, ","); len(parts) > 0 {
+		line = strings.TrimSpace(parts[0])
+	}
+
+	ipAddr, err := netip.ParseAddr(line)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	return ipAddr, nil
 }

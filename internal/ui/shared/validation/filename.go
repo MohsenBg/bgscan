@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"bgscan/internal/core/xray"
 	"fmt"
 	"regexp"
 	"strings"
@@ -78,5 +79,16 @@ func ValidateFilename(filename string) (bool, string) {
 		return false, "Filename cannot end with a dot"
 	}
 
+	return true, ""
+}
+
+func ValidateXrayLink(link string) (bool, string) {
+	if link == "" {
+		return false, "link cannot be empty"
+	}
+	_, err := xray.ParseLink(link)
+	if err != nil {
+		return false, err.Error()
+	}
 	return true, ""
 }

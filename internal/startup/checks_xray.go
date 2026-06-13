@@ -45,7 +45,7 @@ func checkXrayHealth() {
 
 	info("[INFO] Searching for configuration templates...")
 
-	outbounds, err := xray.GetOutboundsTemplates()
+	outbounds, err := xray.ListOutboundTemplates()
 	if err != nil {
 		errMsg("Failed to retrieve outbounds", err)
 		return

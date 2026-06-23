@@ -85,6 +85,7 @@ assets/*
 # allow xray directory
 !assets/xray/
 assets/xray/xray*
+assets/xray/*.dat
 assets/xray/configs
 assets/xray/outbounds/*.json
 
@@ -98,3 +99,5 @@ assets/xray/outbounds/*.json
 settings/*.toml
 ips/*.csv
 
+#bgscan-builder
+bgscan-builder*

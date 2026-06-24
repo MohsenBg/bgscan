@@ -272,7 +272,7 @@ BIN="$(find "$TMP/extracted" -type f -name "bgscan*" | head -n 1)"
 [ -z "$BIN" ] && fatal "Binary not found inside the archive. The release may be corrupted."
 
 chmod +x "$BIN"
-mv "$BIN" "$INSTALL_DIR/bgscan"
+mv "$TMP/extracted/*" "$INSTALL_DIR/bgscan"
 ok "Binary installed at ${BOLD}$INSTALL_DIR/bgscan${RESET}"
 
 # ── 8. Done ──────────────────────────────────────────────────

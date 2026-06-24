@@ -199,11 +199,7 @@ ok "Platform supported"
 
 # ── 2. Resolve install location ─────────────────────────────
 section "Install location"
-case "$OS" in
-  termux) INSTALL_BASE="/data/data/com.termux/files/usr/bin" ;;
-  *)      INSTALL_BASE="/usr/local/bin" ;;
-esac
-INSTALL_DIR="$INSTALL_BASE/bgscan"
+INSTALL_DIR="$PWD/bgscan"
 info "Target : ${BOLD}$INSTALL_DIR${RESET}"
 
 # ── 3. Handle existing install ───────────────────────────────

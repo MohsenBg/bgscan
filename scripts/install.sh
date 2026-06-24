@@ -41,11 +41,11 @@ print_banner() {
   echo -e ""
 }
 
-step()    { echo -e "  ${BLUE}${BOLD}→${RESET}  ${WHITE}$*${RESET}"; }
-ok()      { echo -e "  ${GREEN}${BOLD}✔${RESET}  ${GREEN}$*${RESET}"; }
-warn()    { echo -e "  ${YELLOW}${BOLD}⚠${RESET}  ${YELLOW}$*${RESET}"; }
-info()    { echo -e "  ${GREY}   $*${RESET}"; }
-fatal()   {
+step() { echo -e "  ${BLUE}${BOLD}→${RESET}  ${WHITE}$*${RESET}"; }
+ok() { echo -e "  ${GREEN}${BOLD}✔${RESET}  ${GREEN}$*${RESET}"; }
+warn() { echo -e "  ${YELLOW}${BOLD}⚠${RESET}  ${YELLOW}$*${RESET}"; }
+info() { echo -e "  ${GREY}   $*${RESET}"; }
+fatal() {
   echo -e ""
   echo -e "  ${RED}${BOLD}✖  Error:${RESET} ${RED}$*${RESET}"
   echo -e ""
@@ -59,7 +59,8 @@ section() {
 }
 
 prompt_choice() {
-  local _question="$1"; shift
+  local _question="$1"
+  shift
   local _options=("$@")
   echo -e ""
   echo -e "  ${WHITE}${BOLD}$_question${RESET}"
@@ -67,7 +68,7 @@ prompt_choice() {
   local i=1
   for opt in "${_options[@]}"; do
     echo -e "    ${CYAN}${BOLD}[$i]${RESET}  ${WHITE}$opt${RESET}"
-    (( i++ ))
+    ((i++))
   done
   echo -e ""
   printf "  ${BOLD}Your choice:${RESET} "
@@ -84,7 +85,7 @@ spinner() {
   tput civis 2>/dev/null || true
   while kill -0 "$pid" 2>/dev/null; do
     printf "\r  ${CYAN}${BOLD}%s${RESET}  ${WHITE}%s${RESET}  " "${frames[$i]}" "$label"
-    i=$(( (i + 1) % ${#frames[@]} ))
+    i=$(((i + 1) % ${#frames[@]}))
     sleep "$delay"
   done
   printf "\r%-60s\r" " "
@@ -97,9 +98,9 @@ detect_platform() {
   ARCH="$(uname -m)"
 
   case "$OS" in
-    Linux*)  OS="linux"  ;;
-    Darwin*) OS="macos"  ;;
-    *)       OS="unknown";;
+  Linux*) OS="linux" ;;
+  Darwin*) OS="macos" ;;
+  *) OS="unknown" ;;
   esac
 
   # Termux check
@@ -117,11 +118,16 @@ ensure_unzip() {
 
   warn "unzip not found — attempting to install..."
 
-  if   command -v apt   >/dev/null 2>&1; then sudo apt-get update -qq && sudo apt-get install -y unzip
-  elif command -v apk   >/dev/null 2>&1; then sudo apk add --no-cache unzip
-  elif command -v yum   >/dev/null 2>&1; then sudo yum install -y unzip
-  elif command -v dnf   >/dev/null 2>&1; then sudo dnf install -y unzip
-  elif command -v pkg   >/dev/null 2>&1; then pkg install unzip -y
+  if command -v apt >/dev/null 2>&1; then
+    sudo apt-get update -qq && sudo apt-get install -y unzip
+  elif command -v apk >/dev/null 2>&1; then
+    sudo apk add --no-cache unzip
+  elif command -v yum >/dev/null 2>&1; then
+    sudo yum install -y unzip
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y unzip
+  elif command -v pkg >/dev/null 2>&1; then
+    pkg install unzip -y
   elif [ "$OS" = "macos" ]; then
     fatal "unzip missing. Install Xcode Command Line Tools:\n\n    xcode-select --install"
   else
@@ -134,49 +140,52 @@ ensure_unzip() {
 # ── resolve asset name ───────────────────────────────────────
 resolve_asset() {
   case "$OS" in
-    linux)
-      case "$ARCH" in
-        x86_64)           echo "bgscan-linux-64.zip"         ;;
-        aarch64|arm64)    echo "bgscan-linux-arm64.zip"      ;;
-        armv7l|armv7*)    echo "bgscan-linux-arm32-v7a.zip"  ;;
-        i386|i686)        echo "bgscan-linux-32.zip"         ;;
-        *) return 1 ;;
-      esac ;;
-    macos)
-      case "$ARCH" in
-        arm64)   echo "bgscan-macos-arm64.zip" ;;
-        x86_64)  echo "bgscan-macos-64.zip"    ;;
-        *) return 1 ;;
-      esac ;;
-    termux)
-      case "$ARCH" in
-        aarch64|arm64)  echo "bgscan-android-arm64-v8a.zip"  ;;
-        armv7l|armv7*)  echo "bgscan-android-armeabi-v7a.zip";;
-        x86_64)         echo "bgscan-android-x86_64.zip"     ;;
-        i686|x86)       echo "bgscan-android-x86.zip"        ;;
-        *) return 1 ;;
-      esac ;;
+  linux)
+    case "$ARCH" in
+    x86_64) echo "bgscan-linux-64.zip" ;;
+    aarch64 | arm64) echo "bgscan-linux-arm64.zip" ;;
+    armv7l | armv7*) echo "bgscan-linux-arm32-v7a.zip" ;;
+    i386 | i686) echo "bgscan-linux-32.zip" ;;
     *) return 1 ;;
+    esac
+    ;;
+  macos)
+    case "$ARCH" in
+    arm64) echo "bgscan-macos-arm64.zip" ;;
+    x86_64) echo "bgscan-macos-64.zip" ;;
+    *) return 1 ;;
+    esac
+    ;;
+  termux)
+    case "$ARCH" in
+    aarch64 | arm64) echo "bgscan-android-arm64-v8a.zip" ;;
+    armv7l | armv7*) echo "bgscan-android-armeabi-v7a.zip" ;;
+    x86_64) echo "bgscan-android-x86_64.zip" ;;
+    i686 | x86) echo "bgscan-android-x86.zip" ;;
+    *) return 1 ;;
+    esac
+    ;;
+  *) return 1 ;;
   esac
 }
 
 # ── fetch latest release download URL ───────────────────────
 fetch_download_url() {
   local asset="$1"
-  curl -fsSL "$API" \
-    | grep -o '"browser_download_url": *"[^"]*"' \
-    | grep "$asset" \
-    | cut -d '"' -f4
+  curl -fsSL "$API" |
+    grep -o '"browser_download_url": *"[^"]*"' |
+    grep "$asset" |
+    cut -d '"' -f4
 }
 
 # ── progress download with curl ─────────────────────────────
 download_with_progress() {
   local url="$1"
   local dest="$2"
-  curl -L --progress-bar "$url" -o "$dest" 2>&1 \
-    | while IFS= read -r line; do
-        printf "  ${GREY}%s${RESET}\n" "$line"
-      done
+  curl -L --progress-bar "$url" -o "$dest" 2>&1 |
+    while IFS= read -r line; do
+      printf "  ${GREY}%s${RESET}\n" "$line"
+    done
   # also works without progress pipe — just use curl directly if terminal
   curl -L --progress-bar "$url" -o "$dest"
 }
@@ -214,24 +223,24 @@ if [ -d "$INSTALL_DIR" ]; then
     "Cancel — exit the installer")"
 
   case "$CHOICE" in
-    1)
-      step "Removing old installation..."
-      rm -rf "$INSTALL_DIR"
-      ok "Old installation removed"
-      ;;
-    2)
-      BACKUP="${INSTALL_DIR}_old"
-      step "Backing up to ${BACKUP}..."
-      [ -d "$BACKUP" ] && rm -rf "$BACKUP"
-      mv "$INSTALL_DIR" "$BACKUP"
-      ok "Backup saved to $BACKUP"
-      ;;
-    *)
-      echo ""
-      info "Installation cancelled. No changes were made."
-      echo ""
-      exit 0
-      ;;
+  1)
+    step "Removing old installation..."
+    rm -rf "$INSTALL_DIR"
+    ok "Old installation removed"
+    ;;
+  2)
+    BACKUP="${INSTALL_DIR}_old"
+    step "Backing up to ${BACKUP}..."
+    [ -d "$BACKUP" ] && rm -rf "$BACKUP"
+    mv "$INSTALL_DIR" "$BACKUP"
+    ok "Backup saved to $BACKUP"
+    ;;
+  *)
+    echo ""
+    info "Installation cancelled. No changes were made."
+    echo ""
+    exit 0
+    ;;
   esac
 fi
 
@@ -258,22 +267,29 @@ trap 'rm -rf "$TMP"' EXIT
 
 step "Downloading $ASSET..."
 echo ""
-(curl -L --progress-bar "$URL" -o "$TMP/bgscan.zip") 2>&1 | \
+(curl -L --progress-bar "$URL" -o "$TMP/bgscan.zip") 2>&1 |
   sed "s/^/  /"
 echo ""
 ok "Download complete"
 
 # ── 7. Extract & install ─────────────────────────────────────
 section "Installing"
+
 step "Extracting archive..."
 unzip -q "$TMP/bgscan.zip" -d "$TMP/extracted"
 
-BIN="$(find "$TMP/extracted" -type f -name "bgscan*" | head -n 1)"
-[ -z "$BIN" ] && fatal "Binary not found inside the archive. The release may be corrupted."
+SRC_DIR="$(find "$TMP/extracted" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+[ -z "$SRC_DIR" ] && fatal "Invalid archive structure"
 
-chmod +x "$BIN"
-mv "$TMP/extracted/*" "$INSTALL_DIR/bgscan"
-ok "Binary installed at ${BOLD}$INSTALL_DIR/bgscan${RESET}"
+step "Installing files..."
+rm -rf "$INSTALL_DIR"
+mkdir -p "$INSTALL_DIR"
+
+cp -R "$SRC_DIR/." "$INSTALL_DIR/"
+
+find "$INSTALL_DIR" -type f -name "bgscan*" -exec chmod +x {} \;
+
+ok "Installed at ${BOLD}$INSTALL_DIR${RESET}"
 
 # ── 8. Done ──────────────────────────────────────────────────
 echo ""
@@ -288,3 +304,4 @@ echo -e ""
 echo -e "  ${GREY}Docs & source: https://github.com/${REPO}${RESET}"
 echo -e "  ${GREY}────────────────────────────────────────────────────${RESET}"
 echo -e ""
+

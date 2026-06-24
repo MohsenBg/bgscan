@@ -77,18 +77,30 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v7
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          check-latest: true
+
+      - name: Verify Go installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          go version
+
       - name: Make build scripts executable
         shell: bash
         run: chmod +x ./scripts/*.sh
 
       - name: Run build
         shell: bash
-        run: ./scripts/release.sh "${{ matrix.target }}" all .
+        run: mkdir -p ./dist && ./scripts/release.sh "${{ matrix.target }}" all .
 
       - name: Verify dist output exists
         shell: bash
         run: |
-          set -euo pipefail
+          ls dist/ && set -euo pipefail
           if [ -z "$(ls -A dist/ 2>/dev/null)" ]; then
             echo "ERROR: dist/ is empty after build for target '${{ matrix.target }}'" >&2
             exit 1

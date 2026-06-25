@@ -6,6 +6,8 @@
 
 ## ICMP Settings
 
+Configuration file: `settings/icmp_settings.toml`
+
 These settings control the behavior of the ICMP scanner, including response timeouts, retry attempts, concurrency levels, and output file naming.
 
 ---
@@ -82,8 +84,8 @@ This is useful when multiple scanner types are executed within the same project 
 
 | Value       | Example Output       |
 | ----------- | -------------------- |
-| `"icmp_"`   | `icmp_results.txt`   |
-| `"ping_"`   | `ping_results.txt`   |
-| `"custom_"` | `custom_results.txt` |
+| `"icmp_"`   | `icmp_results.csv`   |
+| `"ping_"`   | `ping_results.csv`   |
+| `"custom_"` | `custom_results.csv` |
 
 > This setting only affects output file names and does not change scanning behavior.

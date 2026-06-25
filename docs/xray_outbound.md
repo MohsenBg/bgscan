@@ -154,10 +154,10 @@ The scanner replaces `$ADDRESS` automatically during testing.
 
 You must fill in:
 
-- `id` → Your VLESS UUID  
-- `serverName` → TLS SNI  
-- `path` → WebSocket path  
-- `Host` → Host header  
+- `id` → Your VLESS UUID
+- `serverName` → TLS SNI
+- `path` → WebSocket path
+- `Host` → Host header
 
 ---
 
@@ -165,7 +165,7 @@ You must fill in:
 
 After saving the JSON file:
 
-1. Open the **BGScan** application.  
+1. Open the **BGScan** application.
 2. Navigate to:
 
 ```

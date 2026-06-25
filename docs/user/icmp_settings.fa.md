@@ -82,8 +82,8 @@ prefix_output = "icmp_"
 
 | مقدار       | نمونه خروجی          |
 | ----------- | -------------------- |
-| `"icmp_"`   | `icmp_results.txt`   |
-| `"ping_"`   | `ping_results.txt`   |
-| `"custom_"` | `custom_results.txt` |
+| `"icmp_"`   | `icmp_results.csv`   |
+| `"ping_"`   | `ping_results.csv`   |
+| `"custom_"` | `custom_results.csv` |
 
 > تغییر این مقدار روی فرآیند اسکن تأثیری ندارد و فقط نام فایل‌های خروجی را تغییر می‌دهد.

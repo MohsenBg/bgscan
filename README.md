@@ -11,7 +11,10 @@
 
 **Blazing-fast multi-protocol scanner with modular chain architecture**
 
+[**English**](./README.md) &nbsp;|&nbsp; [**فارسی**](./README.fa.md)
+
 </div>
+
 
 <div align="center">
 

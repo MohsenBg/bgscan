@@ -10,7 +10,7 @@ type GeneralConfig struct {
 	StatusInterval DurationMS `toml:"status_interval"`
 	StopAfterFound int        `toml:"stop_after_found"`
 	MaxIPsToTest   int        `toml:"max_ips_to_test"`
-	ChainMode      string     `toml:"chain_mode"`
+	PipelineMode   string     `toml:"pipeline_mode"`
 	MaxIPsPerStage int        `toml:"max_ips_per_stage"`
 	BatchSize      int        `toml:"batch_size"`
 	Shuffled       bool       `toml:"shuffled"`
@@ -66,18 +66,18 @@ func (g *GeneralConfig) Normalize(rep *ValidationReport) {
 		rep,
 	)
 
-	// Validate ChainMode.
-	mode := strings.ToLower(strings.TrimSpace(g.ChainMode))
+	// Validate PiplineMode.
+	mode := strings.ToLower(strings.TrimSpace(g.PipelineMode))
 	switch mode {
 	case "sequential", "simple", "streaming", "parallel", "batch", "pipeline":
-		g.ChainMode = mode
+		g.PipelineMode = mode
 	default:
-		old := g.ChainMode
-		g.ChainMode = def.ChainMode
+		old := g.PipelineMode
+		g.PipelineMode = def.PipelineMode
 		rep.AddChange(
-			"General.ChainMode",
+			"General.PiplineMode",
 			old,
-			g.ChainMode,
+			g.PipelineMode,
 			"invalid → default (allowed: sequential, streaming,  batch)",
 		)
 	}

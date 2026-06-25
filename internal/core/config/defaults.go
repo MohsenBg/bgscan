@@ -11,7 +11,7 @@ func DefaultGeneralConfig() *GeneralConfig {
 		MaxIPsPerStage: 100_000,
 		BatchSize:      5_000,
 		Shuffled:       false,
-		ChainMode:      "simple",
+		PipelineMode:   "streaming",
 	}
 }
 

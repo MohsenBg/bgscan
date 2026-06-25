@@ -151,7 +151,7 @@ func (s *Scanner) runChain(stages []StageConfig) {
 		}
 	}
 	engine.RunScanWithChain(s.ctx, s.input, config.GetGeneral().MaxIPsToTest, &engine.ChainConfig{
-		Mode:      engine.ParsePipelineMode(config.GetGeneral().ChainMode),
+		Mode:      engine.ParsePipelineMode(config.GetGeneral().PipelineMode),
 		Stages:    engineStages,
 		Pause:     s.pause,
 		Shuffled:  config.GetGeneral().Shuffled,

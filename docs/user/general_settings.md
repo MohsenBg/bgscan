@@ -1,6 +1,6 @@
 <div align="right">
   
-  [**English**](./README.md) &nbsp;|&nbsp; [**فارسی**](./README.fa.md)
+  [**English**](./general_settings.md) &nbsp;|&nbsp; [**فارسی**](./general_settings.fa.md)
   
 </div>
 

@@ -1,19 +1,19 @@
 <div align="center">
 
-<br/>
-
-```
+<pre>
 ██████╗  ██████╗ ███████╗ ██████╗ █████╗ ███╗   ██╗
 ██╔══██╗██╔════╝ ██╔════╝██╔════╝██╔══██╗████╗  ██║
 ██████╔╝██║  ███╗███████╗██║     ███████║██╔██╗ ██║
 ██╔══██╗██║   ██║╚════██║██║     ██╔══██║██║╚██╗██║
 ██████╔╝╚██████╔╝███████║╚██████╗██║  ██║██║ ╚████║
 ╚═════╝  ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝
-```
+</pre>
 
 **Blazing-fast multi-protocol scanner with modular chain architecture**
 
-<br/>
+</div>
+
+<div align="center">
 
 [![Go Version](https://img.shields.io/badge/Go-1.26.3+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-6366f1?style=flat-square)](LICENSE)

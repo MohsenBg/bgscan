@@ -296,7 +296,7 @@ After saving the JSON file:
 3. Your new outbound will appear automatically in the list.
 
 ![menu](https://github.com/user-attachments/assets/583d4d51-a718-40c0-9272-292c4d0c9c1b)
-![outbounds]([./images/outbounds.png](https://github.com/user-attachments/assets/99c9e713-2811-4787-8247-4056dfeefb81)
+![outbounds]((https://github.com/user-attachments/assets/99c9e713-2811-4787-8247-4056dfeefb81)
 
 ---
 

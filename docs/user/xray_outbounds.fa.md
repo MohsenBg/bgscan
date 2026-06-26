@@ -46,7 +46,7 @@ Xray → Outbounds
 
 <div dir="rtl">
 
-3. دکمه/کلید **Add Outbound** را بزنید تا پنجره **Add Outbound** باز شود.
+3. دکمه/کلید **a** را بزنید تا پنجره **Add Outbound** باز شود.
 
 ![menu](https://github.com/user-attachments/assets/d2a38b21-bf09-44b7-bca4-4267a284740b)
 

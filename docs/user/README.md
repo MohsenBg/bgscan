@@ -1,4 +1,4 @@
-<div align="rgiht">
+<div align="left">
 
 [**English**](./README.md)  |  [**فارسی**](./README.fa.md)
 

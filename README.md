@@ -1,13 +1,10 @@
 <div align="center">
 
-<pre>
-██████╗  ██████╗ ███████╗ ██████╗ █████╗ ███╗   ██╗
-██╔══██╗██╔════╝ ██╔════╝██╔════╝██╔══██╗████╗  ██║
-██████╔╝██║  ███╗███████╗██║     ███████║██╔██╗ ██║
-██╔══██╗██║   ██║╚════██║██║     ██╔══██║██║╚██╗██║
-██████╔╝╚██████╔╝███████║╚██████╗██║  ██║██║ ╚████║
-╚═════╝  ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝
-</pre>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./assets/logo-light.svg">
+  <img src="./assets/logo-light.svg" alt="BGSCAN" width="520" style="max-width:100%;">
+</picture>
 
 **Blazing-fast multi-protocol scanner with modular chain architecture**
 

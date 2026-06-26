@@ -1,3 +1,9 @@
+<div align="right">
+
+[**English**](./xray_outbounds.md)  |  [**فارسی**](./xray_outbounds.fa.md)
+
+</div>
+
 # Adding a Custom Xray Outbound
 
 ## Table of Contents
@@ -11,8 +17,6 @@
   - [2. Copy and Rename a Template](#2-copy-and-rename-a-template)
   - [3. Edit the Configuration File](#3-edit-the-configuration-file)
   - [4. Using Your Outbound in BGScan](#4-using-your-outbound-in-bgscan)
-- [Summary](#summary)
-
 ---
 
 BGScan supports two ways to add a custom Xray outbound:
@@ -33,7 +37,7 @@ This is the fastest way to add an outbound — no manual file editing required.
    ```
    Xray → Outbounds
    ```
-3. Press the **Add Outbound** key/button to open the **Add Outbound** dialog.
+3. Press the **a** key/button to open the **Add Outbound** dialog.
 
 ![menu](https://github.com/user-attachments/assets/d2a38b21-bf09-44b7-bca4-4267a284740b)
 
@@ -298,11 +302,3 @@ After saving the JSON file:
 ![menu](https://github.com/user-attachments/assets/583d4d51-a718-40c0-9272-292c4d0c9c1b)
 ![outbounds](https://github.com/user-attachments/assets/99c9e713-2811-4787-8247-4056dfeefb81)
 
----
-
-## Summary
-
-| Method | Best for |
-|---|---|
-| **Interactive Wizard** | Quick setup from a share link or existing JSON file, no manual editing |
-| **Manual Template Editing** | Full control, custom protocols/transports not yet covered by templates |

@@ -78,15 +78,3 @@ func (m *model) getOverlayPlacement(id ui.ComponentID) *OverlayPlacement {
 	m.overlayPlacements[id] = p
 	return p
 }
-
-// setOverlayPlacement registers the placement configuration
-// for a specific overlay component.
-func (m *model) setOverlayPlacement(id ui.ComponentID, placement *OverlayPlacement) {
-	m.overlayPlacements[id] = placement
-}
-
-// removeOverlayPlacement removes the placement metadata
-// associated with an overlay component.
-func (m *model) removeOverlayPlacement(id ui.ComponentID) {
-	delete(m.overlayPlacements, id)
-}

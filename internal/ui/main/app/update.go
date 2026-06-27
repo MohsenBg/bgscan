@@ -1,13 +1,14 @@
 package app
 
 import (
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
 	"bytes"
 	"runtime"
 	"runtime/pprof"
 	"strings"
+
+	"bgscan/internal/logger"
+	"bgscan/internal/ui/shared/env"
+	"bgscan/internal/ui/shared/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -33,9 +34,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// dump Goroutine for DebugInfo
-		// if msg.String() == tea.KeyCtrlT.String() {
-		// 	dumpGoroutines()
-		// }
+		if msg.String() == tea.KeyCtrlT.String() {
+			dumpGoroutines()
+		}
 
 		// Overlay back/quit handling
 		if len(m.layers) > 0 {

@@ -1,12 +1,14 @@
 package menu
 
 import (
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
 	"fmt"
 	"io"
 	"strings"
+
+	"bgscan/internal/logger"
+	"bgscan/internal/ui/shared/env"
+	"bgscan/internal/ui/shared/layout"
+	"bgscan/internal/ui/shared/ui"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -79,10 +81,6 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	var leftSection, rightSection string
 
-	// Add icon if enabled
-	if d.showIcon && item.icon != "" {
-	}
-
 	// Add title with appropriate style based on selection
 	titleText := item.title
 	if index == m.Index() {
@@ -96,8 +94,7 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	// Add shortcut if enabled
 	if d.showShortcut && item.shortcut != "" {
-		shortcutText := fmt.Sprintf("%s", item.shortcut)
-		rightSection += shortcutStyle().Render(shortcutText)
+		rightSection += shortcutStyle().Render(item.shortcut)
 	}
 
 	// Calculate gap to space out left and right sections
@@ -111,7 +108,9 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		rightSection,
 	)
 
-	fmt.Fprint(w, PaddingCell().Render(line))
+	if _, err := fmt.Fprint(w, PaddingCell().Render(line)); err != nil {
+		logger.UIError("error rendering menu item %v", err)
+	}
 }
 
 // Model represents the menu component state.
@@ -209,6 +208,7 @@ func (m *Model) SetItems(items []MenuItem) tea.Cmd {
 	}
 	return m.List.SetItems(listItems)
 }
+
 func (m *Model) Mode() env.Mode {
 	return env.NormalMode
 }

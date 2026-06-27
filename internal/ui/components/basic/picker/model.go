@@ -1,10 +1,11 @@
 package picker
 
 import (
+	"os"
+
 	"bgscan/internal/ui/shared/env"
 	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
-	"os"
 
 	"github.com/charmbracelet/bubbles/filepicker"
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,7 +22,6 @@ import (
 //   - Invoke a callback when a file is selected
 //   - Close itself through the component manager
 type Model struct {
-
 	// Component metadata
 	id   ui.ComponentID
 	name string
@@ -37,16 +37,6 @@ type Model struct {
 
 	// Callback triggered when a file is selected
 	OnSelect OnSelect
-}
-
-// arrowKeyCmd generates a synthetic arrow key message.
-//
-// This is useful when programmatically triggering navigation
-// inside the file picker.
-func arrowKeyCmd(k tea.KeyType) tea.Cmd {
-	return func() tea.Msg {
-		return tea.KeyMsg{Type: k}
-	}
 }
 
 // Init initializes the underlying file picker component.
@@ -89,7 +79,6 @@ func (m *Model) CloseCmd() tea.Cmd {
 //   - If allowType is provided, only those file types are selectable
 //   - A no‑op callback is used if onSelect is nil
 func New(layout *layout.Layout, title string, baseDir string, allowType []string, onSelect OnSelect) *Model {
-
 	p := filepicker.New()
 
 	if baseDir != "" {

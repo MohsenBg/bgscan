@@ -28,10 +28,6 @@ func warningStyle() lipgloss.Style {
 		Padding(1, 2)
 }
 
-func iconStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Width(10)
-}
-
 func centerStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Align(lipgloss.Center, lipgloss.Center)

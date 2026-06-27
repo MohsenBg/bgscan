@@ -21,7 +21,8 @@ func (m *Model) View() string {
 
 	// Left section: application info
 	leftSection := leftSectionStyle(leftWidth).Render(
-		fmt.Sprintf("%s %s %s",
+		fmt.Sprintf(
+			"%s %s %s",
 			iconStyle().Render("⚡"),
 			appNameStyle().Render("BGScan"),
 			versionStyle().Render("v"+m.appVersion),
@@ -63,19 +64,4 @@ func (m *Model) View() string {
 	)
 
 	return containerStyle(width, height).Render(footer)
-}
-
-func memoryBar(used uint64, max uint64, width int) string {
-	if max == 0 {
-		return ""
-	}
-
-	usage := float64(used) / float64(max)
-
-	filled := int(usage * float64(width))
-
-	bar := strings.Repeat("▓", filled) +
-		strings.Repeat("░", width-filled)
-
-	return bar
 }

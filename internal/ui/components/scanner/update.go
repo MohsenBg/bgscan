@@ -1,13 +1,14 @@
 package scanner
 
 import (
+	"fmt"
+
 	"bgscan/internal/logger"
 	"bgscan/internal/ui/components/basic/confirm"
 	logview "bgscan/internal/ui/components/basic/logview"
 	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/components/basic/progress"
 	"bgscan/internal/ui/shared/ui"
-	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -127,10 +128,6 @@ func (m *Model) openLogViewer() tea.Cmd {
 
 func (m *Model) errorCmd(title, msg string) tea.Cmd {
 	return notice.NewNoticeCmd(m.layout, title, msg, notice.NOTICE_ERROR)
-}
-
-func (m *Model) infoCmd(title, msg string) tea.Cmd {
-	return notice.NewNoticeCmd(m.layout, title, msg, notice.NOTICE_INFO)
 }
 
 //

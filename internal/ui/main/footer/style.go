@@ -85,21 +85,6 @@ var (
 			Bold(true)
 	}
 
-	timeStyle = func() lipgloss.Style {
-		t := theme.Current()
-
-		return lipgloss.NewStyle().
-			Foreground(t.Secondary)
-	}
-
-	helpStyle = func() lipgloss.Style {
-		t := theme.Current()
-
-		return lipgloss.NewStyle().
-			Foreground(t.Muted).
-			Italic(true)
-	}
-
 	iconStyle = func() lipgloss.Style {
 		t := theme.Current()
 

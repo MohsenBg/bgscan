@@ -1,12 +1,13 @@
 package dns
 
 import (
-	"bgscan/internal/core/process"
-	"bgscan/internal/core/scanner/portmgr"
 	"context"
 	"fmt"
 	"net"
 	"time"
+
+	"bgscan/internal/core/process"
+	"bgscan/internal/core/scanner/portmgr"
 )
 
 // DNSTTClientPaths returns candidate filesystem paths where the dnstt-client

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"bgscan/internal/logger"
 )
 
 const (
@@ -73,7 +75,11 @@ func MeasureLatency(ctx context.Context, timeout time.Duration, proxyPort uint16
 		}
 		return 0, fmt.Errorf("latency probe failed (proxy port %d): %w", proxyPort, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.CoreError("error closing response body: %v", err)
+		}
+	}()
 
 	return time.Since(start), nil
 }
@@ -104,7 +110,12 @@ func MeasureDownloadDuration(ctx context.Context, timeout time.Duration, bytesSi
 		}
 		return 0, fmt.Errorf("download probe failed (proxy port %d): %w", proxyPort, err)
 	}
-	defer resp.Body.Close()
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.CoreError("error closing response body: %v", err)
+		}
+	}()
 
 	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
@@ -144,8 +155,12 @@ func MeasureUploadDuration(ctx context.Context, timeout time.Duration, bytesSize
 		}
 		return 0, fmt.Errorf("upload probe failed (proxy port %d): %w", proxyPort, err)
 	}
-	defer resp.Body.Close()
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.CoreError("error closing response body: %v", err)
+		}
+	}()
 
 	return time.Since(start), nil
 }
-

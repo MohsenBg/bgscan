@@ -1,15 +1,17 @@
 package probe
 
 import (
-	"bgscan/internal/core/config"
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/netutil"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
 	"time"
+
+	"bgscan/internal/core/config"
+	"bgscan/internal/core/result"
+	"bgscan/internal/core/scanner/netutil"
+	"bgscan/internal/logger"
 )
 
 //
@@ -37,7 +39,6 @@ type HTTPProbe struct {
 // Instances of HTTPRequest are typically produced by
 // NewHTTPRequestFromConfig after validating and normalizing user input.
 type HTTPRequest struct {
-
 	// URL is the complete request URL including scheme, hostname, and port.
 	//
 	// Example:
@@ -111,7 +112,6 @@ func (p *HTTPProbe) Init(ctx context.Context) error {
 // The function respects context cancellation and will abort early
 // if the provided context is canceled.
 func (p *HTTPProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, error) {
-
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -129,7 +129,12 @@ func (p *HTTPProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, e
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.CoreError("error closing response body: %v", err)
+		}
+	}()
 
 	return &result.IPScanResult{
 		IP:      ip,
@@ -151,18 +156,15 @@ func (p *HTTPProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, e
 //   - Disables connection reuse for predictable probe behavior
 //   - Applies strict timeouts suitable for high‑volume scans
 func (p *HTTPProbe) buildHTTPClient(ip string) *http.Client {
-
 	dialer := &net.Dialer{
 		Timeout: p.req.Timeout,
 	}
 
 	transport := &http.Transport{
-
 		// DialContext overrides the destination address so the TCP
 		// connection is made directly to the provided IP instead of
 		// resolving the hostname via DNS.
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-
 			_, port, err := net.SplitHostPort(addr)
 			if err != nil {
 				return nil, err
@@ -210,7 +212,6 @@ func (p *HTTPProbe) buildHTTPClient(ip string) *http.Client {
 //   - Resolves TLS Server Name Indication (SNI)
 //   - Parses TLS version constraints
 func NewHTTPRequestFromConfig(cfg config.HTTPConfig) (*HTTPRequest, error) {
-
 	scheme := netutil.ProtocolToScheme(cfg.Protocol)
 	isHTTPS := netutil.IsHTTPS(scheme)
 
@@ -256,7 +257,6 @@ func NewHTTPRequestFromConfig(cfg config.HTTPConfig) (*HTTPRequest, error) {
 // resolvePort returns the configured port if provided,
 // otherwise the protocol default (443 for HTTPS, 80 for HTTP).
 func resolvePort(port int, isHTTPS bool) uint16 {
-
 	if port > 0 {
 		return uint16(port)
 	}
@@ -274,7 +274,6 @@ func resolvePort(port int, isHTTPS bool) uint16 {
 // If HTTPS is disabled or no server name is provided,
 // an empty string is returned.
 func resolveSNI(serverName string, isHTTPS bool) (string, error) {
-
 	if !isHTTPS || serverName == "" {
 		return "", nil
 	}
@@ -285,7 +284,6 @@ func resolveSNI(serverName string, isHTTPS bool) (string, error) {
 // resolveTLSVersions parses TLS version constraints from configuration
 // and validates that the minimum version is not greater than the maximum.
 func resolveTLSVersions(cfg config.HTTPConfig) (uint16, uint16, error) {
-
 	minTLS, err := netutil.ParseTLSVersion(cfg.MinTLSVersion)
 	if err != nil {
 		return 0, 0, err

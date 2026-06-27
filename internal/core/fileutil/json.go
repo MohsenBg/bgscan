@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"bgscan/internal/logger"
 )
 
 // ═══════════════════════════════════════════════════════════
@@ -22,7 +24,11 @@ func WriteJSONFile(path string, data any) error {
 	if err != nil {
 		return fmt.Errorf("create json file %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.CoreError("error closing file: %v", err)
+		}
+	}()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")

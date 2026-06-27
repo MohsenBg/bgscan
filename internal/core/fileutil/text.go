@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"bgscan/internal/logger"
 )
 
 type TextStreamConfig struct {
@@ -18,7 +20,7 @@ func WriteTextFile(path string, content string) error {
 	if err := EnsureDir(path); err != nil {
 		return err
 	}
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write text file: %w", err)
 	}
 	return nil
@@ -44,11 +46,15 @@ func AppendTextFile(path string, content string) error {
 		return err
 	}
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return fmt.Errorf("open text file append mode: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.CoreError("error closing file: %v", err)
+		}
+	}()
 
 	if _, err := f.WriteString(content); err != nil {
 		return fmt.Errorf("append text file: %w", err)
@@ -61,7 +67,11 @@ func StreamTextFile(ctx context.Context, path string, cfg TextStreamConfig, hand
 	if err != nil {
 		return fmt.Errorf("open text file stream: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.CoreError("error closing file: %v", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(f)
 
@@ -118,9 +128,13 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("open source file: %w", err)
 	}
-	defer in.Close()
+	defer func() {
+		if err := in.Close(); err != nil {
+			logger.CoreError("error closing file: %v", err)
+		}
+	}()
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644)
 	if err != nil {
 		return fmt.Errorf("create destination file: %w", err)
 	}

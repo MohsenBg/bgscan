@@ -1,9 +1,10 @@
 package probe
 
 import (
-	"bgscan/internal/core/process"
 	"context"
 	"sync"
+
+	"bgscan/internal/core/process"
 
 	"github.com/google/uuid"
 )
@@ -17,10 +18,9 @@ const (
 )
 
 type action struct {
-	id     string
-	proc   *process.Process
-	op     opType
-	respCh chan map[string]*process.Process
+	id   string
+	proc *process.Process
+	op   opType
 }
 
 type ProcessRegistry struct {

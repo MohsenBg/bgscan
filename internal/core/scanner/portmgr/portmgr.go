@@ -9,6 +9,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"bgscan/internal/logger"
 )
 
 // PortManager manages a pool of reusable TCP ports.
@@ -114,7 +116,10 @@ func isPortFree(port uint16) bool {
 		return false
 	}
 
-	ln.Close()
+	if err := ln.Close(); err != nil {
+		logger.CoreError("error closing listener: %v", err)
+	}
+
 	return true
 }
 
@@ -142,7 +147,9 @@ func WaitPortOpen(ctx context.Context, addr string, timeout time.Duration) error
 		case <-ticker.C:
 			conn, err := dialer.DialContext(ctx, "tcp", addr)
 			if err == nil {
-				conn.Close()
+				if err := conn.Close(); err != nil {
+					logger.CoreError("error closing connection: %v", err)
+				}
 				return nil
 			}
 		}

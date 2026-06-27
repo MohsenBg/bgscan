@@ -1,12 +1,14 @@
 package probe
 
 import (
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/portmgr"
 	"context"
 	"fmt"
 	"time"
+
+	"bgscan/internal/core/dns"
+	"bgscan/internal/core/result"
+	"bgscan/internal/core/scanner/portmgr"
+	"bgscan/internal/logger"
 )
 
 // SlipstreamConfig holds parameters required to establish and verify
@@ -76,9 +78,11 @@ func (s *SlipstreamProbe) Run(ctx context.Context, ip string) (*result.IPScanRes
 	if err != nil {
 		return nil, err
 	}
-	defer s.processRegistry.Unregister(ctx, id)
 
 	defer func() {
+		if err := s.processRegistry.Unregister(ctx, id); err != nil {
+			logger.CoreError("error unregistering process: %v", err)
+		}
 		_ = client.StopTunnel(context.Background())
 	}()
 

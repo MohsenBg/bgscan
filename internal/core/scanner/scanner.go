@@ -1,15 +1,16 @@
 package scanner
 
 import (
+	"context"
+	"fmt"
+	"time"
+
 	"bgscan/internal/core/config"
 	"bgscan/internal/core/dns"
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/scanner/engine"
 	"bgscan/internal/core/scanner/portmgr"
 	"bgscan/internal/core/scanner/probe"
-	"context"
-	"fmt"
-	"time"
 )
 
 //

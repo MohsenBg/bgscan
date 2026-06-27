@@ -1,12 +1,13 @@
 package result
 
 import (
-	"bgscan/internal/core/fileutil"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"bgscan/internal/core/fileutil"
 )
 
 // Result directories used by different scan types.
@@ -152,7 +153,7 @@ func BuildResultFilePath(targetDir, prefix string) (string, error) {
 	}
 
 	timestamp := time.Now().Format("20060102_150405")
-	filename := fmt.Sprintf("%s_%s.csv", prefix, timestamp)
+	filename := fmt.Sprintf("%s%s.csv", prefix, timestamp)
 
 	return filepath.Join(cleanTarget, filename), nil
 }
@@ -188,13 +189,4 @@ func resolveResultDirs(searchType ResultType) []resultDir {
 	}
 
 	return nil
-}
-
-func resolveDir(rType ResultType) string {
-	for _, d := range resolveResultDirs(ResultAll) {
-		if d.rType == rType {
-			return d.dir
-		}
-	}
-	return ""
 }

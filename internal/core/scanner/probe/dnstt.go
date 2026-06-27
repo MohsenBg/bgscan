@@ -1,12 +1,14 @@
 package probe
 
 import (
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/portmgr"
 	"context"
 	"fmt"
 	"time"
+
+	"bgscan/internal/core/dns"
+	"bgscan/internal/core/result"
+	"bgscan/internal/core/scanner/portmgr"
+	"bgscan/internal/logger"
 )
 
 // DNSTTConfig describes the static configuration required to establish
@@ -150,7 +152,12 @@ func (d *DNSTTProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, 
 	if err != nil {
 		return nil, err
 	}
-	defer d.processRegistry.Unregister(ctx, id)
+
+	defer func() {
+		if err := d.processRegistry.Unregister(ctx, id); err != nil {
+			logger.CoreError("failed to unregister process %s: %s", id, err)
+		}
+	}()
 
 	// Ensure the tunnel is stopped when Run returns.
 	defer func() {
@@ -190,4 +197,3 @@ func (d *DNSTTProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, 
 func (d *DNSTTProbe) Close() error {
 	return nil
 }
-

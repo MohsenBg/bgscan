@@ -1,15 +1,17 @@
 package probe
 
 import (
-	"bgscan/internal/core/config"
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/portmgr"
-	"bgscan/internal/core/xray"
 	"context"
 	"fmt"
 	"net"
 	"os"
 	"time"
+
+	"bgscan/internal/core/config"
+	"bgscan/internal/core/result"
+	"bgscan/internal/core/scanner/portmgr"
+	"bgscan/internal/core/xray"
+	"bgscan/internal/logger"
 )
 
 // XrayProbe evaluates an IP address by launching a temporary Xray instance.
@@ -128,7 +130,11 @@ func (p *XrayProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, e
 	if err != nil {
 		return nil, fmt.Errorf("xray config generation failed: %w", err)
 	}
-	defer os.Remove(configPath)
+	defer func() {
+		if err := os.Remove(configPath); err != nil {
+			logger.CoreError("failed to remove xray config file: %v", err)
+		}
+	}()
 
 	// Validate configuration before starting the process.
 	if err := xray.ValidateConfig(configPath); err != nil {
@@ -148,8 +154,12 @@ func (p *XrayProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, e
 	}
 
 	defer func() {
-		proc.Kill()
-		p.processRegistry.Unregister(ctx, id)
+		if err := proc.Kill(); err != nil {
+			logger.CoreError("failed to terminate xray: %v", err)
+		}
+		if err := p.processRegistry.Unregister(ctx, id); err != nil {
+			logger.CoreError("failed to unregister xray process: %v", err)
+		}
 	}()
 
 	// Wait until the local SOCKS5 proxy becomes reachable.

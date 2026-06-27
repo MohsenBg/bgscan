@@ -10,7 +10,7 @@ import (
 	"bgscan/internal/core/fileutil"
 )
 
-// Directory where IP list files are stored.
+// IPListDir Directory where IP list files are stored.
 const IPListDir = "ips"
 
 // IPFileInfo contains metadata about an IP list file.

@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"bgscan/internal/logger"
 )
 
 // ═══════════════════════════════════════════════════════════
@@ -47,7 +49,7 @@ func ensureDir(path string) error {
 	if dir == "." {
 		return nil
 	}
-	return os.MkdirAll(dir, 0755)
+	return os.MkdirAll(dir, 0o755)
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -61,7 +63,12 @@ func StreamCSV(path string, cfg CSVConfig, handler func([]string) error) error {
 	if err != nil {
 		return fmt.Errorf("open csv file: %w", err)
 	}
-	defer f.Close()
+
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.CoreError("error closing file: %v", err)
+		}
+	}()
 
 	r := csv.NewReader(f)
 	applyReaderConfig(r, cfg)
@@ -94,7 +101,12 @@ func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, 
 	if err != nil {
 		return fmt.Errorf("open csv file: %w", err)
 	}
-	defer f.Close()
+
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.CoreError("error closing file: %v", err)
+		}
+	}()
 
 	br := bufio.NewReader(f)
 	var currentByteOffset int64 = 0
@@ -168,7 +180,12 @@ func WriteCSVFile(path string, cfg CSVConfig, records [][]string) error {
 	if err != nil {
 		return fmt.Errorf("create csv file %s : %w", path, err)
 	}
-	defer f.Close()
+
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.CoreError("error closing file: %v", err)
+		}
+	}()
 
 	w := csv.NewWriter(f)
 	applyWriterConfig(w, cfg)
@@ -191,7 +208,12 @@ func StreamWriteCSV(path string, cfg CSVConfig, fn func(write func([]string) err
 	if err != nil {
 		return fmt.Errorf("create csv file: %w", err)
 	}
-	defer f.Close()
+
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.CoreError("error closing file: %v", err)
+		}
+	}()
 
 	w := csv.NewWriter(f)
 	applyWriterConfig(w, cfg)
@@ -219,11 +241,16 @@ func AppendCSVRows(path string, cfg CSVConfig, rows [][]string) error {
 		return fmt.Errorf("ensure directory: %w", err)
 	}
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		return fmt.Errorf("open csv file append mode: %w", err)
 	}
-	defer f.Close()
+
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.CoreError("error closing file: %v", err)
+		}
+	}()
 
 	w := csv.NewWriter(f)
 	applyWriterConfig(w, cfg)

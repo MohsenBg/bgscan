@@ -1,11 +1,13 @@
 package probe
 
 import (
-	"bgscan/internal/core/result"
 	"context"
 	"fmt"
 	"net"
 	"time"
+
+	"bgscan/internal/core/result"
+	"bgscan/internal/logger"
 )
 
 // TCPProbe performs a lightweight TCP connectivity probe against a target IP address.
@@ -92,7 +94,9 @@ func (p *TCPProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, er
 
 		rtt := time.Since(start)
 
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			logger.CoreError("error closing connection: %v", err)
+		}
 
 		return &result.IPScanResult{
 			IP:      ip,
@@ -109,4 +113,3 @@ func (p *TCPProbe) Run(ctx context.Context, ip string) (*result.IPScanResult, er
 func (p *TCPProbe) Close() error {
 	return nil
 }
-

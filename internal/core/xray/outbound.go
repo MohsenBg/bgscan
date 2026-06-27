@@ -1,8 +1,6 @@
 package xray
 
 import (
-	"bgscan/internal/core/fileutil"
-	"bgscan/internal/logger"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -11,6 +9,9 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"bgscan/internal/core/fileutil"
+	"bgscan/internal/logger"
 )
 
 // ── 1. Placeholder Replacement Logic ─────────────────────────────────────────
@@ -108,7 +109,12 @@ func SaveOutboundFromFile(src, name string) (*XrayOutboundsFile, error) {
 	}
 
 	if err := ValidateOutbound(name); err != nil {
-		os.Remove(dst)
+		defer func() {
+			if err := os.Remove(dst); err != nil {
+				logger.CoreError("failed to remove config file: %v", err)
+			}
+		}()
+
 		return nil, fmt.Errorf("outbound validation failed: %w", err)
 	}
 
@@ -153,7 +159,10 @@ func SaveOutboundFromLink(link, name string) (*XrayOutboundsFile, error) {
 	}
 
 	if err := ValidateOutbound(name); err != nil {
-		os.Remove(dst)
+		if err := os.Remove(dst); err != nil {
+			logger.CoreError("failed to remove  outbound file: %v", err)
+		}
+
 		return nil, fmt.Errorf("outbound validation failed: %w", err)
 	}
 
@@ -239,7 +248,12 @@ func ValidateOutbound(outbound string) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(configPath)
+
+	defer func() {
+		if err := os.Remove(configPath); err != nil {
+			logger.CoreError("failed to remove config file: %v", err)
+		}
+	}()
 
 	return ValidateConfig(configPath)
 }

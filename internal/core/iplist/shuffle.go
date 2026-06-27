@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"bgscan/internal/logger"
 )
 
 // NewMasterIndexer parses data records through the CSV engine to register positions.
@@ -50,7 +52,6 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +75,12 @@ func streamActiveIPsShuffled(ctx context.Context, path string, limit int, out ch
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+
+	defer func() {
+		if err := file.Close(); err != nil {
+			logger.CoreError("error closing file: %v", err)
+		}
+	}()
 
 	mBits := bits.Len64(indexer.GrandTotal)
 	if indexer.GrandTotal&(indexer.GrandTotal-1) == 0 {

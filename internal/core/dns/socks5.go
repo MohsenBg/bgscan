@@ -1,11 +1,12 @@
 package dns
 
 import (
-	"bgscan/internal/logger"
 	"context"
 	"net"
 	"net/http"
 	"time"
+
+	"bgscan/internal/logger"
 
 	"golang.org/x/net/proxy"
 )
@@ -72,7 +73,11 @@ func TestProxy(ctx context.Context, proxyAddr string, timeout time.Duration) boo
 		logger.CoreInfo("proxy test request failed via %s: %v", proxyAddr, err)
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.CoreError("error closing response body: %v", err)
+		}
+	}()
 
 	// A valid connectivity check always returns HTTP 204.
 	return resp.StatusCode == http.StatusNoContent

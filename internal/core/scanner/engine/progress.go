@@ -32,10 +32,7 @@ func reportProgress(
 	now := time.Now()
 
 	// Ensure active elapsed time never drops below zero due to clock drifts
-	elapsed := now.Sub(start) - paused
-	if elapsed < 0 {
-		elapsed = 0
-	}
+	elapsed := max(now.Sub(start)-paused, 0)
 
 	// Calculate processing rate throughput
 	var rate float64

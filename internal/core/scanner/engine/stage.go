@@ -1,16 +1,16 @@
 package engine
 
 import (
-	"bgscan/internal/core/config"
-	"bgscan/internal/logger"
 	"context"
 	"sync/atomic"
 	"time"
+
+	"bgscan/internal/core/config"
+	"bgscan/internal/logger"
 )
 
 // stageExecutor manages the execution state, metrics, and lifecycle of a scan stage.
 type stageExecutor struct {
-	ctx    context.Context
 	stage  ScanConfig
 	pause  *PauseController
 	rateCh <-chan time.Time
@@ -24,9 +24,8 @@ type stageExecutor struct {
 }
 
 // newStageExecutor creates and initializes a stage executor.
-func newStageExecutor(ctx context.Context, stage ScanConfig, pause *PauseController, total uint64) *stageExecutor {
+func newStageExecutor(ctx context.Context, stage ScanConfig, pause *PauseController, total uint64) (*stageExecutor, error) {
 	exec := &stageExecutor{
-		ctx:    ctx,
 		stage:  stage,
 		pause:  pause,
 		rateCh: makeRateCh(stage.Rate),
@@ -35,14 +34,17 @@ func newStageExecutor(ctx context.Context, stage ScanConfig, pause *PauseControl
 
 	exec.total.Store(total)
 	exec.stage.Writer.Start()
-	exec.stage.Probe.Init(ctx)
-	exec.startProgressReporter()
+	if err := exec.stage.Probe.Init(ctx); err != nil {
+		return nil, err
+	}
 
-	return exec
+	exec.startProgressReporter(ctx)
+
+	return exec, nil
 }
 
 // startProgressReporter periodically reports stage progress.
-func (e *stageExecutor) startProgressReporter() {
+func (e *stageExecutor) startProgressReporter(ctx context.Context) {
 	if e.stage.Hooks.OnProgress == nil {
 		return
 	}
@@ -58,7 +60,7 @@ func (e *stageExecutor) startProgressReporter() {
 			select {
 			case <-e.progressDone:
 				return
-			case <-e.ctx.Done():
+			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				if e.pause != nil && e.pause.IsPaused() {
@@ -88,7 +90,9 @@ func (e *stageExecutor) cleanup() {
 		}
 	}
 
-	e.stage.Writer.Stop()
+	if err := e.stage.Writer.Stop(); err != nil {
+		e.stage.Hooks.callOnError(err)
+	}
 
 	reportProgress(
 		e.start,
@@ -107,14 +111,14 @@ func (e *stageExecutor) cleanup() {
 }
 
 // processIP executes the stage probe against an IP and returns whether it matched.
-func (e *stageExecutor) processIP(ip string) bool {
+func (e *stageExecutor) processIP(ctx context.Context, ip string) bool {
 	select {
 	case <-e.rateCh:
-	case <-e.ctx.Done():
+	case <-ctx.Done():
 		return false
 	}
 
-	res, err := e.stage.Probe.Run(e.ctx, ip)
+	res, err := e.stage.Probe.Run(ctx, ip)
 	e.processed.Add(1)
 
 	if err != nil {
@@ -137,4 +141,3 @@ func (e *stageExecutor) getPauseDuration() time.Duration {
 
 	return e.pause.PausedDuration()
 }
-

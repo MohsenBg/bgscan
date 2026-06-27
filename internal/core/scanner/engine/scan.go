@@ -1,14 +1,15 @@
 package engine
 
 import (
-	"bgscan/internal/core/config"
-	"bgscan/internal/core/iplist"
-	"bgscan/internal/core/result"
-	"bgscan/internal/logger"
 	"context"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"bgscan/internal/core/config"
+	"bgscan/internal/core/iplist"
+	"bgscan/internal/core/result"
+	"bgscan/internal/logger"
 )
 
 // RunScan orchestrates the full lifecycle of a standalone scan stage.
@@ -17,7 +18,7 @@ import (
 func RunScan(
 	ctx context.Context,
 	input string,
-	maxIp int,
+	maxIP int,
 	cfg ScanConfig,
 	shuffled bool,
 	pause *PauseController,
@@ -56,12 +57,21 @@ func RunScan(
 
 	// Initialize required system dependencies
 	cfg.Writer.Start()
-	cfg.Probe.Init(ctx)
+	if err := cfg.Probe.Init(ctx); err != nil {
+		_ = cfg.Writer.Stop()
+		cfg.Hooks.callOnError(err)
+		cfg.Hooks.callOnScanEnd()
+		return
+	}
+
 	rateCh := makeRateCh(cfg.Rate)
 
 	// Ensure structural cleanup and shutdown operations run on exit
 	defer func() {
-		cfg.Writer.Stop()
+		if err := cfg.Writer.Stop(); err != nil {
+			logger.CoreError("error stopping writer: %v", err)
+		}
+
 		if err := cfg.Probe.Close(); err != nil {
 			cfg.Hooks.callOnError(err)
 		}
@@ -112,13 +122,12 @@ func RunScan(
 				case results <- *res:
 				case <-ctx.Done():
 				}
-
 			})
 		}()
 	}
 
 	// Execute upstream producer (File Reader/Streamer)
-	streamErr := iplist.StreamActiveIPs(ctx, input, maxIp, shuffled, ips)
+	streamErr := iplist.StreamActiveIPs(ctx, input, maxIP, shuffled, ips)
 	if streamErr != nil {
 		cfg.Hooks.callOnError(streamErr)
 	}
@@ -128,7 +137,6 @@ func RunScan(
 	close(results)      // Signal writer thread to flush and terminate
 	writerDone.Wait()   // Wait for writer thread disk flush to resolve cleanly
 	close(progressDone) // Halt telemetry tracking routines
-
 }
 
 // makeRateCh builds an unbuffered channel emitting ticks to enforce throughput caps.

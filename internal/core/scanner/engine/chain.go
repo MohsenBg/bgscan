@@ -1,11 +1,12 @@
 package engine
 
 import (
+	"context"
+	"sync"
+
 	"bgscan/internal/core/config"
 	"bgscan/internal/core/iplist"
 	"bgscan/internal/logger"
-	"context"
-	"sync"
 )
 
 const (
@@ -63,14 +64,21 @@ func executeStreamingPipeline(ctx context.Context, input string, maxIP int, cfg 
 	logger.CoreInfo("stream pipeline started: stages=%d ips=%d", len(cfg.Stages), totalIPs)
 
 	channels := createStageChannels(cfg)
-	executors := make([]*stageExecutor, len(cfg.Stages))
+	executors := make([]*stageExecutor, 0, len(cfg.Stages))
 
 	for i, stage := range cfg.Stages {
 		var total uint64
 		if i == 0 {
 			total = totalIPs
 		}
-		executors[i] = newStageExecutor(ctx, stage, cfg.Pause, total)
+
+		exec, err := newStageExecutor(ctx, stage, cfg.Pause, total)
+		if err != nil {
+			stage.Hooks.callOnError(err)
+			return
+		}
+
+		executors = append(executors, exec)
 	}
 
 	defer func() {
@@ -158,37 +166,46 @@ func executeBatchPipeline(ctx context.Context, input string, maxIP int, cfg *Cha
 
 	stream := streamIPsFromFile(ctx, input, cfg.Shuffled, maxIP, batchSize)
 
-	executors := make([]*stageExecutor, len(cfg.Stages))
+	executors := make([]*stageExecutor, 0, len(cfg.Stages))
+
+	defer func() {
+		for _, e := range executors {
+			e.cleanup()
+		}
+
+		for _, s := range cfg.Stages {
+			s.Hooks.callOnScanEnd()
+		}
+	}()
+
 	for i, stage := range cfg.Stages {
 		var total uint64
 		if i == 0 {
 			total = totalIPs
 		}
-		executors[i] = newStageExecutor(ctx, stage, cfg.Pause, total)
-		defer executors[i].cleanup()
+
+		exec, err := newStageExecutor(ctx, stage, cfg.Pause, total)
+		if err != nil {
+			stage.Hooks.callOnError(err)
+			return
+		}
+
+		executors = append(executors, exec)
 	}
 
-	processBatchStream(ctx, stream, executors, cfg.Pause)
-
-	for _, s := range cfg.Stages {
-		s.Hooks.callOnScanEnd()
-	}
-}
-
-// processBatchStream processes incoming batches through the pipeline.
-func processBatchStream(ctx context.Context, batches <-chan []string, execs []*stageExecutor, pause *PauseController) {
-	for batch := range batches {
+	for batch := range stream {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
-		processSingleBatch(ctx, batch, execs, pause)
+
+		processBatch(ctx, batch, executors, cfg.Pause)
 	}
 }
 
-// processSingleBatch runs a single batch through all stages.
-func processSingleBatch(ctx context.Context, batch []string, execs []*stageExecutor, pause *PauseController) {
+// processBatch runs a single batch through all stages.
+func processBatch(ctx context.Context, batch []string, execs []*stageExecutor, pause *PauseController) {
 	current := batch
 
 	for i, exec := range execs {
@@ -202,16 +219,16 @@ func processSingleBatch(ctx context.Context, batch []string, execs []*stageExecu
 		default:
 		}
 
+		current = executeBatch(ctx, current, exec, pause)
+
 		if i+1 < len(execs) {
 			execs[i+1].total.Add(uint64(len(current)))
 		}
-
-		current = executeBatchWithExecutor(ctx, current, exec, pause)
 	}
 }
 
-// executeBatchWithExecutor processes a batch in worker pool.
-func executeBatchWithExecutor(ctx context.Context, batch []string, exec *stageExecutor, pause *PauseController) []string {
+// executeBatch processes a batch in worker pool.
+func executeBatch(ctx context.Context, batch []string, exec *stageExecutor, pause *PauseController) []string {
 	workers := getWorkerCount(exec.stage.Workers)
 	input := make(chan string, workers*2)
 
@@ -232,7 +249,7 @@ func executeBatchWithExecutor(ctx context.Context, batch []string, exec *stageEx
 	)
 
 	runWorkerPool(ctx, workers, pause, input, func(ip string) {
-		if exec.processIP(ip) {
+		if exec.processIP(ctx, ip) {
 			mu.Lock()
 			out = append(out, ip)
 			mu.Unlock()
@@ -325,7 +342,7 @@ func streamStageFromFile(
 	}()
 
 	runWorkerPool(ctx, workers, pause, in, func(ip string) {
-		if exec.processIP(ip) && output != nil {
+		if exec.processIP(ctx, ip) && output != nil {
 			select {
 			case output <- ip:
 				if next != nil {
@@ -354,7 +371,7 @@ func streamStageFromChannel(
 	workers := getWorkerCount(stage.Workers)
 
 	runWorkerPool(ctx, workers, pause, input, func(ip string) {
-		if exec.processIP(ip) && output != nil {
+		if exec.processIP(ctx, ip) && output != nil {
 			select {
 			case output <- ip:
 				if next != nil {

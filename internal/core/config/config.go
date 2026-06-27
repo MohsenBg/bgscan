@@ -4,13 +4,14 @@
 package config
 
 import (
-	"bgscan/internal/core/fileutil"
 	"fmt"
 	"path/filepath"
 	"sync"
+
+	"bgscan/internal/core/fileutil"
 )
 
-const AppVersion = "2.4.1"
+const AppVersion = "2.4.2"
 
 // ============================================================================
 // Singleton

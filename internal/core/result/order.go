@@ -1,5 +1,7 @@
 package result
 
+import "time"
+
 // Less compares two scan results by latency, then by IP
 func (a IPScanResult) Less(b IPScanResult) bool {
 	scoreA := a.Score()
@@ -20,14 +22,21 @@ func (a IPScanResult) Equal(b IPScanResult) bool {
 // Score calculates a single numeric value representing the quality of the IP.
 // Higher score = Better IP.
 func (a IPScanResult) Score() float64 {
-	latMs := float64(a.Latency.Milliseconds())
-	if latMs < 1 {
-		latMs = 1
+	downloadMs := float64(a.Download) / float64(time.Millisecond)
+	uploadMs := float64(a.Upload) / float64(time.Millisecond)
+	latencyMs := float64(a.Latency) / float64(time.Millisecond)
+
+	if downloadMs < 1 {
+		downloadMs = 1
+	}
+	if uploadMs < 1 {
+		uploadMs = 1
+	}
+	if latencyMs < 1 {
+		latencyMs = 1
 	}
 
-	downloadWeight := float64(a.Download) * 0.60
-	uploadWeight := float64(a.Upload) * 0.20
-	latencyPenalty := (1000.0 / latMs) * 500.0
-
-	return downloadWeight + uploadWeight + latencyPenalty
+	return 0.60*(1000.0/downloadMs) +
+		0.20*(1000.0/uploadMs) +
+		0.20*(1000.0/latencyMs)
 }

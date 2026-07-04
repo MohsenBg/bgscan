@@ -1,27 +1,30 @@
 package resultlist
 
 import (
+	"os"
+	"path/filepath"
+	"slices"
+
 	"bgscan/internal/core/result"
 	"bgscan/internal/logger"
 	"bgscan/internal/ui/components/basic/crud"
 	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/components/basic/table"
 	"bgscan/internal/ui/shared/layout"
-	"os"
-	"path/filepath"
-	"slices"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/dustin/go-humanize"
 )
 
 type provider struct {
+	title    string
 	layout   *layout.Layout
 	onSelect func(*result.ResultFile) tea.Cmd
 }
 
-func newProvider(l *layout.Layout, onSelect func(*result.ResultFile) tea.Cmd) crud.Provider[result.ResultFile] {
+func newProvider(l *layout.Layout, title string, onSelect func(*result.ResultFile) tea.Cmd) crud.Provider[result.ResultFile] {
 	return &provider{
+		title:    title,
 		layout:   l,
 		onSelect: onSelect,
 	}
@@ -32,7 +35,7 @@ func (p *provider) OnAdd(item result.ResultFile) (tea.Cmd, bool) {
 }
 
 func (p *provider) Title() string {
-	return "Scan Results Log"
+	return p.title
 }
 
 func (p *provider) Columns() []table.Column {

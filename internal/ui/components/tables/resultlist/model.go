@@ -1,6 +1,8 @@
 package resultlist
 
 import (
+	"fmt"
+
 	"bgscan/internal/core/result"
 	"bgscan/internal/ui/components/basic/crud"
 	"bgscan/internal/ui/components/basic/notice"
@@ -8,7 +10,6 @@ import (
 	"bgscan/internal/ui/shared/env"
 	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
-	"fmt"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -21,10 +22,10 @@ type Model struct {
 	crudTable *crud.Model[result.ResultFile]
 }
 
-func New(l *layout.Layout, name string, maxIPs uint32, onSelect func(*result.ResultFile) tea.Cmd) *Model {
+func New(l *layout.Layout, title string, maxIPs uint32, onSelect func(*result.ResultFile) tea.Cmd) *Model {
 	m := &Model{
 		id:     ui.NewComponentID(),
-		name:   name,
+		name:   "Result Files",
 		layout: l,
 		maxIPs: maxIPs,
 	}
@@ -33,7 +34,7 @@ func New(l *layout.Layout, name string, maxIPs uint32, onSelect func(*result.Res
 		onSelect = m.defaultSelectHandler
 	}
 
-	m.crudTable = crud.New(name, l, newProvider(l, onSelect), false)
+	m.crudTable = crud.New(title, l, newProvider(l, title, onSelect), false)
 
 	return m
 }

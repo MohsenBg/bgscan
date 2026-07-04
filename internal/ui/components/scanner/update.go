@@ -8,6 +8,7 @@ import (
 	logview "bgscan/internal/ui/components/basic/logview"
 	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/components/basic/progress"
+	"bgscan/internal/ui/shared/dialog"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -116,7 +117,7 @@ func (m *Model) openLogViewer() tea.Cmd {
 		v := logview.New(m.layout, logger.Core(), "core logs")
 		v.SetContainerWidth(min(80, m.layout.Body.Width))
 		v.SetShowBorder(false)
-		return ui.AddNewOverlay(v, ui.Center, ui.Center, 0, 0)
+		return dialog.OpenDialog(v)
 	}
 }
 

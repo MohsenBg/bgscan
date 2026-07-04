@@ -80,7 +80,7 @@ func New(layout *layout.Layout, maxIPs int, scn *scanner.Scanner) *Model {
 		progressInfo: make([]engine.Progress, n),
 	}
 
-	tabsList := make([]tabs.Tab, n)
+	tabsList := make([]tabs.Tab[int], n)
 
 	for i, stage := range stages {
 		viewMode := ipviewer.ShortView
@@ -96,7 +96,7 @@ func New(layout *layout.Layout, maxIPs int, scn *scanner.Scanner) *Model {
 		tabsList[i] = tabs.NewTab(string(stage.Mode), i)
 	}
 
-	m.tabs = tabs.New(layout, tabsList, func(idx int, _ tabs.Tab) tea.Cmd {
+	m.tabs = tabs.New(layout, tabsList, func(idx int, _ tabs.Tab[int]) tea.Cmd {
 		m.currentTab = idx
 		return m.immediateTick()
 	})

@@ -1,66 +1,77 @@
 package confirm
 
 import (
+	"bgscan/internal/ui/shared/dialog"
 	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
 
-// ExitConfirmCmd returns a BubbleTea command that opens a confirmation dialog
-// asking the user whether they want to exit the application.
+// ExitConfirmCmd opens a confirmation dialog asking whether the user wants to
+// exit the application.
 //
-// If the user confirms, the dialog executes tea.Quit which terminates the
-// BubbleTea program.
+// If the user confirms, the program will terminate via tea.Quit.
 //
-// The dialog is displayed as an overlay positioned at the top center
-// of the screen.
-func ExitConfirmCmd(layout *layout.Layout) tea.Cmd {
+// The dialog is shown as an overlay (top-center by default).
+func ExitConfirmCmd(l *layout.Layout, options ...dialog.DialogOption) tea.Cmd {
 	return func() tea.Msg {
-		return ui.AddNewOverlay(
-			New(layout, "Are you sure you want to exit?", func() tea.Cmd { return tea.Quit }, false),
-			ui.Center,
-			ui.Top,
-			0,
-			0,
+		opts := []dialog.DialogOption{
+			dialog.WithPosition(dialog.Center, dialog.Top),
+			dialog.WithOffset(0, 1),
+		}
+		opts = append(opts, options...)
+
+		return dialog.OpenDialog(
+			New(
+				l,
+				"Are you sure you want to exit?",
+				func() tea.Cmd { return tea.Quit },
+				false,
+			),
+			opts...,
 		)
 	}
 }
 
-// ConfirmCmd returns a BubbleTea command that opens a generic confirmation
-// dialog overlay.
+// ConfirmCmd opens a generic confirmation dialog overlay.
 //
 // Parameters:
+//   - l           : layout manager used for sizing/positioning
+//   - message     : message shown in the dialog
+//   - confirm     : command executed when user confirms
+//   - defaultYes  : initial selection state (true = Yes, false = No)
+//   - options     : optional dialog configuration
 //
-//	layout     - shared layout manager used to determine component sizing
-//	message    - confirmation message displayed in the dialog
-//	confirm    - command executed if the user confirms the action
-//	defaultYes - determines the initial selection state (true = Yes, false = No)
-//
-// The dialog is positioned at the top center of the screen and managed by
-// the application's overlay system.
+// The dialog is displayed as an overlay managed by the UI system.
 func ConfirmCmd(
-	layout *layout.Layout,
+	l *layout.Layout,
 	message string,
 	confirm tea.Cmd,
 	defaultYes bool,
+	options ...dialog.DialogOption,
 ) tea.Cmd {
 	return func() tea.Msg {
-		return ui.AddNewOverlay(
-			New(layout, message, func() tea.Cmd { return confirm }, defaultYes),
-			ui.Center,
-			ui.Top,
-			0,
-			0,
+		opts := []dialog.DialogOption{
+			dialog.WithPosition(dialog.Center, dialog.Top),
+			dialog.WithOffset(0, 1),
+		}
+		opts = append(opts, options...)
+
+		return dialog.OpenDialog(
+			New(
+				l,
+				message,
+				func() tea.Cmd { return confirm },
+				defaultYes,
+			),
+			opts...,
 		)
 	}
 }
 
-// CloseCmd returns a command that closes this confirmation dialog.
-//
-// It emits a ui.CloseComponentMsg containing the component's ID, which is
-// handled by the UI overlay manager to remove the dialog from the component
-// stack.
+// CloseCmd closes the confirmation dialog by emitting a UI close message.
+// The overlay manager removes the component from the stack.
 func (m *Model) CloseCmd() tea.Cmd {
 	return func() tea.Msg {
 		return ui.CloseComponentMsg{ID: m.ID()}

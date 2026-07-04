@@ -1,14 +1,16 @@
-package input
+package textarea
 
 import (
+	"bgscan/internal/ui/components/basic/input"
+
 	"charm.land/lipgloss/v2"
 )
 
-// View renders the input dialog UI.
+// View renders the textarea component.
 //
 // The view consists of:
 //   - An optional message displayed above the input field
-//   - The text input component
+//   - The text area component
 //   - An optional validation error message
 //   - Key hints for user interaction
 //
@@ -16,28 +18,22 @@ import (
 // container whose width is determined by the layout.
 func (m *Model) View() string {
 	content := make([]string, 0, 4)
-
 	// Optional message
-	if m.message != "" {
-		content = append(content, messageStyle().Render(m.message))
+	if m.title != "" {
+		content = append(content, input.MessageStyle().Render(m.title))
 	}
-
 	// Input field
-	content = append(content, m.textinput.View())
-
+	content = append(content, m.textarea.View())
 	// Validation error (if present)
 	if m.errorMsg != "" {
-		content = append(content, errorStyle().Render("✗ "+m.errorMsg))
+		content = append(content, input.ErrorStyle().Render("✗ "+m.errorMsg))
 	}
-
 	// Key hints
-	hints := keyHintStyle().Render("Enter to confirm • Esc to cancel")
+	hints := input.KeyHintStyle().Render("Enter to confirm • Esc to cancel")
 	content = append(content, hints)
-
 	body := lipgloss.JoinVertical(
 		lipgloss.Top,
 		content...,
 	)
-
-	return containerStyle(m.Width()).Render(body)
+	return input.ContainerStyle(m.Width()).Render(body)
 }

@@ -37,7 +37,7 @@ func New(l *layout.Layout, title string, onSelect func(*xray.XrayOutboundsFile) 
 	}
 
 	canAdd := true
-	m.crudTable = crud.New("outbound", l, newProvider(l, onSelect), canAdd)
+	m.crudTable = crud.New("outbound", l, newProvider(l, onSelect), 90, canAdd)
 
 	return m
 }

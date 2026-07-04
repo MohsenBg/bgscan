@@ -30,6 +30,7 @@ func New[T any](
 	name string,
 	l *layout.Layout,
 	provider Provider[T],
+	maxWidth int,
 	canAdd bool,
 ) *Model[T] {
 	m := &Model[T]{
@@ -46,6 +47,7 @@ func New[T any](
 		table.WithTitle(provider.Title()),
 		table.WithColumns(provider.Columns()),
 		table.WithRows([]table.Row{}),
+		table.WithMaxWidth(maxWidth),
 	)
 
 	m.configureKeymaps()

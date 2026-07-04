@@ -33,9 +33,9 @@ func (p *provider) Title() string { return p.title }
 
 func (p *provider) Columns() []table.Column {
 	return []table.Column{
-		{Title: "Name", Width: 30},
-		{Title: "Created Time", Width: 35},
-		{Title: "Size", Width: 30},
+		{Title: "Name", Width: 40},
+		{Title: "Created Time", Width: 40},
+		{Title: "Size", Width: 20},
 	}
 }
 

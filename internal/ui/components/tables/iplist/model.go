@@ -33,7 +33,7 @@ func New(l *layout.Layout, title string, onSelect func(*iplist.IPFileInfo) tea.C
 	}
 
 	canAdd := true
-	m.crudTable = crud.New("IP File", l, newProvider(l, title, onSelect), canAdd)
+	m.crudTable = crud.New("IP File", l, newProvider(l, title, onSelect), 90, canAdd)
 
 	return m
 }

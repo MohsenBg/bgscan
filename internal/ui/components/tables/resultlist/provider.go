@@ -41,8 +41,8 @@ func (p *provider) Title() string {
 func (p *provider) Columns() []table.Column {
 	return []table.Column{
 		{Title: "File Name", Width: 40},
-		{Title: "Created Time", Width: 25},
-		{Title: "Type", Width: 15},
+		{Title: "Created Time", Width: 35},
+		{Title: "Type", Width: 10},
 		{Title: "Size", Width: 15},
 	}
 }

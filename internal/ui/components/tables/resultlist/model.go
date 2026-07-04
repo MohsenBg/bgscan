@@ -34,7 +34,7 @@ func New(l *layout.Layout, title string, maxIPs uint32, onSelect func(*result.Re
 		onSelect = m.defaultSelectHandler
 	}
 
-	m.crudTable = crud.New(title, l, newProvider(l, title, onSelect), false)
+	m.crudTable = crud.New(title, l, newProvider(l, title, onSelect), 100, false)
 
 	return m
 }

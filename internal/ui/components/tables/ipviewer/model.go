@@ -61,7 +61,7 @@ func New(l *layout.Layout, name string, rows []result.IPScanResult, mode ViewMod
 	if mode == ShortView {
 		cols = ipShortListColumns
 	}
-	t := table.New(l, table.WithColumns(cols), table.WithRows([]table.Row{}))
+	t := table.New(l, table.WithColumns(cols), table.WithRows([]table.Row{}), table.WithMaxWidth(90))
 
 	m := &Model{
 		id:       ui.NewComponentID(),

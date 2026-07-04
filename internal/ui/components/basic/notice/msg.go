@@ -1,8 +1,8 @@
 package notice
 
 import (
+	"bgscan/internal/ui/shared/dialog"
 	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -18,18 +18,23 @@ import (
 //   - message: notice body message
 //   - level: severity level (INFO, ERROR, SUCCESS)
 func NewNoticeCmd(
-	layout *layout.Layout,
+	l *layout.Layout,
 	title string,
 	message string,
 	level LEVEL,
+	options ...dialog.DialogOption,
 ) tea.Cmd {
 	return func() tea.Msg {
-		return ui.AddNewOverlay(
-			New(layout, title, message, level),
-			ui.Center, // horizontal alignment
-			ui.Top,    // vertical alignment
-			0,         // horizontal offset
-			5,         // vertical offset
+		opts := []dialog.DialogOption{
+			dialog.WithPosition(dialog.Center, dialog.Top),
+			dialog.WithOffset(0, 5),
+		}
+
+		opts = append(opts, options...)
+
+		return dialog.OpenDialog(
+			New(l, title, message, level),
+			opts...,
 		)
 	}
 }

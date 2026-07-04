@@ -66,12 +66,12 @@ func newMainMenu(layout *layout.Layout) *menu.Model {
 				}
 			},
 		),
-		menu.NewMenuItem("☰", "IP Files", "i", func() tea.Msg {
+		menu.NewMenuItem("▤", "IP Files", "i", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: iplist.New(layout, "IP Files", nil),
 			}
 		}),
-		menu.NewMenuItem("≡", "Result Files", "r", func() tea.Msg {
+		menu.NewMenuItem("▤", "Result Files", "r", func() tea.Msg {
 			var maxRenderIP uint32 = 10_000
 			return ui.OpenComponentMsg{
 				Component: resultlist.New(layout, "Result Files", maxRenderIP, nil),
@@ -91,7 +91,7 @@ func newMainMenu(layout *layout.Layout) *menu.Model {
 				Component: settings.New(layout),
 			}
 		}),
-		menu.NewMenuItem("▤", "Logs", "l", func() tea.Msg {
+		menu.NewMenuItem("⌘", "Logs", "l", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: logs.New(layout),
 			}

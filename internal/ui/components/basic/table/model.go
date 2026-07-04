@@ -24,7 +24,8 @@ type (
 	Row    = table.Row
 )
 
-const gutterWidth = 10
+// tableHPad must match the horizontal padding in tableViewStyle (Padding(0, 1, 0, 1) = 2 chars).
+const tableHPad = 4
 
 // Model wraps a Bubble Tea table with responsive layout, key bindings, and concurrency safety.
 type Model struct {
@@ -41,8 +42,9 @@ type Model struct {
 	BubbleTable table.Model
 	Keys        KeyMap
 
-	colsWidth []int
-	paddingY  int
+	originalCols []table.Column
+	paddingY     int
+	maxWidth     int // 0 means unlimited
 
 	// Pending fields for Functional Options Pattern
 	pendingCols []table.Column
@@ -72,6 +74,11 @@ func WithRows(rows []table.Row) Option {
 // WithPaddingY sets the vertical padding.
 func WithPaddingY(padding int) Option {
 	return func(m *Model) { m.paddingY = padding }
+}
+
+// WithMaxWidth sets an optional maximum width for the table (0 = unlimited).
+func WithMaxWidth(w int) Option {
+	return func(m *Model) { m.maxWidth = w }
 }
 
 // WithKeyBindings appends custom key bindings to the default ones.
@@ -107,9 +114,9 @@ func New(lay *layout.Layout, opts ...Option) *Model {
 		rows = []table.Row{}
 	}
 
-	m.colsWidth = columnWidths(cols)
+	m.originalCols = slices.Clone(cols)
 	m.BubbleTable = table.New(
-		table.WithColumns(m.scaledColumns(cols)),
+		table.WithColumns(cols), // original widths; real scaling happens on first WindowSizeMsg
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(max(1, len(rows))),
@@ -135,6 +142,13 @@ func (m *Model) SetPaddingY(padding int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.paddingY = padding
+	m.updateTableSizeLocked()
+}
+
+func (m *Model) SetMaxWidth(w int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.maxWidth = w
 	m.updateTableSizeLocked()
 }
 
@@ -170,27 +184,42 @@ func cloneRows(rows []table.Row) []table.Row {
 	return out
 }
 
-func columnWidths(cols []table.Column) []int {
-	widths := make([]int, len(cols))
-	for i, c := range cols {
-		widths[i] = c.Width
+// scaledColumns distributes the available content width across columns
+// proportionally to their original widths, accounting for the bubbles table's
+// internal per-cell padding (Padding(0,1) each side = 2 chars/col) and
+// inter-column borders (numCols-1 chars).
+func (m *Model) scaledColumns() []table.Column {
+	src := m.originalCols
+	if len(src) == 0 {
+		return nil
 	}
-	return widths
-}
+	out := slices.Clone(src)
 
-func (m *Model) scaledColumns(cols []table.Column) []table.Column {
-	out := slices.Clone(cols)
 	total := 0
-	for _, w := range m.colsWidth {
-		total += w
+	for _, c := range src {
+		total += c.Width
 	}
 	if total <= 0 {
 		return out
 	}
 
-	ratio := float64(m.tableWidthLocked()) / float64(total)
-	for i := range out {
-		out[i].Width = int(ratio * float64(m.colsWidth[i]))
+	nCols := len(src)
+	// Each column rendered width = colWidth + 2 (cell padding both sides).
+	// Separators between columns = nCols-1.
+	// So: rendered = sum(colWidths) + 2*nCols + (nCols-1)
+	// We want: sum(colWidths) = tableW - 2*nCols - (nCols-1)
+	overhead := 2*nCols + (nCols - 1)
+	target := max(nCols, m.tableWidthLocked()-overhead)
+
+	assigned := 0
+	for i, c := range src {
+		w := int(float64(target) * float64(c.Width) / float64(total))
+		out[i].Width = max(1, w)
+		assigned += out[i].Width
+	}
+	// Give rounding remainder to last column.
+	if diff := target - assigned; diff != 0 {
+		out[len(out)-1].Width = max(1, out[len(out)-1].Width+diff)
 	}
 	return out
 }
@@ -199,12 +228,12 @@ func (m *Model) updateTableSizeLocked() {
 	if m.Layout == nil || m.Layout.Body.Height == 0 || m.Layout.Body.Width == 0 {
 		return
 	}
-	if len(m.colsWidth) == 0 {
+	if len(m.originalCols) == 0 {
 		return
 	}
 
-	cols := m.scaledColumns(m.BubbleTable.Columns())
-	m.BubbleTable.SetColumns(cols)
+	scaled := m.scaledColumns()
+	m.BubbleTable.SetColumns(scaled)
 
 	// Calculate available height
 	helpHeight := lipgloss.Height(m.renderHelpView())
@@ -217,9 +246,13 @@ func (m *Model) updateTableSizeLocked() {
 
 func (m *Model) tableWidthLocked() int {
 	if m.Layout == nil || m.Layout.Body.Width == 0 {
-		return 80
+		return 78 // sensible fallback matching default 80-col terminal minus tableHPad
 	}
-	return min(80, m.Layout.Body.Width-gutterWidth)
+	w := max(10, m.Layout.Body.Width-tableHPad)
+	if m.maxWidth > 0 {
+		w = min(w, m.maxWidth)
+	}
+	return w
 }
 
 // --- Key Bindings ---

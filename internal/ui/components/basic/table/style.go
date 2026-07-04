@@ -15,11 +15,10 @@ func tableStyles() table.Styles {
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(theme.Current().Info).
 		BorderBottom(true).
-		Padding(0, 1) // Added horizontal padding for better breathing room
+		Padding(0, 1)
 
 	s.Cell = s.Cell.Padding(0, 1)
 
-	// Selected row styling
 	s.Selected = s.Selected.
 		Foreground(theme.Current().Text).
 		Background(theme.Current().Purple).
@@ -42,7 +41,7 @@ func tableViewStyle(_ int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Align(lipgloss.Left).
 		Foreground(theme.Current().Secondary).
-		Padding(0, 0)
+		Padding(0, 1, 0, 1)
 }
 
 // helpViewStyle now includes a top border to visually separate it from the table

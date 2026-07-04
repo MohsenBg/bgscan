@@ -1,50 +1,46 @@
 package picker
 
 import (
+	"bgscan/internal/ui/shared/dialog"
 	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
 
-// OnSelect defines the callback executed when a file is selected.
-//
-// The selected file path is passed to the callback, which may return
-// a BubbleTea command to trigger additional actions in the application.
+// OnSelect is called when the user selects a file.
+// It receives the selected file path and may return a Bubble Tea command
+// to trigger further application logic.
 type OnSelect func(path string) tea.Cmd
 
-// NewOpenPickFileCmd returns a BubbleTea command that opens a file picker overlay.
+// OpenFilePickerCmd returns a Bubble Tea command that opens a file picker
+// inside a dialog overlay.
 //
-// When executed, the command creates a new picker component and emits a
-// message instructing the application to add it to the overlay stack.
+// The picker is created and pushed into the dialog system when the command
+// is executed.
 //
 // Parameters:
+//   - l           : layout manager used for sizing and positioning
+//   - title       : title displayed in the picker header
+//   - baseDir     : initial directory (defaults to home directory if empty)
+//   - allowedExt  : list of allowed file extensions (e.g. ".txt", ".csv")
+//   - onSelect    : callback executed when a file is selected
+//   - options     : optional dialog configuration (positioning, style, etc.)
 //
-//	layout    — UI layout manager used for sizing the picker
-//	title     — title displayed at the top of the picker overlay
-//	baseDir   — initial directory to open (defaults to home directory)
-//	allowType — optional list of allowed file extensions (e.g. ".csv", ".txt")
-//	onSelect  — callback executed when the user selects a file
-//
-// The picker is positioned in the center of the screen using the overlay system.
-func NewOpenPickFileCmd(
-	layout *layout.Layout,
+// The picker is centered by default unless overridden via options.
+func OpenFilePickerCmd(
+	l *layout.Layout,
 	title string,
 	baseDir string,
-	allowType []string,
+	allowedExt []string,
 	onSelect OnSelect,
+	options ...dialog.DialogOption,
 ) tea.Cmd {
-
 	return func() tea.Msg {
+		p := New(l, title, baseDir, allowedExt, onSelect)
 
-		fp := New(layout, title, baseDir, allowType, onSelect)
-
-		return ui.AddNewOverlay(
-			fp,
-			ui.Center,
-			ui.Center,
-			0,
-			0,
+		return dialog.OpenDialog(
+			p,
+			options...,
 		)
 	}
 }

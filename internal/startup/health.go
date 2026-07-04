@@ -9,10 +9,10 @@ import (
 
 	"bgscan/internal/ui/theme"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
-const fastboot = false
+const fastboot = true
 
 // Style definitions for startup messages.
 var (

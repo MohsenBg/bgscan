@@ -1,7 +1,7 @@
 package validation
 
 import (
-	"bgscan/internal/core/xray"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -53,42 +53,32 @@ var reservedNames = []string{
 //
 // The returned error message is intended for direct display in UI
 // components such as input validation prompts.
-func ValidateFilename(filename string) (bool, string) {
+func ValidateFilename(filename string) error {
 	filename = strings.TrimSpace(filename)
 
 	if filename == "" {
-		return false, "Filename cannot be empty"
+		return errors.New("filename cannot be empty")
 	}
 
 	if len(filename) > 255 {
-		return false, "Filename too long (max 255 characters)"
+		return errors.New("filename too long (max 255 characters)")
 	}
 
 	if invalidCharsRe.MatchString(filename) {
-		return false, `Filename contains invalid characters: < > : " / \ | ? *`
+		return errors.New(`filename contains invalid characters: < > : " / \ | ? *`)
 	}
 
 	upper := strings.ToUpper(filename)
 	for _, reserved := range reservedNames {
 		if upper == reserved || strings.HasPrefix(upper, reserved+".") {
-			return false, fmt.Sprintf("'%s' is a reserved filename", reserved)
+			msg := fmt.Sprintf("'%s' is a reserved filename", reserved)
+			return errors.New(msg)
 		}
 	}
 
 	if strings.HasSuffix(filename, ".") {
-		return false, "Filename cannot end with a dot"
+		return errors.New("filename cannot end with a dot")
 	}
 
-	return true, ""
-}
-
-func ValidateXrayLink(link string) (bool, string) {
-	if link == "" {
-		return false, "link cannot be empty"
-	}
-	_, err := xray.ParseLink(link)
-	if err != nil {
-		return false, err.Error()
-	}
-	return true, ""
+	return nil
 }

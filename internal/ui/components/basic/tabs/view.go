@@ -6,7 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-func (m *Model) View() string {
+func (m *Model[T]) View() string {
 	if len(m.tabs) == 0 {
 		return ""
 	}
@@ -33,7 +33,7 @@ func (m *Model) View() string {
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
 
-	border := lipgloss.NewStyle().Width(min(m.layout.Body.Width-5, 90)).
+	border := lipgloss.NewStyle().Width(min(m.layout.Body.Width-5, m.maxWidth)).
 		Border(lipgloss.NormalBorder(), false, false, true, false).
 		BorderForeground(theme.Current().Border)
 

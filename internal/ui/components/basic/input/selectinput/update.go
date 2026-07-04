@@ -1,7 +1,6 @@
 package selectinput
 
 import (
-	"bgscan/internal/logger"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -29,7 +28,6 @@ func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 		return m, cmd
 	case tea.KeyPressMsg:
-		logger.DebugInfo("Key pressed: %s", msg.String())
 		if msg.Code == tea.KeyEnter {
 			return m, tea.Batch(cmd, m.submit())
 		}

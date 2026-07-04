@@ -12,7 +12,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-const fastboot = true
+const fastboot = false
 
 // Style definitions for startup messages.
 var (

@@ -54,11 +54,11 @@ func ContainerStyle(width int) lipgloss.Style {
 //   - Content centered within the bordered box
 func BorderStyle(width int) lipgloss.Style {
 	width = min(80, width)
-	return lipgloss.NewStyle().
+	return lipgloss.NewStyle().Padding(0, 1).
 		Width(width).
-		Align(lipgloss.Center, lipgloss.Center).
-		Border(lipgloss.DoubleBorder()).
-		BorderForeground(theme.Current().BorderActive)
+		Align(lipgloss.Left).
+		Border(lipgloss.RoundedBorder(), true, true, true, true).
+		BorderForeground(theme.Current().Secondary)
 }
 
 // helpStyle returns the style used for the footer help text,

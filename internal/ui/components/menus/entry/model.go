@@ -3,6 +3,7 @@ package entry
 import (
 	"bgscan/internal/ui/components/basic/menu"
 	"bgscan/internal/ui/components/menus/logs"
+	"bgscan/internal/ui/components/menus/settings"
 	"bgscan/internal/ui/components/menus/targetsource"
 	"bgscan/internal/ui/components/tables/iplist"
 	"bgscan/internal/ui/components/tables/outbounds"
@@ -65,18 +66,18 @@ func newMainMenu(layout *layout.Layout) *menu.Model {
 				}
 			},
 		),
-		menu.NewMenuItem("::", "IP Files", "i", func() tea.Msg {
+		menu.NewMenuItem("☰", "IP Files", "i", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: iplist.New(layout, "IP Files", nil),
 			}
 		}),
-		menu.NewMenuItem("▲", "Result Files", "r", func() tea.Msg {
-			var maxRenderIp uint32 = 10_000
+		menu.NewMenuItem("≡", "Result Files", "r", func() tea.Msg {
+			var maxRenderIP uint32 = 10_000
 			return ui.OpenComponentMsg{
-				Component: resultlist.New(layout, "Result Files", maxRenderIp, nil),
+				Component: resultlist.New(layout, "Result Files", maxRenderIP, nil),
 			}
 		}),
-		menu.NewMenuItem("X", "Xray Outbound", "x", func() tea.Msg {
+		menu.NewMenuItem("▸", "Xray Outbound", "x", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: outbounds.New(
 					layout,
@@ -85,7 +86,12 @@ func newMainMenu(layout *layout.Layout) *menu.Model {
 				),
 			}
 		}),
-		menu.NewMenuItem("ⓘ", "Logs", "l", func() tea.Msg {
+		menu.NewMenuItem("⚙", "Settings", "c", func() tea.Msg {
+			return ui.OpenComponentMsg{
+				Component: settings.New(layout),
+			}
+		}),
+		menu.NewMenuItem("▤", "Logs", "l", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: logs.New(layout),
 			}

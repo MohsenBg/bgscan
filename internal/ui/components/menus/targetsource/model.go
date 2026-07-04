@@ -25,17 +25,17 @@ type Model struct {
 // ═══ Constructor ═══
 func New(layout *layout.Layout) *Model {
 	m := &Model{
+		layout: layout,
 		id:     ui.NewComponentID(),
 		name:   "Target Source",
-		layout: layout,
 	}
 	items := []menu.MenuItem{
-		menu.NewMenuItem("::", "IP List", "i", func() tea.Msg {
+		menu.NewMenuItem("▤", "IP List", "i", func() tea.Msg {
 			return m.OpenIPList(func(i *iplist.IPFileInfo) tea.Cmd {
 				return ui.OpenComponentCmd(scantype.New(layout, i.Path))
 			})
 		}),
-		menu.NewMenuItem("▲", "Result List", "r", func() tea.Msg {
+		menu.NewMenuItem("▤", "Result List", "r", func() tea.Msg {
 			return m.OpenResultIPList(func(r *result.ResultFile) tea.Cmd {
 				return ui.OpenComponentCmd(scantype.New(layout, r.Path))
 			})
@@ -55,8 +55,8 @@ func (m *Model) OpenIPList(onSelect func(*iplist.IPFileInfo) tea.Cmd) tea.Msg {
 // OpenResultIPList opens the ResultIP file picker overlay.
 // onSelect is called by the resultlist component once the user picks a file.
 func (m *Model) OpenResultIPList(onSelect func(*result.ResultFile) tea.Cmd) tea.Msg {
-	var maxRenderIp uint32 = 10_000
-	return ui.OpenComponentMsg{Component: resultlistTable.New(m.layout, "Select IP Result File", maxRenderIp, onSelect)}
+	var maxRenderIP uint32 = 10_000
+	return ui.OpenComponentMsg{Component: resultlistTable.New(m.layout, "Select IP Result File", maxRenderIP, onSelect)}
 }
 
 func (m *Model) Init() tea.Cmd {

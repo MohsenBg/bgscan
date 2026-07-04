@@ -2,7 +2,12 @@ package settings
 
 import (
 	"bgscan/internal/ui/components/basic/menu"
-	"bgscan/internal/ui/components/basic/notice"
+	"bgscan/internal/ui/components/inspector/dns"
+	"bgscan/internal/ui/components/inspector/general"
+	"bgscan/internal/ui/components/inspector/http"
+	"bgscan/internal/ui/components/inspector/icmp"
+	"bgscan/internal/ui/components/inspector/tcp"
+	"bgscan/internal/ui/components/inspector/xray"
 	"bgscan/internal/ui/shared/env"
 	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
@@ -10,7 +15,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// ═══ Model ═══
 type Model struct {
 	id     ui.ComponentID
 	name   string
@@ -18,24 +22,47 @@ type Model struct {
 	menu   ui.Component
 }
 
-// ═══ Constructor ═══
 func New(layout *layout.Layout) *Model {
 	items := []menu.MenuItem{
-		menu.NewMenuItem("📡", "ICMP Config", "i", notice.NoticeUnderDevelopment(layout)),
-		menu.NewMenuItem("🔌", "TCP Config", "t", notice.NoticeUnderDevelopment(layout)),
-		menu.NewMenuItem("🌐", "HTTP Config", "h", notice.NoticeUnderDevelopment(layout)),
-		menu.NewMenuItem("⚡", "XRay Config", "x", notice.NoticeUnderDevelopment(layout)),
+		menu.NewMenuItem("▤", "General Settings", "g", func() tea.Msg {
+			return ui.OpenComponentMsg{
+				Component: general.New(layout, "General Settings"),
+			}
+		}),
+		menu.NewMenuItem("◈", "ICMP Settings", "i", func() tea.Msg {
+			return ui.OpenComponentMsg{
+				Component: icmp.New(layout, "ICMP Settings"),
+			}
+		}),
+		menu.NewMenuItem("⇄", "TCP Settings", "t", func() tea.Msg {
+			return ui.OpenComponentMsg{
+				Component: tcp.New(layout, "TCP Settings"),
+			}
+		}),
+		menu.NewMenuItem("◎", "HTTP Settings", "h", func() tea.Msg {
+			return ui.OpenComponentMsg{
+				Component: http.New(layout, "HTTP Settings"),
+			}
+		}),
+		menu.NewMenuItem("◇", "XRay Settings", "x", func() tea.Msg {
+			return ui.OpenComponentMsg{
+				Component: xray.New(layout, "XRay Settings"),
+			}
+		}),
+		menu.NewMenuItem("⌘", "DNS Settings", "d", func() tea.Msg {
+			return ui.OpenComponentMsg{
+				Component: dns.New(layout, "DNS Settings"),
+			}
+		}),
 	}
-
 	return &Model{
-		menu:   menu.New(items, "settings", layout),
+		menu:   menu.New(items, "Settings", layout),
 		id:     ui.NewComponentID(),
 		name:   "settings",
 		Layout: layout,
 	}
 }
 
-// ═══ Init ═══
 func (m *Model) Init() tea.Cmd {
 	return nil
 }

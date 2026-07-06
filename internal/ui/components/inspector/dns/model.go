@@ -204,7 +204,7 @@ func New(l *layout.Layout, name string) *Model {
 		"Enter port number",
 		int(r.Port),
 		func(v string) error {
-			n, err := strconv.Atoi(v)
+			n, err := strconv.ParseUint(v, 10, 16)
 			if err != nil {
 				return err
 			}

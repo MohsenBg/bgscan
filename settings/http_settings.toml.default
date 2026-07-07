@@ -39,7 +39,25 @@ max_tls_version = "tls1.3"
 # Supported values are "http" or "https".
 protocol = "https"
 
+# The HTTP version to use for the scan.
+# Supported values:
+#   "h1"     - HTTP/1.1 only
+#   "h2"     - HTTP/2 only #
+#   "h1,h2"  - HTTP/1.1 and HTTP/2 negotiated via ALPN 
+#   "h3"     - HTTP/3 only (QUIC + TLS 1.3, ignores min/max_tls_version)
+# Default: "h1,h2"
+version = "h1,h2"
+
 # Optional TLS Server Name Indication (SNI) override.
 # If set, this value will be used as the TLS server name during the handshake.
 # Leave empty to automatically use the domain extracted from the "host" field.
 server_name = ""
+
+
+# List of HTTP status codes considered successful by the scanner.
+# Responses with a status code in this list will be treated as valid.
+# Any status code not listed here will be considered a failed result.
+#
+# By default, all official HTTP status codes are accepted (empty = no filtering).
+# Example: accepted_status_codes = [200, 204, 301, 302, 307, 308]
+accepted_status_codes = []

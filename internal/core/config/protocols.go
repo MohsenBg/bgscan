@@ -19,16 +19,18 @@ type TCPConfig struct {
 
 // HTTPConfig defines configuration for HTTP probing and TLS validation.
 type HTTPConfig struct {
-	Workers       int        `toml:"workers"`
-	Host          string     `toml:"host"`
-	ServerName    string     `toml:"server_name"`
-	Port          int        `toml:"port"`
-	Protocol      string     `toml:"protocol"`
-	TLSValidation bool       `toml:"tls_validation"`
-	MinTLSVersion string     `toml:"min_tls_version"`
-	MaxTLSVersion string     `toml:"max_tls_version"`
-	Timeout       DurationMS `toml:"timeout"`
-	PrefixOutput  string     `toml:"prefix_output"`
+	Workers             int        `toml:"workers"`
+	Host                string     `toml:"host"`
+	ServerName          string     `toml:"server_name"`
+	Port                int        `toml:"port"`
+	Protocol            string     `toml:"protocol"`
+	Version             string     `toml:"version"`
+	TLSValidation       bool       `toml:"tls_validation"`
+	MinTLSVersion       string     `toml:"min_tls_version"`
+	MaxTLSVersion       string     `toml:"max_tls_version"`
+	Timeout             DurationMS `toml:"timeout"`
+	PrefixOutput        string     `toml:"prefix_output"`
+	AcceptedStatusCodes []int      `toml:"accepted_status_codes"`
 }
 
 // XrayConfig defines configuration for Xray connectivity testing.

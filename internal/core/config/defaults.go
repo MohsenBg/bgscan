@@ -48,15 +48,17 @@ func DefaultTCPConfig() *TCPConfig {
 // DefaultHTTPConfig returns the default configuration for HTTP probing.
 func DefaultHTTPConfig() *HTTPConfig {
 	return &HTTPConfig{
-		Workers:       50,
-		Host:          "example.com",
-		Port:          443,
-		Protocol:      "https",
-		TLSValidation: true,
-		MinTLSVersion: "tls1.1",
-		MaxTLSVersion: "tls1.3",
-		Timeout:       NewDurationMS(4 * time.Second),
-		PrefixOutput:  "http_",
+		Workers:             50,
+		Host:                "example.com",
+		Port:                443,
+		Protocol:            "https",
+		TLSValidation:       true,
+		Version:             "h1,h2",
+		AcceptedStatusCodes: []int{},
+		MinTLSVersion:       "tls1.1",
+		MaxTLSVersion:       "tls1.3",
+		Timeout:             NewDurationMS(4 * time.Second),
+		PrefixOutput:        "http_",
 	}
 }
 
@@ -78,7 +80,7 @@ func DefaultDNSConfig() *DNSConfig {
 	return &DNSConfig{
 		Resolver: &ResolverConfig{
 			Workers:         100,
-			Protocol:        "UDP",
+			Protocol:        "udp",
 			Domain:          "google.com",
 			Port:            53,
 			CheckTypes:      []string{"A"},

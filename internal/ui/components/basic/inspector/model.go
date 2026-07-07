@@ -141,7 +141,6 @@ func New(l *layout.Layout, name string, fields []Field) *Model {
 		v := f.Input.Value()
 		f.snapshot = &v
 		f.Input.AppendOnSubmit(func() tea.Cmd {
-			*f.snapshot = f.Input.Value()
 			m.Refresh()
 			return nil
 		})
@@ -292,5 +291,8 @@ func (m *Model) Fields() []Field {
 // Refresh re-pulls Value() from every field's Input and re-renders the
 // list, useful after an external edit changes underlying state.
 func (m *Model) Refresh() tea.Cmd {
+	for _, f := range m.Fields() {
+		*f.snapshot = f.Input.Value()
+	}
 	return m.list.SetItems(visibleItems(m.groups[m.Title]))
 }

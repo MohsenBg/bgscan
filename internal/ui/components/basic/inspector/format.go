@@ -107,3 +107,18 @@ func FormatStringList(value any) string {
 
 	return b.String()
 }
+
+func FormatIntList(value any) string {
+	items, ok := value.([]int)
+	if !ok {
+		logger.UIError("Error while casting type to []int")
+		return ""
+	}
+
+	l := make([]string, 0, len(items))
+	for _, item := range items {
+		l = append(l, strconv.Itoa(item))
+	}
+
+	return FormatStringList(l)
+}

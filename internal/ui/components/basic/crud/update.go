@@ -100,9 +100,8 @@ func (m *Model[T]) requestDeletion() tea.Cmd {
 		return nil
 	}
 
-	// FIX: Safely access SelectedRow to prevent panic if table is empty
 	row := m.table.BubbleTable.SelectedRow()
-	if row == nil || len(row) == 0 {
+	if len(row) == 0 {
 		return nil
 	}
 	itemID := row[0] // Based on getSelected() logic, row[0] is the ID
@@ -122,7 +121,7 @@ func (m *Model[T]) handleRequestRename() tea.Cmd {
 	}
 
 	row := m.table.BubbleTable.SelectedRow()
-	if row == nil || len(row) == 0 {
+	if len(row) == 0 {
 		return nil
 	}
 	itemID := row[0]
@@ -148,7 +147,7 @@ func (m *Model[T]) handleRequestRename() tea.Cmd {
 
 func (m *Model[T]) getSelected() (T, error) {
 	row := m.table.BubbleTable.SelectedRow()
-	if row == nil || len(row) == 0 {
+	if len(row) == 0 {
 		var zero T
 		return zero, errors.New("no row selected")
 	}

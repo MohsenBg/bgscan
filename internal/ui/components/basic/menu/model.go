@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"bgscan/internal/logger"
 	"bgscan/internal/ui/shared/env"
 	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
@@ -87,7 +88,10 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		rightSection,
 	)
 
-	fmt.Fprint(w, PaddingCell().Render(line))
+	_, err := fmt.Fprint(w, PaddingCell().Render(line))
+	if err != nil {
+		logger.UIError("Error while rendering menu: %v", err)
+	}
 }
 
 // Model represents the menu component state.

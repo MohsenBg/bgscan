@@ -3,7 +3,6 @@ package logger
 var debugLogger *Logger
 
 func InitDebug() error {
-
 	var err error
 	debugLogger, err = newLogger("debug.log")
 	return err

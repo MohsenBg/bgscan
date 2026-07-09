@@ -49,33 +49,6 @@ func vlaueStyle() lipgloss.Style {
 		Foreground(theme.Current().Text)
 }
 
-// iconStyle returns the style used for menu icons in their normal state.
-//
-// Behavior:
-//   - Fixed width ensures consistent alignment across menu items
-//   - Bold icon rendering for visibility
-//   - Default theme text color
-func iconStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(theme.Current().Text).
-		Width(4).
-		Bold(true)
-}
-
-// selectedIconStyle returns the style for icons belonging to the
-// currently selected menu item.
-//
-// Visual characteristics:
-//   - Primary theme color for emphasis
-//   - Fixed width for alignment consistency
-//   - Bold rendering for improved visibility
-func selectedIconStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(theme.Current().Primary).
-		Width(4).
-		Bold(true)
-}
-
 // titleStyle returns the style used for the menu title or header.
 //
 // Visual characteristics:

@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"bgscan/internal/logger"
 	"bgscan/internal/ui/components/basic/input"
 	"bgscan/internal/ui/components/basic/tabs"
 	"bgscan/internal/ui/shared/env"
@@ -99,7 +100,10 @@ func (d fieldDelegate) Render(w io.Writer, m list.Model, index int, listItem lis
 		rightSection,
 	)
 
-	fmt.Fprint(w, PaddingCell().Render(line))
+	_, err := fmt.Fprint(w, PaddingCell().Render(line))
+	if err != nil {
+		logger.UIError("Error while rendering inspector: %v", err)
+	}
 }
 
 // --- Model -----------------------------------------------------------------

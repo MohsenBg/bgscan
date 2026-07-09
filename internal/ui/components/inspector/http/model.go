@@ -186,20 +186,6 @@ func filterCodesByGroup(codes []int, group string) []int {
 	return cs
 }
 
-// groupIsActive checks if any code from the given group exists in the provided list.
-func groupIsActive(codes []int, group string) bool {
-	set := make(map[int]struct{}, len(codes))
-	for _, c := range codes {
-		set[c] = struct{}{}
-	}
-	for _, c := range statusGroups[group] {
-		if _, ok := set[c]; ok {
-			return true
-		}
-	}
-	return false
-}
-
 // groupsChanged compares two slices of group names to detect changes.
 func groupsChanged(old, new []string) bool {
 	if len(old) != len(new) {

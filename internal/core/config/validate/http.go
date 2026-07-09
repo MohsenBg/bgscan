@@ -99,6 +99,8 @@ func NormalizeHTTP(cfg *config.HTTPConfig) []Warning {
 	fixInt("Port", &cfg.Port, 1, 65535, def.Port, &warns)
 	fixEnum("Protocol", &cfg.Protocol, allowedProtocols, def.Protocol, &warns)
 	fixHost("Host", &cfg.Host, def.Host, &warns)
+	fixHTTPStatusCodes("AcceptedStatusCodes", &cfg.AcceptedStatusCodes, def.AcceptedStatusCodes, &warns)
+
 	fixSNI("ServerName", &cfg.ServerName, def.ServerName, &warns)
 	fixEnum("Version", &cfg.Version, allowedHTTPVersions, def.Version, &warns)
 	fixDurationMS("Timeout", &cfg.Timeout,

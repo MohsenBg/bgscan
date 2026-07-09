@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"bgscan/internal/core/config"
-	"bgscan/internal/logger"
 )
 
 // ============================================================================
@@ -158,7 +157,6 @@ func checkHost(field, host string) error {
 		return fmt.Errorf("%s contains an invalid domain: %s", field, domain)
 	}
 
-	logger.DebugInfo("valid %s as %s", field, u.String())
 	return nil
 }
 
@@ -292,9 +290,9 @@ func fixSNI(field string, v *string, def string, warns *[]Warning) {
 	}
 }
 
-// fixHTTP Code
-func fixHTTP(field string, v *string, def string, warns *[]Warning) {
-	if err := checkHost(field, *v); err != nil {
+// fixHTTPStatusCodes Code
+func fixHTTPStatusCodes(field string, v *[]int, def []int, warns *[]Warning) {
+	if err := checkStatusCodes(field, *v); err != nil {
 		old := *v
 		*v = def
 		*warns = append(*warns, Warning{field, old, def, err.Error() + " → default"})

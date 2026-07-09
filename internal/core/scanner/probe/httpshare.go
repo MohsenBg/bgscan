@@ -94,7 +94,7 @@ func newTLSConfig(req HTTPRequest) *tls.Config {
 
 // defaultPort returns the default port for HTTP or HTTPS depending on useTLS.
 func defaultPort(port int, useTLS bool) (uint16, error) {
-	if port < 0 && port > math.MaxUint16 {
+	if port < 0 || port > math.MaxUint16 {
 		return 0, errors.New("invalid port number")
 	}
 

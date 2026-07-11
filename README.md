@@ -119,7 +119,7 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 
 **🐧 Linux / 🍎 macOS**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | bash
 ```
 
 **🤖 Android (Termux)**

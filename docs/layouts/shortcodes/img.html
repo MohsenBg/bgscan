@@ -1,1 +1,2 @@
-<img src="{{ (index .Params 0) | absURL }}" alt="{{ (index .Params 1) }}" />
+{{ $src := index .Params 0 | strings.TrimLeft "/" }}
+<img src="{{ $src | absURL }}" alt="{{ index .Params 1 }}">

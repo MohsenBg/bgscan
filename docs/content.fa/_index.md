@@ -27,13 +27,6 @@ layout: landing
   --mono:  'SF Mono','Fira Code','Roboto Mono',monospace;
 }
 
-/*
-  DARK: target every way the theme might be applied:
-  1. html.dark-theme  (your CSS file)
-  2. body.dark        (navbar JS applyTheme)
-  3. [data-theme="dark"] (some Hugo book themes)
-  4. CSS variable check via inline style on :root (handled by JS below)
-*/
 html.dark-theme .lp,
 body.dark .lp,
 [data-theme="dark"] .lp,
@@ -64,7 +57,7 @@ body.dark .lp,
   font-family: system-ui,-apple-system,sans-serif;
   color: var(--tx);
   background: var(--bg);
-  direction: rtl; /* Set direction for Persian text layout */
+  direction: rtl;
 }
 
 /* ── HERO ── */
@@ -87,7 +80,7 @@ body.dark .lp,
   text-transform: uppercase;
   margin-bottom: 1.8rem;
   animation: fadeIn .5s .1s ease both;
-  direction: ltr; /* Keep version info left-to-right */
+  direction: ltr;
 }
 
 .lp .hero h1 {
@@ -117,7 +110,7 @@ body.dark .lp,
   animation: fadeUp .6s .35s ease both;
 }
 
-/* ── BUTTONS ── !important beats --color-link overrides */
+/* ── BUTTONS ── */
 .lp .btn-p {
   display: inline-flex !important;
   align-items: center;
@@ -350,7 +343,7 @@ body.dark .lp,
   align-items: center;
   gap: 1rem;
   padding: 1.1rem 1.3rem;
-  direction: ltr; /* Keep commands LTR */
+  direction: ltr;
 }
 .lp .install-cmd code {
   flex: 1;
@@ -414,7 +407,7 @@ body.dark .lp,
   <h1>اسکن همه‌چیز.<br>با حداکثر سرعت.</h1>
   <p>برنامه bgscan یک اسکنر شبکه فوق‌سریع و چندپروتکلی است که با زبان Go توسعه یافته و از یک موتور زنجیره‌ای ماژولار و رابط کاربری ترمینال تعاملی بهره می‌برد.</p>
   <div class="hero-actions">
-    <a href="/docs/" class="btn-p">شروع کار ←</a>
+    <a href="" class="btn-p lp-docs-link">شروع کار ←</a>
     <a href="https://github.com/MohsenBg/bgscan" class="btn-o">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       مشاهده در GitHub
@@ -508,51 +501,61 @@ body.dark .lp,
   <h2>برای شروع اسکن آماده‌اید؟</h2>
   <p>مستندات را بخوانید، آخرین نسخه را دریافت کنید یا اگر این پروژه به شما کمک کرده، در گیت‌هاب به آن ستاره بدهید.</p>
   <div class="btn-group">
-    <a href="/docs/" class="btn-p">شروع کار ←</a>
+    <a href="" class="btn-p lp-docs-link">شروع کار ←</a>
     <a href="https://github.com/MohsenBg/bgscan" class="btn-o">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-      مشاهد در GitHub
+      مشاهده در GitHub
     </a>
   </div>
 </div>
 
-</div>
+</div><!-- /.lp -->
 
 <script>
 (function(){
   var lp = document.getElementById('lp-root');
   if (!lp) return;
 
-  /* ── sync dark class on .lp to match whatever the site is doing ── */
+  /* ── Build the correct /docs/ URL based on current language + base prefix ── */
+  (function setDocsLinks() {
+    var path = window.location.pathname;
+    var base = (window.BGSCAN_BASE || '').replace(/\/$/, ''); // e.g. "/prefix" or ""
+    var rel  = (base && path.startsWith(base)) ? path.slice(base.length) : path;
+    if (!rel) rel = '/';
+
+    // Are we on a /fa/ page?
+    var isFa = (rel === '/fa' || rel.startsWith('/fa/'));
+    var docsHref = base + (isFa ? '/fa/docs/' : '/docs/');
+
+    document.querySelectorAll('.lp-docs-link').forEach(function(a) {
+      a.setAttribute('href', docsHref);
+    });
+  })();
+
+  /* ── Sync dark class on .lp ── */
   function syncTheme() {
     var html = document.documentElement;
     var body = document.body;
-
     var isDark =
-      html.classList.contains('dark-theme') ||   // your CSS file selector
-      body.classList.contains('dark') ||          // navbar JS applyTheme
+      html.classList.contains('dark-theme') ||
+      body.classList.contains('dark') ||
       html.classList.contains('dark') ||
       html.getAttribute('data-theme') === 'dark' ||
       body.getAttribute('data-theme') === 'dark' ||
-      // fallback: check if body-background inline style is dark
       (function(){
         var bg = getComputedStyle(document.documentElement)
                    .getPropertyValue('--body-background').trim();
         return bg === '#000000' || bg === '#000' || bg === 'rgb(0,0,0)' || bg === 'rgb(0, 0, 0)';
       })();
-
     lp.classList.toggle('lp--dark', isDark);
   }
 
-  /* run once on load */
   syncTheme();
-
-  /* watch for class changes on <html> and <body> */
   var mo = new MutationObserver(syncTheme);
   mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class','data-theme','style'] });
   mo.observe(document.body,            { attributes: true, attributeFilter: ['class','data-theme','style'] });
 
-  /* ── tab switcher ── */
+  /* ── Tab switcher ── */
   window.swTab = function(e, id){
     document.querySelectorAll('.lp .tab-btn').forEach(function(b){ b.classList.remove('active'); });
     document.querySelectorAll('.lp .tab-pane').forEach(function(p){ p.classList.remove('active'); });
@@ -560,7 +563,7 @@ body.dark .lp,
     document.getElementById('tab-'+id).classList.add('active');
   };
 
-  /* ── copy button ── */
+  /* ── Copy button ── */
   window.cpCmd = function(btn){
     navigator.clipboard.writeText(btn.previousElementSibling.textContent).then(function(){
       btn.textContent = 'کپی شد!';
@@ -568,7 +571,7 @@ body.dark .lp,
     });
   };
 
-  /* ── scroll reveal ── */
+  /* ── Scroll reveal ── */
   var revEls = document.querySelectorAll('.lp .reveal');
   if (revEls.length && 'IntersectionObserver' in window) {
     var io = new IntersectionObserver(function(entries){

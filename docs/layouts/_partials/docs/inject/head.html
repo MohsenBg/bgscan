@@ -1,3 +1,4 @@
+{{ if ne .Kind "404" }}
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
@@ -170,7 +171,6 @@
 
   .bgscan-gh-stat-inline.stars svg {
     color: #f59e0b;
-    /* Gold for stars */
   }
 
   .bgscan-gh-stat-inline.forks svg {
@@ -618,13 +618,28 @@
       applyLang(l);
       var isFa = l === 'fa';
       var cur = window.location.pathname;
-      var hasFa = cur.startsWith('/fa/') || cur === '/fa';
+
+      var trailingSlash = cur.endsWith('/') && cur !== '/';
+
+      var base = (window.BGSCAN_BASE || '').replace(/\/$/, '');
+
+      var rel = (base && cur.startsWith(base)) ? cur.slice(base.length) : cur;
+      if (!rel || rel === '') rel = '/';
+
+      var hasFa = rel === '/fa' || rel.startsWith('/fa/');
+
       var next;
       if (isFa && !hasFa) {
-        next = '/fa' + (cur === '/' ? '/' : cur);
+        // Add /fa after base: /base/fa/content-path
+        next = base + '/fa' + (rel === '/' ? '/' : rel);
       } else if (!isFa && hasFa) {
-        next = cur.replace(/^\/fa/, '') || '/';
-      } else {return;}
+        // Remove /fa segment: /base/content-path
+        var withoutFa = rel.replace(/^\/fa/, '') || '/';
+        next = base + withoutFa;
+      } else {
+        return; 
+      }
+
       window.location.href = next;
     };
 
@@ -639,7 +654,21 @@
       burger.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
     };
 
-    // ── Fetch GitHub Stats ────────────────────────────────────────────────────
+    function updateDocsLinks() {
+      var cur = window.location.pathname;
+      var base = (window.BGSCAN_BASE || '').replace(/\/$/, '');
+      var rel = (base && cur.startsWith(base)) ? cur.slice(base.length) : cur;
+      if (!rel) rel = '/';
+
+      var isFa = rel === '/fa' || rel.startsWith('/fa/');
+      var docsHref = isFa ? (base + '/fa/docs/') : (base + '/docs/');
+
+      var navDocs = document.getElementById('bgscan-nav-docs');
+      var mobDocs = document.getElementById('bgscan-mob-docs');
+      if (navDocs) navDocs.setAttribute('href', docsHref);
+      if (mobDocs) mobDocs.setAttribute('href', docsHref);
+    }
+
     async function fetchGitHubStats() {
       try {
         const res = await fetch('https://api.github.com/repos/MohsenBg/bgscan', {
@@ -671,7 +700,7 @@
       }
     }
 
-    // ── Initialization Logic ──────────────────────────────────────────────────
+    /* ── Initialization ── */
     var path = window.location.pathname;
 
     if (path.includes('/docs')) {
@@ -689,10 +718,12 @@
     }
     applyTheme(savedTheme);
 
-    var isFaUrl = path.startsWith('/fa/') || path === '/fa';
+    var isFaUrl = path.includes('/fa/') || path.endsWith('/fa') || path === '/fa';
     applyLang(isFaUrl ? 'fa' : 'en');
 
-    // Fetch stats after UI is ready
+    updateDocsLinks();
+
     fetchGitHubStats();
   })();
 </script>
+{{ end }}

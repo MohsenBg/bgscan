@@ -1,0 +1,24 @@
+/* You can add custom styles here. */
+
+/* @import "plugins/numbered"; */
+/* @import "plugins/scrollbars"; */
+
+@import "plugins/themes";
+
+.book-menu-content,
+.book-toc-content {
+  top: 52px !important;
+}
+
+.book-section-flat {
+  margin: 0 !important;
+  padding-inline-start: 20px;
+}
+
+.book-section-flat>label {
+  margin-inline-start: -20px;
+}
+
+li>a[href="/docs/user-guide/overview/"] {
+  font-weight: bold;
+}

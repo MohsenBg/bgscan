@@ -1,0 +1,698 @@
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --body-background: #ffffff;
+    --body-font-color: #111827;
+
+    --header-bg: rgba(255, 255, 255, 0.75);
+    --border-color: rgba(0, 0, 0, 0.06);
+    --hover-bg: rgba(0, 0, 0, 0.04);
+    --active-bg: #ffffff;
+    --active-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+
+    --gray-100: #f9fafb;
+    --gray-200: #f3f4f6;
+    --gray-300: #e5e7eb;
+    --gray-500: #6b7280;
+
+    --color-link: #2563eb;
+    --color-visited-link: #7c3aed;
+  }
+
+  html.dark-theme {
+    --body-background: #000000;
+    --body-font-color: #ffffff;
+
+    --header-bg: rgba(0, 0, 0, 0.8);
+    --border-color: rgba(255, 255, 255, 0.1);
+    --hover-bg: rgba(255, 255, 255, 0.06);
+    --active-bg: #1a1a1a;
+    --active-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+
+    --gray-100: #1a1a1a;
+    --gray-200: #333333;
+    --gray-500: #a0a0a0;
+
+    --color-link: #00ffff;
+    --color-visited-link: #ff00ff;
+  }
+
+  .bgscan-tb {
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    height: 64px;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    gap: 1rem;
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+
+  .bgscan-tb[dir="rtl"] {
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+  }
+
+  .bgscan-tb-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none !important;
+    color: inherit !important;
+    font-weight: 800;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .bgscan-tb-logo img {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .bgscan-tb-logo:hover img {
+    transform: scale(1.08) rotate(-3deg);
+  }
+
+  .bgscan-tb-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .bgscan-tb-nav a {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none !important;
+    color: var(--body-font-color) !important;
+    opacity: 0.75;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    position: relative;
+  }
+
+  .bgscan-tb-nav a:hover,
+  .bgscan-tb-nav a.active {
+    opacity: 1;
+    background: var(--hover-bg);
+    transform: translateY(-1px);
+  }
+
+  .bgscan-tb-nav a svg {
+    transition: transform 0.2s ease;
+  }
+
+  .bgscan-tb-nav a:hover svg {
+    transform: scale(1.15);
+  }
+
+  .bgscan-nav-gh {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.95rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none !important;
+    color: var(--body-font-color) !important;
+    opacity: 0.85;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    background: transparent;
+  }
+
+  .bgscan-nav-gh:hover {
+    opacity: 1;
+    border-color: var(--body-font-color);
+    background: var(--hover-bg);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  }
+
+  .bgscan-gh-stats-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-inline-start: 0.5rem;
+    padding-inline-start: 0.6rem;
+    border-inline-start: 1px solid var(--border-color);
+  }
+
+  .bgscan-gh-stat-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+  }
+
+  .bgscan-nav-gh:hover .bgscan-gh-stat-inline {
+    opacity: 1;
+  }
+
+  .bgscan-gh-stat-inline.stars svg {
+    color: #f59e0b;
+    /* Gold for stars */
+  }
+
+  .bgscan-gh-stat-inline.forks svg {
+    color: var(--body-font-color);
+    opacity: 0.7;
+  }
+
+  .bgscan-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border-color);
+    margin: 0 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .bgscan-pill {
+    display: flex;
+    align-items: center;
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+    flex-shrink: 0;
+    position: relative;
+    direction: ltr;
+  }
+
+  .bgscan-pill-btn {
+    padding: 0.25rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--body-font-color);
+    opacity: 0.6;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    line-height: 1.4;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .bgscan-pill-btn.on {
+    background: var(--active-bg);
+    opacity: 1;
+    box-shadow: var(--active-shadow);
+    color: var(--body-font-color);
+  }
+
+  .bgscan-pill-btn:hover:not(.on) {
+    opacity: 0.85;
+    background: rgba(128, 128, 128, 0.05);
+  }
+
+  .bgscan-hamburger {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    cursor: pointer;
+    color: var(--body-font-color);
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+    padding: 0;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .bgscan-hamburger:hover {
+    background: var(--hover-bg);
+    border-color: var(--body-font-color);
+  }
+
+  .bgscan-hamburger span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    background: currentColor;
+    border-radius: 2px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+  }
+
+  .bgscan-hamburger.open span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+
+  .bgscan-hamburger.open span:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+
+  .bgscan-hamburger.open span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  .bgscan-mobile-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0 1.5rem;
+    max-height: 0;
+    overflow: hidden;
+    background: var(--header-bg);
+    border-bottom: 1px solid transparent;
+    position: sticky;
+    top: 64px;
+    z-index: 9998;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+      padding 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 0.35s ease;
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+
+  .bgscan-mobile-menu.open {
+    max-height: 400px;
+    padding: 0.75rem 1.5rem 1.25rem;
+    border-bottom-color: var(--border-color);
+  }
+
+  .bgscan-mobile-menu[dir="rtl"] {
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+  }
+
+  .bgscan-mobile-menu a {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-decoration: none !important;
+    color: var(--body-font-color) !important;
+    opacity: 0.75;
+    transition: all 0.2s ease;
+  }
+
+  .bgscan-mobile-menu a:hover,
+  .bgscan-mobile-menu a.active {
+    opacity: 1;
+    background: var(--hover-bg);
+  }
+
+  .bgscan-mob-gh-link {
+    display: flex;
+    align-items: center;
+  }
+
+  .bgscan-mob-gh-stats {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-inline-start: auto;
+    padding-inline-start: 1rem;
+  }
+
+  .bgscan-mob-gh-stats .bgscan-gh-stat-inline {
+    font-size: 0.8rem;
+    opacity: 0.7;
+  }
+
+  .bgscan-mob-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.8rem;
+    margin-top: 0.25rem;
+  }
+
+  .bgscan-mob-row-label {
+    font-size: 0.85rem;
+    color: var(--body-font-color);
+    opacity: 0.5;
+    font-weight: 500;
+  }
+
+  @media (max-width: 640px) {
+    .bgscan-tb-nav {
+      display: none;
+    }
+
+    .bgscan-hamburger {
+      display: flex;
+    }
+
+    .bgscan-tb {
+      padding: 0 1rem;
+    }
+
+    .bgscan-mobile-menu {
+      padding: 0 1rem;
+    }
+
+    .bgscan-mobile-menu.open {
+      padding: 0.5rem 1rem 1rem;
+    }
+  }
+</style>
+
+<!-- ── HTML Structure ─────────────────────────────────────────────────────── -->
+<nav class="bgscan-tb" id="bgscan-tb" dir="ltr" role="navigation" aria-label="Main navigation">
+  <a href="/" class="bgscan-tb-logo">
+    <img src="/logo.png" alt="bgscan" />
+    <span>bgscan</span>
+  </a>
+
+  <div class="bgscan-tb-nav" id="bgscan-nav">
+    <a href="/docs/" id="bgscan-nav-docs">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+      </svg>
+      <span id="bgscan-t-docs">Documentation</span>
+    </a>
+    <div class="bgscan-divider" id="bgscan-docs-divider" aria-hidden="true"></div>
+
+    <!-- Theme toggle -->
+    <div class="bgscan-pill" role="group" aria-label="Theme">
+      <button class="bgscan-pill-btn" id="bgscan-btn-light" onclick="bgscanSetTheme('light')" title="Light"
+        aria-pressed="false">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      </button>
+      <button class="bgscan-pill-btn" id="bgscan-btn-dark" onclick="bgscanSetTheme('dark')" title="Dark"
+        aria-pressed="false">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+    </div>
+    <div class="bgscan-divider" aria-hidden="true"></div>
+
+    <!-- Language toggle -->
+    <div class="bgscan-pill" role="group" aria-label="Language / زبان">
+      <button class="bgscan-pill-btn on" id="bgscan-btn-en" onclick="bgscanSetLang('en')"
+        aria-pressed="true">EN</button>
+      <button class="bgscan-pill-btn" id="bgscan-btn-fa" onclick="bgscanSetLang('fa')" aria-pressed="false">فا</button>
+    </div>
+    <div class="bgscan-divider" aria-hidden="true"></div>
+
+    <!-- GitHub Button with Live Stats -->
+    <a href="https://github.com/MohsenBg/bgscan" class="bgscan-nav-gh" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path
+          d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+      </svg>
+      <span id="bgscan-t-gh">GitHub</span>
+
+      <div class="bgscan-gh-stats-inline">
+        <span class="bgscan-gh-stat-inline stars" title="Stars">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+          <span id="bgscan-gh-stars">--</span>
+        </span>
+        <span class="bgscan-gh-stat-inline forks" title="Forks">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="6" y1="3" x2="6" y2="15" />
+            <circle cx="18" cy="6" r="3" />
+            <circle cx="6" cy="18" r="3" />
+            <path d="M18 9a9 9 0 0 1-9 9" />
+          </svg>
+          <span id="bgscan-gh-forks">--</span>
+        </span>
+      </div>
+    </a>
+  </div>
+
+  <button class="bgscan-hamburger" id="bgscan-burger" aria-label="Open menu" aria-expanded="false"
+    onclick="bgscanToggleMenu()">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+</nav>
+
+<div class="bgscan-mobile-menu" id="bgscan-mobile" dir="ltr">
+  <a href="/docs/" id="bgscan-mob-docs">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+    <span id="bgscan-mob-t-docs">Documentation</span>
+  </a>
+
+  <!-- Mobile GitHub Link with Stats -->
+  <a href="https://github.com/MohsenBg/bgscan" target="_blank" rel="noopener" class="bgscan-mob-gh-link">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path
+        d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+    </svg>
+    <span id="bgscan-mob-t-gh">GitHub</span>
+    <div class="bgscan-mob-gh-stats">
+      <span class="bgscan-gh-stat-inline stars">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+        <span id="bgscan-mob-gh-stars">--</span>
+      </span>
+      <span class="bgscan-gh-stat-inline forks">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="6" y1="3" x2="6" y2="15" />
+          <circle cx="18" cy="6" r="3" />
+          <circle cx="6" cy="18" r="3" />
+          <path d="M18 9a9 9 0 0 1-9 9" />
+        </svg>
+        <span id="bgscan-mob-gh-forks">--</span>
+      </span>
+    </div>
+  </a>
+
+  <div class="bgscan-mob-row">
+    <span class="bgscan-mob-row-label" id="bgscan-mob-theme-label">Theme:</span>
+    <div class="bgscan-pill" role="group">
+      <button class="bgscan-pill-btn" id="bgscan-mob-btn-light" onclick="bgscanSetTheme('light')" title="Light"
+        aria-pressed="false">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      </button>
+      <button class="bgscan-pill-btn" id="bgscan-mob-btn-dark" onclick="bgscanSetTheme('dark')" title="Dark"
+        aria-pressed="false">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="bgscan-mob-row">
+    <span class="bgscan-mob-row-label" id="bgscan-mob-lang-label">Language:</span>
+    <div class="bgscan-pill" role="group">
+      <button class="bgscan-pill-btn on" id="bgscan-mob-btn-en" onclick="bgscanSetLang('en')"
+        aria-pressed="true">EN</button>
+      <button class="bgscan-pill-btn" id="bgscan-mob-btn-fa" onclick="bgscanSetLang('fa')"
+        aria-pressed="false">فا</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var THEME_KEY = 'color-theme';
+
+    var S = {
+      en: {docs: 'Documentation', gh: 'GitHub', themeLabel: 'Theme:', langLabel: 'Language:'},
+      fa: {docs: 'مستندات', gh: 'گیت‌هاب', themeLabel: 'پوسته:', langLabel: 'زبان:'}
+    };
+
+    function applyTheme(t) {
+      var root = document.documentElement;
+      if (t === 'dark') {
+        root.classList.add('dark-theme');
+      } else {
+        root.classList.remove('dark-theme');
+      }
+      localStorage.setItem(THEME_KEY, t);
+
+      ['light', 'dark'].forEach(function (v) {
+        var on = v === t;
+        ['bgscan-btn-', 'bgscan-mob-btn-'].forEach(function (p) {
+          var el = document.getElementById(p + v);
+          if (el) {
+            el.classList.toggle('on', on);
+            el.setAttribute('aria-pressed', String(on));
+          }
+        });
+      });
+    }
+
+    window.bgscanSetTheme = function (t) {applyTheme(t);};
+
+    function applyLang(l) {
+      var isFa = l === 'fa';
+      var s = S[l];
+      var tb = document.getElementById('bgscan-tb');
+      var mob = document.getElementById('bgscan-mobile');
+
+      if (tb) {
+        tb.setAttribute('dir', isFa ? 'rtl' : 'ltr');
+        tb.setAttribute('lang', l);
+      }
+      if (mob) {
+        mob.setAttribute('dir', isFa ? 'rtl' : 'ltr');
+        mob.setAttribute('lang', l);
+      }
+
+      var map = [
+        ['bgscan-t-docs', 'docs'], ['bgscan-t-gh', 'gh'],
+        ['bgscan-mob-t-docs', 'docs'], ['bgscan-mob-t-gh', 'gh'],
+        ['bgscan-mob-theme-label', 'themeLabel'], ['bgscan-mob-lang-label', 'langLabel']
+      ];
+      map.forEach(function (pair) {
+        var el = document.getElementById(pair[0]);
+        if (el) el.textContent = s[pair[1]];
+      });
+
+      ['bgscan-btn-en', 'bgscan-mob-btn-en'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) {el.classList.toggle('on', !isFa); el.setAttribute('aria-pressed', String(!isFa));}
+      });
+      ['bgscan-btn-fa', 'bgscan-mob-btn-fa'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) {el.classList.toggle('on', isFa); el.setAttribute('aria-pressed', String(isFa));}
+      });
+    }
+
+    window.bgscanSetLang = function (l) {
+      applyLang(l);
+      var isFa = l === 'fa';
+      var cur = window.location.pathname;
+      var hasFa = cur.startsWith('/fa/') || cur === '/fa';
+      var next;
+      if (isFa && !hasFa) {
+        next = '/fa' + (cur === '/' ? '/' : cur);
+      } else if (!isFa && hasFa) {
+        next = cur.replace(/^\/fa/, '') || '/';
+      } else {return;}
+      window.location.href = next;
+    };
+
+    window.bgscanToggleMenu = function () {
+      var mob = document.getElementById('bgscan-mobile');
+      var burger = document.getElementById('bgscan-burger');
+      if (!mob || !burger) return;
+
+      var open = mob.classList.toggle('open');
+      burger.classList.toggle('open', open);
+      burger.setAttribute('aria-expanded', String(open));
+      burger.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    };
+
+    // ── Fetch GitHub Stats ────────────────────────────────────────────────────
+    async function fetchGitHubStats() {
+      try {
+        const res = await fetch('https://api.github.com/repos/MohsenBg/bgscan', {
+          headers: {'Accept': 'application/vnd.github.v3+json'}
+        });
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+
+        const formatNumber = (num) => {
+          if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+          return num.toString();
+        };
+
+        const stars = formatNumber(data.stargazers_count || 0);
+        const forks = formatNumber(data.forks_count || 0);
+
+        const updateText = (id, text) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = text;
+        };
+
+        updateText('bgscan-gh-stars', stars);
+        updateText('bgscan-gh-forks', forks);
+        updateText('bgscan-mob-gh-stars', stars);
+        updateText('bgscan-mob-gh-forks', forks);
+
+      } catch (err) {
+        console.warn('Could not fetch GitHub stats:', err);
+      }
+    }
+
+    // ── Initialization Logic ──────────────────────────────────────────────────
+    var path = window.location.pathname;
+
+    if (path.includes('/docs')) {
+      var d1 = document.getElementById('bgscan-nav-docs');
+      var d2 = document.getElementById('bgscan-mob-docs');
+      var div = document.getElementById('bgscan-docs-divider');
+      if (d1) d1.style.display = 'none';
+      if (d2) d2.style.display = 'none';
+      if (div) div.style.display = 'none';
+    }
+
+    var savedTheme = localStorage.getItem(THEME_KEY);
+    if (!savedTheme) {
+      savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    applyTheme(savedTheme);
+
+    var isFaUrl = path.startsWith('/fa/') || path === '/fa';
+    applyLang(isFaUrl ? 'fa' : 'en');
+
+    // Fetch stats after UI is ready
+    fetchGitHubStats();
+  })();
+</script>

@@ -411,7 +411,7 @@ body.dark .lp,
   <h1>Scan everything.<br>At full speed.</h1>
   <p>bgscan is a blazing-fast, multi-protocol network scanner built in Go — with a modular chain engine and an interactive terminal UI.</p>
   <div class="hero-actions">
-    <a href="{{ "docs/" | absLangURL }}"  class="btn-p">Get started →</a>
+    <a href=""  class="btn-p lp-docs-link">Get started →</a>
     <a href="https://github.com/MohsenBg/bgscan" class="btn-o">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       View on GitHub
@@ -505,7 +505,7 @@ body.dark .lp,
   <h2>Ready to start scanning?</h2>
   <p>Read the docs, grab the latest release, or drop a star on GitHub if it helps you.</p>
   <div class="btn-group">
-    <a href="{{ "docs/" | absLangURL }}"  class="btn-p">Get started →</a>
+    <a href=""  class="btn-p lp-docs-link">Get started →</a>
     <a href="https://github.com/MohsenBg/bgscan" class="btn-o">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       View on GitHub
@@ -516,13 +516,25 @@ body.dark .lp,
 </div>
 
 <script>
-  /* run once on load */
-  syncTheme();
+(function(){
+  var lp = document.getElementById('lp-root');
+  if (!lp) return;
 
-  /* watch for class changes on <html> and <body> */
+  /* ── sync dark theme ── */
+  function syncTheme() {
+    var isDark = document.documentElement.classList.contains('dark-theme');
+    lp.classList.toggle('lp--dark', isDark);
+  }
+
+  syncTheme();
   var mo = new MutationObserver(syncTheme);
   mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class','data-theme','style'] });
   mo.observe(document.body,            { attributes: true, attributeFilter: ['class','data-theme','style'] });
+
+  /* ── docs links ── */
+  document.querySelectorAll('.lp-docs-link').forEach(function(a){
+    a.setAttribute('href', window.DOCS_URL || '/docs/');
+  });
 
   /* ── tab switcher ── */
   window.swTab = function(e, id){
@@ -552,5 +564,23 @@ body.dark .lp,
   } else {
     revEls.forEach(function(el){ el.classList.add('visible'); });
   }
+
+  var path = window.location.pathname;
+  
+  // Get the base prefix by finding where /fa or the end of known segments is
+  // e.g. /bgscaner/fa/  -> base=/bgscaner, lang=/fa
+  // e.g. /bgscaner/     -> base=/bgscaner, lang=
+  // e.g. /              -> base=, lang=
+  
+  var isFa = /\/fa(\/|$)/.test(path);
+  var base = path
+    .replace(/\/fa(\/.*)?$/, '')
+    .replace(/\/$/, '');
+  
+  var docsUrl = base + (isFa ? '/fa' : '') + '/docs/';
+  
+  document.querySelectorAll('.lp-docs-link').forEach(function(a) {
+    a.setAttribute('href', docsUrl);
+  });
 })();
 </script>

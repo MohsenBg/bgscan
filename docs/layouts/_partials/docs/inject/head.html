@@ -486,7 +486,7 @@
 <!-- ── HTML Structure ─────────────────────────────────────────────────────── -->
 <nav class="bgscan-tb" id="bgscan-tb" dir="ltr" role="navigation" aria-label="Main navigation">
   <a href="/" class="bgscan-tb-logo">
-    <img src="/logo.png" alt="bgscan" />
+    <img src="" class="lp-img" data-src="logo.png" alt="bgscan iplist">
     <span>bgscan</span>
   </a>
 
@@ -846,6 +846,15 @@
     if (lang && !lang.contains(e.target)) {
       lang.classList.remove('open');
     }
+  });
+
+  var base = window.location.pathname
+    .replace(/\/fa(\/.*)?$/, '')
+    .replace(/\/docs(\/.*)?$/, '')
+    .replace(/\/$/, '');
+
+  document.querySelectorAll('.lp-img').forEach(function (img) {
+    img.src = base + '/' + img.getAttribute('data-src');
   });
 </script>
 {{ end }}

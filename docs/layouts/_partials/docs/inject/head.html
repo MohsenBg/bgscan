@@ -231,6 +231,105 @@
     background: rgba(128, 128, 128, 0.05);
   }
 
+  .bgscan-lang {
+    position: relative;
+  }
+
+  .bgscan-lang-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    height: 30px;
+    padding: 0 0.7rem;
+
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+
+    background: transparent;
+    color: var(--body-font-color);
+
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: all .2s ease;
+  }
+
+  .bgscan-lang-btn:hover {
+    background: var(--hover-bg);
+  }
+
+  .bgscan-lang-arrow {
+    transition: transform .2s ease;
+  }
+
+
+  .bgscan-lang.open .bgscan-lang-arrow {
+    transform: rotate(180deg);
+  }
+
+
+  .bgscan-lang-menu {
+    position: absolute;
+
+    top: calc(100% + 8px);
+    right: 0;
+
+    min-width: 130px;
+
+    padding: 0.35rem;
+
+    border-radius: 10px;
+
+    background: var(--active-bg);
+    border: 1px solid var(--border-color);
+
+    box-shadow: var(--active-shadow);
+
+    opacity: 0;
+    pointer-events: none;
+
+    transform: translateY(-5px);
+
+    transition: all .2s ease;
+
+    z-index: 10000;
+  }
+
+
+  .bgscan-lang.open .bgscan-lang-menu {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+
+  .bgscan-lang-menu a {
+    display: flex;
+
+    padding: 0.45rem 0.6rem;
+
+    border-radius: 6px;
+
+    color: var(--body-font-color) !important;
+    text-decoration: none !important;
+
+    font-size: .85rem;
+  }
+
+
+  .bgscan-lang-menu a:hover {
+    background: var(--hover-bg);
+  }
+
+
+  .bgscan-lang-menu a.active {
+    font-weight: 700;
+  }
+
   .bgscan-hamburger {
     display: none;
     align-items: center;
@@ -359,6 +458,8 @@
     font-weight: 500;
   }
 
+
+
   @media (max-width: 640px) {
     .bgscan-tb-nav {
       display: none;
@@ -428,12 +529,32 @@
     <div class="bgscan-divider" aria-hidden="true"></div>
 
     <!-- Language toggle -->
-    <div class="bgscan-pill" role="group" aria-label="Language / زبان">
-      <button class="bgscan-pill-btn on" id="bgscan-btn-en" onclick="bgscanSetLang('en')"
-        aria-pressed="true">EN</button>
-      <button class="bgscan-pill-btn" id="bgscan-btn-fa" onclick="bgscanSetLang('fa')" aria-pressed="false">فا</button>
+    <div class="bgscan-lang">
+      <button class="bgscan-lang-btn" onclick="bgscanToggleLang()" aria-expanded="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M2 12h20" />
+          <path d="M12 2a15.3 15.3 0 0 1 0 20" />
+        </svg>
+
+        {{ upper .Language.Lang }}
+
+        <svg class="bgscan-lang-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      <div class="bgscan-lang-menu" id="bgscan-lang-menu">
+        {{ range .Translations }}
+        <a href="{{ .Permalink }}" class="{{ if eq .Language.Lang $.Language.Lang }}active{{ end }}">
+          {{ .Language.LanguageName }}
+        </a>
+        {{ end }}
+      </div>
     </div>
-    <div class="bgscan-divider" aria-hidden="true"></div>
+
+    <div class="bgscan-divider" id="bgscan-docs-divider" aria-hidden="true"></div>
 
     <!-- GitHub Button with Live Stats -->
     <a href="https://github.com/MohsenBg/bgscan" class="bgscan-nav-gh" target="_blank" rel="noopener">
@@ -473,13 +594,13 @@
 </nav>
 
 <div class="bgscan-mobile-menu" id="bgscan-mobile" dir="ltr">
-  <a href="/docs/" id="bgscan-mob-docs">
+  <a href="{{ " docs/" | relLangURL }}" id="bgscan-mob-docs">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
     </svg>
-    <span id="bgscan-mob-t-docs">Documentation</span>
+    <span id="bgscan-mob-t-docs">Docs</span>
   </a>
 
   <!-- Mobile GitHub Link with Stats -->
@@ -536,13 +657,34 @@
       </button>
     </div>
   </div>
+
   <div class="bgscan-mob-row">
-    <span class="bgscan-mob-row-label" id="bgscan-mob-lang-label">Language:</span>
-    <div class="bgscan-pill" role="group">
-      <button class="bgscan-pill-btn on" id="bgscan-mob-btn-en" onclick="bgscanSetLang('en')"
-        aria-pressed="true">EN</button>
-      <button class="bgscan-pill-btn" id="bgscan-mob-btn-fa" onclick="bgscanSetLang('fa')"
-        aria-pressed="false">فا</button>
+    <span class="bgscan-mob-row-label">
+      Language:
+    </span>
+
+    <div class="bgscan-pill" role="group" aria-label="Language">
+
+      {{ if eq .Language.Lang "en" }}
+      <span class="bgscan-pill-btn on">
+        EN
+      </span>
+      {{ else }}
+      <a class="bgscan-pill-btn" href="{{ (index .Translations 0).Permalink }}">
+        EN
+      </a>
+      {{ end }}
+
+      {{ if eq .Language.Lang "fa" }}
+      <span class="bgscan-pill-btn on">
+        فا
+      </span>
+      {{ else }}
+      <a class="bgscan-pill-btn" href="{{ (index .Translations 0).Permalink }}">
+        فا
+      </a>
+      {{ end }}
+
     </div>
   </div>
 </div>
@@ -552,7 +694,7 @@
     var THEME_KEY = 'color-theme';
 
     var S = {
-      en: {docs: 'Documentation', gh: 'GitHub', themeLabel: 'Theme:', langLabel: 'Language:'},
+      en: {docs: 'Docs', gh: 'GitHub', themeLabel: 'Theme:', langLabel: 'Language:'},
       fa: {docs: 'مستندات', gh: 'گیت‌هاب', themeLabel: 'پوسته:', langLabel: 'زبان:'}
     };
 
@@ -614,34 +756,6 @@
       });
     }
 
-    window.bgscanSetLang = function (l) {
-      applyLang(l);
-      var isFa = l === 'fa';
-      var cur = window.location.pathname;
-
-      var trailingSlash = cur.endsWith('/') && cur !== '/';
-
-      var base = (window.BGSCAN_BASE || '').replace(/\/$/, '');
-
-      var rel = (base && cur.startsWith(base)) ? cur.slice(base.length) : cur;
-      if (!rel || rel === '') rel = '/';
-
-      var hasFa = rel === '/fa' || rel.startsWith('/fa/');
-
-      var next;
-      if (isFa && !hasFa) {
-        // Add /fa after base: /base/fa/content-path
-        next = base + '/fa' + (rel === '/' ? '/' : rel);
-      } else if (!isFa && hasFa) {
-        // Remove /fa segment: /base/content-path
-        var withoutFa = rel.replace(/^\/fa/, '') || '/';
-        next = base + withoutFa;
-      } else {
-        return; 
-      }
-
-      window.location.href = next;
-    };
 
     window.bgscanToggleMenu = function () {
       var mob = document.getElementById('bgscan-mobile');
@@ -725,5 +839,26 @@
 
     fetchGitHubStats();
   })();
+
+  window.bgscanToggleLang = function () {
+    var el = document.querySelector('.bgscan-lang');
+    if (!el) return;
+
+    var open = el.classList.toggle('open');
+
+    var btn = el.querySelector('.bgscan-lang-btn');
+    if (btn) {
+      btn.setAttribute('aria-expanded', String(open));
+    }
+  };
+
+
+  document.addEventListener('click', function (e) {
+    var lang = document.querySelector('.bgscan-lang');
+
+    if (lang && !lang.contains(e.target)) {
+      lang.classList.remove('open');
+    }
+  });
 </script>
 {{ end }}

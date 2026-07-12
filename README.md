@@ -238,7 +238,7 @@ From the main menu, open **Xray → Outbounds**, press `a` to add a template fro
 | Platform | Architectures |
 |----------|--------------|
 | Linux | amd64, arm64, arm32, 386 |
-| Windows | amd64 (10+) |
+| Windows | amd64. arm64 (10+) |
 | macOS | amd64, arm64 |
 | Android (Termux) | arm64, arm32, x86_64, x86 |
 
@@ -271,8 +271,7 @@ bgscan/
 ├── logs/                    # core.log, ui.log, debug.log
 ├── scripts/                 # Install, build, dependency, and release scripts
 ├── docs/                    # Hugo Book documentation site
-├── go.mod
-└── build.sh                 # Build script (used for releases)
+└── go.mod
 ```
 
 ---

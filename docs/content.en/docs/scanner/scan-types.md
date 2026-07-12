@@ -23,7 +23,7 @@ bgscan supports five primary scan types, each accessible from the main menu via 
 >
 > These sub-scans are controlled individually in the DNS settings file.
 
-![bgscan scan type](/bgscan-scan-type.webp)
+{{< img "/bgscan-scan-type.webp" "bgscan scan type" >}}
 
 ## Detailed Scan Type Information
 

@@ -13,7 +13,7 @@ Navigate to **Main Menu → Xray → Outbounds** to open the outbound manager.
 
 ---
 
-![bgscan outbound menu](/bgscan-outbound-menu.webp)
+{{< img "/bgscan-outbound-menu.webp" "bgscan outbound menu" >}}
 
 ## The Outbound Table
 
@@ -37,7 +37,7 @@ Three keyboard actions are available:
 
 ---
 
-![bgscan outbound empty](/bgscan-outbound-empty.webp)
+{{< img "/bgscan-outbound-empty.webp" "bgscan outbound empty" >}}
 
 ## Adding an Outbound (`a`)
 
@@ -49,7 +49,7 @@ Press `a` to open the **Add Outbound** dialog. bgscan offers two ways to add a t
 
 Choose **From Link** and paste your proxy share link when prompted. bgscan parses the link automatically and saves it as a template.
 
-![bgscan outbound select link](/bgscan-outbound-select-link.webp)
+{{< img "/bgscan-outbound-select-link.webp" "bgscan outbound select link" >}}
 
 Supported link schemes:
 
@@ -68,8 +68,8 @@ After pasting the link, enter a name for the template when prompted. The name mu
 a → From Link → Paste link → Enter name → Done
 ```
 
-![bgscan outbound link](/bgscan-outbound-link.webp)
-![bgscan outbound name](/bgscan-outbound-name.webp)
+{{< img "/bgscan-outbound-link.webp" "bgscan outbound link" >}}
+{{< img "/bgscan-outbound-name.webp" "bgscan outbound name" >}}
 
 ---
 
@@ -77,7 +77,7 @@ a → From Link → Paste link → Enter name → Done
 
 Choose **From JSON File** and select a `.json` file from your filesystem. bgscan validates the file and saves it as a template.
 
-![bgscan outbound select json](/bgscan-outbound-select-json.webp)
+{{< img "/bgscan-outbound-select-json.webp" "bgscan outbound select json" >}}
 
 The JSON file must be a **single outbound object** — not a full Xray config. It must contain the `"$ADDRESS"` placeholder in the `address` field, which bgscan replaces with each target IP at scan time.
 
@@ -119,8 +119,8 @@ After selecting the file, enter a name for the template when prompted. The name 
 a → From JSON File → Select file → Enter name → Done
 ```
 
-![bgscan outbound name](/bgscan-outbound-name.webp)
-![bgscan outbound item](/bgscan-outbound-item.webp)
+{{< img "/bgscan-outbound-name.webp" "bgscan outbound name" >}}
+{{< img "/bgscan-outbound-item.webp" "bgscan outbound item" >}}
 
 ---
 

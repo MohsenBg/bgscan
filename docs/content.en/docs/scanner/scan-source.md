@@ -14,7 +14,7 @@ Before configuring a scan, bgscan asks you to choose where the target IPs come f
 
 ---
 
-![bgscan scan source](/bgscan-target-source.webp)
+{{< img "/bgscan-target-source.webp" "bgscan scan source" >}}
 
 ## IP List
 

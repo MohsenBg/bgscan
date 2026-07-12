@@ -7,7 +7,7 @@ weight: 2
 
 When you open any settings section from the in-app Settings menu, you see the inspector. It is a tabbed field list with labels, current values, and edit affordances.
 
-![settings menu](/bgscan-settings.webp)
+{{< img "/bgscan-settings.webp" "settings menu" >}}
 
 - select fields and press `Enter` to change them
 - press `d` to view the description/help text for the selected field
@@ -16,5 +16,5 @@ When you open any settings section from the in-app Settings menu, you see the in
 
 Changes are saved immediately to disk without restarting the scanner.
 
-![inspector dns settings](/bgscan-inspector-demo.webp)
+{{< img "/bgscan-inspector-demo.webp" "inspector dns settings" >}}
 

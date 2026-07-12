@@ -69,7 +69,7 @@ The table lists every imported file sorted newest-first, showing its name, impor
 | `r` | Rename — rename the selected file |
 | `x` | Delete — permanently remove the selected file |
 
-![bgscan iplist](/bgscan-iplist.webp)
+{{< img "/bgscan-iplist.webp" "bgscan iplist" >}}
 
 #### Adding a file (`a`)
 
@@ -82,7 +82,7 @@ The table lists every imported file sorted newest-first, showing its name, impor
 
 During import every line is parsed and normalised. Invalid lines are dropped silently; they do not cause the import to fail.
 
-![bgscan select iplist](/bgscan-select-iplist.webp)
+{{< img "/bgscan-select-iplist.webp" "bgscan select iplist" >}}
 
 #### Renaming a file (`r`)
 

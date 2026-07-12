@@ -29,7 +29,7 @@ Two keyboard actions are available:
 | `r` | Rename the selected file |
 | `x` | Delete the selected file permanently |
 
-![bgscan result file](/bgscan-result.webp)
+{{< img "/bgscan-result.webp" "bgscan result file" >}}
 
 #### Opening a result file
 

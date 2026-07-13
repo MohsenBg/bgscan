@@ -41,6 +41,8 @@ taxonomies:
   tag: tags
 
 params:
+  googleAnalytics: "G-4Q7BQ7RME8"
+
   # (Optional, default light) Sets color theme: light, dark or auto.
   BookTheme: "contrast-auto"
 

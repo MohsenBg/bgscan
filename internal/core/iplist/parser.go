@@ -3,6 +3,7 @@ package iplist
 import (
 	"context"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 
@@ -42,7 +43,11 @@ func ParseRecord(rec []string) (IPList, bool) {
 }
 
 // StreamActiveIPs provides the main entry point, branching into sequential or shuffled logic.
-func StreamActiveIPs(ctx context.Context, path string, limit int, shuffled bool, out chan<- string) error {
+func StreamActiveIPs(ctx context.Context, path string, limit uint64, shuffled bool, out chan<- string) error {
+	if limit == 0 {
+		limit = math.MaxUint64 - 1
+	}
+
 	if shuffled {
 		return streamActiveIPsShuffled(ctx, path, limit, out)
 	}
@@ -50,8 +55,8 @@ func StreamActiveIPs(ctx context.Context, path string, limit int, shuffled bool,
 }
 
 // streamActiveIPsSequential loops sequentially, relying directly on step iterations.
-func streamActiveIPsSequential(ctx context.Context, path string, limit int, out chan<- string) error {
-	count := 0
+func streamActiveIPsSequential(ctx context.Context, path string, limit uint64, out chan<- string) error {
+	var count uint64 = 0
 	return ReadCSV(path, func(row IPList, _ int64) error {
 		if !row.Enable {
 			return nil

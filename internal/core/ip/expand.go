@@ -32,7 +32,7 @@ import (
 // Note: IPv6 CIDRs broader than /64 can represent astronomically large
 // spaces. Use caller‑side limiting (limit parameter or RangeLimits) to
 // avoid memory exhaustion or runaway loops.
-func StreamCIDR(ctx context.Context, cidr string, limit int, out chan<- string) error {
+func StreamCIDR(ctx context.Context, cidr string, limit uint64, out chan<- string) error {
 	ip, network, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return fmt.Errorf("parse CIDR %q: %w", cidr, err)
@@ -40,7 +40,7 @@ func StreamCIDR(ctx context.Context, cidr string, limit int, out chan<- string) 
 
 	start := masked(ip, network.Mask)
 
-	count := 0
+	var count uint64 = 0
 	for curr := start; network.Contains(curr); curr = increment(curr) {
 
 		// Limit reached (if enabled).

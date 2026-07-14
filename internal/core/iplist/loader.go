@@ -2,6 +2,7 @@ package iplist
 
 import (
 	"fmt"
+	"math"
 	"net/netip"
 )
 
@@ -44,6 +45,10 @@ func CountIPs(path string) (uint64, error) {
 func CountActiveIPs(path string) (uint64, error) {
 	var total uint64
 	err := ReadCSV(path, func(entry IPList, _ int64) error {
+		if total == math.MaxUint64 {
+			return nil
+		}
+
 		if entry.Enable {
 			total += countIPEntry(entry.IP)
 		}
@@ -70,7 +75,6 @@ func ValidateFile(path string) error {
 
 		return nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("read ip list %q: %w", path, err)
 	}
@@ -100,7 +104,6 @@ func MergeFiles(dstPath string, srcPaths ...string) error {
 				seen[entry.IP] = struct{}{}
 				return write(entry)
 			})
-
 			if err != nil {
 				return fmt.Errorf("merge file %q: %w", src, err)
 			}
@@ -114,11 +117,19 @@ func MergeFiles(dstPath string, srcPaths ...string) error {
 func countIPEntry(ipStr string) uint64 {
 	if prefix, err := netip.ParsePrefix(ipStr); err == nil {
 		addr := prefix.Masked().Addr()
+
 		maxBits := 32
 		if addr.Is6() {
 			maxBits = 128
 		}
-		return uint64(1) << (maxBits - prefix.Bits())
+
+		hostBits := maxBits - prefix.Bits()
+
+		if hostBits >= 64 {
+			return math.MaxUint64
+		}
+
+		return uint64(1) << hostBits
 	}
 
 	if _, err := netip.ParseAddr(ipStr); err == nil {

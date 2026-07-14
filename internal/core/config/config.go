@@ -11,7 +11,7 @@ import (
 	"bgscan/internal/core/fileutil"
 )
 
-const AppVersion = "2.6.0"
+const AppVersion = "2.7.0"
 
 // ============================================================================
 // Singleton

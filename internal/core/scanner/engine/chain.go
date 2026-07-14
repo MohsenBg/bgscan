@@ -15,7 +15,7 @@ const (
 )
 
 // RunScanWithChain executes a scan pipeline based on the configured chain mode.
-func RunScanWithChain(ctx context.Context, input string, maxIP int, cfg *ChainConfig) {
+func RunScanWithChain(ctx context.Context, input string, maxIP uint64, cfg *ChainConfig) {
 	if len(cfg.Stages) == 0 {
 		return
 	}
@@ -31,7 +31,7 @@ func RunScanWithChain(ctx context.Context, input string, maxIP int, cfg *ChainCo
 }
 
 // executeSequentialChain runs stages one after another using file-based outputs.
-func executeSequentialChain(ctx context.Context, input string, maxIP int, cfg *ChainConfig) {
+func executeSequentialChain(ctx context.Context, input string, maxIP uint64, cfg *ChainConfig) {
 	currentInput := input
 
 	for i, stage := range cfg.Stages {
@@ -54,7 +54,7 @@ func executeSequentialChain(ctx context.Context, input string, maxIP int, cfg *C
 }
 
 // executeStreamingPipeline runs all stages concurrently in a streaming pipeline.
-func executeStreamingPipeline(ctx context.Context, input string, maxIP int, cfg *ChainConfig) {
+func executeStreamingPipeline(ctx context.Context, input string, maxIP uint64, cfg *ChainConfig) {
 	totalIPs, err := iplist.CountActiveIPs(input)
 	if err != nil {
 		logger.CoreError("failed to count IPs: %v", err)
@@ -154,7 +154,7 @@ func closeOutputChannel(ch chan string) {
 }
 
 // executeBatchPipeline runs the batch-based pipeline chain.
-func executeBatchPipeline(ctx context.Context, input string, maxIP int, cfg *ChainConfig) {
+func executeBatchPipeline(ctx context.Context, input string, maxIP uint64, cfg *ChainConfig) {
 	totalIPs, err := iplist.CountActiveIPs(input)
 	if err != nil {
 		logger.CoreError("failed to count IPs: %v", err)
@@ -276,7 +276,7 @@ func calculateBatchSize(cfg *ChainConfig) int {
 }
 
 // streamIPsFromFile streams IPs in batches from file input.
-func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP, batchSize int) <-chan []string {
+func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP uint64, batchSize int) <-chan []string {
 	out := make(chan []string, 2)
 
 	go func() {
@@ -323,7 +323,7 @@ func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP, 
 func streamStageFromFile(
 	ctx context.Context,
 	input string,
-	maxIP int,
+	maxIP uint64,
 	stage ScanConfig,
 	shuffled bool,
 	output chan string,

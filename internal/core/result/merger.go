@@ -1,42 +1,57 @@
 package result
 
 import (
-	"bgscan/internal/core/fileutil"
 	"bufio"
 	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
+
+	"bgscan/internal/core/fileutil"
 )
 
-// mergeResults merges a batch of scan results into the main result file.
+// mergeResults merges a batch of results into the main result file.
 //
 // Guarantees:
-//   - Sorted output
-//   - Duplicate replacement (new records override existing ones)
-//   - Streaming merge with constant memory usage
+//   - Sorted output by score (higher score first)
+//   - Duplicate replacement by Key()
+//   - Streaming merge with existing file
 //   - Atomic file replacement
-//   - Crash‑safe writes (fsync before rename)
-//
-// The merge is implemented as a classic merge‑sort merge phase between the
-// existing result file and the new batch of records.
-func mergeResults(resultPath string, ips []IPScanResult) error {
-	if len(ips) == 0 {
+func mergeResults(
+	resultPath string,
+	schema ResultSchema,
+	results []Result,
+) error {
+	if len(results) == 0 {
 		return nil
 	}
 
-	// Ensure delta results are sorted before merging.
-	sort.Slice(ips, func(i, j int) bool { return ips[i].Less(ips[j]) })
+	// Higher score first.
+	slices.SortFunc(results, func(a, b Result) int {
+		switch {
+		case a.Score() > b.Score():
+			return -1
+		case a.Score() < b.Score():
+			return 1
+		default:
+			return 0
+		}
+	})
 
 	tmpPath := resultPath + ".tmp"
 
 	dir := filepath.Dir(tmpPath)
+
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("mkdir failed: %w", err)
 	}
 
-	out, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	out, err := os.OpenFile(
+		tmpPath,
+		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
+		0o644,
+	)
 	if err != nil {
 		return err
 	}
@@ -44,18 +59,23 @@ func mergeResults(resultPath string, ips []IPScanResult) error {
 	bw := bufio.NewWriterSize(out, DefaultBatchSize)
 	cw := csv.NewWriter(bw)
 
-	cleanup := func(e error) error {
+	cleanup := func(err error) error {
 		_ = out.Close()
 		_ = os.Remove(tmpPath)
-		return e
+		return err
 	}
 
 	if fileutil.CheckFileExists(resultPath) {
-		if err := mergeWithExisting(resultPath, ips, cw); err != nil {
+		if err := mergeWithExisting(
+			resultPath,
+			schema,
+			results,
+			cw,
+		); err != nil {
 			return cleanup(err)
 		}
 	} else {
-		if err := writeIPs(ips, cw); err != nil {
+		if err := writeResults(results, cw); err != nil {
 			return cleanup(err)
 		}
 	}
@@ -72,48 +92,72 @@ func mergeResults(resultPath string, ips []IPScanResult) error {
 	return syncDir(filepath.Dir(resultPath))
 }
 
-// mergeWithExisting merges delta records with an already existing sorted
-// result file.
+// mergeWithExisting merges new results with existing CSV.
 //
-// The implementation performs a streaming merge similar to the merge phase
-// of merge‑sort. Only one record from the existing file is kept in memory at
-// any time, allowing the function to process extremely large result files
-// with minimal memory usage.
-//
-// If a duplicate record exists, the delta record replaces the original.
-func mergeWithExisting(resultPath string, delta []IPScanResult, cw *csv.Writer) error {
-	i := 0
+// Existing file is streamed.
+// Only one existing record is kept in memory.
+func mergeWithExisting(
+	resultPath string,
+	schema ResultSchema,
+	delta []Result,
+	cw *csv.Writer,
+) error {
+	index := 0
 
-	err := ReadCSV(resultPath, func(mainRec IPScanResult) error {
+	err := ReadCSV(
+		resultPath,
+		schema,
+		func(existing Result) error {
+			// Write better scored new results first.
+			for index < len(delta) {
 
-		// Write all delta entries that should appear before the current record.
-		for i < len(delta) && delta[i].Less(mainRec) {
-			if err := cw.Write(delta[i].ToRecord()); err != nil {
-				return err
+				current := delta[index]
+
+				if current.Score() <= existing.Score() {
+					break
+				}
+
+				if err := cw.Write(
+					current.ToRecord(),
+				); err != nil {
+					return err
+				}
+
+				index++
 			}
-			i++
-		}
 
-		// Replace existing record if a duplicate appears in delta.
-		if i < len(delta) && delta[i].Equal(mainRec) {
-			if err := cw.Write(delta[i].ToRecord()); err != nil {
-				return err
+			// Replace duplicate record.
+			if index < len(delta) {
+
+				current := delta[index]
+
+				if current.Key() == existing.Key() {
+
+					if err := cw.Write(
+						current.ToRecord(),
+					); err != nil {
+						return err
+					}
+
+					index++
+
+					return nil
+				}
 			}
-			i++
-			return nil
-		}
 
-		// Otherwise preserve the existing record.
-		return cw.Write(mainRec.ToRecord())
-	})
-
+			// Keep old record.
+			return cw.Write(existing.ToRecord())
+		},
+	)
 	if err != nil {
 		return err
 	}
 
-	// Write any remaining delta entries.
-	for ; i < len(delta); i++ {
-		if err := cw.Write(delta[i].ToRecord()); err != nil {
+	// Write remaining new results.
+	for ; index < len(delta); index++ {
+		if err := cw.Write(
+			delta[index].ToRecord(),
+		); err != nil {
 			return err
 		}
 	}
@@ -121,21 +165,30 @@ func mergeWithExisting(resultPath string, delta []IPScanResult, cw *csv.Writer) 
 	return nil
 }
 
-// writeIPs writes a full slice of scan results to the CSV writer.
-func writeIPs(ips []IPScanResult, cw *csv.Writer) error {
-	for i := range ips {
-		if err := cw.Write(ips[i].ToRecord()); err != nil {
+// writeResults writes results directly to CSV.
+func writeResults(
+	results []Result,
+	cw *csv.Writer,
+) error {
+	for _, r := range results {
+		if err := cw.Write(
+			r.ToRecord(),
+		); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
-// finalizeFile flushes all buffered data and synchronizes the file to disk
-// before closing it. This ensures the temporary file is fully persisted prior
-// to the atomic rename step.
-func finalizeFile(cw *csv.Writer, bw *bufio.Writer, out *os.File) error {
+// finalizeFile flushes buffers and syncs the file.
+func finalizeFile(
+	cw *csv.Writer,
+	bw *bufio.Writer,
+	out *os.File,
+) error {
 	cw.Flush()
+
 	if err := cw.Error(); err != nil {
 		return err
 	}

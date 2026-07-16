@@ -1,36 +1,91 @@
 package result
 
-import "time"
-
-// IPScanResult represents the result of probing a single IP address.
-//
-// Latency, Download, and Upload may be zero when the corresponding
-// measurement is not applicable for the probe type (for example,
-// ICMP or TCP-only scans).
-type IPScanResult struct {
-	IP       string        // Target IP address.
-	Latency  time.Duration // Round‑trip or connection latency.
-	Download time.Duration // Optional download measurement.
-	Upload   time.Duration // Optional upload measurement.
-}
-
-// Config controls the behavior of the asynchronous result writer,
-// including batching, channel buffering, and flush frequency.
-type Config struct {
-	MergeFlushInterval time.Duration // How often accumulated results are merged.
-	ChanSize           int           // Capacity of the internal result channel.
-	BatchSize          int           // Max results buffered before merge.
-}
-
-// Recommended defaults and safety bounds.
-const (
-	FallbackLatency       = 999 * time.Second      // Used when latency cannot be determined.
-	DefaultChanSize       = 1024                   // Default result channel capacity.
-	DefaultBatchSize      = 4096                   // Default batch capacity.
-	MinMergeFlushInterval = 120 * time.Millisecond // Minimum allowed flush interval.
+import (
+	"fmt"
+	"time"
 )
 
-// DefaultConfig returns a Config populated with safe operational defaults.
+// KeyType identifies what kind of key is used to identify a result.
+type KeyType uint8
+
+const (
+	KeyIP KeyType = iota
+	KeyDomain
+)
+
+func (k KeyType) String() string {
+	switch k {
+	case KeyIP:
+		return "ip"
+	case KeyDomain:
+		return "domain"
+	default:
+		return fmt.Sprintf("unknown(%d)", k)
+	}
+}
+
+// Valid reports whether the KeyType is a defined constant.
+func (k KeyType) Valid() bool {
+	return k <= KeyDomain
+}
+
+// Result is the interface that every scan result must implement.
+type Result interface {
+	// Key returns the unique identifier for this result (IP or domain).
+	Key() string
+	// KeyType returns the type of key used to identify this result.
+	KeyType() KeyType
+	// ToRecord converts the result to a slice of strings for storage.
+	// The order must match the ColumnDefs in the corresponding ResultSchema.
+	ToRecord() []string
+	// Equal reports whether the other result is equivalent.
+	Equal(other Result) bool
+	// Score returns a quality/confidence score between 0 and 1.
+	Score() float64
+}
+
+// ResultParser converts stored record strings back into a Result.
+type ResultParser func(record []string) (Result, error)
+
+// ColumnDef describes a single column in a result table.
+type ColumnDef struct {
+	Name  string
+	Width int // Display width for formatted output (0 = auto).
+}
+
+// ResultSchema describes the structure of a result type's storage.
+type ResultSchema struct {
+	Name      string
+	Directory string
+	Columns   []ColumnDef // Order matches ToRecord output.
+	Parser    ResultParser
+}
+
+// Validate checks that the schema has all required fields.
+func (s ResultSchema) Validate() error {
+	if s.Name == "" {
+		return fmt.Errorf("schema name is required")
+	}
+	if s.Parser == nil {
+		return fmt.Errorf("parser is required")
+	}
+	return nil
+}
+
+// Config controls asynchronous result writing behavior.
+type Config struct {
+	MergeFlushInterval time.Duration
+	ChanSize           int
+	BatchSize          int
+}
+
+const (
+	DefaultChanSize       = 1024
+	DefaultBatchSize      = 4096
+	MinMergeFlushInterval = 120 * time.Millisecond
+)
+
+// DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
 	return Config{
 		MergeFlushInterval: MinMergeFlushInterval,
@@ -39,8 +94,23 @@ func DefaultConfig() Config {
 	}
 }
 
-// Normalize ensures configuration values fall within safe bounds and
-// applies defaults when fields are unset.
+// Validate checks the config and returns an error if any value is invalid.
+func (c Config) Validate() error {
+	if c.MergeFlushInterval < MinMergeFlushInterval {
+		return fmt.Errorf("MergeFlushInterval must be >= %v, got %v",
+			MinMergeFlushInterval, c.MergeFlushInterval)
+	}
+	if c.ChanSize <= 0 {
+		return fmt.Errorf("ChanSize must be > 0, got %d", c.ChanSize)
+	}
+	if c.BatchSize <= 0 {
+		return fmt.Errorf("BatchSize must be > 0, got %d", c.BatchSize)
+	}
+	return nil
+}
+
+// Normalize clamps invalid values to sensible defaults.
+// Use Validate() if you want to detect errors instead of silently fixing them.
 func (c *Config) Normalize() {
 	if c.MergeFlushInterval < MinMergeFlushInterval {
 		c.MergeFlushInterval = MinMergeFlushInterval
@@ -53,54 +123,31 @@ func (c *Config) Normalize() {
 	}
 }
 
-// ResultType identifies the type of probe that produced a result file.
-type ResultType int
-
-const (
-	ResultAll        ResultType = iota // Combined or unspecified results.
-	ResultICMP                         // ICMP probe results.
-	ResultTCP                          // TCP probe results.
-	ResultHTTP                         // HTTP probe results.
-	ResultXRAY                         // Xray probe results.
-	ResultDNSTT                        // DNSTT probe results.
-	ResultSLIPSTREAM                   // Slipstream probe results.
-	ResultRESOLVE                      // Resolver probe results.
-)
-
-// String returns the textual representation of the ResultType.
-// Unknown values return "unknown".
-func (t ResultType) String() string {
-	switch t {
-	case ResultAll:
-		return "all"
-	case ResultICMP:
-		return "icmp"
-	case ResultTCP:
-		return "tcp"
-	case ResultHTTP:
-		return "http"
-	case ResultXRAY:
-		return "xray"
-	case ResultDNSTT:
-		return "dnstt"
-	case ResultSLIPSTREAM:
-		return "slipstream"
-	case ResultRESOLVE:
-		return "resolve"
-	default:
-		return "unknown"
-	}
+// ResultFile describes a stored result file on disk.
+type ResultFile struct {
+	Name        string
+	SizeBytes   int64
+	CreatedTime time.Time
+	Schema      ResultSchema
+	RecordCount uint64
+	Path        string
 }
 
-// ResultFile describes metadata about a stored result file.
-//
-// IPCount indicates the number of IP entries contained in the file.
-// A value of -1 means the count has not been computed yet.
-type ResultFile struct {
-	Name        string     // File name (without extension).
-	SizeBytes   int64      // File size in bytes.
-	CreatedTime time.Time  // File creation or last modification time.
-	Type        ResultType // Classification of stored results.
-	IPCount     int64      // Number of IP entries, or -1 if unknown.
-	Path        string     // Absolute filesystem path.
+// SizeString returns a human-readable file size (e.g., "1.5 MB").
+func (f ResultFile) SizeString() string {
+	const (
+		KB = 1024
+		MB = KB * 1024
+		GB = MB * 1024
+	)
+	switch {
+	case f.SizeBytes >= GB:
+		return fmt.Sprintf("%.2f GB", float64(f.SizeBytes)/float64(GB))
+	case f.SizeBytes >= MB:
+		return fmt.Sprintf("%.2f MB", float64(f.SizeBytes)/float64(MB))
+	case f.SizeBytes >= KB:
+		return fmt.Sprintf("%.2f KB", float64(f.SizeBytes)/float64(KB))
+	default:
+		return fmt.Sprintf("%d B", f.SizeBytes)
+	}
 }

@@ -1,42 +1,129 @@
 package result
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"bgscan/internal/core/fileutil"
 )
 
-// Result directories used by different scan types.
-// Each directory stores CSV files produced by a specific scan engine.
 const (
-	ICMPResultDir       = "result/icmp/"
-	TCPResultDir        = "result/tcp/"
-	HTTPResultDir       = "result/http/"
-	XRAYResultDir       = "result/xray/"
-	ResolveResultDir    = "result/resolve/"
-	DNSTTResultDir      = "result/dnstt/"
-	SlipStreamResultDir = "result/slipstream/"
+	csvExtension    = ".csv"
+	resultDirPerm   = 0o755
+	timestampFormat = "20060102_150405"
 )
 
-// GetResultTypeFiles returns metadata for all result CSV files matching the given scan type.
-//
-// For performance reasons, this function only reads filesystem metadata
-// and does NOT count the number of IPs stored inside each file.
-// As a result, the IPCount field is always set to -1.
-func GetResultTypeFiles(searchType ResultType) ([]ResultFile, error) {
-	dirs := resolveResultDirs(searchType)
-	if len(dirs) == 0 {
-		return nil, nil
+// DefaultRegistry is the package-level registry used by GetResultFiles.
+var DefaultRegistry = NewResultRegistry()
+
+// ResultRegistry provides thread-safe storage for result schemas.
+type ResultRegistry struct {
+	mu      sync.RWMutex
+	schemas []ResultSchema
+}
+
+// NewResultRegistry creates an empty ResultRegistry.
+func NewResultRegistry() *ResultRegistry {
+	return &ResultRegistry{}
+}
+
+// Register adds a schema to the registry. Returns an error if the schema
+// is invalid or if a schema with the same Directory is already registered.
+func (r *ResultRegistry) Register(schema ResultSchema) error {
+	if err := schema.Validate(); err != nil {
+		return fmt.Errorf("register schema: %w", err)
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, existing := range r.schemas {
+		if existing.Directory == schema.Directory {
+			return fmt.Errorf("result: schema for directory %q already registered", schema.Directory)
+		}
+	}
+
+	r.schemas = append(r.schemas, schema)
+	return nil
+}
+
+// Get retrieves a schema by its Directory.
+func (r *ResultRegistry) Get(directory string) (ResultSchema, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, schema := range r.schemas {
+		if schema.Directory == directory {
+			return schema, true
+		}
+	}
+	return ResultSchema{}, false
+}
+
+// MustGet retrieves a schema by its Directory, panicking if not found.
+func (r *ResultRegistry) MustGet(directory string) ResultSchema {
+	schema, ok := r.Get(directory)
+	if !ok {
+		panic(fmt.Sprintf("result: no schema registered for directory %q", directory))
+	}
+	return schema
+}
+
+// All returns all registered schemas, sorted by Directory for deterministic ordering.
+func (r *ResultRegistry) All() []ResultSchema {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	out := make([]ResultSchema, len(r.schemas))
+	copy(out, r.schemas)
+
+	slices.SortFunc(out, func(a, b ResultSchema) int {
+		return strings.Compare(a.Directory, b.Directory)
+	})
+	return out
+}
+
+// Len returns the number of registered schemas.
+func (r *ResultRegistry) Len() int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.schemas)
+}
+
+// Unregister removes a schema from the registry by its Directory.
+// Returns true if a schema was removed.
+func (r *ResultRegistry) Unregister(directory string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for i, schema := range r.schemas {
+		if schema.Directory == directory {
+			r.schemas = slices.Delete(r.schemas, i, i+1)
+			return true
+		}
+	}
+	return false
+}
+
+// FindResultFiles returns metadata for all result CSV files
+// belonging to the provided schemas. At least one schema is required.
+func FindResultFiles(baseDir string, schemas ...ResultSchema) ([]ResultFile, error) {
+	if len(schemas) == 0 {
+		return nil, errors.New("result: at least one schema is required")
 	}
 
 	var results []ResultFile
 
-	for _, d := range dirs {
-		entries, err := os.ReadDir(d.dir)
+	for _, schema := range schemas {
+		dir := filepath.Join(baseDir, schema.Directory)
+
+		entries, err := os.ReadDir(dir)
 		if err != nil {
 			continue
 		}
@@ -47,7 +134,7 @@ func GetResultTypeFiles(searchType ResultType) ([]ResultFile, error) {
 			}
 
 			name := entry.Name()
-			if !strings.HasSuffix(strings.ToLower(name), ".csv") {
+			if !strings.EqualFold(filepath.Ext(name), csvExtension) {
 				continue
 			}
 
@@ -60,9 +147,9 @@ func GetResultTypeFiles(searchType ResultType) ([]ResultFile, error) {
 				Name:        fileutil.StripExt(name),
 				SizeBytes:   info.Size(),
 				CreatedTime: info.ModTime(),
-				Type:        d.rType,
-				Path:        filepath.Join(d.dir, name),
-				IPCount:     -1,
+				Path:        filepath.Join(dir, name),
+				Schema:      schema,
+				RecordCount: 0,
 			})
 		}
 	}
@@ -70,123 +157,56 @@ func GetResultTypeFiles(searchType ResultType) ([]ResultFile, error) {
 	return results, nil
 }
 
-// GetResultFiles returns all metadata files across every scan engine type.
-// Serves as a backward-compatible shortcut for background processors.
-func GetResultFiles() ([]ResultFile, error) {
-	return GetResultTypeFiles(ResultAll)
+// GetResultFiles returns all result files across every schema registered
+// in DefaultRegistry.
+func GetResultFiles(baseDir string) ([]ResultFile, error) {
+	schemas := DefaultRegistry.All()
+	if len(schemas) == 0 {
+		return nil, nil
+	}
+	return FindResultFiles(baseDir, schemas...)
 }
 
-// ReadResultFileIPs reads filesystem statistical info for a single file path
-// and returns an initialized ResultFile schema.
-//
-// Like GetResultTypeFiles, it sets the IPCount to -1 to avoid scanning
-// file lines synchronously. Use CountIPsInFile to compute the exact total.
-func ReadResultFileIPs(path string) (ResultFile, error) {
+// ReadResultFile reads metadata for a single result file.
+func ReadResultFile(path string, schema ResultSchema) (ResultFile, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return ResultFile{}, fmt.Errorf("cannot read result file: %w", err)
+		return ResultFile{}, fmt.Errorf("read result file %q: %w", path, err)
 	}
 
 	return ResultFile{
 		Name:        fileutil.StripExt(info.Name()),
 		SizeBytes:   info.Size(),
 		CreatedTime: info.ModTime(),
-		Type:        ResultTypeFromPath(path),
 		Path:        path,
-		IPCount:     -1,
+		Schema:      schema,
+		RecordCount: 0,
 	}, nil
 }
 
-// NormalizeResultFileName ensures a clean filename wrapper ends with `.csv`
-// while safely stripping any internal absolute or relative path segments.
+// NormalizeResultFileName ensures the name has a .csv extension and
+// contains no directory components.
 func NormalizeResultFileName(name string) string {
-	baseName := filepath.Base(name)
-	if !fileutil.HasExt(baseName, ".csv") {
-		return baseName + ".csv"
+	base := filepath.Base(name)
+	if !strings.EqualFold(filepath.Ext(base), csvExtension) {
+		return base + csvExtension
 	}
-	return baseName
+	return base
 }
 
-// ResultTypeFromPath infers the corresponding ResultType identifier dynamically from a filesystem path context.
-//
-// It sanitizes platform-specific slashes and evaluates input bounds against existing configurations,
-// guaranteeing single-source-of-truth accuracy without relying on hardcoded strings.
-func ResultTypeFromPath(path string) ResultType {
-	cleanedPath := filepath.Clean(path)
-
-	// Dynamically evaluate against registered engines
-	for _, d := range resolveResultDirs(ResultAll) {
-		if strings.Contains(cleanedPath, filepath.Clean(d.dir)) {
-			return d.rType
-		}
-	}
-
-	return ResultICMP
-}
-
-// CountIPsInFile calculates the total number of IP entries recorded inside a result file
-// by invoking the core tracking package's file counting mechanics.
-func CountIPsInFile(file ResultFile) (int64, error) {
-	return Count(file.Path)
-}
-
-// BuildResultFilePath generates a clean, standardized, timestamp-suffixed path for a
-// new scan output target inside an authorized output directory block.
-func BuildResultFilePath(targetDir, prefix string) (string, error) {
+// BuildResultFilePath creates a new output path under baseDir using the
+// provided schema and filename prefix. The target directory is created
+// if it does not already exist.
+func BuildResultFilePath(baseDir string, schema ResultSchema, prefix string) (string, error) {
 	if prefix == "" {
-		return "", fmt.Errorf("prefix cannot be empty")
+		return "", errors.New("result: prefix cannot be empty")
 	}
 
-	cleanTarget := filepath.Clean(targetDir)
-
-	// Validate targetDir against mapped registry to maintain secure filesystem boundaries
-	var isValid bool
-	for _, d := range resolveResultDirs(ResultAll) {
-		if filepath.Clean(d.dir) == cleanTarget {
-			isValid = true
-			break
-		}
+	dir := filepath.Join(baseDir, schema.Directory)
+	if err := os.MkdirAll(dir, resultDirPerm); err != nil {
+		return "", fmt.Errorf("create result directory %q: %w", dir, err)
 	}
 
-	if !isValid {
-		return "", fmt.Errorf("invalid or untracked result directory: %s", targetDir)
-	}
-
-	timestamp := time.Now().Format("20060102_150405")
-	filename := fmt.Sprintf("%s%s.csv", prefix, timestamp)
-
-	return filepath.Join(cleanTarget, filename), nil
-}
-
-// -----------------------------------------------------------------------------
-// Internal helpers
-// -----------------------------------------------------------------------------
-
-type resultDir struct {
-	dir   string
-	rType ResultType
-}
-
-func resolveResultDirs(searchType ResultType) []resultDir {
-	all := []resultDir{
-		{ICMPResultDir, ResultICMP},
-		{TCPResultDir, ResultTCP},
-		{HTTPResultDir, ResultHTTP},
-		{XRAYResultDir, ResultXRAY},
-		{DNSTTResultDir, ResultDNSTT},
-		{SlipStreamResultDir, ResultSLIPSTREAM},
-		{ResolveResultDir, ResultRESOLVE},
-	}
-
-	if searchType == ResultAll {
-		return all
-	}
-
-	for _, d := range all {
-		if d.rType == searchType {
-			return []resultDir{d}
-		}
-	}
-
-	return nil
+	filename := prefix + time.Now().Format(timestampFormat) + csvExtension
+	return filepath.Join(dir, filename), nil
 }

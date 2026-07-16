@@ -1,11 +1,12 @@
 package result
 
 import (
-	"bgscan/internal/core/fileutil"
-	"bgscan/internal/logger"
 	"context"
 	"sync"
 	"time"
+
+	"bgscan/internal/core/fileutil"
+	"bgscan/internal/logger"
 )
 
 // Writer asynchronously aggregates IPScanResult items and merges them into the
@@ -27,10 +28,11 @@ type Writer struct {
 	wg     sync.WaitGroup
 
 	resultPath string
+	schema     ResultSchema
 
-	input chan IPScanResult
+	input chan Result
 
-	batch     []IPScanResult
+	batch     []Result
 	batchSize int
 }
 
@@ -39,7 +41,12 @@ type Writer struct {
 //
 // The returned Writer is not started automatically; the caller must invoke
 // Start() to launch its background goroutine.
-func NewWriter(resultPath string, cfg Config, ctx context.Context) (*Writer, error) {
+func NewWriter(
+	resultPath string,
+	schema ResultSchema,
+	cfg Config,
+	ctx context.Context,
+) (*Writer, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -51,9 +58,10 @@ func NewWriter(resultPath string, cfg Config, ctx context.Context) (*Writer, err
 	return &Writer{
 		config:     cfg,
 		resultPath: resultPath,
-		input:      make(chan IPScanResult, cfg.ChanSize),
+		schema:     schema,
+		input:      make(chan Result, cfg.ChanSize),
+		batch:      make([]Result, 0, cfg.BatchSize),
 		batchSize:  cfg.BatchSize,
-		batch:      make([]IPScanResult, 0, cfg.BatchSize),
 		ctx:        ctx,
 		cancel:     cancel,
 	}, nil
@@ -83,10 +91,11 @@ func (w *Writer) Stop() error {
 // the result is silently dropped to avoid blocking.
 //
 // Writes are non‑blocking thanks to the buffered input channel.
-func (w *Writer) Write(r IPScanResult) {
+func (w *Writer) Write(r Result) {
 	select {
 	case <-w.ctx.Done():
 		return
+
 	case w.input <- r:
 	}
 }
@@ -145,9 +154,13 @@ func (w *Writer) flush() error {
 	}
 
 	batch := w.batch
-	w.batch = make([]IPScanResult, 0, w.batchSize)
+	w.batch = make([]Result, 0, w.batchSize)
 
-	err := mergeResults(w.resultPath, batch)
+	err := mergeResults(
+		w.resultPath,
+		w.schema,
+		batch,
+	)
 	if err != nil {
 		logger.DebugError("%s", err.Error())
 	}

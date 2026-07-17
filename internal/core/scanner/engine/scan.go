@@ -43,7 +43,7 @@ func RunScan(
 
 	// Instantiate communication pipelines
 	ips := make(chan string, workers*2)
-	results := make(chan result.IPScanResult, workers*4)
+	results := make(chan result.Result, workers*4)
 
 	var (
 		processed atomic.Uint64
@@ -116,10 +116,10 @@ func RunScan(
 				}
 
 				succeed.Add(1)
-				cfg.Hooks.callOnSuccess(*res)
+				cfg.Hooks.callOnSuccess(res)
 
 				select {
-				case results <- *res:
+				case results <- res:
 				case <-ctx.Done():
 				}
 			})

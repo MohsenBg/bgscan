@@ -1,9 +1,10 @@
 package engine
 
 import (
+	"strings"
+
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/scanner/probe"
-	"strings"
 )
 
 // PipelineMode defines how data streams and flows across multi-stage scans.
@@ -55,7 +56,7 @@ type ScanHooks struct {
 	OnProgress func(Progress)
 
 	// OnSuccess is called for each successfully scanned IP.
-	OnSuccess func(result.IPScanResult)
+	OnSuccess func(result.Result)
 
 	// OnScanEnd is called once after the entire scan finishes.
 	OnScanEnd func()
@@ -72,7 +73,7 @@ func (h ScanHooks) callOnError(err error) {
 }
 
 // callOnSuccess safely invokes OnSuccess if it has been provided.
-func (h ScanHooks) callOnSuccess(r result.IPScanResult) {
+func (h ScanHooks) callOnSuccess(r result.Result) {
 	if h.OnSuccess != nil {
 		h.OnSuccess(r)
 	}
@@ -101,4 +102,3 @@ func ParsePipelineMode(s string) PipelineMode {
 		return ModeSequential
 	}
 }
-

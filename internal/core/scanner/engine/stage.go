@@ -127,8 +127,8 @@ func (e *stageExecutor) processIP(ctx context.Context, ip string) bool {
 	}
 
 	e.succeed.Add(1)
-	e.stage.Hooks.callOnSuccess(*res)
-	e.stage.Writer.Write(*res)
+	e.stage.Hooks.callOnSuccess(res)
+	e.stage.Writer.Write(res)
 
 	return true
 }

@@ -11,25 +11,16 @@ import (
 	"bgscan/internal/core/scanner/engine"
 	"bgscan/internal/core/scanner/portmgr"
 	"bgscan/internal/core/scanner/probe"
+	"bgscan/internal/core/scanner/probe/dnsttprobe"
+	"bgscan/internal/core/scanner/probe/httpprobe"
+	"bgscan/internal/core/scanner/probe/icmpprobe"
+	"bgscan/internal/core/scanner/probe/resolveprobe"
+	"bgscan/internal/core/scanner/probe/slipstreamprobe"
+	"bgscan/internal/core/scanner/probe/tcpprobe"
+	"bgscan/internal/core/scanner/probe/xrayprobe"
 )
 
-//
-// ────────────────────────────────────────────────────────────────
-// Scan Modes
-// ────────────────────────────────────────────────────────────────
-//
-
-type ScanMode string
-
-const (
-	ICMPScan       ScanMode = "ICMP"
-	TCPScan        ScanMode = "TCP"
-	HTTPScan       ScanMode = "HTTP"
-	XRAYScan       ScanMode = "Xray"
-	DNSResolveScan ScanMode = "Resolve"
-	DNSTTscan      ScanMode = "DNSTT"
-	SLIPSTREAMScan ScanMode = "Slipstream"
-)
+const baseResultDir = "result"
 
 //
 // ────────────────────────────────────────────────────────────────
@@ -38,7 +29,6 @@ const (
 //
 
 type StageConfig struct {
-	Mode    ScanMode
 	Workers int
 	Probe   probe.Probe
 	Writer  *result.Writer
@@ -155,6 +145,7 @@ func (s *Scanner) runChain(stages []StageConfig) {
 			Hooks:   stage.Hooks,
 		}
 	}
+
 	engine.RunScanWithChain(s.ctx, s.input, uint64(maxIP), &engine.ChainConfig{
 		Mode:      engine.ParsePipelineMode(config.GetGeneral().PipelineMode),
 		Stages:    engineStages,
@@ -188,21 +179,23 @@ func (s *Scanner) Close() {
 
 func (s *Scanner) BuildICMPStage(ctx context.Context) (StageConfig, error) {
 	cfg := config.GetICMP()
-	file, err := result.BuildResultFilePath(result.ICMPResultDir, cfg.PrefixOutput)
+
+	file, err := result.BuildResultFilePath(baseResultDir, icmpprobe.Schema, cfg.PrefixOutput)
 	if err != nil {
 		return StageConfig{}, err
 	}
-	writer, err := result.NewWriter(file, writerConfig(), ctx)
+
+	writer, err := result.NewWriter(file, icmpprobe.Schema, writerConfig(), ctx)
 	if err != nil {
 		return StageConfig{}, err
 	}
-	prb, err := probe.NewICMPProbe(cfg.Timeout.Duration(), cfg.Tries)
+
+	prb, err := icmpprobe.NewICMPProbe(cfg.Timeout.Duration(), cfg.Tries)
 	if err != nil {
 		return StageConfig{}, err
 	}
 
 	return StageConfig{
-		Mode:    ICMPScan,
 		Workers: cfg.Workers,
 		Probe:   prb,
 		Writer:  writer,
@@ -212,18 +205,20 @@ func (s *Scanner) BuildICMPStage(ctx context.Context) (StageConfig, error) {
 
 func (s *Scanner) BuildTCPStage(ctx context.Context) (StageConfig, error) {
 	cfg := config.GetTCP()
-	file, err := result.BuildResultFilePath(result.TCPResultDir, cfg.PrefixOutput)
+
+	file, err := result.BuildResultFilePath(baseResultDir, tcpprobe.Schema, cfg.PrefixOutput)
 	if err != nil {
 		return StageConfig{}, err
 	}
-	writer, err := result.NewWriter(file, writerConfig(), ctx)
+
+	writer, err := result.NewWriter(file, tcpprobe.Schema, writerConfig(), ctx)
 	if err != nil {
 		return StageConfig{}, err
 	}
-	prb := probe.NewTCPProbe(fmt.Sprint(cfg.Port), cfg.Timeout.Duration(), cfg.Tries)
+
+	prb := tcpprobe.NewTCPProbe(fmt.Sprint(cfg.Port), cfg.Timeout.Duration(), cfg.Tries)
 
 	return StageConfig{
-		Mode:    TCPScan,
 		Workers: cfg.Workers,
 		Probe:   prb,
 		Writer:  writer,
@@ -233,27 +228,27 @@ func (s *Scanner) BuildTCPStage(ctx context.Context) (StageConfig, error) {
 
 func (s *Scanner) BuildHTTPStage(ctx context.Context) (StageConfig, error) {
 	cfg := config.GetHTTP()
-	file, err := result.BuildResultFilePath(result.HTTPResultDir, cfg.PrefixOutput)
-	if err != nil {
-		return StageConfig{}, err
-	}
-	writer, err := result.NewWriter(file, writerConfig(), ctx)
+
+	file, err := result.BuildResultFilePath(baseResultDir, httpprobe.Schema, cfg.PrefixOutput)
 	if err != nil {
 		return StageConfig{}, err
 	}
 
-	// Select probe based on HTTP version
+	writer, err := result.NewWriter(file, httpprobe.Schema, writerConfig(), ctx)
+	if err != nil {
+		return StageConfig{}, err
+	}
+
 	if isHTTP3(cfg.Version) {
-		reqCfg, err := probe.NewHTTP3RequestFromConfig(*cfg)
+		reqCfg, err := httpprobe.NewHTTPRequestFromConfig(*cfg)
 		if err != nil {
 			return StageConfig{}, err
 		}
-		prb, err := probe.NewHTTP3Probe(*reqCfg, cfg.AcceptedStatusCodes)
+		prb, err := httpprobe.NewHTTP3Probe(*reqCfg, cfg.AcceptedStatusCodes)
 		if err != nil {
 			return StageConfig{}, err
 		}
 		return StageConfig{
-			Mode:    HTTPScan,
 			Workers: cfg.Workers,
 			Probe:   prb,
 			Writer:  writer,
@@ -261,15 +256,13 @@ func (s *Scanner) BuildHTTPStage(ctx context.Context) (StageConfig, error) {
 		}, nil
 	}
 
-	// HTTP/1.1 or HTTP/2 (or both via ALPN)
-	reqCfg, err := probe.NewHTTPRequestFromConfig(*cfg)
+	reqCfg, err := httpprobe.NewHTTPRequestFromConfig(*cfg)
 	if err != nil {
 		return StageConfig{}, err
 	}
-	prb := probe.NewHTTPProbe(*reqCfg, cfg.AcceptedStatusCodes)
+	prb := httpprobe.NewHTTPProbe(*reqCfg, cfg.AcceptedStatusCodes)
 
 	return StageConfig{
-		Mode:    HTTPScan,
 		Workers: cfg.Workers,
 		Probe:   prb,
 		Writer:  writer,
@@ -283,21 +276,23 @@ func isHTTP3(version string) bool {
 
 func (s *Scanner) BuildXrayStage(ctx context.Context, template string) (StageConfig, error) {
 	cfg := config.GetXray()
-	file, err := result.BuildResultFilePath(result.XRAYResultDir, cfg.PrefixOutput)
+
+	file, err := result.BuildResultFilePath(baseResultDir, xrayprobe.Schema, cfg.PrefixOutput)
 	if err != nil {
 		return StageConfig{}, err
 	}
-	writer, err := result.NewWriter(file, writerConfig(), ctx)
+
+	writer, err := result.NewWriter(file, xrayprobe.Schema, writerConfig(), ctx)
 	if err != nil {
 		return StageConfig{}, err
 	}
-	prb, err := probe.NewXrayProbe(cfg, template, s.pm)
+
+	prb, err := xrayprobe.NewXrayProbe(cfg, template, s.pm)
 	if err != nil {
 		return StageConfig{}, err
 	}
 
 	return StageConfig{
-		Mode:    XRAYScan,
 		Workers: cfg.Workers,
 		Probe:   prb,
 		Writer:  writer,
@@ -307,11 +302,13 @@ func (s *Scanner) BuildXrayStage(ctx context.Context, template string) (StageCon
 
 func (s *Scanner) BuildResolveStage(ctx context.Context) (StageConfig, error) {
 	cfg := config.GetDNS().Resolver
-	file, err := result.BuildResultFilePath(result.ResolveResultDir, cfg.PrefixOutput)
+
+	file, err := result.BuildResultFilePath(baseResultDir, resolveprobe.Schema, cfg.PrefixOutput)
 	if err != nil {
 		return StageConfig{}, err
 	}
-	writer, err := result.NewWriter(file, writerConfig(), ctx)
+
+	writer, err := result.NewWriter(file, resolveprobe.Schema, writerConfig(), ctx)
 	if err != nil {
 		return StageConfig{}, err
 	}
@@ -321,7 +318,7 @@ func (s *Scanner) BuildResolveStage(ctx context.Context) (StageConfig, error) {
 		rcodes = append(rcodes, uint16(dns.ParseDNSRcode(r)))
 	}
 
-	prb := probe.NewResolverProbe(&probe.DnsRequest{
+	prb := resolveprobe.NewResolverProbe(&resolveprobe.DNSRequest{
 		Domain:          cfg.Domain,
 		Port:            cfg.Port,
 		RandomSubdomain: cfg.RandomSubdomain,
@@ -337,7 +334,6 @@ func (s *Scanner) BuildResolveStage(ctx context.Context) (StageConfig, error) {
 	})
 
 	return StageConfig{
-		Mode:    DNSResolveScan,
 		Workers: cfg.Workers,
 		Probe:   prb,
 		Writer:  writer,
@@ -349,16 +345,18 @@ func (s *Scanner) BuildDNSTTStage(ctx context.Context) (StageConfig, error) {
 	cfg := config.GetDNS().DNSTT
 	transport := config.GetDNS().Resolver.Protocol
 	port := config.GetDNS().Resolver.Port
-	file, err := result.BuildResultFilePath(result.DNSTTResultDir, cfg.PrefixOutput)
-	if err != nil {
-		return StageConfig{}, err
-	}
-	writer, err := result.NewWriter(file, writerConfig(), ctx)
+
+	file, err := result.BuildResultFilePath(baseResultDir, dnsttprobe.Schema, cfg.PrefixOutput)
 	if err != nil {
 		return StageConfig{}, err
 	}
 
-	prb, err := probe.NewDNSTTProbe(probe.DNSTTConfig{
+	writer, err := result.NewWriter(file, dnsttprobe.Schema, writerConfig(), ctx)
+	if err != nil {
+		return StageConfig{}, err
+	}
+
+	prb, err := dnsttprobe.NewDNSTTProbe(dnsttprobe.DNSTTConfig{
 		Domain:    cfg.Domain,
 		PubKey:    cfg.PublicKey,
 		Transport: dns.ParseTransport(transport),
@@ -370,7 +368,6 @@ func (s *Scanner) BuildDNSTTStage(ctx context.Context) (StageConfig, error) {
 	}
 
 	return StageConfig{
-		Mode:    DNSTTscan,
 		Workers: cfg.Workers,
 		Probe:   prb,
 		Writer:  writer,
@@ -381,16 +378,18 @@ func (s *Scanner) BuildDNSTTStage(ctx context.Context) (StageConfig, error) {
 func (s *Scanner) BuildSlipStreamStage(ctx context.Context) (StageConfig, error) {
 	cfg := config.GetDNS().SlipStream
 	port := config.GetDNS().Resolver.Port
-	file, err := result.BuildResultFilePath(result.SlipStreamResultDir, cfg.PrefixOutput)
-	if err != nil {
-		return StageConfig{}, err
-	}
-	writer, err := result.NewWriter(file, writerConfig(), ctx)
+
+	file, err := result.BuildResultFilePath(baseResultDir, slipstreamprobe.Schema, cfg.PrefixOutput)
 	if err != nil {
 		return StageConfig{}, err
 	}
 
-	prb, err := probe.NewSlipstreamProbe(cfg.Workers, probe.SlipstreamConfig{
+	writer, err := result.NewWriter(file, slipstreamprobe.Schema, writerConfig(), ctx)
+	if err != nil {
+		return StageConfig{}, err
+	}
+
+	prb, err := slipstreamprobe.NewSlipstreamProbe(cfg.Workers, slipstreamprobe.SlipstreamConfig{
 		Domain:   cfg.Domain,
 		CertPath: cfg.CertPath,
 		DNSPort:  port,
@@ -401,7 +400,6 @@ func (s *Scanner) BuildSlipStreamStage(ctx context.Context) (StageConfig, error)
 	}
 
 	return StageConfig{
-		Mode:    SLIPSTREAMScan,
 		Workers: cfg.Workers,
 		Probe:   prb,
 		Writer:  writer,

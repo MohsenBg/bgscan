@@ -1,6 +1,6 @@
 # Maximum duration (in milliseconds) to wait for an Xray connectivity test to complete.
 # Tests failing to respond within this window are considered failed.
-timeout = 6000
+timeout = 4000
 
 # The number of concurrent workers performing Xray connectivity tests.
 # Higher values increase test throughput at the cost of greater bandwidth and CPU utilization.
@@ -33,4 +33,4 @@ prefix_output = "xray_"
 #   icmp → Test ICMP ping to target IP (uses ICMP settings)
 #   tcp  → Test TCP connection to target port (uses TCP settings)
 #   http → Test HTTP/HTTPS request to target (uses HTTP settings)
-pre_scan_type = "tcp" = "tcp"
+pre_scan_type = "tcp"

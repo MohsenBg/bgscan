@@ -23,23 +23,28 @@ type action struct {
 	op   opType
 }
 
+// ProcessRegistry tracks long-lived processes spawned by probes so they can
+// be killed cooperatively on context cancellation or shutdown.
 type ProcessRegistry struct {
 	actionQueue chan action
 	startOnce   sync.Once
 }
 
+// NewProcessRegistry creates a ProcessRegistry ready to Start.
 func NewProcessRegistry() *ProcessRegistry {
 	return &ProcessRegistry{
 		actionQueue: make(chan action, 100),
 	}
 }
 
+// Start launches the registry's monitor goroutine; subsequent calls are no-ops.
 func (pr *ProcessRegistry) Start(ctx context.Context) {
 	pr.startOnce.Do(func() {
 		go pr.monitor(ctx)
 	})
 }
 
+// Register adds proc to the registry and returns an id for later Unregister.
 func (pr *ProcessRegistry) Register(ctx context.Context, proc *process.Process) (string, error) {
 	id := uuid.NewString()
 
@@ -56,6 +61,7 @@ func (pr *ProcessRegistry) Register(ctx context.Context, proc *process.Process) 
 	}
 }
 
+// Unregister removes the process with the given id from the registry.
 func (pr *ProcessRegistry) Unregister(ctx context.Context, id string) error {
 	select {
 	case pr.actionQueue <- action{

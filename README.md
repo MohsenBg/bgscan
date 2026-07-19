@@ -30,7 +30,7 @@ Use it for host discovery, port scanning, web service testing, DNS resolver anal
 
 The scanner is built for developers and researchers who need speed, flexibility, and a modern terminal experience without leaving the keyboard.
 
-<img width="1258" height="690" alt="bgscan-v2 8 0" src="https://github.com/user-attachments/assets/998c2c7c-f960-4a71-a022-72d86b13c6fb" />
+<img width="1258" height="690" alt="bgscan" src="https://github.com/user-attachments/assets/998c2c7c-f960-4a71-a022-72d86b13c6fb" />
 
 ---
 

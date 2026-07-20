@@ -1,8 +1,6 @@
 package scanner
 
 import (
-	"fmt"
-
 	"bgscan/internal/logger"
 	"bgscan/internal/ui/components/basic/confirm"
 	logview "bgscan/internal/ui/components/basic/logview"
@@ -34,12 +32,24 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		m.togglePause()
 		return m, nil
 
+	// Scanner.Run() returned an error before the scan started
+	case scanErrorMsg:
+		m.onError(msg.err)
+		return m, nil
+
+	// Scanner.Close() finished
+	case scanClosedMsg:
+		if msg.err != nil {
+			cmds = append(cmds, m.errorCmd("Failed to close scanner", msg.err.Error()))
+		}
+		cmds = append(cmds, func() tea.Msg { return ui.ResetComponentStacksMsg{} })
+		return m, tea.Batch(cmds...)
+
 	// Global keybindings
 	case tea.KeyMsg:
 		cmds = append(cmds, m.handleKey(msg))
 	}
 
-	// Component updates (tab UI, progress, IP viewers)
 	cmds = append(cmds, m.updateComponents(msg))
 	return m, tea.Batch(cmds...)
 }
@@ -58,8 +68,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 			m.layout,
 			"Do you want to exit the scan?",
 			func() tea.Msg {
-				m.scn.Close()
-				return ui.ResetComponentStacksMsg{}
+				return tea.BatchMsg{m.asyncClose()}
 			},
 			false,
 		)
@@ -133,6 +142,22 @@ func (m *Model) errorCmd(title, msg string) tea.Cmd {
 
 //
 // ────────────────────────────────────────────────────────────
+//   Close (async)
+// ────────────────────────────────────────────────────────────
+//
+
+// asyncClose returns a tea.Cmd that runs Scanner.Close() on a
+// goroutine and delivers scanClosedMsg when it finishes.
+func (m *Model) asyncClose() tea.Cmd {
+	return func() tea.Msg {
+		ch := make(chan error, 1)
+		go func() { ch <- m.scn.Close() }()
+		return scanClosedMsg{err: <-ch}
+	}
+}
+
+//
+// ────────────────────────────────────────────────────────────
 //   Tick Update Handler
 // ────────────────────────────────────────────────────────────
 //
@@ -160,10 +185,18 @@ func (m *Model) updateTick() tea.Cmd {
 		}.Cmd())
 
 	case StatusError:
-		if err := m.currentError(); err != nil {
+		m.mu.Lock()
+		err := m.scanError
+		shown := m.errorShown
+		if err != nil && !shown {
+			m.errorShown = true
+		}
+		m.mu.Unlock()
+
+		if err != nil && !shown {
 			cmds = append(cmds, m.errorCmd(
 				"Error while scanning",
-				fmt.Sprintf("%v", err),
+				err.Error(),
 			))
 		}
 

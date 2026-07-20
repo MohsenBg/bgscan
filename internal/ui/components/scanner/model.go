@@ -58,6 +58,7 @@ type Model struct {
 	status       []StageStatus
 	progressInfo []engine.Progress
 	scanError    error
+	errorShown   bool
 }
 
 func New(layout *layout.Layout, maxIPs int, scn *scanner.Scanner) *Model {
@@ -123,13 +124,14 @@ func (m *Model) Init() tea.Cmd {
 
 	m.status[0] = StatusPreProcess
 
-	go func() {
+	runCmd := func() tea.Msg {
 		if err := m.scn.Run(); err != nil {
-			m.onError(err)
+			return scanErrorMsg{err: err}
 		}
-	}()
+		return nil
+	}
 
-	return m.tick()
+	return tea.Batch(tea.Cmd(runCmd), m.tick())
 }
 
 func (m *Model) tick() tea.Cmd {
@@ -167,6 +169,7 @@ func (m *Model) onError(err error) {
 		}
 	}
 	m.scanError = err
+	m.errorShown = false
 }
 
 func (m *Model) onScanEnd(i int) func() {

@@ -2,6 +2,13 @@
 # Result Writer Configuration
 # =====================================================================
 
+# The directory name used to store scan results.
+# The directory is created inside the project root.
+# Example: setting this to "result" stores results in "./result".
+# Only a single directory name is allowed; nested paths are not supported.
+result_directory = "result"
+
+
 # The interval (in milliseconds) for merging delta results into the main result file.
 # This controls how frequently partial scan results are committed to disk.
 merge_flush_interval = 2000

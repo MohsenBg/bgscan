@@ -19,8 +19,9 @@ func DefaultGeneralConfig() *GeneralConfig {
 func DefaultWriterConfig() *WriterConfig {
 	return &WriterConfig{
 		MergeFlushInterval: NewDurationMS(2 * time.Second),
-		ChanSize:           4096,
+		ChanSize:           1024,
 		BatchSize:          4096,
+		ResultBaseDir:      "result",
 	}
 }
 

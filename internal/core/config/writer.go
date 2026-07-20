@@ -11,4 +11,6 @@ type WriterConfig struct {
 
 	// BatchSize defines how many records are processed per batch.
 	BatchSize int `toml:"batch_size"`
+
+	ResultBaseDir string `toml:"result_directory"`
 }

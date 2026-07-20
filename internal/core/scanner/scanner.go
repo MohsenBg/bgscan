@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -88,17 +89,17 @@ func (s *Scanner) AddStage(stage StageConfig) {
 // ────────────────────────────────────────────────────────────────
 //
 
-func (s *Scanner) Run() {
+func (s *Scanner) Run() error {
 	if s.closed {
-		panic("scanner already closed")
+		return errors.New("scanner already closed")
 	}
 
 	if s.ctx.Err() != nil {
-		panic("scanner context is canceled")
+		return errors.New("scanner context is canceled")
 	}
 
 	if len(s.stages) == 0 {
-		panic("no stages added to Scanner")
+		return errors.New("no stages added to Scanner")
 	}
 
 	defer s.pause.Stop()
@@ -107,10 +108,11 @@ func (s *Scanner) Run() {
 	if len(s.stages) == 1 {
 		stg := s.stages[0]
 		s.runSingle(stg, stg.Hooks)
-		return
+		return nil
 	}
 
 	s.runChain(s.stages)
+	return nil
 }
 
 func (s *Scanner) runSingle(stage StageConfig, hooks engine.ScanHooks) {

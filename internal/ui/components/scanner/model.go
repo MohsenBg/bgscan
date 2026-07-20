@@ -52,6 +52,7 @@ type Model struct {
 	// Results
 	results [][]result.Result
 	batch   [][]result.Result
+
 	// State
 	mu           sync.Mutex
 	status       []StageStatus
@@ -122,7 +123,12 @@ func (m *Model) Init() tea.Cmd {
 
 	m.status[0] = StatusPreProcess
 
-	go m.scn.Run()
+	go func() {
+		if err := m.scn.Run(); err != nil {
+			m.onError(err)
+		}
+	}()
+
 	return m.tick()
 }
 

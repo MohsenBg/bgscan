@@ -1,0 +1,23 @@
+package config
+
+import "time"
+
+// TCPConfig defines configuration for TCP probing.
+type TCPConfig struct {
+	Workers      int        `toml:"workers"`
+	Port         int        `toml:"port"`
+	Timeout      DurationMS `toml:"timeout"`
+	Tries        uint16     `toml:"tries"`
+	PrefixOutput string     `toml:"prefix_output"`
+}
+
+// DefaultTCPConfig returns the default configuration for TCP scanning.
+func DefaultTCPConfig() *TCPConfig {
+	return &TCPConfig{
+		Workers:      200,
+		Port:         80,
+		Timeout:      NewDurationMS(3 * time.Second),
+		Tries:        1,
+		PrefixOutput: "tcp_",
+	}
+}

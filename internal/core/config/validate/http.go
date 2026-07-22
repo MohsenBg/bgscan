@@ -63,17 +63,22 @@ func ValidateHTTP(cfg *config.HTTPConfig) map[string]error {
 		errs["Version"] = err
 	}
 
+	hasTLSErr := false
 	if err := checkEnum("MinTLSVersion", cfg.MinTLSVersion, allowedTLSVersions); err != nil {
 		errs["MinTLSVersion"] = err
+		hasTLSErr = true
 	}
 
 	if err := checkEnum("MaxTLSVersion", cfg.MaxTLSVersion, allowedTLSVersions); err != nil {
 		errs["MaxTLSVersion"] = err
+		hasTLSErr = true
 	}
 
-	if err := checkEnumOrder("MinTLSVersion", "MaxTLSVersion", cfg.MinTLSVersion, cfg.MaxTLSVersion, allowedTLSVersions); err != nil {
-		errs["MinTLSVersion"] = err
-		errs["MaxTLSVersion"] = err
+	if !hasTLSErr {
+		if err := checkEnumOrder("MinTLSVersion", "MaxTLSVersion", cfg.MinTLSVersion, cfg.MaxTLSVersion, allowedTLSVersions); err != nil {
+			errs["MinTLSVersion"] = err
+			errs["MaxTLSVersion"] = err
+		}
 	}
 
 	if err := checkPrefix("PrefixOutput", cfg.PrefixOutput); err != nil {
@@ -95,7 +100,6 @@ func NormalizeHTTP(cfg *config.HTTPConfig) []Warning {
 	var warns []Warning
 
 	fixInt("Workers", &cfg.Workers, 1, 5000, def.Workers, &warns)
-	fixString("Host", &cfg.Host, def.Host, &warns)
 	fixInt("Port", &cfg.Port, 1, 65535, def.Port, &warns)
 	fixEnum("Protocol", &cfg.Protocol, allowedProtocols, def.Protocol, &warns)
 	fixHost("Host", &cfg.Host, def.Host, &warns)
@@ -111,7 +115,7 @@ func NormalizeHTTP(cfg *config.HTTPConfig) []Warning {
 	fixEnumOrder(
 		"MinTLSVersion", "MaxTLSVersion",
 		&cfg.MinTLSVersion, &cfg.MaxTLSVersion,
-		cfg.MinTLSVersion, cfg.MaxTLSVersion,
+		def.MinTLSVersion, def.MaxTLSVersion,
 		allowedTLSVersions,
 		&warns,
 	)

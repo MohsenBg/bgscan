@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 // DNSConfig represents the top‑level DNS configuration, combining resolver,
 // DNSTT, and SlipStream settings.
 type DNSConfig struct {
@@ -7,10 +9,6 @@ type DNSConfig struct {
 	DNSTT      *DNSTTConfig      `toml:"dnstt"`
 	SlipStream *SlipStreamConfig `toml:"slip_stream"`
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// Resolver
-///////////////////////////////////////////////////////////////////////////////
 
 // ResolverConfig defines settings for traditional DNS resolvers.
 type ResolverConfig struct {
@@ -30,10 +28,6 @@ type ResolverConfig struct {
 	PrefixOutput    string     `toml:"prefix_output"`
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// DNSTT
-///////////////////////////////////////////////////////////////////////////////
-
 // DNSTTConfig defines configuration for DNSTT (DNS Tunnel Transport) scanning.
 type DNSTTConfig struct {
 	Enabled      bool       `toml:"enabled"`
@@ -44,10 +38,6 @@ type DNSTTConfig struct {
 	PrefixOutput string     `toml:"prefix_output"`
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// SlipStream
-///////////////////////////////////////////////////////////////////////////////
-
 // SlipStreamConfig defines configuration for SlipStream-based DNS scanning.
 type SlipStreamConfig struct {
 	Enabled      bool       `toml:"enabled"`
@@ -56,4 +46,42 @@ type SlipStreamConfig struct {
 	CertPath     string     `toml:"cert_path"`
 	Timeout      DurationMS `toml:"timeout"`
 	PrefixOutput string     `toml:"prefix_output"`
+}
+
+// DefaultDNSConfig returns the default configuration for DNS‑based scanning methods.
+func DefaultDNSConfig() *DNSConfig {
+	return &DNSConfig{
+		Resolver: &ResolverConfig{
+			Workers:         100,
+			Protocol:        "udp",
+			Domain:          "google.com",
+			Port:            53,
+			CheckTypes:      []string{"A"},
+			EDNSBufSize:     1234,
+			Timeout:         NewDurationMS(2 * time.Second),
+			Tries:           1,
+			RandomSubdomain: true,
+			AcceptedRCodes:  []string{"noerror", "nxdomain"},
+			CheckDPI:        true,
+			DPITimeout:      NewDurationMS(500 * time.Millisecond),
+			DPITries:        2,
+			PrefixOutput:    "dns_resolver_",
+		},
+		DNSTT: &DNSTTConfig{
+			Enabled:      false,
+			Workers:      20,
+			Domain:       "ns.example.com",
+			PublicKey:    "",
+			Timeout:      NewDurationMS(8 * time.Second),
+			PrefixOutput: "dns_dnstt_",
+		},
+		SlipStream: &SlipStreamConfig{
+			Enabled:      false,
+			Workers:      20,
+			Domain:       "ns.example.com",
+			CertPath:     "",
+			Timeout:      NewDurationMS(8 * time.Second),
+			PrefixOutput: "dns_slipstream_",
+		},
+	}
 }

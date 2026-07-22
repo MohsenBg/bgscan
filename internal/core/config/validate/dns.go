@@ -48,11 +48,7 @@ func validateResolver(r *config.ResolverConfig) map[string]error {
 		errs["Protocol"] = err
 	}
 
-	if err := checkString("Domain", r.Domain); err != nil {
-		errs["Domain"] = err
-	}
-
-	if err := checkSNI("Domain", r.Domain); err != nil {
+	if err := checkDomain("Domain", r.Domain); err != nil {
 		errs["Domain"] = err
 	}
 
@@ -100,7 +96,7 @@ func validateDNSTT(d *config.DNSTTConfig) map[string]error {
 		errs["Domain"] = err
 	}
 
-	if err := checkSNI("Domain", d.Domain); err != nil {
+	if err := checkDomain("Domain", d.Domain); err != nil {
 		errs["Domain"] = err
 	}
 
@@ -132,7 +128,7 @@ func validateSlipStream(s *config.SlipStreamConfig) map[string]error {
 		errs["Domain"] = err
 	}
 
-	if err := checkSNI("Domain", s.Domain); err != nil {
+	if err := checkDomain("Domain", s.Domain); err != nil {
 		errs["Domain"] = err
 	}
 
@@ -175,8 +171,7 @@ func normalizeResolver(r *config.ResolverConfig) []Warning {
 
 	fixInt("Resolver.Workers", &r.Workers, 1, 2500, def.Workers, &warns)
 	fixEnum("Resolver.Protocol", &r.Protocol, allowedDNSProtocols, def.Protocol, &warns)
-	fixString("Resolver.Domain", &r.Domain, def.Domain, &warns)
-	fixSNI("Resolver.Domain", &r.Domain, def.Domain, &warns)
+	fixDomain("Resolver.Domain", &r.Domain, def.Domain, &warns)
 
 	fixUint16("Resolver.Port", &r.Port, 1, math.MaxUint16, def.Port, &warns)
 	fixStringSlice("Resolver.CheckTypes", &r.CheckTypes, def.CheckTypes, &warns)
@@ -201,7 +196,7 @@ func normalizeDNSTT(d *config.DNSTTConfig) []Warning {
 
 	fixInt("DNSTT.Workers", &d.Workers, 1, 500, def.Workers, &warns)
 	fixString("DNSTT.Domain", &d.Domain, def.Domain, &warns)
-	fixSNI("DNSTT.Domain", &d.Domain, def.Domain, &warns)
+	fixDomain("DNSTT.Domain", &d.Domain, def.Domain, &warns)
 	fixPubKey("DNSTT.PublicKey", &d.PublicKey, def.PublicKey, &warns)
 
 	fixDurationMS("DNSTT.Timeout", &d.Timeout,
@@ -217,8 +212,7 @@ func normalizeSlipStream(s *config.SlipStreamConfig) []Warning {
 	var warns []Warning
 
 	fixInt("SlipStream.Workers", &s.Workers, 1, 500, def.Workers, &warns)
-	fixString("SlipStream.Domain", &s.Domain, def.Domain, &warns)
-	fixSNI("SlipStream.Domain", &s.Domain, def.Domain, &warns)
+	fixDomain("SlipStream.Domain", &s.Domain, def.Domain, &warns)
 
 	// CertPath intentionally skipped empty is valid
 

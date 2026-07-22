@@ -15,6 +15,7 @@
 package validate
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -24,6 +25,27 @@ import (
 	"time"
 
 	"bgscan/internal/core/config"
+)
+
+// ============================================================================
+// Sentinel errors — returned (wrapped) by every check* function.
+// Callers can use errors.Is to distinguish failure kinds without
+// parsing message strings.
+// ============================================================================
+
+var (
+	ErrOutOfRange        = errors.New("value out of range")
+	ErrEmpty             = errors.New("value must not be empty")
+	ErrInvalidEnum       = errors.New("value not in allowed set")
+	ErrEnumOrder         = errors.New("min value exceeds max value")
+	ErrIllegalChars      = errors.New("value contains illegal characters")
+	ErrInvalidDomain     = errors.New("invalid domain")
+	ErrMalformedURL      = errors.New("malformed URL")
+	ErrPathOrPort        = errors.New("domain must not contain path or port")
+	ErrInvalidStatusCode = errors.New("invalid HTTP status code")
+	ErrInvalidPubKey     = errors.New("invalid public key")
+	ErrLeadingTrailing   = errors.New("value must not start or end with a dot or space")
+	ErrDotDot            = errors.New("value cannot contain '..'")
 )
 
 // ============================================================================
@@ -49,14 +71,14 @@ func (w Warning) String() string {
 
 func checkInt(field string, v, min, max int) error {
 	if v < min || v > max {
-		return fmt.Errorf("%s must be between %d and %d", field, min, max)
+		return fmt.Errorf("%s must be between %d and %d: %w", field, min, max, ErrOutOfRange)
 	}
 	return nil
 }
 
 func checkUint16(field string, v, min, max uint16) error {
 	if v < min || v > max {
-		return fmt.Errorf("%s must be between %d and %d", field, min, max)
+		return fmt.Errorf("%s must be between %d and %d: %w", field, min, max, ErrOutOfRange)
 	}
 	return nil
 }
@@ -64,14 +86,14 @@ func checkUint16(field string, v, min, max uint16) error {
 func checkDuration(field string, v, min, max time.Duration) error {
 	const epsilon = time.Millisecond
 	if v+epsilon < min || v-epsilon > max {
-		return fmt.Errorf("%s must be between %s and %s", field, min, max)
+		return fmt.Errorf("%s must be between %s and %s: %w", field, min, max, ErrOutOfRange)
 	}
 	return nil
 }
 
 func checkString(field, v string) error {
 	if strings.TrimSpace(v) == "" {
-		return fmt.Errorf("%s must not be empty", field)
+		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
 	}
 	return nil
 }
@@ -81,12 +103,12 @@ func checkEnum(field, v string, allowed []string) error {
 	if slices.Contains(allowed, s) {
 		return nil
 	}
-	return fmt.Errorf("%s must be one of %s", field, strings.Join(allowed, ", "))
+	return fmt.Errorf("%s must be one of %s: %w", field, strings.Join(allowed, ", "), ErrInvalidEnum)
 }
 
 func checkStringSlice(field string, v []string) error {
 	if len(v) == 0 {
-		return fmt.Errorf("%s must not be empty", field)
+		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
 	}
 	return nil
 }
@@ -104,7 +126,8 @@ func checkEnumOrder(minField, maxField, minVal, maxVal string, allowed []string)
 	}
 
 	if minIdx > maxIdx {
-		return fmt.Errorf("%s (%s) must be less than or equal to %s (%s)", minField, minVal, maxField, maxVal)
+		return fmt.Errorf("%s (%s) must be less than or equal to %s (%s): %w",
+			minField, minVal, maxField, maxVal, ErrEnumOrder)
 	}
 
 	return nil
@@ -118,18 +141,17 @@ var illegalFilenameRegex = regexp.MustCompile(`[\\/:*?"<>|\x00-\x1F]`)
 // It rejects empty strings, path separators, reserved characters, and leading/trailing dots/spaces.
 func checkPrefix(field, prefix string) error {
 	if strings.TrimSpace(prefix) == "" {
-		return fmt.Errorf("%s must not be empty", field)
+		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
 	}
 
-	// Check for illegal filesystem characters
 	if illegalFilenameRegex.MatchString(prefix) {
-		return fmt.Errorf("%s contains illegal characters for a filename (\\ / : * ? \" < > |)", field)
+		return fmt.Errorf("%s contains illegal characters for a filename (\\ / : * ? \" < > |): %w",
+			field, ErrIllegalChars)
 	}
 
-	// Prevent leading/trailing dots and spaces, which are highly problematic on Windows
 	if strings.HasPrefix(prefix, ".") || strings.HasSuffix(prefix, ".") ||
 		strings.HasPrefix(prefix, " ") || strings.HasSuffix(prefix, " ") {
-		return fmt.Errorf("%s must not start or end with a dot or space", field)
+		return fmt.Errorf("%s must not start or end with a dot or space: %w", field, ErrLeadingTrailing)
 	}
 
 	return nil
@@ -139,55 +161,59 @@ func checkPrefix(field, prefix string) error {
 // It rejects path traversal, nested directories, reserved characters, and invalid filesystem names.
 func checkDirectoryName(field, name string) error {
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("%s must not be empty", field)
+		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
 	}
 
-	// Reject filesystem illegal characters and path separators
 	if illegalFilenameRegex.MatchString(name) {
-		return fmt.Errorf("%s contains illegal characters for a directory name", field)
+		return fmt.Errorf("%s contains illegal characters for a directory name: %w", field, ErrIllegalChars)
 	}
 
-	// Reject path traversal and special directory names
 	if name == "." || name == ".." {
-		return fmt.Errorf("%s cannot be '.' or '..'", field)
+		return fmt.Errorf("%s cannot be '.' or '..': %w", field, ErrIllegalChars)
 	}
 
-	// Reject leading/trailing dots and spaces (Windows compatibility)
 	if strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".") ||
 		strings.HasPrefix(name, " ") || strings.HasSuffix(name, " ") {
-		return fmt.Errorf("%s must not start or end with a dot or space", field)
+		return fmt.Errorf("%s must not start or end with a dot or space: %w", field, ErrLeadingTrailing)
 	}
 
-	// Reject hidden nested paths that may appear after normalization
 	if strings.Contains(name, "..") {
-		return fmt.Errorf("%s cannot contain '..'", field)
+		return fmt.Errorf("%s cannot contain '..': %w", field, ErrDotDot)
 	}
 
 	return nil
 }
 
-// checksHost checks if the host is a valid domain, optionally followed by a path and/or port.
+// checkHost checks if the host is a valid domain, optionally followed by a path and/or port.
 // Examples: "google.com", "google.com/path", "example.com:8080/api/v1"
 func checkHost(field, host string) error {
 	if strings.TrimSpace(host) == "" {
-		return fmt.Errorf("%s must not be empty", field)
+		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
 	}
 
-	// Strip optional scheme if the user accidentally included it
 	host = strings.TrimPrefix(host, "http://")
 	host = strings.TrimPrefix(host, "https://")
 
-	// Prepend a dummy scheme to allow url.Parse to correctly identify the host and path
 	u, err := url.Parse("http://" + host)
 	if err != nil {
-		return fmt.Errorf("%s is malformed: %v", field, err)
+		return fmt.Errorf("%s is malformed: %v: %w", field, err, ErrMalformedURL)
 	}
 
 	domain := u.Hostname()
 	if !isValidDomain(domain) {
-		return fmt.Errorf("%s contains an invalid domain: %s", field, domain)
+		return fmt.Errorf("%s contains an invalid domain: %s: %w", field, domain, ErrInvalidDomain)
 	}
 
+	return nil
+}
+
+func checkDomain(field, domain string) error {
+	if err := checkString(field, domain); err != nil {
+		return err
+	}
+	if err := checkSNI(field, domain); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -198,27 +224,27 @@ func checkSNI(field, sni string) error {
 		return nil
 	}
 
-	// Strip optional scheme if the user accidentally included it
 	sni = strings.TrimPrefix(sni, "http://")
 	sni = strings.TrimPrefix(sni, "https://")
 
-	// SNI must not contain paths or ports
 	if strings.Contains(sni, "/") || strings.Contains(sni, ":") {
-		return fmt.Errorf("%s must be a strict domain without paths or ports: %s", field, sni)
+		return fmt.Errorf("%s must be a strict domain without paths or ports: %s: %w",
+			field, sni, ErrPathOrPort)
 	}
 
 	if !isValidDomain(sni) {
-		return fmt.Errorf("%s must be a valid domain: %s", field, sni)
+		return fmt.Errorf("%s must be a valid domain: %s: %w", field, sni, ErrInvalidDomain)
 	}
 
 	return nil
 }
 
-// checkStatusCodes validates that all status codes are in the valid HTTP range
+// checkStatusCodes validates that all status codes are in the valid HTTP range.
 func checkStatusCodes(fieldName string, codes []int) error {
 	for _, c := range codes {
 		if !isValidHTTPStatusCode(c) {
-			return fmt.Errorf("%s: invalid status code %d (must be 100-599)", fieldName, c)
+			return fmt.Errorf("%s: invalid status code %d (must be 100-599): %w",
+				fieldName, c, ErrInvalidStatusCode)
 		}
 	}
 	return nil
@@ -230,11 +256,11 @@ var pubKeyRegex = regexp.MustCompile(`^[a-fA-F0-9]{64}$`)
 // checkPubKey verifies that the string is a valid 64-character hexadecimal public key.
 func checkPubKey(field, key string) error {
 	if strings.TrimSpace(key) == "" {
-		return fmt.Errorf("%s must not be empty", field)
+		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
 	}
 
 	if !pubKeyRegex.MatchString(key) {
-		return fmt.Errorf("%s must be a 64-character hexadecimal string", field)
+		return fmt.Errorf("%s must be a 64-character hexadecimal string: %w", field, ErrInvalidPubKey)
 	}
 
 	return nil
@@ -294,7 +320,6 @@ func fixDurationMS(field string, v *config.DurationMS, min, max time.Duration, d
 	}
 }
 
-// fixHost auto-corrects an invalid host to the default value.
 func fixHost(field string, v *string, def string, warns *[]Warning) {
 	if err := checkHost(field, *v); err != nil {
 		old := *v
@@ -303,7 +328,6 @@ func fixHost(field string, v *string, def string, warns *[]Warning) {
 	}
 }
 
-// fixSNI auto-corrects an invalid SNI to the default value.
 func fixSNI(field string, v *string, def string, warns *[]Warning) {
 	if err := checkSNI(field, *v); err != nil {
 		old := *v
@@ -312,7 +336,14 @@ func fixSNI(field string, v *string, def string, warns *[]Warning) {
 	}
 }
 
-// fixHTTPStatusCodes Code
+func fixDomain(field string, v *string, def string, warns *[]Warning) {
+	if err := checkDomain(field, *v); err != nil {
+		old := *v
+		*v = def
+		*warns = append(*warns, Warning{field, old, def, err.Error() + " → default"})
+	}
+}
+
 func fixHTTPStatusCodes(field string, v *[]int, def []int, warns *[]Warning) {
 	if err := checkStatusCodes(field, *v); err != nil {
 		old := *v
@@ -327,11 +358,8 @@ func fixHTTPStatusCodes(field string, v *[]int, def []int, warns *[]Warning) {
 func fixEnumOrder(minField, maxField string, minVal, maxVal *string, minDef, maxDef string, allowed []string, warns *[]Warning) {
 	if err := checkEnumOrder(minField, maxField, *minVal, *maxVal, allowed); err != nil {
 		oldMin, oldMax := *minVal, *maxVal
-
-		// Auto-fix by resetting both to their defaults
 		*minVal = minDef
 		*maxVal = maxDef
-
 		*warns = append(*warns, Warning{
 			Field:  fmt.Sprintf("%s and %s", minField, maxField),
 			OldVal: fmt.Sprintf("%s, %s", oldMin, oldMax),
@@ -341,7 +369,6 @@ func fixEnumOrder(minField, maxField string, minVal, maxVal *string, minDef, max
 	}
 }
 
-// fixPubKey auto-corrects an invalid public key to the default value.
 func fixPubKey(field string, v *string, def string, warns *[]Warning) {
 	if err := checkPubKey(field, *v); err != nil {
 		old := *v
@@ -350,7 +377,6 @@ func fixPubKey(field string, v *string, def string, warns *[]Warning) {
 	}
 }
 
-// fixPrefix auto-corrects an invalid prefix to the default value.
 func fixPrefix(field string, v *string, def string, warns *[]Warning) {
 	if err := checkPrefix(field, *v); err != nil {
 		old := *v
@@ -382,12 +408,10 @@ func isValidDomain(host string) bool {
 		return true
 	}
 
-	// 2. Explicitly allow "localhost"
 	if host == "localhost" {
 		return true
 	}
 
-	// 3. Validate as a domain name using the regex
 	if !domainRegex.MatchString(host) {
 		return false
 	}
@@ -410,7 +434,7 @@ func isValidDomain(host string) bool {
 	return true
 }
 
-// isValidHTTPStatusCode checks if a status code is a valid HTTP status code (100-599)
+// isValidHTTPStatusCode checks if a status code is a valid HTTP status code (100-599).
 func isValidHTTPStatusCode(code int) bool {
 	return code >= 100 && code <= 599
 }

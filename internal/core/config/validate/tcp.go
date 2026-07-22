@@ -51,7 +51,7 @@ func NormalizeTCP(cfg *config.TCPConfig) []Warning {
 
 	fixUint16("Tries", &cfg.Tries, 1, 10, def.Tries, &warns)
 
-	fixString("PrefixOutput", &cfg.PrefixOutput, def.PrefixOutput, &warns)
+	fixPrefix("PrefixOutput", &cfg.PrefixOutput, def.PrefixOutput, &warns)
 
 	return warns
 }

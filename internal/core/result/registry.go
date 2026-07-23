@@ -185,6 +185,9 @@ func ReadResultFile(path string, schema ResultSchema) (ResultFile, error) {
 // NormalizeResultFileName ensures the name has a .csv extension and
 // contains no directory components.
 func NormalizeResultFileName(name string) string {
+	if name == "" {
+		return ".csv"
+	}
 	base := filepath.Base(name)
 	if !strings.EqualFold(filepath.Ext(base), csvExtension) {
 		return base + csvExtension

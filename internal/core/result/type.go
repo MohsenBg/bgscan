@@ -2,6 +2,7 @@ package result
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -134,19 +135,25 @@ type ResultFile struct {
 }
 
 // SizeString returns a human-readable file size (e.g., "1.5 MB").
+
 func (f ResultFile) SizeString() string {
 	const (
 		KB = 1024
 		MB = KB * 1024
 		GB = MB * 1024
 	)
+
+	round := func(v float64) float64 {
+		return math.Round(v*100) / 100
+	}
+
 	switch {
 	case f.SizeBytes >= GB:
-		return fmt.Sprintf("%.2f GB", float64(f.SizeBytes)/float64(GB))
+		return fmt.Sprintf("%.2f GB", round(float64(f.SizeBytes)/float64(GB)))
 	case f.SizeBytes >= MB:
-		return fmt.Sprintf("%.2f MB", float64(f.SizeBytes)/float64(MB))
+		return fmt.Sprintf("%.2f MB", round(float64(f.SizeBytes)/float64(MB)))
 	case f.SizeBytes >= KB:
-		return fmt.Sprintf("%.2f KB", float64(f.SizeBytes)/float64(KB))
+		return fmt.Sprintf("%.2f KB", round(float64(f.SizeBytes)/float64(KB)))
 	default:
 		return fmt.Sprintf("%d B", f.SizeBytes)
 	}

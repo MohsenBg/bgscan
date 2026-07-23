@@ -2,6 +2,7 @@ package result
 
 import (
 	"context"
+	"os"
 	"sync"
 	"time"
 
@@ -9,52 +10,28 @@ import (
 	"bgscan/internal/logger"
 )
 
-// Writer asynchronously aggregates IPScanResult items and merges them into the
-// final result file. It operates as a background worker that periodically
-// flushes accumulated results based on configurable policies.
-//
-// Flushing occurs when:
-//   - The accumulated batch reaches BatchSize
-//   - MergeFlushInterval elapses
-//   - Shutdown begins (Stop)
-//
-// Writer guarantees that any result successfully written to the input channel
-// before shutdown will be flushed to disk before Stop() returns.
+// Writer asynchronously batches and flushes IPScanResult items to a result file.
 type Writer struct {
-	config Config
-
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
-
+	config     Config
+	ctx        context.Context
+	cancel     context.CancelFunc
+	wg         sync.WaitGroup
 	resultPath string
 	schema     ResultSchema
-
-	input chan Result
-
-	batch     []Result
-	batchSize int
+	input      chan Result
+	batch      []Result
+	batchSize  int
+	startOnce  sync.Once
+	stopOnce   sync.Once
 }
 
-// NewWriter initializes an asynchronous result writer tied to the given
-// context. If ctx is nil, context.Background() is used.
-//
-// The returned Writer is not started automatically; the caller must invoke
-// Start() to launch its background goroutine.
-func NewWriter(
-	resultPath string,
-	schema ResultSchema,
-	cfg Config,
-	ctx context.Context,
-) (*Writer, error) {
+// NewWriter creates a Writer tied to the given context (defaults to Background if nil).
+func NewWriter(resultPath string, schema ResultSchema, cfg Config, ctx context.Context) (*Writer, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-
 	cfg.Normalize()
-
 	ctx, cancel := context.WithCancel(ctx)
-
 	return &Writer{
 		config:     cfg,
 		resultPath: resultPath,
@@ -67,76 +44,77 @@ func NewWriter(
 	}, nil
 }
 
-// Start launches the background processing goroutine.
-//
-// Safe to call exactly once. After Start, the Writer begins accepting and
-// flushing results asynchronously.
-func (w *Writer) Start() {
-	w.wg.Add(1)
-	go w.writeLoop()
+// Start ensures the result directory exists and removes any stale result file.
+func (w *Writer) Start() error {
+	var err error
+	w.startOnce.Do(func() {
+		if err = fileutil.EnsureDir(w.resultPath); err != nil {
+			logger.DebugError("failed to ensure directory: %v", err)
+			return
+		}
+		if fileutil.CheckFileExists(w.resultPath) {
+			if err = os.Remove(w.resultPath); err != nil {
+				logger.CoreError("failed to remove stale result file: %v", err)
+				return
+			}
+		}
+		w.wg.Add(1)
+		go w.writeLoop()
+	})
+	return err
 }
 
-// Stop gracefully shuts down the Writer. It cancels the internal context,
-// drains the input channel, flushes any remaining batch, and waits for the
-// background goroutine to exit.
-//
-// Stop guarantees all previously submitted results are persisted.
+// Stop cancels the writer, drains remaining items, and waits for the loop to exit.
 func (w *Writer) Stop() error {
-	w.cancel()
-	w.wg.Wait()
+	w.stopOnce.Do(func() {
+		w.cancel()
+		w.wg.Wait()
+	})
 	return nil
 }
 
-// Write submits a result to the Writer. If the writer is already shutting down,
-// the result is silently dropped to avoid blocking.
-//
-// Writes are non‑blocking thanks to the buffered input channel.
+// Write enqueues a result, dropping it if the context is already canceled.
 func (w *Writer) Write(r Result) {
 	select {
 	case <-w.ctx.Done():
 		return
-
 	case w.input <- r:
 	}
 }
 
-// writeLoop is the main worker goroutine that handles batching and periodic
-// flushing. It reacts to incoming results, timer ticks, and shutdown signals.
 func (w *Writer) writeLoop() {
 	defer w.wg.Done()
-
 	ticker := time.NewTicker(w.config.MergeFlushInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-
-		case r := <-w.input:
+		case r, ok := <-w.input:
+			if !ok {
+				w.flush()
+				return
+			}
 			w.batch = append(w.batch, r)
 			if len(w.batch) >= w.batchSize {
-				_ = w.flush()
+				w.flush()
 			}
-
 		case <-ticker.C:
-			_ = w.flush()
-
+			w.flush()
 		case <-w.ctx.Done():
-			// On shutdown:
-			//   1. Drain remaining buffered results
-			//   2. Flush everything
 			w.drain()
-			_ = w.flush()
+			w.flush()
 			return
 		}
 	}
 }
 
-// drain empties the input channel without blocking. Called only during
-// shutdown to ensure no queued item is lost.
 func (w *Writer) drain() {
 	for {
 		select {
-		case r := <-w.input:
+		case r, ok := <-w.input:
+			if !ok {
+				return
+			}
 			w.batch = append(w.batch, r)
 		default:
 			return
@@ -144,34 +122,20 @@ func (w *Writer) drain() {
 	}
 }
 
-// flush writes the current batch of results to disk using mergeResults.
-// The batch slice is reset afterward.
-//
-// Errors are logged through logger.DebugError but also returned to the caller.
-func (w *Writer) flush() error {
+func (w *Writer) flush() {
 	if len(w.batch) == 0 {
-		return nil
+		return
 	}
+	tmp := make([]Result, len(w.batch))
+	copy(tmp, w.batch)
+	w.batch = w.batch[:0]
 
-	batch := w.batch
-	w.batch = make([]Result, 0, w.batchSize)
-
-	err := mergeResults(
-		w.resultPath,
-		w.schema,
-		batch,
-	)
-	if err != nil {
-		logger.DebugError("%s", err.Error())
+	if err := mergeResults(w.resultPath, w.schema, tmp); err != nil {
+		logger.DebugError("failed to flush results: %v", err)
 	}
-
-	return err
 }
 
-// GetResultPath returns the final result file path, but only if the file
-// currently exists. Otherwise an empty string is returned.
-//
-// This is useful for callers who want to verify that output has been produced.
+// GetResultPath returns the result file path if the file exists, otherwise empty string.
 func (w *Writer) GetResultPath() string {
 	if fileutil.CheckFileExists(w.resultPath) {
 		return w.resultPath

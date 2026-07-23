@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
@@ -72,19 +73,19 @@ const (
 //  5. If UDP response is truncated → retry over TCP.
 //
 // Only UDP performs fallback to TCP.
-func (q *DNSQuery) Run() (*Msg, error) {
+func (q *DNSQuery) Run(ctx context.Context) (*Msg, error) {
 	q.normalize()
 
 	req := q.buildQuery()
 
-	resp, err := q.exchange(req)
+	resp, err := q.exchange(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	// Retry without EDNS if server rejected the EDNS version.
 	if q.hasEDNS(req) && resp.Rcode != dns.RcodeSuccess {
-		if alt, err := q.retryWithoutEDNS(req); err == nil && alt != nil {
+		if alt, err := q.retryWithoutEDNS(ctx, req); err == nil && alt != nil {
 			resp = alt
 		}
 	}
@@ -116,13 +117,13 @@ func (q *DNSQuery) buildQuery() *Msg {
 }
 
 // exchange performs a DNS query using the selected transport.
-func (q *DNSQuery) exchange(msg *Msg) (*Msg, error) {
+func (q *DNSQuery) exchange(ctx context.Context, msg *Msg) (*Msg, error) {
 	client := &dns.Client{
 		Net:     transportNetwork(q.Transport),
 		Timeout: q.Timeout,
 	}
 
-	resp, _, err := client.Exchange(msg, q.address())
+	resp, _, err := client.ExchangeContext(ctx, msg, q.address())
 	return resp, err
 }
 
@@ -141,10 +142,10 @@ func (q *DNSQuery) exchangeTCP(msg *Msg) (*Msg, error) {
 
 // retryWithoutEDNS removes the EDNS OPT record and retries the query.
 // Some resolvers return FORMERR when EDNS is present.
-func (q *DNSQuery) retryWithoutEDNS(msg *Msg) (*Msg, error) {
+func (q *DNSQuery) retryWithoutEDNS(ctx context.Context, msg *Msg) (*Msg, error) {
 	clone := msg.Copy()
 	clone.Extra = nil
-	return q.exchange(clone)
+	return q.exchange(ctx, clone)
 }
 
 // hasEDNS reports whether the request message includes an EDNS OPT record.

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"bgscan/internal/core/fileutil"
-	"bgscan/internal/core/ip"
+	"bgscan/internal/core/netutil"
 )
 
 // DefaultCSVConfig defines the canonical format for CSV inputs.
@@ -27,7 +27,7 @@ func ParseRecord(rec []string) (IPList, bool) {
 	}
 
 	raw := strings.TrimSpace(rec[0])
-	ipStr, ok := ip.NormalizeIPOrCIDR(raw)
+	ipStr, ok := netutil.NormalizeIPOrCIDR(raw)
 	if !ok {
 		return IPList{}, false
 	}
@@ -65,7 +65,7 @@ func streamActiveIPsSequential(ctx context.Context, path string, limit uint64, o
 			return io.EOF
 		}
 		if row.IsCIDR() {
-			return ip.StreamCIDR(ctx, row.IP, limit-count, out)
+			return netutil.StreamCIDR(ctx, row.IP, limit-count, out)
 		}
 
 		select {

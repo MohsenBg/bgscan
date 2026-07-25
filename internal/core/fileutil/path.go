@@ -41,7 +41,7 @@ func EnsureDir(path string) error {
 	if dir == "." || dir == "" {
 		return nil
 	}
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("ensure directory tree %q failed: %w", dir, err)
 	}
 	return nil
@@ -57,7 +57,6 @@ func GetOrCreateBaseDir(path string) (string, error) {
 	// Check if exists
 	info, err := os.Stat(absPath)
 	if err == nil {
-		// Exists — make sure it's a directory
 		if !info.IsDir() {
 			return "", os.ErrInvalid
 		}
@@ -70,10 +69,9 @@ func GetOrCreateBaseDir(path string) (string, error) {
 	}
 
 	// Create directory (including parents)
-	if err := os.MkdirAll(absPath, 0755); err != nil {
+	if err := os.MkdirAll(absPath, 0o755); err != nil {
 		return "", err
 	}
 
 	return absPath, nil
 }
-

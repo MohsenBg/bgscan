@@ -12,53 +12,47 @@ import (
 
 const cloudflareTraceURL = "https://speed.cloudflare.com/cdn-cgi/trace"
 
-// LatencyConfig controls a single latency measurement.
+var (
+	httpClientFactory = newHTTPClient
+	latencyProbeURL   = cloudflareTraceURL
+	now               = time.Now
+)
+
 type LatencyConfig struct {
-	// Timeout is the maximum time for the full round trip.
-	Timeout time.Duration
-	// MaxLatency, when non-zero, causes MeasureLatency to return an error
-	// if the measured round-trip exceeds this threshold.
+	Timeout    time.Duration
 	MaxLatency time.Duration
-	// ProxyPort is the local SOCKS5 proxy port to route traffic through.
-	ProxyPort uint16
+	ProxyPort  uint16
 }
 
-// LatencyResult holds the outcome of a single latency measurement.
 type LatencyResult struct {
 	RTT        time.Duration
-	MaxLatency time.Duration // zero means no limit was set
+	MaxLatency time.Duration
 }
 
-// String returns a human-readable RTT, e.g. "42ms".
 func (r LatencyResult) String() string {
 	return r.RTT.String()
 }
 
-// AboveMaximum reports whether the RTT exceeded the configured maximum.
-// Always false when MaxLatency is zero.
 func (r LatencyResult) AboveMaximum() bool {
 	return r.MaxLatency > 0 && r.RTT > r.MaxLatency
 }
 
-// MeasureLatency performs a single HTTP GET to Cloudflare's trace endpoint
-// and returns a LatencyResult. Returns an error on timeout or if RTT exceeds
-// cfg.MaxLatency.
 func MeasureLatency(ctx context.Context, cfg LatencyConfig) (LatencyResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, cfg.Timeout)
 	defer cancel()
 
-	client, err := newHTTPClient(cfg.ProxyPort)
+	client, err := httpClientFactory(cfg.ProxyPort)
 	if err != nil {
 		return LatencyResult{}, fmt.Errorf("latency probe setup failed: %w", err)
 	}
 	defer client.CloseIdleConnections()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cloudflareTraceURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, latencyProbeURL, nil)
 	if err != nil {
 		return LatencyResult{}, fmt.Errorf("latency probe request build failed: %w", err)
 	}
 
-	start := time.Now()
+	start := now()
 
 	resp, err := client.Do(req)
 	if err != nil {

@@ -63,4 +63,3 @@ func getWorkerCount(workers int) int {
 
 	return workers
 }
-

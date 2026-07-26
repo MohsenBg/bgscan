@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"bgscan/internal/core/config"
-	"bgscan/internal/core/scanner/netutil"
+	"bgscan/internal/core/netutil"
 )
 
 // totalHTTPStatusCodes is the total number of recognized HTTP status codes.

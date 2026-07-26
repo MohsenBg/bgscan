@@ -150,7 +150,7 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip string) er
 			return err
 		}
 
-		resp, err := query.Run()
+		resp, err := query.Run(ctx)
 		if err != nil {
 			lastErr = err
 			continue
@@ -198,7 +198,7 @@ func (r *ResolverProbe) executeNormalProbe(ctx context.Context, ip string) (resu
 
 			start := time.Now()
 
-			resp, err := query.Run()
+			resp, err := query.Run(ctx)
 			if err != nil {
 				lastErr = err
 				continue

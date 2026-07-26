@@ -13,6 +13,12 @@ import (
 
 const cloudflareDownURL = "https://speed.cloudflare.com/__down?bytes=%d"
 
+var (
+	downloadHTTPClientFactory = newHTTPClient
+	downloadURLFmt            = cloudflareDownURL
+	downloadNow               = time.Now
+)
+
 // DownloadConfig controls a single download measurement.
 type DownloadConfig struct {
 	// Bytes is the number of bytes to request from the test endpoint.
@@ -34,13 +40,13 @@ type DownloadConfig struct {
 // Errors are returned for: connection failure, transfer timeout, zero data
 // received, or measured speed below cfg.MinSpeed.
 func MeasureDownloadSpeed(ctx context.Context, cfg DownloadConfig) (SpeedResult, error) {
-	client, err := newHTTPClient(cfg.ProxyPort)
+	client, err := downloadHTTPClientFactory(cfg.ProxyPort)
 	if err != nil {
 		return SpeedResult{}, fmt.Errorf("download probe setup failed: %w", err)
 	}
 	defer client.CloseIdleConnections()
 
-	testURL := fmt.Sprintf(cloudflareDownURL, cfg.Bytes)
+	testURL := fmt.Sprintf(downloadURLFmt, cfg.Bytes)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, testURL, nil)
 	if err != nil {
@@ -63,9 +69,9 @@ func MeasureDownloadSpeed(ctx context.Context, cfg DownloadConfig) (SpeedResult,
 	transferCtx, cancel := context.WithTimeout(ctx, cfg.Timeout)
 	defer cancel()
 
-	start := time.Now()
+	start := downloadNow()
 	n, err := io.Copy(io.Discard, &contextReader{ctx: transferCtx, r: resp.Body})
-	elapsed := time.Since(start)
+	elapsed := downloadNow().Sub(start)
 
 	if err != nil {
 		if errors.Is(transferCtx.Err(), context.DeadlineExceeded) {

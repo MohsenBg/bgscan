@@ -79,38 +79,58 @@ func bitsPerSec(bytes uint64, seconds float64) BitsPerSec {
 func ParseBitsPerSec(s string) (BitsPerSec, error) {
 	s = strings.TrimSpace(strings.ToLower(s))
 
-	var multiplier float64
+	var multiplier uint64
+	var isBps bool
 
 	switch {
 	case strings.HasSuffix(s, "gbps"):
-		multiplier = float64(Gbps)
+		multiplier = uint64(Gbps)
 		s = strings.TrimSpace(strings.TrimSuffix(s, "gbps"))
 
 	case strings.HasSuffix(s, "mbps"):
-		multiplier = float64(Mbps)
+		multiplier = uint64(Mbps)
 		s = strings.TrimSpace(strings.TrimSuffix(s, "mbps"))
 
 	case strings.HasSuffix(s, "kbps"):
-		multiplier = float64(Kbps)
+		multiplier = uint64(Kbps)
 		s = strings.TrimSpace(strings.TrimSuffix(s, "kbps"))
 
 	case strings.HasSuffix(s, "bps"):
-		multiplier = float64(Bps)
+		multiplier = uint64(Bps)
+		isBps = true
 		s = strings.TrimSpace(strings.TrimSuffix(s, "bps"))
 
 	default:
 		return 0, fmt.Errorf("unknown speed unit")
 	}
 
+	if s == "" {
+		return 0, fmt.Errorf("missing speed value")
+	}
+
+	if isBps {
+		value, err := strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("speed exceeds uint64 range")
+		}
+
+		return BitsPerSec(value), nil
+	}
+
 	value, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("invalid speed value")
 	}
 
-	raw := value * multiplier
-	if raw > math.MaxUint64 {
-		return BitsPerSec(math.MaxUint64), nil
+	if value < 0 || math.IsInf(value, 0) {
+		return 0, fmt.Errorf("invalid speed value")
 	}
 
-	return BitsPerSec(uint64(raw)), nil
+	result := value * float64(multiplier)
+
+	if result > float64(math.MaxUint64) {
+		return 0, fmt.Errorf("speed exceeds uint64 range")
+	}
+
+	return BitsPerSec(result), nil
 }

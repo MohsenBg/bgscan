@@ -14,12 +14,17 @@ import (
 
 const cloudflareUpURL = "https://speed.cloudflare.com/__up"
 
+var (
+	uploadHTTPClientFactory = newHTTPClient
+	uploadURL               = cloudflareUpURL
+	uploadNow               = time.Now
+)
+
 // UploadConfig controls a single upload measurement.
 type UploadConfig struct {
 	// Bytes is the number of bytes to upload.
 	Bytes int64
-	// Timeout is the maximum time allowed for the transfer, starting at
-	// first byte sent.
+	// Timeout is the maximum time allowed for the transfer.
 	Timeout time.Duration
 	// MinSpeed, when non-zero, causes MeasureUploadSpeed to return an error
 	// if the measured throughput falls below this threshold.
@@ -29,13 +34,12 @@ type UploadConfig struct {
 }
 
 // MeasureUploadSpeed uploads cfg.Bytes through the SOCKS5 proxy and
-// returns a SpeedResult. The timeout covers only the transfer window,
-// starting from first byte sent. Connection setup is excluded.
+// returns a SpeedResult.
 //
-// Errors are returned for: connection failure, transfer timeout, zero data
+// Errors are returned for: connection failure, timeout, zero data
 // sent, or measured speed below cfg.MinSpeed.
 func MeasureUploadSpeed(ctx context.Context, cfg UploadConfig) (SpeedResult, error) {
-	client, err := newHTTPClient(cfg.ProxyPort)
+	client, err := uploadHTTPClientFactory(cfg.ProxyPort)
 	if err != nil {
 		return SpeedResult{}, fmt.Errorf("upload probe setup failed: %w", err)
 	}
@@ -43,23 +47,27 @@ func MeasureUploadSpeed(ctx context.Context, cfg UploadConfig) (SpeedResult, err
 
 	data := bytes.NewReader(make([]byte, cfg.Bytes))
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cloudflareUpURL, data)
+	reqCtx := ctx
+	var cancel context.CancelFunc
+	if cfg.Timeout > 0 {
+		reqCtx, cancel = context.WithTimeout(ctx, cfg.Timeout)
+		defer cancel()
+	}
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, uploadURL, data)
 	if err != nil {
 		return SpeedResult{}, fmt.Errorf("upload probe request build failed: %w", err)
 	}
 	req.ContentLength = cfg.Bytes
 	req.Header.Set("Content-Type", "application/octet-stream")
 
-	// Measure the request duration.
-	start := time.Now()
-
+	start := uploadNow()
 	resp, err := client.Do(req)
-
-	elapsed := time.Since(start)
+	elapsed := uploadNow().Sub(start)
 
 	if err != nil {
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return SpeedResult{}, fmt.Errorf("upload probe timed out after %s: %w", cfg.Timeout, ctx.Err())
+		if errors.Is(reqCtx.Err(), context.DeadlineExceeded) {
+			return SpeedResult{}, fmt.Errorf("upload probe timed out after %s: %w", cfg.Timeout, reqCtx.Err())
 		}
 		return SpeedResult{}, fmt.Errorf("upload probe failed (proxy port %d): %w", cfg.ProxyPort, err)
 	}
@@ -69,8 +77,10 @@ func MeasureUploadSpeed(ctx context.Context, cfg UploadConfig) (SpeedResult, err
 		}
 	}()
 
-	// Drain the response so the request fully completes.
 	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		if errors.Is(reqCtx.Err(), context.DeadlineExceeded) {
+			return SpeedResult{}, fmt.Errorf("upload probe timed out after %s: %w", cfg.Timeout, reqCtx.Err())
+		}
 		return SpeedResult{}, fmt.Errorf("upload probe response read failed: %w", err)
 	}
 

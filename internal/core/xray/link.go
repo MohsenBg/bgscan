@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -90,10 +89,10 @@ func parseVmess(link string) (*ParseResult, error) {
 	case "grpc":
 		svc := getString(j, "path", "")
 		if auth, ok := j["authority"].(string); ok && auth != "" {
-			(stream["grpcSettings"].(map[string]any))["authority"] = auth
+			stream["grpcSettings"].(map[string]any)["authority"] = auth
 		}
-		(stream["grpcSettings"].(map[string]any))["serviceName"] = svc
-		(stream["grpcSettings"].(map[string]any))["multiMode"] = getString(j, "type", "") == "multi"
+		stream["grpcSettings"].(map[string]any)["serviceName"] = svc
+		stream["grpcSettings"].(map[string]any)["multiMode"] = getString(j, "type", "") == "multi"
 	case "httpupgrade":
 		setHTTPUpgrade(stream, getString(j, "host", ""), getString(j, "path", "/"))
 	case "xhttp":
@@ -727,35 +726,4 @@ func base64DecodeFlexible(s string) (string, error) {
 		return string(b), nil
 	}
 	return "", fmt.Errorf("base64 decode failed")
-}
-
-// SlugRemark turns a free-form remark into a conservative DNS-ish tag segment.
-var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
-
-func SlugRemark(remark string) string {
-	s := strings.ToLower(strings.TrimSpace(remark))
-	s = slugRe.ReplaceAllString(s, "-")
-	s = strings.Trim(s, "-")
-	if s == "" {
-		return ""
-	}
-	// collapse runs of dashes
-	for strings.Contains(s, "--") {
-		s = strings.ReplaceAll(s, "--", "-")
-	}
-	return s
-}
-
-// SuggestTag builds a tag from a prefix and a remark (or index fallback).
-// It is intended for initial assignment; stability is handled by the service layer.
-func SuggestTag(prefix, remark string, idx int) string {
-	base := SlugRemark(remark)
-	if base == "" {
-		base = fmt.Sprintf("%d", idx)
-	}
-	p := strings.TrimSuffix(prefix, "-")
-	if p != "" {
-		return p + "-" + base
-	}
-	return base
 }

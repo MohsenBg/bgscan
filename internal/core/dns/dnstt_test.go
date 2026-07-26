@@ -63,8 +63,8 @@ func TestGetDNSTransportFlag(t *testing.T) {
 	}{
 		{UDP, "-udp"},
 		{DOT, "-dot"},
-		{DOH, "-dot"}, // documented fallback
-		{TCP, "-dot"}, // CURRENT BUGGY BEHAVIOUR — remove after fix (should be "-tcp")
+		{DOH, "-dot"},
+		{TCP, "-dot"},
 		{Transport("QUIC"), "-udp"},
 		{Transport(""), "-udp"},
 	}

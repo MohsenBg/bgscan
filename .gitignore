@@ -6,6 +6,7 @@ public/
 resources/
 .hugo_build.lock
 .docs-replacement-holder
+*.out
 
 # Explicitly ignore Hugo build folders inside docs 
 docs/public/
@@ -35,7 +36,7 @@ __debug_bin*
 
 # Logs & Local Results
 *.log
-/[Ll]ogs/
+[Ll]ogs/
 /result/
 /[Tt]mp/
 

@@ -42,4 +42,3 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 	return m, nil
 }
-

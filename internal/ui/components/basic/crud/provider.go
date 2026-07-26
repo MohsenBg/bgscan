@@ -19,4 +19,3 @@ type Provider[T any] interface {
 	OnRename(item T, newName string) (tea.Cmd, bool)
 	OnAdd(item T) (tea.Cmd, bool)
 }
-

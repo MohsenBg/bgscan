@@ -5,25 +5,19 @@ import (
 	"path/filepath"
 )
 
-// ═══════════════════════════════════════════════════════════
-// List Files Operations
-// ═══════════════════════════════════════════════════════════
-
 // FileEntry represents a discovered file in a directory listing.
 type FileEntry struct {
-	Name string      // file name only
-	Path string      // absolute file path
-	Info os.FileInfo // file metadata
+	Name string
+	Path string
+	Info os.FileInfo
 }
 
-// ListFiles lists files inside a directory (non-recursive).
-// Directories are skipped. An optional filter can be provided to
-// control which files are returned.
+// ListFiles returns the non-directory entries in dir.
+// When non-nil, filter determines which entries are included.
 func ListFiles(
 	dir string,
 	filter func(name string, info os.FileInfo) bool,
 ) ([]FileEntry, error) {
-
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err

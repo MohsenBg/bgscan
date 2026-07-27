@@ -287,7 +287,9 @@ func TestGetOrCreateBaseDir_ConvertsRelativePath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer os.Chdir(old)
+	defer func() {
+		_ = os.Chdir(old)
+	}()
 
 	err = os.Chdir(base)
 	if err != nil {

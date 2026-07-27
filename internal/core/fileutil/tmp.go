@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 )
 
-// CreateTmpFile builds a temporary file using a naming pattern.
-// Caller is responsible for closing and removing the returned *os.File.
+// CreateTmpFile creates a temporary file using pattern.
+// The caller must close and remove the returned file.
 func CreateTmpFile(pattern string) (*os.File, string, error) {
 	f, err := os.CreateTemp("", pattern)
 	if err != nil {
@@ -25,7 +25,7 @@ func CreateTmpFile(pattern string) (*os.File, string, error) {
 	return f, absPath, nil
 }
 
-// CreateTmpJSONFile marshals data into an un-indented temporary file and returns its path.
+// CreateTmpJSONFile writes data as JSON to a temporary file and returns its path.
 func CreateTmpJSONFile(pattern string, data any) (string, error) {
 	f, path, err := CreateTmpFile(pattern)
 	if err != nil {
@@ -36,7 +36,7 @@ func CreateTmpJSONFile(pattern string, data any) (string, error) {
 	enc.SetIndent("", "  ")
 
 	if err := enc.Encode(data); err != nil {
-		_ = f.Close() // CRITICAL: Close descriptor before trying to drop from file index allocation table
+		_ = f.Close()
 		_ = os.Remove(path)
 		return "", fmt.Errorf("encode json to temp file: %w", err)
 	}

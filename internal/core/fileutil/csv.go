@@ -12,17 +12,13 @@ import (
 	"bgscan/internal/logger"
 )
 
-// ═══════════════════════════════════════════════════════════
-// CSV Configurations
-// ═══════════════════════════════════════════════════════════
-
 // CSVConfig controls CSV reader and writer behavior.
 type CSVConfig struct {
-	HasHeader        bool // skip the first row when reading
-	LazyQuotes       bool // allow malformed quoting
-	TrimLeadingSpace bool // trim leading spaces in fields
-	Comma            rune // field separator (default ',')
-	FieldsPerRecord  int  // -1 allows variable number of fields
+	HasHeader        bool
+	LazyQuotes       bool
+	TrimLeadingSpace bool
+	Comma            rune
+	FieldsPerRecord  int
 }
 
 func applyReaderConfig(r *csv.Reader, cfg CSVConfig) {
@@ -52,12 +48,7 @@ func ensureDir(path string) error {
 	return os.MkdirAll(dir, 0o755)
 }
 
-// ═══════════════════════════════════════════════════════════
-// CSV Reading Operations
-// ═══════════════════════════════════════════════════════════
-
-// StreamCSV reads a CSV file row-by-row and calls the handler for each record.
-// It is highly memory efficient and tailored for massive files.
+// StreamCSV calls handler for each record in path without retaining all records in memory.
 func StreamCSV(path string, cfg CSVConfig, handler func([]string) error) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -94,8 +85,7 @@ func StreamCSV(path string, cfg CSVConfig, handler func([]string) error) error {
 	}
 }
 
-// StreamCSVIndexed reads a CSV file line-by-line, calculating the EXACT
-// absolute byte offset where each record starts on disk. Required for LCG shufflers.
+// StreamCSVIndexed calls handler with each record and its starting byte offset.
 func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, offset int64) error) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -112,7 +102,6 @@ func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, 
 	var currentByteOffset int64 = 0
 
 	for {
-		// Capture exact starting position of this row before consumption
 		lineOffset := currentByteOffset
 
 		lineBytes, err := br.ReadBytes('\n')
@@ -123,7 +112,6 @@ func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, 
 		}
 
 		line := strings.TrimSpace(string(lineBytes))
-		// Skip blank entries or commented lines cleanly
 		if line == "" || strings.HasPrefix(line, "#") {
 			if err == io.EOF {
 				break
@@ -131,7 +119,6 @@ func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, 
 			continue
 		}
 
-		// Parse isolated single line through a local decoupled CSV stream
 		sr := strings.NewReader(line)
 		cr := csv.NewReader(sr)
 		applyReaderConfig(cr, cfg)
@@ -141,7 +128,7 @@ func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, 
 			if err == io.EOF {
 				break
 			}
-			continue // Skip malformed lines reactively
+			continue
 		}
 
 		if err := handler(record, lineOffset); err != nil {
@@ -158,7 +145,7 @@ func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, 
 	return nil
 }
 
-// StreamCSVToChan reads a CSV file and routes each record into a channel block.
+// StreamCSVToChan sends each CSV record to out.
 func StreamCSVToChan(path string, cfg CSVConfig, out chan<- []string) error {
 	return StreamCSV(path, cfg, func(rec []string) error {
 		out <- rec
@@ -166,11 +153,7 @@ func StreamCSVToChan(path string, cfg CSVConfig, out chan<- []string) error {
 	})
 }
 
-// ═══════════════════════════════════════════════════════════
-// CSV Writing Operations
-// ═══════════════════════════════════════════════════════════
-
-// WriteCSVFile completely overwrites a target path with all provided records.
+// WriteCSVFile overwrites path with records.
 func WriteCSVFile(path string, cfg CSVConfig, records [][]string) error {
 	if err := ensureDir(path); err != nil {
 		return fmt.Errorf("ensure directory: %w", err)
@@ -198,7 +181,7 @@ func WriteCSVFile(path string, cfg CSVConfig, records [][]string) error {
 	return w.Error()
 }
 
-// StreamWriteCSV sets up a streaming callback writer for thread-safe live serialization.
+// StreamWriteCSV provides fn with a callback that writes CSV records to path.
 func StreamWriteCSV(path string, cfg CSVConfig, fn func(write func([]string) error) error) error {
 	if err := ensureDir(path); err != nil {
 		return fmt.Errorf("ensure directory: %w", err)
@@ -230,12 +213,12 @@ func StreamWriteCSV(path string, cfg CSVConfig, fn func(write func([]string) err
 	return w.Error()
 }
 
-// AppendCSVRow writes a single row to the tail end of the target file.
+// AppendCSVRow appends row to path.
 func AppendCSVRow(path string, cfg CSVConfig, row []string) error {
 	return AppendCSVRows(path, cfg, [][]string{row})
 }
 
-// AppendCSVRows appends a cluster of rows to the tail end of the target file.
+// AppendCSVRows appends rows to path.
 func AppendCSVRows(path string, cfg CSVConfig, rows [][]string) error {
 	if err := ensureDir(path); err != nil {
 		return fmt.Errorf("ensure directory: %w", err)

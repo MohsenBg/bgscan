@@ -35,7 +35,7 @@ func HasExt(name, ext string) bool {
 	return strings.EqualFold(filepath.Ext(name), ext)
 }
 
-// EnsureDir checks and creates the target path's parent directory structures.
+// EnsureDir creates the parent directory for path when needed.
 func EnsureDir(path string) error {
 	dir := filepath.Dir(path)
 	if dir == "." || dir == "" {
@@ -47,14 +47,13 @@ func EnsureDir(path string) error {
 	return nil
 }
 
+// GetOrCreateBaseDir returns an absolute directory path, creating it when absent.
 func GetOrCreateBaseDir(path string) (string, error) {
-	// Convert to absolute path
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
 	}
 
-	// Check if exists
 	info, err := os.Stat(absPath)
 	if err == nil {
 		if !info.IsDir() {
@@ -63,12 +62,10 @@ func GetOrCreateBaseDir(path string) (string, error) {
 		return absPath, nil
 	}
 
-	// If error is not "not exists", something else is wrong
 	if !os.IsNotExist(err) {
 		return "", err
 	}
 
-	// Create directory (including parents)
 	if err := os.MkdirAll(absPath, 0o755); err != nil {
 		return "", err
 	}

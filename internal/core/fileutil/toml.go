@@ -9,106 +9,86 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// ═══════════════════════════════════════════════════════════
-// TOML File Operations
-// ═══════════════════════════════════════════════════════════
-
-// WriteTOMLFile writes data to a TOML file at the specified path.
-// The directory will be created if it does not exist.
-func WriteTOMLFile(path string, data any) error {
+// WriteTOMLFile encodes value as TOML and writes it to path.
+// It creates the parent directory when needed.
+func WriteTOMLFile(path string, value any) error {
 	if err := EnsureDir(path); err != nil {
 		return err
 	}
 
-	f, err := os.Create(path)
+	file, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("create TOML file %s: %w", path, err)
+		return fmt.Errorf("create TOML file %q: %w", path, err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
+		if err := file.Close(); err != nil {
+			logger.CoreError("close TOML file %q: %v", path, err)
 		}
 	}()
 
-	enc := toml.NewEncoder(f)
-	if err := enc.Encode(data); err != nil {
-		return fmt.Errorf("encode TOML to %s: %w", path, err)
+	if err := toml.NewEncoder(file).Encode(value); err != nil {
+		return fmt.Errorf("encode TOML file %q: %w", path, err)
 	}
 
 	return nil
 }
 
-// WriteTOMLFileIfNotExist writes TOML only if the file does not already exist.
-func WriteTOMLFileIfNotExist(path string, data any) error {
+// WriteTOMLFileIfNotExist writes value only when path does not exist.
+func WriteTOMLFileIfNotExist(path string, value any) error {
 	if CheckFileExists(path) {
 		return nil
 	}
-	return WriteTOMLFile(path, data)
+
+	return WriteTOMLFile(path, value)
 }
 
-// GetTOMLFile reads a TOML file and unmarshals it into dest.
-func GetTOMLFile(path string, dest any) error {
-	if !CheckFileExists(path) {
-		return fmt.Errorf("TOML file does not exist: %s", path)
-	}
+// ReadTOMLFile decodes the TOML file at path into a new value of type T.
+func ReadTOMLFile[T any](path string) (T, error) {
+	var value T
 
-	f, err := os.Open(path)
+	file, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("open TOML file %s: %w", path, err)
+		return value, fmt.Errorf("open TOML file %q: %w", path, err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
+		if err := file.Close(); err != nil {
+			logger.CoreError("close TOML file %q: %v", path, err)
 		}
 	}()
 
-	dec := toml.NewDecoder(f)
-	if err := dec.Decode(dest); err != nil {
-		return fmt.Errorf("decode TOML from %s: %w", path, err)
+	if err := toml.NewDecoder(file).Decode(&value); err != nil {
+		return value, fmt.Errorf("decode TOML file %q: %w", path, err)
 	}
 
-	return nil
+	return value, nil
 }
 
-// GetTOMLFileOrDefault loads TOML from file and falls back to defaultValue on error.
-// If fallback is used, the default value is persisted to disk.
-func GetTOMLFileOrDefault(path string, dest any, defaultValue any) error {
-	if err := GetTOMLFile(path, dest); err == nil {
-		return nil
-	}
-
-	// populate dest from defaultValue
-	b, err := toml.Marshal(defaultValue)
+// ReadTOMLFileOrDefault returns the value in path, or defaultValue if it cannot
+// be read or decoded. It does not write defaultValue to disk.
+func ReadTOMLFileOrDefault[T any](path string, defaultValue T) T {
+	value, err := ReadTOMLFile[T](path)
 	if err != nil {
-		return fmt.Errorf("marshal default TOML value: %w", err)
+		return defaultValue
 	}
 
-	if err := toml.Unmarshal(b, dest); err != nil {
-		return fmt.Errorf("unmarshal default TOML value: %w", err)
-	}
-
-	// persist default for next run (best effort)
-	_ = WriteTOMLFile(path, defaultValue)
-
-	return nil
+	return value
 }
 
-// UpdateTOMLFile reads a TOML file, applies updateFn, and writes it back.
-func UpdateTOMLFile(
-	path string,
-	dest any,
-	updateFn func(any) error,
-) error {
-	if err := GetTOMLFile(path, dest); err != nil {
-		return fmt.Errorf("load TOML file %s: %w", path, err)
+// UpdateTOMLFile reads a TOML value, passes it to update, then saves the
+// returned value.
+func UpdateTOMLFile[T any](path string, update func(T) (T, error)) error {
+	value, err := ReadTOMLFile[T](path)
+	if err != nil {
+		return fmt.Errorf("read TOML file %q: %w", path, err)
 	}
 
-	if err := updateFn(dest); err != nil {
-		return fmt.Errorf("update TOML value: %w", err)
+	value, err = update(value)
+	if err != nil {
+		return fmt.Errorf("update TOML file %q: %w", path, err)
 	}
 
-	if err := WriteTOMLFile(path, dest); err != nil {
-		return fmt.Errorf("write updated TOML file %s: %w", path, err)
+	if err := WriteTOMLFile(path, value); err != nil {
+		return fmt.Errorf("write TOML file %q: %w", path, err)
 	}
 
 	return nil

@@ -8,97 +8,85 @@ import (
 	"bgscan/internal/logger"
 )
 
-// ═══════════════════════════════════════════════════════════
-// Json Files Operations
-// ═══════════════════════════════════════════════════════════
-
-// WriteJSONFile writes data to a JSON file.
-// The directory will be created if it does not exist.
-// Existing files are overwritten.
-func WriteJSONFile(path string, data any) error {
+// WriteJSONFile encodes value as JSON and writes it to path.
+// It creates the parent directory when needed.
+func WriteJSONFile(path string, value any) error {
 	if err := EnsureDir(path); err != nil {
 		return err
 	}
 
-	f, err := os.Create(path)
+	file, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("create json file %s: %w", path, err)
+		return fmt.Errorf("create JSON file %q: %w", path, err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
+		if err := file.Close(); err != nil {
+			logger.CoreError("close JSON file %q: %v", path, err)
 		}
 	}()
 
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", "  ")
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
 
-	if err := enc.Encode(data); err != nil {
-		return fmt.Errorf("encode json: %w", err)
+	if err := encoder.Encode(value); err != nil {
+		return fmt.Errorf("encode JSON file %q: %w", path, err)
 	}
 
 	return nil
 }
 
-// WriteJSONFileIfNotExist writes JSON only if the file does not already exist.
-func WriteJSONFileIfNotExist(path string, data any) error {
+// WriteJSONFileIfNotExist writes value only when path does not exist.
+func WriteJSONFileIfNotExist(path string, value any) error {
 	if CheckFileExists(path) {
 		return nil
 	}
-	return WriteJSONFile(path, data)
+
+	return WriteJSONFile(path, value)
 }
 
-// GetJSONFile reads a JSON file and unmarshals it into dest.
-func GetJSONFile(path string, dest any) error {
-	if !CheckFileExists(path) {
-		return fmt.Errorf("json file does not exist: %s", path)
-	}
+// ReadJSONFile decodes the JSON file at path into a new value of type T.
+func ReadJSONFile[T any](path string) (T, error) {
+	var value T
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("read json file %s: %w", path, err)
+		return value, fmt.Errorf("read JSON file %q: %w", path, err)
 	}
 
-	if err := json.Unmarshal(data, dest); err != nil {
-		return fmt.Errorf("unmarshal json %s: %w", path, err)
+	if err := json.Unmarshal(data, &value); err != nil {
+		return value, fmt.Errorf("decode JSON file %q: %w", path, err)
 	}
 
-	return nil
+	return value, nil
 }
 
-// GetJSONFileOrDefault loads JSON from file or falls back to defaultValue.
-// If loading fails, the default is copied into dest and written to disk.
-func GetJSONFileOrDefault(path string, dest any, defaultValue any) error {
-	if err := GetJSONFile(path, dest); err == nil {
-		return nil
-	}
-
-	// copy default into destination
-	tmp, err := json.Marshal(defaultValue)
+// ReadJSONFileOrDefault returns the value in path, or defaultValue if it cannot
+// be read or decoded. It does not write defaultValue to disk.
+func ReadJSONFileOrDefault[T any](path string, defaultValue T) T {
+	value, err := ReadJSONFile[T](path)
 	if err != nil {
-		return fmt.Errorf("marshal default json: %w", err)
+		return defaultValue
 	}
 
-	if err := json.Unmarshal(tmp, dest); err != nil {
-		return fmt.Errorf("apply default json: %w", err)
-	}
-
-	// write default file for next run
-	_ = WriteJSONFile(path, defaultValue)
-
-	return nil
+	return value
 }
 
-// UpdateJSONFile loads a JSON file, applies an update function,
-// then writes the result back to disk.
-func UpdateJSONFile(path string, dest any, updateFn func(any) error) error {
-	if err := GetJSONFile(path, dest); err != nil {
-		return err
+// UpdateJSONFile reads a JSON value, passes it to update, then saves the
+// returned value.
+func UpdateJSONFile[T any](path string, update func(T) (T, error)) error {
+	value, err := ReadJSONFile[T](path)
+	if err != nil {
+		return fmt.Errorf("read JSON file %q: %w", path, err)
 	}
 
-	if err := updateFn(dest); err != nil {
-		return fmt.Errorf("update json data: %w", err)
+	value, err = update(value)
+	if err != nil {
+		return fmt.Errorf("update JSON file %q: %w", path, err)
 	}
 
-	return WriteJSONFile(path, dest)
+	if err := WriteJSONFile(path, value); err != nil {
+		return fmt.Errorf("write JSON file %q: %w", path, err)
+	}
+
+	return nil
 }

@@ -4,359 +4,202 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 )
 
 func TestWriteJSONFile_WritesAndCreatesDirectory(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"nested",
-		"config.json",
-	)
+	path := filepath.Join(t.TempDir(), "nested", "config.json")
 
 	input := map[string]any{
 		"name":    "bgscan",
 		"version": 2,
 	}
 
-	err := WriteJSONFile(path, input)
-	if err != nil {
-		t.Fatalf("WriteJSONFile failed: %v", err)
+	if err := WriteJSONFile(path, input); err != nil {
+		t.Fatalf("WriteJSONFile() error: %v", err)
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read file failed: %v", err)
+		t.Fatalf("read file: %v", err)
 	}
 
 	if len(data) == 0 {
-		t.Fatal("expected json content")
+		t.Fatal("expected JSON content")
 	}
 }
 
 func TestWriteJSONFile_OverwritesExistingFile(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"config.json",
-	)
+	path := filepath.Join(t.TempDir(), "config.json")
 
-	err := WriteJSONFile(path, map[string]string{
-		"value": "old",
-	})
-	if err != nil {
+	if err := WriteJSONFile(path, map[string]string{"value": "old"}); err != nil {
 		t.Fatal(err)
 	}
 
-	err = WriteJSONFile(path, map[string]string{
-		"value": "new",
-	})
-	if err != nil {
+	if err := WriteJSONFile(path, map[string]string{"value": "new"}); err != nil {
 		t.Fatal(err)
 	}
 
-	var result map[string]string
-
-	err = GetJSONFile(path, &result)
+	result, err := ReadJSONFile[map[string]string](path)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if result["value"] != "new" {
-		t.Fatalf("expected overwrite, got %q", result["value"])
+		t.Fatalf("expected %q, got %q", "new", result["value"])
 	}
 }
 
-func TestGetJSONFile_ReadsJSON(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"data.json",
-	)
-
-	expected := struct {
+func TestReadJSONFile_ReadsJSON(t *testing.T) {
+	type data struct {
 		Name string `json:"name"`
-	}{
-		Name: "test",
 	}
 
-	if err := WriteJSONFile(path, expected); err != nil {
+	path := filepath.Join(t.TempDir(), "data.json")
+	want := data{Name: "test"}
+
+	if err := WriteJSONFile(path, want); err != nil {
 		t.Fatal(err)
 	}
 
-	var got struct {
-		Name string `json:"name"`
-	}
-
-	err := GetJSONFile(path, &got)
+	got, err := ReadJSONFile[data](path)
 	if err != nil {
-		t.Fatalf("GetJSONFile failed: %v", err)
+		t.Fatalf("ReadJSONFile() error: %v", err)
 	}
 
-	if !reflect.DeepEqual(got, expected) {
-		t.Fatalf(
-			"unexpected result\nwant=%v\ngot=%v",
-			expected,
-			got,
-		)
+	if got != want {
+		t.Fatalf("unexpected result: want %+v, got %+v", want, got)
 	}
 }
 
-func TestGetJSONFile_ReturnsErrorWhenMissing(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"missing.json",
-	)
+func TestReadJSONFile_ReturnsErrorWhenMissing(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing.json")
 
-	var result map[string]any
-
-	err := GetJSONFile(path, &result)
-
+	_, err := ReadJSONFile[map[string]any](path)
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestGetJSONFile_ReturnsErrorForInvalidJSON(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"broken.json",
-	)
+func TestReadJSONFile_ReturnsErrorForInvalidJSON(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "broken.json")
 
-	err := os.WriteFile(
-		path,
-		[]byte("{invalid json"),
-		0o644,
-	)
-	if err != nil {
+	if err := os.WriteFile(path, []byte("{invalid json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	var result map[string]any
-
-	err = GetJSONFile(path, &result)
-
+	_, err := ReadJSONFile[map[string]any](path)
 	if err == nil {
-		t.Fatal("expected invalid json error")
+		t.Fatal("expected JSON decode error")
 	}
 }
 
 func TestWriteJSONFileIfNotExist_CreatesMissingFile(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"config.json",
-	)
+	path := filepath.Join(t.TempDir(), "config.json")
 
-	err := WriteJSONFileIfNotExist(
-		path,
-		map[string]string{
-			"value": "created",
-		},
-	)
-	if err != nil {
+	if err := WriteJSONFileIfNotExist(path, map[string]string{"value": "created"}); err != nil {
 		t.Fatal(err)
 	}
 
-	var result map[string]string
-
-	if err := GetJSONFile(path, &result); err != nil {
+	result, err := ReadJSONFile[map[string]string](path)
+	if err != nil {
 		t.Fatal(err)
 	}
 
 	if result["value"] != "created" {
-		t.Fatalf("unexpected value")
+		t.Fatalf("expected %q, got %q", "created", result["value"])
 	}
 }
 
 func TestWriteJSONFileIfNotExist_DoesNotOverwrite(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"config.json",
-	)
+	path := filepath.Join(t.TempDir(), "config.json")
 
-	err := WriteJSONFile(
-		path,
-		map[string]string{
-			"value": "original",
-		},
-	)
-	if err != nil {
+	if err := WriteJSONFile(path, map[string]string{"value": "original"}); err != nil {
 		t.Fatal(err)
 	}
 
-	err = WriteJSONFileIfNotExist(
-		path,
-		map[string]string{
-			"value": "changed",
-		},
-	)
-	if err != nil {
+	if err := WriteJSONFileIfNotExist(path, map[string]string{"value": "changed"}); err != nil {
 		t.Fatal(err)
 	}
 
-	var result map[string]string
-
-	err = GetJSONFile(path, &result)
+	result, err := ReadJSONFile[map[string]string](path)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if result["value"] != "original" {
-		t.Fatalf(
-			"file was overwritten: %q",
-			result["value"],
-		)
+		t.Fatalf("expected original value, got %q", result["value"])
 	}
 }
 
-func TestGetJSONFileOrDefault_UsesExistingFile(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"config.json",
-	)
+func TestReadJSONFileOrDefault_UsesExistingValue(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
 
-	err := WriteJSONFile(
-		path,
-		map[string]string{
-			"value": "existing",
-		},
-	)
-	if err != nil {
+	if err := WriteJSONFile(path, map[string]string{"value": "existing"}); err != nil {
 		t.Fatal(err)
 	}
 
-	dest := map[string]string{}
+	got := ReadJSONFileOrDefault(path, map[string]string{"value": "default"})
 
-	err = GetJSONFileOrDefault(
-		path,
-		&dest,
-		map[string]string{
-			"value": "default",
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if dest["value"] != "existing" {
-		t.Fatalf(
-			"expected existing value, got %q",
-			dest["value"],
-		)
+	if got["value"] != "existing" {
+		t.Fatalf("expected %q, got %q", "existing", got["value"])
 	}
 }
 
-func TestGetJSONFileOrDefault_CreatesDefaultWhenMissing(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"config.json",
-	)
+func TestReadJSONFileOrDefault_ReturnsDefaultForMissingFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
 
-	dest := map[string]string{}
+	want := map[string]string{"value": "default"}
 
-	defaultValue := map[string]string{
-		"value": "default",
+	got := ReadJSONFileOrDefault(path, want)
+
+	if got["value"] != "default" {
+		t.Fatalf("expected default value, got %q", got["value"])
 	}
 
-	err := GetJSONFileOrDefault(
-		path,
-		&dest,
-		defaultValue,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if dest["value"] != "default" {
-		t.Fatalf("default was not applied")
-	}
-
-	var stored map[string]string
-
-	err = GetJSONFile(path, &stored)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if stored["value"] != "default" {
-		t.Fatalf("default was not written")
+	if CheckFileExists(path) {
+		t.Fatal("default value should not be written to disk")
 	}
 }
 
 func TestUpdateJSONFile_UpdatesData(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"config.json",
-	)
+	path := filepath.Join(t.TempDir(), "config.json")
 
-	err := WriteJSONFile(
-		path,
-		map[string]int{
-			"count": 1,
-		},
-	)
+	if err := WriteJSONFile(path, map[string]int{"count": 1}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := UpdateJSONFile(path, func(data map[string]int) (map[string]int, error) {
+		data["count"]++
+		return data, nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var data map[string]int
-
-	err = UpdateJSONFile(
-		path,
-		&data,
-		func(v any) error {
-			cfg := v.(*map[string]int)
-
-			(*cfg)["count"]++
-
-			return nil
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var result map[string]int
-
-	err = GetJSONFile(path, &result)
+	result, err := ReadJSONFile[map[string]int](path)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if result["count"] != 2 {
-		t.Fatalf(
-			"expected count 2 got %d",
-			result["count"],
-		)
+		t.Fatalf("expected count 2, got %d", result["count"])
 	}
 }
 
 func TestUpdateJSONFile_ReturnsUpdateError(t *testing.T) {
-	path := filepath.Join(
-		t.TempDir(),
-		"config.json",
-	)
+	path := filepath.Join(t.TempDir(), "config.json")
 
-	err := WriteJSONFile(
-		path,
-		map[string]string{"x": "y"},
-	)
-	if err != nil {
+	if err := WriteJSONFile(path, map[string]string{"x": "y"}); err != nil {
 		t.Fatal(err)
 	}
 
 	expected := errors.New("update failed")
 
-	var data map[string]string
-
-	err = UpdateJSONFile(
-		path,
-		&data,
-		func(any) error {
-			return expected
-		},
-	)
-
-	if err == nil {
-		t.Fatal("expected error")
+	err := UpdateJSONFile(path, func(map[string]string) (map[string]string, error) {
+		return nil, expected
+	})
+	if !errors.Is(err, expected) {
+		t.Fatalf("expected error %v, got %v", expected, err)
 	}
 }

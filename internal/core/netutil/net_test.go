@@ -166,7 +166,9 @@ func TestIsPortAvailable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
-	defer ln.Close()
+	defer func() {
+		_ = ln.Close()
+	}()
 
 	port := ln.Addr().(*net.TCPAddr).Port
 	if IsPortAvailable(port) {

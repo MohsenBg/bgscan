@@ -6,10 +6,8 @@ import (
 	"bgscan/internal/core/config"
 )
 
-// ValidateICMP validates an ICMPConfig strictly.
-// Returns a map of field name → error for every invalid field.
-// Used by the UI OnValidate hook and SaveICMPConfig.
-func ValidateICMP(cfg *config.ICMPConfig) map[string]error {
+// ValidateICMP strictly validates an ICMPConfig and returns errors by field name.
+func ValidateICMP(cfg config.ICMPConfig) map[string]error {
 	errs := map[string]error{}
 
 	if err := checkInt("Workers", cfg.Workers, 1, 10000); err != nil {
@@ -25,16 +23,14 @@ func ValidateICMP(cfg *config.ICMPConfig) map[string]error {
 		errs["Tries"] = err
 	}
 
-	if err := checkPrefix("PrefixOutput", cfg.PrefixOutput); err != nil {
+	if err := checkPrefix("PrefixOutput", cfg.OutputPrefix); err != nil {
 		errs["PrefixOutput"] = err
 	}
 
 	return errs
 }
 
-// NormalizeICMP auto-fixes invalid fields to their defaults.
-// Returns a list of Warnings describing every correction made.
-// Used only at TOML load time.
+// NormalizeICMP replaces invalid ICMPConfig fields with defaults and reports each correction.
 func NormalizeICMP(cfg *config.ICMPConfig) []Warning {
 	def := config.DefaultICMPConfig()
 	var warns []Warning
@@ -46,7 +42,7 @@ func NormalizeICMP(cfg *config.ICMPConfig) []Warning {
 
 	fixUint16("Tries", &cfg.Tries, 1, 10, def.Tries, &warns)
 
-	fixString("PrefixOutput", &cfg.PrefixOutput, def.PrefixOutput, &warns)
+	fixString("PrefixOutput", &cfg.OutputPrefix, def.OutputPrefix, &warns)
 
 	return warns
 }

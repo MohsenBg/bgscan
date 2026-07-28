@@ -21,7 +21,7 @@ func TestHTTPConfig(t *testing.T) {
 			Version:             "http2",
 			MinTLSVersion:       "tls1.2",
 			MaxTLSVersion:       "tls1.3",
-			PrefixOutput:        "http-scan",
+			OutputPrefix:        "http-scan",
 			AcceptedStatusCodes: []int{200, 301, 302},
 		}
 	}
@@ -85,7 +85,7 @@ func TestHTTPConfig(t *testing.T) {
 		{
 			name: "Timeout invalid",
 			mutateCfg: func(c *config.HTTPConfig) {
-				c.Timeout = config.DurationMS(time.Hour)
+				c.Timeout = config.NewDurationMS(time.Hour)
 			},
 			wantErrKeys:   []string{"Timeout"},
 			wantWarnCount: 1,
@@ -133,13 +133,13 @@ func TestHTTPConfig(t *testing.T) {
 		{
 			name: "PrefixOutput and AcceptedStatusCodes invalid",
 			mutateCfg: func(c *config.HTTPConfig) {
-				c.PrefixOutput = ""
+				c.OutputPrefix = ""
 				c.AcceptedStatusCodes = []int{999}
 			},
 			wantErrKeys:   []string{"PrefixOutput", "AcceptedStatusCodes"},
 			wantWarnCount: 2,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
-				if c.PrefixOutput != def.PrefixOutput {
+				if c.OutputPrefix != def.OutputPrefix {
 					t.Errorf("PrefixOutput not fixed")
 				}
 			},
@@ -151,7 +151,7 @@ func TestHTTPConfig(t *testing.T) {
 			cfg := makeValidHTTP()
 			tt.mutateCfg(&cfg)
 
-			errs := ValidateHTTP(&cfg)
+			errs := ValidateHTTP(cfg)
 			if len(errs) != len(tt.wantErrKeys) {
 				t.Errorf("ValidateHTTP() returned %d errors, want %d. Errors: %v", len(errs), len(tt.wantErrKeys), errs)
 			}

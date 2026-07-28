@@ -7,9 +7,6 @@ import (
 	"bgscan/internal/core/config"
 )
 
-// ============================================================================
-// ICMP Config Tests
-// ============================================================================
 func TestICMPConfig(t *testing.T) {
 	def := config.DefaultICMPConfig()
 	tests := []struct {
@@ -61,12 +58,12 @@ func TestICMPConfig(t *testing.T) {
 		},
 		{
 			name:          "PrefixOutput empty",
-			mutateCfg:     func(c *config.ICMPConfig) { c.PrefixOutput = "" },
+			mutateCfg:     func(c *config.ICMPConfig) { c.OutputPrefix = "" },
 			wantErrKeys:   []string{"PrefixOutput"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.ICMPConfig) {
-				if c.PrefixOutput != def.PrefixOutput {
-					t.Errorf("PrefixOutput = %q, want %q", c.PrefixOutput, def.PrefixOutput)
+				if c.OutputPrefix != def.OutputPrefix {
+					t.Errorf("PrefixOutput = %q, want %q", c.OutputPrefix, def.OutputPrefix)
 				}
 			},
 		},
@@ -74,9 +71,8 @@ func TestICMPConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Test Validate
 			cfg := def
-			tt.mutateCfg(cfg)
+			tt.mutateCfg(&cfg)
 			errs := ValidateICMP(cfg)
 			if len(errs) != len(tt.wantErrKeys) {
 				t.Errorf("ValidateICMP() returned %d errors, want %d. Errors: %v", len(errs), len(tt.wantErrKeys), errs)
@@ -87,14 +83,13 @@ func TestICMPConfig(t *testing.T) {
 				}
 			}
 
-			// Test Normalize
-			cfg = def // Reset to defaults
-			tt.mutateCfg(cfg)
-			warns := NormalizeICMP(cfg)
+			cfg = def
+			tt.mutateCfg(&cfg)
+			warns := NormalizeICMP(&cfg)
 			if len(warns) != tt.wantWarnCount {
 				t.Errorf("NormalizeICMP() returned %d warnings, want %d. Warnings: %v", len(warns), tt.wantWarnCount, warns)
 			}
-			tt.checkFixed(t, cfg)
+			tt.checkFixed(t, &cfg)
 		})
 	}
 }

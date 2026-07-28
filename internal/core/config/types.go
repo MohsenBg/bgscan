@@ -2,44 +2,29 @@ package config
 
 import "time"
 
-// ScannerConfig aggregates configuration for all scanner subsystems.
-type ScannerConfig struct {
-	General *GeneralConfig
-	Writer  *WriterConfig
-	ICMP    *ICMPConfig
-	TCP     *TCPConfig
-	HTTP    *HTTPConfig
-	Xray    *XrayConfig
-	DNS     *DNSConfig
-}
-
-// DurationMS represents a duration stored as milliseconds.
-// It is mainly used for configuration values where durations
-// are expressed as integer milliseconds (e.g., in TOML files).
+// DurationMS stores configuration durations as integer milliseconds.
 type DurationMS int64
 
-// NewDurationMS converts a time.Duration to DurationMS.
+// NewDurationMS converts a time.Duration to milliseconds.
 func NewDurationMS(d time.Duration) DurationMS {
 	return DurationMS(d.Milliseconds())
 }
 
-// Duration converts DurationMS to a standard time.Duration.
+// Duration converts milliseconds to a time.Duration.
 func (d DurationMS) Duration() time.Duration {
 	return time.Duration(d) * time.Millisecond
 }
 
-// SetDuration updates the value using a standard time.Duration.
 func (d *DurationMS) SetDuration(v time.Duration) {
 	*d = DurationMS(v.Milliseconds())
 }
 
-// String returns a human-readable representation of the duration.
+// String implements fmt.Stringer.
 func (d DurationMS) String() string {
 	return d.Duration().String()
 }
 
-// ConnectivityTest represents the type of connectivity test
-// performed by the Xray subsystem.
+// ConnectivityTest identifies the Xray connectivity test to run.
 type ConnectivityTest uint8
 
 const (
@@ -56,7 +41,7 @@ const (
 	Both
 )
 
-// String returns a human-readable representation of the test type.
+// String implements fmt.Stringer.
 func (c ConnectivityTest) String() string {
 	names := [...]string{
 		"Connectivity Only",
@@ -71,7 +56,7 @@ func (c ConnectivityTest) String() string {
 	return "Unknown"
 }
 
-// IsValid reports whether the ConnectivityTest value is within the defined range.
+// IsValid reports whether c is a defined ConnectivityTest value.
 func (c ConnectivityTest) IsValid() bool {
 	return c <= Both
 }

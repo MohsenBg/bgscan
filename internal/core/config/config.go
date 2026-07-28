@@ -1,71 +1,17 @@
-// Package config provides centralized configuration management for the scanner.
-// It exposes a global thread‑safe singleton, supports protocol‑specific
-// settings, and persists configurations using TOML files.
+// Package config defines scanner settings, defaults, and persistent storage.
 package config
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
-	"sync"
 
 	"bgscan/internal/core/fileutil"
 )
 
+// AppVersion is the current application version.
 const AppVersion = "2.8.1"
-
-// ============================================================================
-// Singleton
-// ============================================================================
-
-var (
-	instance *ScannerConfig
-	once     sync.Once
-	mu       sync.RWMutex
-)
-
-// Get returns the global thread‑safe ScannerConfig singleton instance.
-func Get() *ScannerConfig {
-	once.Do(func() {
-		instance = &ScannerConfig{
-			General: DefaultGeneralConfig(),
-			Writer:  DefaultWriterConfig(),
-			ICMP:    DefaultICMPConfig(),
-			TCP:     DefaultTCPConfig(),
-			HTTP:    DefaultHTTPConfig(),
-			Xray:    DefaultXrayConfig(),
-			DNS:     DefaultDNSConfig(),
-		}
-	})
-	return instance
-}
-
-// ============================================================================
-// Thread‑safe Accessors
-// ============================================================================
-
-func GetGeneral() *GeneralConfig { mu.RLock(); defer mu.RUnlock(); return Get().General }
-func GetWriter() *WriterConfig   { mu.RLock(); defer mu.RUnlock(); return Get().Writer }
-func GetICMP() *ICMPConfig       { mu.RLock(); defer mu.RUnlock(); return Get().ICMP }
-func GetTCP() *TCPConfig         { mu.RLock(); defer mu.RUnlock(); return Get().TCP }
-func GetHTTP() *HTTPConfig       { mu.RLock(); defer mu.RUnlock(); return Get().HTTP }
-func GetXray() *XrayConfig       { mu.RLock(); defer mu.RUnlock(); return Get().Xray }
-func GetDNS() *DNSConfig         { mu.RLock(); defer mu.RUnlock(); return Get().DNS }
-
-// ============================================================================
-// Internal setters — only used by load/save, not exported
-// ============================================================================
-
-func setGeneral(cfg *GeneralConfig) { mu.Lock(); defer mu.Unlock(); Get().General = cfg }
-func setWriter(cfg *WriterConfig)   { mu.Lock(); defer mu.Unlock(); Get().Writer = cfg }
-func setICMP(cfg *ICMPConfig)       { mu.Lock(); defer mu.Unlock(); Get().ICMP = cfg }
-func setTCP(cfg *TCPConfig)         { mu.Lock(); defer mu.Unlock(); Get().TCP = cfg }
-func setHTTP(cfg *HTTPConfig)       { mu.Lock(); defer mu.Unlock(); Get().HTTP = cfg }
-func setXray(cfg *XrayConfig)       { mu.Lock(); defer mu.Unlock(); Get().Xray = cfg }
-func setDNS(cfg *DNSConfig)         { mu.Lock(); defer mu.Unlock(); Get().DNS = cfg }
-
-// ============================================================================
-// File Paths
-// ============================================================================
 
 const (
 	settingsDir = "settings"
@@ -79,151 +25,151 @@ const (
 	dnsFile     = "dns_settings.toml"
 )
 
-// configPath returns the fully‑qualified path for a settings file.
-func configPath(filename string) (string, error) {
-	base, err := fileutil.GetCurrentPath()
+// ScannerConfig holds all configuration settings used by the scanner.
+type ScannerConfig struct {
+	General GeneralConfig
+	Writer  WriterConfig
+	ICMP    ICMPConfig
+	TCP     TCPConfig
+	HTTP    HTTPConfig
+	Xray    XrayConfig
+	DNS     DNSConfig
+}
+
+// Store reads and writes scanner settings in a specific directory.
+type Store struct {
+	dir string
+}
+
+// StoreOption configures a Store during creation.
+type StoreOption func(*Store)
+
+// WithSettingsDir sets the directory used to read and write settings.
+func WithSettingsDir(dir string) StoreOption {
+	return func(s *Store) {
+		s.dir = dir
+	}
+}
+
+// NewStore creates a Store using the relative "settings" directory by default.
+func NewStore(opts ...StoreOption) Store {
+	s := Store{dir: settingsDir}
+
+	for _, opt := range opts {
+		opt(&s)
+	}
+
+	return s
+}
+
+// Load reads all configuration files from the store directory.
+// Missing files are created with defaults; malformed files return an error.
+func (s Store) Load() (ScannerConfig, error) {
+	general, err := loadTOML(s.path(generalFile), DefaultGeneralConfig())
 	if err != nil {
-		return "", err
+		return ScannerConfig{}, err
 	}
-	return filepath.Join(base, settingsDir, filename), nil
-}
 
-// ============================================================================
-// Generic Load/Save Helpers
-// ============================================================================
-
-// loadConfig loads a TOML configuration file into cfg or falls back to defaults.
-// After loading it applies the provided setter to update the global state.
-// No validation is done here — normalization happens in checkConfigHealth
-// immediately after Init() at startup.
-func loadConfig[T any](filename string, cfg *T, def *T, set func(*T)) error {
-	path, err := configPath(filename)
+	writer, err := loadTOML(s.path(writerFile), DefaultWriterConfig())
 	if err != nil {
-		return err
+		return ScannerConfig{}, err
 	}
 
-	if err := fileutil.GetTOMLFileOrDefault(path, cfg, def); err != nil {
-		return fmt.Errorf("load config %s: %w", filename, err)
-	}
-
-	set(cfg)
-	return nil
-}
-
-// saveConfig writes cfg to disk as TOML and updates the global in‑memory state.
-// Callers are responsible for validating cfg before calling this.
-func saveConfig[T any](filename string, cfg *T, set func(*T)) error {
-	path, err := configPath(filename)
+	icmp, err := loadTOML(s.path(icmpFile), DefaultICMPConfig())
 	if err != nil {
-		return err
+		return ScannerConfig{}, err
 	}
 
-	if err := fileutil.WriteTOMLFile(path, cfg); err != nil {
-		return fmt.Errorf("save config %s: %w", filename, err)
+	tcp, err := loadTOML(s.path(tcpFile), DefaultTCPConfig())
+	if err != nil {
+		return ScannerConfig{}, err
 	}
 
-	set(cfg)
-	return nil
-}
-
-// ============================================================================
-// Public Load Entry Points
-// ============================================================================
-
-// LoadGeneralConfig loads general settings from disk.
-func LoadGeneralConfig() error {
-	return loadConfig(generalFile, &GeneralConfig{}, DefaultGeneralConfig(), setGeneral)
-}
-
-// LoadWriterConfig loads writer settings from disk.
-func LoadWriterConfig() error {
-	return loadConfig(writerFile, &WriterConfig{}, DefaultWriterConfig(), setWriter)
-}
-
-// LoadICMPConfig loads ICMP settings from disk.
-func LoadICMPConfig() error {
-	return loadConfig(icmpFile, &ICMPConfig{}, DefaultICMPConfig(), setICMP)
-}
-
-// LoadTCPConfig loads TCP settings from disk.
-func LoadTCPConfig() error {
-	return loadConfig(tcpFile, &TCPConfig{}, DefaultTCPConfig(), setTCP)
-}
-
-// LoadHTTPConfig loads HTTP settings from disk.
-func LoadHTTPConfig() error {
-	return loadConfig(httpFile, &HTTPConfig{}, DefaultHTTPConfig(), setHTTP)
-}
-
-// LoadXrayConfig loads Xray settings from disk.
-func LoadXrayConfig() error {
-	return loadConfig(xrayFile, &XrayConfig{}, DefaultXrayConfig(), setXray)
-}
-
-// LoadDNSConfig loads DNS settings from disk.
-func LoadDNSConfig() error {
-	return loadConfig(dnsFile, &DNSConfig{}, DefaultDNSConfig(), setDNS)
-}
-
-// ============================================================================
-// Public Save Entry Points — validate strictly before writing
-// ============================================================================
-
-// SaveGeneralConfig writes it to disk and updates memory.
-func SaveGeneralConfig(cfg *GeneralConfig) error { return saveConfig(generalFile, cfg, setGeneral) }
-
-// SaveWriterConfig writes it to disk and updates memory.
-func SaveWriterConfig(cfg *WriterConfig) error {
-	return saveConfig(writerFile, cfg, setWriter)
-}
-
-// SaveICMPConfig writes it to disk and updates memory.
-func SaveICMPConfig(cfg *ICMPConfig) error {
-	return saveConfig(icmpFile, cfg, setICMP)
-}
-
-// SaveTCPConfig writes it to disk and updates memory.
-func SaveTCPConfig(cfg *TCPConfig) error {
-	return saveConfig(tcpFile, cfg, setTCP)
-}
-
-// SaveHTTPConfig validates cfg then writes it to disk and updates memory.
-func SaveHTTPConfig(cfg *HTTPConfig) error {
-	return saveConfig(httpFile, cfg, setHTTP)
-}
-
-// SaveXrayConfig validates cfg then writes it to disk and updates memory.
-func SaveXrayConfig(cfg *XrayConfig) error {
-	return saveConfig(xrayFile, cfg, setXray)
-}
-
-// SaveDNSConfig validates cfg then writes it to disk and updates memory.
-func SaveDNSConfig(cfg *DNSConfig) error {
-	return saveConfig(dnsFile, cfg, setDNS)
-}
-
-// ============================================================================
-// Initialization
-// ============================================================================
-
-// Init loads all configuration files into the global singleton.
-// It does NOT validate or normalize — that is done by checkConfigHealth
-// in the startup package immediately after Init() returns.
-func Init() error {
-	loaders := []func() error{
-		LoadGeneralConfig,
-		LoadWriterConfig,
-		LoadICMPConfig,
-		LoadTCPConfig,
-		LoadHTTPConfig,
-		LoadXrayConfig,
-		LoadDNSConfig,
+	http, err := loadTOML(s.path(httpFile), DefaultHTTPConfig())
+	if err != nil {
+		return ScannerConfig{}, err
 	}
 
-	for _, load := range loaders {
-		if err := load(); err != nil {
-			return err
-		}
+	xray, err := loadTOML(s.path(xrayFile), DefaultXrayConfig())
+	if err != nil {
+		return ScannerConfig{}, err
+	}
+
+	dns, err := loadTOML(s.path(dnsFile), DefaultDNSConfig())
+	if err != nil {
+		return ScannerConfig{}, err
+	}
+
+	return ScannerConfig{
+		General: general,
+		Writer:  writer,
+		ICMP:    icmp,
+		TCP:     tcp,
+		HTTP:    http,
+		Xray:    xray,
+		DNS:     dns,
+	}, nil
+}
+
+// SaveGeneral writes the general configuration to disk.
+func (s Store) SaveGeneral(cfg GeneralConfig) error {
+	return saveTOML(s.path(generalFile), cfg)
+}
+
+// SaveWriter writes the writer configuration to disk.
+func (s Store) SaveWriter(cfg WriterConfig) error {
+	return saveTOML(s.path(writerFile), cfg)
+}
+
+// SaveICMP writes the ICMP configuration to disk.
+func (s Store) SaveICMP(cfg ICMPConfig) error {
+	return saveTOML(s.path(icmpFile), cfg)
+}
+
+// SaveTCP writes the TCP configuration to disk.
+func (s Store) SaveTCP(cfg TCPConfig) error {
+	return saveTOML(s.path(tcpFile), cfg)
+}
+
+// SaveHTTP writes the HTTP configuration to disk.
+func (s Store) SaveHTTP(cfg HTTPConfig) error {
+	return saveTOML(s.path(httpFile), cfg)
+}
+
+// SaveXray writes the Xray configuration to disk.
+func (s Store) SaveXray(cfg XrayConfig) error {
+	return saveTOML(s.path(xrayFile), cfg)
+}
+
+// SaveDNS writes the DNS configuration to disk.
+func (s Store) SaveDNS(cfg DNSConfig) error {
+	return saveTOML(s.path(dnsFile), cfg)
+}
+
+func (s Store) path(filename string) string {
+	return filepath.Join(s.dir, filename)
+}
+
+func loadTOML[T any](path string, defaultValue T) (T, error) {
+	value, err := fileutil.ReadTOMLFile[T](path)
+	if err == nil {
+		return value, nil
+	}
+
+	if !errors.Is(err, os.ErrNotExist) {
+		return defaultValue, fmt.Errorf("load settings %q: %w", path, err)
+	}
+
+	if err := fileutil.WriteTOMLFile(path, defaultValue); err != nil {
+		return defaultValue, fmt.Errorf("create default settings %q: %w", path, err)
+	}
+
+	return defaultValue, nil
+}
+
+func saveTOML[T any](path string, value T) error {
+	if err := fileutil.WriteTOMLFile(path, value); err != nil {
+		return fmt.Errorf("save settings %q: %w", path, err)
 	}
 
 	return nil

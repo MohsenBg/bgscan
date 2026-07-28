@@ -6,10 +6,8 @@ import (
 	"bgscan/internal/core/config"
 )
 
-// ValidateWriter validates a WriterConfig strictly.
-// Returns a map of field name → error for every invalid field.
-// Used by the UI OnValidate hook and SaveWriterConfig.
-func ValidateWriter(cfg *config.WriterConfig) map[string]error {
+// ValidateWriter strictly validates a WriterConfig and returns errors by field name.
+func ValidateWriter(cfg config.WriterConfig) map[string]error {
 	errs := map[string]error{}
 
 	if err := checkDuration("MergeFlushInterval", cfg.MergeFlushInterval.Duration(),
@@ -32,9 +30,7 @@ func ValidateWriter(cfg *config.WriterConfig) map[string]error {
 	return errs
 }
 
-// NormalizeWriter auto-fixes invalid fields to their defaults.
-// Returns a list of Warnings describing every correction made.
-// Used only at TOML load time.
+// NormalizeWriter replaces invalid WriterConfig fields with defaults and reports each correction.
 func NormalizeWriter(cfg *config.WriterConfig) []Warning {
 	def := config.DefaultWriterConfig()
 	var warns []Warning

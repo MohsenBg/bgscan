@@ -7,7 +7,6 @@ import (
 	"bgscan/internal/core/config"
 )
 
-// getValidGeneralConfig returns a known-good configuration to use as a baseline for tests.
 func getValidGeneralConfig() config.GeneralConfig {
 	return config.GeneralConfig{
 		StatusInterval: config.NewDurationMS(5 * time.Second),
@@ -92,7 +91,7 @@ func TestValidateGeneral(t *testing.T) {
 			cfg := getValidGeneralConfig() // Start with a valid copy
 			tt.mutateCfg(&cfg)
 
-			errs := ValidateGeneral(&cfg)
+			errs := ValidateGeneral(cfg)
 
 			if len(errs) != len(tt.wantErrKeys) {
 				t.Errorf("ValidateGeneral() returned %d errors, want %d. Errors: %v", len(errs), len(tt.wantErrKeys), errs)

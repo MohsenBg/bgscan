@@ -14,13 +14,13 @@ type HTTPConfig struct {
 	MinTLSVersion       string     `toml:"min_tls_version"`
 	MaxTLSVersion       string     `toml:"max_tls_version"`
 	Timeout             DurationMS `toml:"timeout"`
-	PrefixOutput        string     `toml:"prefix_output"`
+	OutputPrefix        string     `toml:"prefix_output"`
 	AcceptedStatusCodes []int      `toml:"accepted_status_codes"`
 }
 
 // DefaultHTTPConfig returns the default configuration for HTTP probing.
-func DefaultHTTPConfig() *HTTPConfig {
-	return &HTTPConfig{
+func DefaultHTTPConfig() HTTPConfig {
+	return HTTPConfig{
 		Workers:             50,
 		Host:                "example.com",
 		Port:                443,
@@ -31,6 +31,6 @@ func DefaultHTTPConfig() *HTTPConfig {
 		MinTLSVersion:       "tls1.1",
 		MaxTLSVersion:       "tls1.3",
 		Timeout:             NewDurationMS(4 * time.Second),
-		PrefixOutput:        "http_",
+		OutputPrefix:        "http_",
 	}
 }

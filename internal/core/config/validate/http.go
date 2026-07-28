@@ -28,10 +28,8 @@ var allowedHTTPVersions = []string{
 	"http3",
 }
 
-// ValidateHTTP validates an HTTPConfig strictly.
-// Returns a map of field name → error for every invalid field.
-// Used by the UI OnValidate hook and SaveHTTPConfig.
-func ValidateHTTP(cfg *config.HTTPConfig) map[string]error {
+// ValidateHTTP strictly validates an HTTPConfig and returns errors by field name.
+func ValidateHTTP(cfg config.HTTPConfig) map[string]error {
 	errs := map[string]error{}
 
 	if err := checkInt("Workers", cfg.Workers, 1, 5000); err != nil {
@@ -81,7 +79,7 @@ func ValidateHTTP(cfg *config.HTTPConfig) map[string]error {
 		}
 	}
 
-	if err := checkPrefix("PrefixOutput", cfg.PrefixOutput); err != nil {
+	if err := checkPrefix("PrefixOutput", cfg.OutputPrefix); err != nil {
 		errs["PrefixOutput"] = err
 	}
 
@@ -92,9 +90,7 @@ func ValidateHTTP(cfg *config.HTTPConfig) map[string]error {
 	return errs
 }
 
-// NormalizeHTTP auto-fixes invalid fields to their defaults.
-// Returns a list of Warnings describing every correction made.
-// Used only at TOML load time.
+// NormalizeHTTP replaces invalid HTTPConfig fields with defaults and reports each correction.
 func NormalizeHTTP(cfg *config.HTTPConfig) []Warning {
 	def := config.DefaultHTTPConfig()
 	var warns []Warning
@@ -119,7 +115,7 @@ func NormalizeHTTP(cfg *config.HTTPConfig) []Warning {
 		allowedTLSVersions,
 		&warns,
 	)
-	fixString("PrefixOutput", &cfg.PrefixOutput, def.PrefixOutput, &warns)
+	fixString("PrefixOutput", &cfg.OutputPrefix, def.OutputPrefix, &warns)
 
 	return warns
 }

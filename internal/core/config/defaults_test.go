@@ -8,9 +8,6 @@ import (
 func TestDefaultGeneralConfig(t *testing.T) {
 	cfg := DefaultGeneralConfig()
 
-	if cfg == nil {
-		t.Fatal("DefaultGeneralConfig() returned nil")
-	}
 	if cfg.StatusInterval != NewDurationMS(1*time.Second) {
 		t.Errorf("StatusInterval = %v, want 1s", cfg.StatusInterval)
 	}
@@ -37,9 +34,6 @@ func TestDefaultGeneralConfig(t *testing.T) {
 func TestDefaultWriterConfig(t *testing.T) {
 	cfg := DefaultWriterConfig()
 
-	if cfg == nil {
-		t.Fatal("DefaultWriterConfig() returned nil")
-	}
 	if cfg.MergeFlushInterval != NewDurationMS(2*time.Second) {
 		t.Errorf("MergeFlushInterval = %v, want 2s", cfg.MergeFlushInterval)
 	}
@@ -57,9 +51,6 @@ func TestDefaultWriterConfig(t *testing.T) {
 func TestDefaultICMPConfig(t *testing.T) {
 	cfg := DefaultICMPConfig()
 
-	if cfg == nil {
-		t.Fatal("DefaultICMPConfig() returned nil")
-	}
 	if cfg.Workers != 200 {
 		t.Errorf("Workers = %d, want 200", cfg.Workers)
 	}
@@ -69,17 +60,14 @@ func TestDefaultICMPConfig(t *testing.T) {
 	if cfg.Tries != 1 {
 		t.Errorf("Tries = %d, want 1", cfg.Tries)
 	}
-	if cfg.PrefixOutput != "icmp_" {
-		t.Errorf("PrefixOutput = %q, want %q", cfg.PrefixOutput, "icmp_")
+	if cfg.OutputPrefix != "icmp_" {
+		t.Errorf("PrefixOutput = %q, want %q", cfg.OutputPrefix, "icmp_")
 	}
 }
 
 func TestDefaultTCPConfig(t *testing.T) {
 	cfg := DefaultTCPConfig()
 
-	if cfg == nil {
-		t.Fatal("DefaultTCPConfig() returned nil")
-	}
 	if cfg.Workers != 200 {
 		t.Errorf("Workers = %d, want 200", cfg.Workers)
 	}
@@ -92,17 +80,14 @@ func TestDefaultTCPConfig(t *testing.T) {
 	if cfg.Tries != 1 {
 		t.Errorf("Tries = %d, want 1", cfg.Tries)
 	}
-	if cfg.PrefixOutput != "tcp_" {
-		t.Errorf("PrefixOutput = %q, want %q", cfg.PrefixOutput, "tcp_")
+	if cfg.OutputPrefix != "tcp_" {
+		t.Errorf("PrefixOutput = %q, want %q", cfg.OutputPrefix, "tcp_")
 	}
 }
 
 func TestDefaultHTTPConfig(t *testing.T) {
 	cfg := DefaultHTTPConfig()
 
-	if cfg == nil {
-		t.Fatal("DefaultHTTPConfig() returned nil")
-	}
 	if cfg.Workers != 50 {
 		t.Errorf("Workers = %d, want 50", cfg.Workers)
 	}
@@ -133,17 +118,14 @@ func TestDefaultHTTPConfig(t *testing.T) {
 	if cfg.Timeout != NewDurationMS(4*time.Second) {
 		t.Errorf("Timeout = %v, want 4s", cfg.Timeout)
 	}
-	if cfg.PrefixOutput != "http_" {
-		t.Errorf("PrefixOutput = %q, want %q", cfg.PrefixOutput, "http_")
+	if cfg.OutputPrefix != "http_" {
+		t.Errorf("PrefixOutput = %q, want %q", cfg.OutputPrefix, "http_")
 	}
 }
 
 func TestDefaultXrayConfig(t *testing.T) {
 	cfg := DefaultXrayConfig()
 
-	if cfg == nil {
-		t.Fatal("DefaultXrayConfig() returned nil")
-	}
 	if cfg.Workers != 32 {
 		t.Errorf("Workers = %d, want 32", cfg.Workers)
 	}
@@ -162,23 +144,16 @@ func TestDefaultXrayConfig(t *testing.T) {
 	if cfg.Timeout != NewDurationMS(6*time.Second) {
 		t.Errorf("Timeout = %v, want 6s", cfg.Timeout)
 	}
-	if cfg.PrefixOutput != "xray_" {
-		t.Errorf("PrefixOutput = %q, want %q", cfg.PrefixOutput, "xray_")
+	if cfg.OutputPrefix != "xray_" {
+		t.Errorf("PrefixOutput = %q, want %q", cfg.OutputPrefix, "xray_")
 	}
 }
 
 func TestDefaultDNSConfig(t *testing.T) {
 	cfg := DefaultDNSConfig()
 
-	if cfg == nil {
-		t.Fatal("DefaultDNSConfig() returned nil")
-	}
-
-	// Resolver
 	r := cfg.Resolver
-	if r == nil {
-		t.Fatal("Resolver is nil")
-	}
+
 	if r.Workers != 100 {
 		t.Errorf("Resolver.Workers = %d, want 100", r.Workers)
 	}
@@ -224,9 +199,7 @@ func TestDefaultDNSConfig(t *testing.T) {
 
 	// DNSTT
 	d := cfg.DNSTT
-	if d == nil {
-		t.Fatal("DNSTT is nil")
-	}
+
 	if d.Enabled {
 		t.Error("DNSTT.Enabled = true, want false")
 	}
@@ -236,15 +209,13 @@ func TestDefaultDNSConfig(t *testing.T) {
 	if d.Domain != "ns.example.com" {
 		t.Errorf("DNSTT.Domain = %q, want %q", d.Domain, "ns.example.com")
 	}
-	if d.PrefixOutput != "dns_dnstt_" {
-		t.Errorf("DNSTT.PrefixOutput = %q, want %q", d.PrefixOutput, "dns_dnstt_")
+	if d.OutputPrefix != "dns_dnstt_" {
+		t.Errorf("DNSTT.PrefixOutput = %q, want %q", d.OutputPrefix, "dns_dnstt_")
 	}
 
 	// SlipStream
 	s := cfg.SlipStream
-	if s == nil {
-		t.Fatal("SlipStream is nil")
-	}
+
 	if s.Enabled {
 		t.Error("SlipStream.Enabled = true, want false")
 	}
@@ -254,25 +225,24 @@ func TestDefaultDNSConfig(t *testing.T) {
 	if s.Domain != "ns.example.com" {
 		t.Errorf("SlipStream.Domain = %q, want %q", s.Domain, "ns.example.com")
 	}
-	if s.PrefixOutput != "dns_slipstream_" {
-		t.Errorf("SlipStream.PrefixOutput = %q, want %q", s.PrefixOutput, "dns_slipstream_")
+	if s.OutputPrefix != "dns_slipstream_" {
+		t.Errorf("SlipStream.PrefixOutput = %q, want %q", s.OutputPrefix, "dns_slipstream_")
 	}
 }
 
-// DefaultXxxConfig must return a new pointer each call — not a shared instance.
 func TestDefaultConfigsReturnNewInstances(t *testing.T) {
 	a := DefaultGeneralConfig()
 	b := DefaultGeneralConfig()
-	if a == b {
+	if &a == &b {
 		t.Error("DefaultGeneralConfig() returned same pointer on two calls")
 	}
 
 	c := DefaultDNSConfig()
 	d := DefaultDNSConfig()
-	if c == d {
+	if &c == &d {
 		t.Error("DefaultDNSConfig() returned same pointer on two calls")
 	}
-	if c.Resolver == d.Resolver {
+	if &c.Resolver == &d.Resolver {
 		t.Error("DefaultDNSConfig().Resolver returned same pointer on two calls")
 	}
 }

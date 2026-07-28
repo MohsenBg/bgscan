@@ -6,10 +6,8 @@ import (
 	"bgscan/internal/core/config"
 )
 
-// ValidateTCP validates a TCPConfig strictly.
-// Returns a map of field name → error for every invalid field.
-// Used by the UI OnValidate hook and SaveTCPConfig.
-func ValidateTCP(cfg *config.TCPConfig) map[string]error {
+// ValidateTCP strictly validates a TCPConfig and returns errors by field name.
+func ValidateTCP(cfg config.TCPConfig) map[string]error {
 	errs := map[string]error{}
 
 	if err := checkInt("Workers", cfg.Workers, 1, 10000); err != nil {
@@ -29,16 +27,14 @@ func ValidateTCP(cfg *config.TCPConfig) map[string]error {
 		errs["Tries"] = err
 	}
 
-	if err := checkPrefix("PrefixOutput", cfg.PrefixOutput); err != nil {
+	if err := checkPrefix("PrefixOutput", cfg.OutputPrefix); err != nil {
 		errs["PrefixOutput"] = err
 	}
 
 	return errs
 }
 
-// NormalizeTCP auto-fixes invalid fields to their defaults.
-// Returns a list of Warnings describing every correction made.
-// Used only at TOML load time.
+// NormalizeTCP replaces invalid TCPConfig fields with defaults and reports each correction.
 func NormalizeTCP(cfg *config.TCPConfig) []Warning {
 	def := config.DefaultTCPConfig()
 	var warns []Warning
@@ -51,7 +47,7 @@ func NormalizeTCP(cfg *config.TCPConfig) []Warning {
 
 	fixUint16("Tries", &cfg.Tries, 1, 10, def.Tries, &warns)
 
-	fixPrefix("PrefixOutput", &cfg.PrefixOutput, def.PrefixOutput, &warns)
+	fixPrefix("PrefixOutput", &cfg.OutputPrefix, def.OutputPrefix, &warns)
 
 	return warns
 }

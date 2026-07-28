@@ -5,10 +5,6 @@ import (
 	"time"
 )
 
-// ============================================================================
-// DurationMS
-// ============================================================================
-
 func TestNewDurationMS(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -95,10 +91,6 @@ func TestDurationMS_String(t *testing.T) {
 		})
 	}
 }
-
-// ============================================================================
-// ConnectivityTest
-// ============================================================================
 
 func TestConnectivityTest_String(t *testing.T) {
 	tests := []struct {

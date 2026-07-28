@@ -11,10 +11,8 @@ var allowedPipelineModes = []string{
 	"sequential", "simple", "streaming", "parallel", "batch", "pipeline",
 }
 
-// ValidateGeneral validates a GeneralConfig strictly.
-// Returns a map of field name → error for every invalid field.
-// Used by the UI OnValidate hook and SaveGeneralConfig.
-func ValidateGeneral(cfg *config.GeneralConfig) map[string]error {
+// ValidateGeneral strictly validates a GeneralConfig and returns errors by field name.
+func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
 	errs := map[string]error{}
 
 	if err := checkDuration("StatusInterval", cfg.StatusInterval.Duration(),
@@ -45,9 +43,7 @@ func ValidateGeneral(cfg *config.GeneralConfig) map[string]error {
 	return errs
 }
 
-// NormalizeGeneral auto-fixes invalid fields to their defaults.
-// Returns a list of Warnings describing every correction made.
-// Used only at TOML load time.
+// NormalizeGeneral replaces invalid GeneralConfig fields with defaults and reports each correction.
 func NormalizeGeneral(cfg *config.GeneralConfig) []Warning {
 	def := config.DefaultGeneralConfig()
 	var warns []Warning

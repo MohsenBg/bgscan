@@ -9,35 +9,27 @@ import (
 
 var allowedDNSProtocols = []string{"udp", "tcp", "dot", "doh"}
 
-// ValidateDNS validates a DNSConfig strictly.
-// Returns a map of field name → error for every invalid field.
-// Nested fields use dot notation: "Resolver.Workers", "DNSTT.Domain", etc.
-// Used by the UI OnValidate hook and SaveDNSConfig.
-func ValidateDNS(cfg *config.DNSConfig) map[string]error {
+// ValidateDNS strictly validates a DNSConfig and returns errors by field name.
+// Nested field names use dot notation, such as "Resolver.Workers".
+func ValidateDNS(cfg config.DNSConfig) map[string]error {
 	errs := map[string]error{}
 
-	if cfg.Resolver != nil {
-		for k, v := range validateResolver(cfg.Resolver) {
-			errs["Resolver."+k] = v
-		}
+	for k, v := range validateResolver(cfg.Resolver) {
+		errs["Resolver."+k] = v
 	}
 
-	if cfg.DNSTT != nil && cfg.DNSTT.Enabled {
-		for k, v := range validateDNSTT(cfg.DNSTT) {
-			errs["DNSTT."+k] = v
-		}
+	for k, v := range validateDNSTT(cfg.DNSTT) {
+		errs["DNSTT."+k] = v
 	}
 
-	if cfg.SlipStream != nil && cfg.SlipStream.Enabled {
-		for k, v := range validateSlipStream(cfg.SlipStream) {
-			errs["SlipStream."+k] = v
-		}
+	for k, v := range validateSlipStream(cfg.SlipStream) {
+		errs["SlipStream."+k] = v
 	}
 
 	return errs
 }
 
-func validateResolver(r *config.ResolverConfig) map[string]error {
+func validateResolver(r config.ResolverConfig) map[string]error {
 	errs := map[string]error{}
 
 	if err := checkInt("Workers", r.Workers, 1, 2500); err != nil {
@@ -85,22 +77,17 @@ func validateResolver(r *config.ResolverConfig) map[string]error {
 	return errs
 }
 
-func validateDNSTT(d *config.DNSTTConfig) map[string]error {
+func validateDNSTT(d config.DNSTTConfig) map[string]error {
 	errs := map[string]error{}
 
 	if err := checkInt("Workers", d.Workers, 1, 500); err != nil {
 		errs["Workers"] = err
 	}
 
-	if err := checkString("Domain", d.Domain); err != nil {
-		errs["Domain"] = err
-	}
-
 	if err := checkDomain("Domain", d.Domain); err != nil {
 		errs["Domain"] = err
 	}
 
-	// PublicKey must be non-empty when DNSTT is enabled
 	if err := checkPubKey("PublicKey", d.PublicKey); err != nil {
 		errs["PublicKey"] = err
 	}
@@ -110,22 +97,18 @@ func validateDNSTT(d *config.DNSTTConfig) map[string]error {
 		errs["Timeout"] = err
 	}
 
-	if err := checkPrefix("PrefixOutput", d.PrefixOutput); err != nil {
+	if err := checkPrefix("PrefixOutput", d.OutputPrefix); err != nil {
 		errs["PrefixOutput"] = err
 	}
 
 	return errs
 }
 
-func validateSlipStream(s *config.SlipStreamConfig) map[string]error {
+func validateSlipStream(s config.SlipStreamConfig) map[string]error {
 	errs := map[string]error{}
 
 	if err := checkInt("Workers", s.Workers, 1, 500); err != nil {
 		errs["Workers"] = err
-	}
-
-	if err := checkString("Domain", s.Domain); err != nil {
-		errs["Domain"] = err
 	}
 
 	if err := checkDomain("Domain", s.Domain); err != nil {
@@ -137,30 +120,20 @@ func validateSlipStream(s *config.SlipStreamConfig) map[string]error {
 		errs["Timeout"] = err
 	}
 
-	if err := checkPrefix("PrefixOutput", s.PrefixOutput); err != nil {
+	if err := checkPrefix("PrefixOutput", s.OutputPrefix); err != nil {
 		errs["PrefixOutput"] = err
 	}
 
 	return errs
 }
 
-// NormalizeDNS auto-fixes invalid fields to their defaults.
-// Returns a list of Warnings describing every correction made.
-// Used only at TOML load time.
+// NormalizeDNS replaces invalid DNSConfig fields with defaults and reports each correction.
 func NormalizeDNS(cfg *config.DNSConfig) []Warning {
 	var warns []Warning
 
-	if cfg.Resolver != nil {
-		warns = append(warns, normalizeResolver(cfg.Resolver)...)
-	}
-
-	if cfg.DNSTT != nil && cfg.DNSTT.Enabled {
-		warns = append(warns, normalizeDNSTT(cfg.DNSTT)...)
-	}
-
-	if cfg.SlipStream != nil && cfg.SlipStream.Enabled {
-		warns = append(warns, normalizeSlipStream(cfg.SlipStream)...)
-	}
+	warns = append(warns, normalizeResolver(&cfg.Resolver)...)
+	warns = append(warns, normalizeDNSTT(&cfg.DNSTT)...)
+	warns = append(warns, normalizeSlipStream(&cfg.SlipStream)...)
 
 	return warns
 }
@@ -202,7 +175,7 @@ func normalizeDNSTT(d *config.DNSTTConfig) []Warning {
 	fixDurationMS("DNSTT.Timeout", &d.Timeout,
 		100*time.Millisecond, 60*time.Second, def.Timeout, &warns)
 
-	fixPrefix("DNSTT.PrefixOutput", &d.PrefixOutput, def.PrefixOutput, &warns)
+	fixPrefix("DNSTT.PrefixOutput", &d.OutputPrefix, def.OutputPrefix, &warns)
 
 	return warns
 }
@@ -214,12 +187,10 @@ func normalizeSlipStream(s *config.SlipStreamConfig) []Warning {
 	fixInt("SlipStream.Workers", &s.Workers, 1, 500, def.Workers, &warns)
 	fixDomain("SlipStream.Domain", &s.Domain, def.Domain, &warns)
 
-	// CertPath intentionally skipped empty is valid
-
 	fixDurationMS("SlipStream.Timeout", &s.Timeout,
 		100*time.Millisecond, 60*time.Second, def.Timeout, &warns)
 
-	fixPrefix("SlipStream.PrefixOutput", &s.PrefixOutput, def.PrefixOutput, &warns)
+	fixPrefix("SlipStream.PrefixOutput", &s.OutputPrefix, def.OutputPrefix, &warns)
 
 	return warns
 }

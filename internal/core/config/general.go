@@ -14,8 +14,8 @@ type GeneralConfig struct {
 }
 
 // DefaultGeneralConfig returns the default configuration for general scanner behavior.
-func DefaultGeneralConfig() *GeneralConfig {
-	return &GeneralConfig{
+func DefaultGeneralConfig() GeneralConfig {
+	return GeneralConfig{
 		StatusInterval: NewDurationMS(1 * time.Second),
 		StopAfterFound: 0,
 		MaxIPsToTest:   0,

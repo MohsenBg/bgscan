@@ -9,10 +9,8 @@ import (
 
 var allowedPreScanTypes = []string{"tcp", "icmp", "none", "http"}
 
-// ValidateXray validates an XrayConfig strictly.
-// Returns a map of field name → error for every invalid field.
-// Used by the UI OnValidate hook and SaveXrayConfig.
-func ValidateXray(cfg *config.XrayConfig) map[string]error {
+// ValidateXray strictly validates an XrayConfig and returns errors by field name.
+func ValidateXray(cfg config.XrayConfig) map[string]error {
 	errs := map[string]error{}
 
 	if err := checkInt("Workers", cfg.Workers, 1, 1000); err != nil {
@@ -23,11 +21,11 @@ func ValidateXray(cfg *config.XrayConfig) map[string]error {
 		errs["ConnectivityTestType"] = errInvalidConnectivityTest()
 	}
 
-	if err := checkInt("DownloadSpeed", cfg.DownloadSpeed, 0, 10000); err != nil {
+	if err := checkInt("DownloadSpeed", cfg.DownloadSpeed, 0, 100000); err != nil {
 		errs["DownloadSpeed"] = err
 	}
 
-	if err := checkInt("UploadSpeed", cfg.UploadSpeed, 0, 10000); err != nil {
+	if err := checkInt("UploadSpeed", cfg.UploadSpeed, 0, 100000); err != nil {
 		errs["UploadSpeed"] = err
 	}
 
@@ -40,16 +38,14 @@ func ValidateXray(cfg *config.XrayConfig) map[string]error {
 		errs["PreScanType"] = err
 	}
 
-	if err := checkPrefix("PrefixOutput", cfg.PrefixOutput); err != nil {
+	if err := checkPrefix("PrefixOutput", cfg.OutputPrefix); err != nil {
 		errs["PrefixOutput"] = err
 	}
 
 	return errs
 }
 
-// NormalizeXray auto-fixes invalid fields to their defaults.
-// Returns a list of Warnings describing every correction made.
-// Used only at TOML load time.
+// NormalizeXray replaces invalid XrayConfig fields with defaults and reports each correction.
 func NormalizeXray(cfg *config.XrayConfig) []Warning {
 	def := config.DefaultXrayConfig()
 	var warns []Warning
@@ -73,7 +69,7 @@ func NormalizeXray(cfg *config.XrayConfig) []Warning {
 		100*time.Millisecond, 60*time.Second, def.Timeout, &warns)
 
 	fixEnum("PreScanType", &cfg.PreScanType, allowedPreScanTypes, def.PreScanType, &warns)
-	fixString("PrefixOutput", &cfg.PrefixOutput, def.PrefixOutput, &warns)
+	fixString("PrefixOutput", &cfg.OutputPrefix, def.OutputPrefix, &warns)
 
 	return warns
 }

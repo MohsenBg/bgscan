@@ -2,8 +2,7 @@ package validate
 
 import "bgscan/internal/core/config"
 
-// AllWarnings holds normalization warnings grouped by config section.
-// Returned by NormalizeAll after a TOML load.
+// AllWarnings groups normalization warnings by configuration section.
 type AllWarnings struct {
 	General []Warning
 	Writer  []Warning
@@ -14,7 +13,7 @@ type AllWarnings struct {
 	DNS     []Warning
 }
 
-// HasWarnings reports whether any section produced warnings.
+// HasWarnings reports whether any configuration section produced warnings.
 func (a AllWarnings) HasWarnings() bool {
 	return len(a.General) > 0 ||
 		len(a.Writer) > 0 ||
@@ -25,23 +24,21 @@ func (a AllWarnings) HasWarnings() bool {
 		len(a.DNS) > 0
 }
 
-// NormalizeAll runs Normalize* on every live config section.
-// Call this immediately after config.Init() at startup.
-// Any corrected values must be saved back to disk by the caller.
-func NormalizeAll() AllWarnings {
+// NormalizeAll normalizes every configuration section after configuration is loaded.
+// The caller is responsible for persisting any corrections.
+func NormalizeAll(cfg *config.ScannerConfig) AllWarnings {
 	return AllWarnings{
-		General: NormalizeGeneral(config.GetGeneral()),
-		Writer:  NormalizeWriter(config.GetWriter()),
-		ICMP:    NormalizeICMP(config.GetICMP()),
-		TCP:     NormalizeTCP(config.GetTCP()),
-		HTTP:    NormalizeHTTP(config.GetHTTP()),
-		Xray:    NormalizeXray(config.GetXray()),
-		DNS:     NormalizeDNS(config.GetDNS()),
+		General: NormalizeGeneral(&cfg.General),
+		Writer:  NormalizeWriter(&cfg.Writer),
+		ICMP:    NormalizeICMP(&cfg.ICMP),
+		TCP:     NormalizeTCP(&cfg.TCP),
+		HTTP:    NormalizeHTTP(&cfg.HTTP),
+		Xray:    NormalizeXray(&cfg.Xray),
+		DNS:     NormalizeDNS(&cfg.DNS),
 	}
 }
 
-// AllErrors holds strict validation errors grouped by config section.
-// Each inner map is field name → error.
+// AllErrors groups strict validation errors by configuration section.
 type AllErrors struct {
 	General map[string]error
 	Writer  map[string]error
@@ -52,7 +49,7 @@ type AllErrors struct {
 	DNS     map[string]error
 }
 
-// HasErrors reports whether any section has validation errors.
+// HasErrors reports whether any configuration section contains validation errors.
 func (a AllErrors) HasErrors() bool {
 	return len(a.General) > 0 ||
 		len(a.Writer) > 0 ||
@@ -63,16 +60,15 @@ func (a AllErrors) HasErrors() bool {
 		len(a.DNS) > 0
 }
 
-// ValidateAll runs Validate* on every live config section.
-// Useful for a runtime health check endpoint.
-func ValidateAll() AllErrors {
+// ValidateAll strictly validates every configuration section.
+func ValidateAll(cfg config.ScannerConfig) AllErrors {
 	return AllErrors{
-		General: ValidateGeneral(config.GetGeneral()),
-		Writer:  ValidateWriter(config.GetWriter()),
-		ICMP:    ValidateICMP(config.GetICMP()),
-		TCP:     ValidateTCP(config.GetTCP()),
-		HTTP:    ValidateHTTP(config.GetHTTP()),
-		Xray:    ValidateXray(config.GetXray()),
-		DNS:     ValidateDNS(config.GetDNS()),
+		General: ValidateGeneral(cfg.General),
+		Writer:  ValidateWriter(cfg.Writer),
+		ICMP:    ValidateICMP(cfg.ICMP),
+		TCP:     ValidateTCP(cfg.TCP),
+		HTTP:    ValidateHTTP(cfg.HTTP),
+		Xray:    ValidateXray(cfg.Xray),
+		DNS:     ValidateDNS(cfg.DNS),
 	}
 }

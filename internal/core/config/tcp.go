@@ -8,16 +8,16 @@ type TCPConfig struct {
 	Port         int        `toml:"port"`
 	Timeout      DurationMS `toml:"timeout"`
 	Tries        uint16     `toml:"tries"`
-	PrefixOutput string     `toml:"prefix_output"`
+	OutputPrefix string     `toml:"prefix_output"`
 }
 
 // DefaultTCPConfig returns the default configuration for TCP scanning.
-func DefaultTCPConfig() *TCPConfig {
-	return &TCPConfig{
+func DefaultTCPConfig() TCPConfig {
+	return TCPConfig{
 		Workers:      200,
 		Port:         80,
 		Timeout:      NewDurationMS(3 * time.Second),
 		Tries:        1,
-		PrefixOutput: "tcp_",
+		OutputPrefix: "tcp_",
 	}
 }

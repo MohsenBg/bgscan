@@ -481,10 +481,6 @@ func TestIsValidHTTPStatusCode(t *testing.T) {
 	}
 }
 
-// ============================================================================
-// Test helpers
-// ============================================================================
-
 // checkErr asserts that err wraps wantErr. If wantErr is nil, err must be nil.
 func checkErr(t *testing.T, fn string, err error, wantErr error) {
 	t.Helper()

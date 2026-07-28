@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"bgscan/internal/core/config"
 	"bgscan/internal/ui/theme"
 
 	"charm.land/lipgloss/v2"
@@ -53,14 +54,14 @@ var (
 //
 // Between steps, a short pause is introduced for improved UI readability.
 // On completion, the user is prompted to press Enter.
-func RunHealthChecks() {
+func RunHealthChecks(cfg *config.ScannerConfig, store *config.Store) {
 	checkLoggerHealth()
 	pause(500 * time.Millisecond)
 	fmt.Println()
 
 	theme.Init()
 
-	checkConfigHealth()
+	_ = checkConfigHealth(cfg, store)
 	pause(500 * time.Millisecond)
 	fmt.Println()
 

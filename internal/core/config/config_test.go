@@ -1,270 +1,146 @@
 package config
 
 import (
-	"sync"
+	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 )
 
-// ============================================================================
-// Singleton
-// ============================================================================
+func newTestStore(t *testing.T) Store {
+	t.Helper()
 
-func TestGet_ReturnsSameInstance(t *testing.T) {
-	a := Get()
-	b := Get()
-	if a != b {
-		t.Error("Get() returned different instances — singleton broken")
+	return NewStore(WithSettingsDir(t.TempDir()))
+}
+
+func defaultScannerConfig() ScannerConfig {
+	return ScannerConfig{
+		General: DefaultGeneralConfig(),
+		Writer:  DefaultWriterConfig(),
+		ICMP:    DefaultICMPConfig(),
+		TCP:     DefaultTCPConfig(),
+		HTTP:    DefaultHTTPConfig(),
+		Xray:    DefaultXrayConfig(),
+		DNS:     DefaultDNSConfig(),
 	}
 }
 
-func TestGet_NotNil(t *testing.T) {
-	cfg := Get()
-	if cfg == nil {
-		t.Fatal("Get() returned nil")
+func TestNewStore_UsesDefaultDirectory(t *testing.T) {
+	store := NewStore()
+
+	if store.dir != settingsDir {
+		t.Fatalf("expected directory %q, got %q", settingsDir, store.dir)
 	}
 }
 
-func TestGet_AllSubconfigsInitialized(t *testing.T) {
-	cfg := Get()
+func TestNewStore_UsesConfiguredDirectory(t *testing.T) {
+	dir := t.TempDir()
 
-	if cfg.General == nil {
-		t.Error("General is nil")
-	}
-	if cfg.Writer == nil {
-		t.Error("Writer is nil")
-	}
-	if cfg.ICMP == nil {
-		t.Error("ICMP is nil")
-	}
-	if cfg.TCP == nil {
-		t.Error("TCP is nil")
-	}
-	if cfg.HTTP == nil {
-		t.Error("HTTP is nil")
-	}
-	if cfg.Xray == nil {
-		t.Error("Xray is nil")
-	}
-	if cfg.DNS == nil {
-		t.Error("DNS is nil")
+	store := NewStore(WithSettingsDir(dir))
+
+	if store.dir != dir {
+		t.Fatalf("expected directory %q, got %q", dir, store.dir)
 	}
 }
 
-// ============================================================================
-// Thread-safe Getters
-// ============================================================================
+func TestStoreLoad_CreatesDefaultFiles(t *testing.T) {
+	store := newTestStore(t)
 
-func TestGetters_ReturnNonNil(t *testing.T) {
-	if GetGeneral() == nil {
-		t.Error("GetGeneral() returned nil")
-	}
-	if GetWriter() == nil {
-		t.Error("GetWriter() returned nil")
-	}
-	if GetICMP() == nil {
-		t.Error("GetICMP() returned nil")
-	}
-	if GetTCP() == nil {
-		t.Error("GetTCP() returned nil")
-	}
-	if GetHTTP() == nil {
-		t.Error("GetHTTP() returned nil")
-	}
-	if GetXray() == nil {
-		t.Error("GetXray() returned nil")
-	}
-	if GetDNS() == nil {
-		t.Error("GetDNS() returned nil")
-	}
-}
-
-func TestGetters_MatchSingleton(t *testing.T) {
-	cfg := Get()
-
-	if GetGeneral() != cfg.General {
-		t.Error("GetGeneral() does not match singleton General")
-	}
-	if GetWriter() != cfg.Writer {
-		t.Error("GetWriter() does not match singleton Writer")
-	}
-	if GetICMP() != cfg.ICMP {
-		t.Error("GetICMP() does not match singleton ICMP")
-	}
-	if GetTCP() != cfg.TCP {
-		t.Error("GetTCP() does not match singleton TCP")
-	}
-	if GetHTTP() != cfg.HTTP {
-		t.Error("GetHTTP() does not match singleton HTTP")
-	}
-	if GetXray() != cfg.Xray {
-		t.Error("GetXray() does not match singleton Xray")
-	}
-	if GetDNS() != cfg.DNS {
-		t.Error("GetDNS() does not match singleton DNS")
-	}
-}
-
-// ============================================================================
-// Internal Setters
-// ============================================================================
-
-func TestSetters_UpdateSingleton(t *testing.T) {
-	original := GetGeneral()
-
-	newCfg := DefaultGeneralConfig()
-	newCfg.BatchSize = 9999
-	setGeneral(newCfg)
-
-	if GetGeneral().BatchSize != 9999 {
-		t.Errorf("after setGeneral, BatchSize = %d, want 9999", GetGeneral().BatchSize)
+	got, err := store.Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
 	}
 
-	// restore
-	setGeneral(original)
-}
-
-func TestSetters_AllSubconfigs(t *testing.T) {
-	// Writer
-	origWriter := GetWriter()
-	newWriter := DefaultWriterConfig()
-	newWriter.ChanSize = 512
-	setWriter(newWriter)
-	if GetWriter().ChanSize != 512 {
-		t.Errorf("setWriter: ChanSize = %d, want 512", GetWriter().ChanSize)
-	}
-	setWriter(origWriter)
-
-	// ICMP
-	origICMP := GetICMP()
-	newICMP := DefaultICMPConfig()
-	newICMP.Workers = 42
-	setICMP(newICMP)
-	if GetICMP().Workers != 42 {
-		t.Errorf("setICMP: Workers = %d, want 42", GetICMP().Workers)
-	}
-	setICMP(origICMP)
-
-	// TCP
-	origTCP := GetTCP()
-	newTCP := DefaultTCPConfig()
-	newTCP.Port = 8080
-	setTCP(newTCP)
-	if GetTCP().Port != 8080 {
-		t.Errorf("setTCP: Port = %d, want 8080", GetTCP().Port)
-	}
-	setTCP(origTCP)
-
-	// HTTP
-	origHTTP := GetHTTP()
-	newHTTP := DefaultHTTPConfig()
-	newHTTP.Host = "test.local"
-	setHTTP(newHTTP)
-	if GetHTTP().Host != "test.local" {
-		t.Errorf("setHTTP: Host = %q, want %q", GetHTTP().Host, "test.local")
-	}
-	setHTTP(origHTTP)
-
-	// Xray
-	origXray := GetXray()
-	newXray := DefaultXrayConfig()
-	newXray.Workers = 16
-	setXray(newXray)
-	if GetXray().Workers != 16 {
-		t.Errorf("setXray: Workers = %d, want 16", GetXray().Workers)
-	}
-	setXray(origXray)
-
-	// DNS
-	origDNS := GetDNS()
-	newDNS := DefaultDNSConfig()
-	newDNS.Resolver.Port = 5353
-	setDNS(newDNS)
-	if GetDNS().Resolver.Port != 5353 {
-		t.Errorf("setDNS: Resolver.Port = %d, want 5353", GetDNS().Resolver.Port)
-	}
-	setDNS(origDNS)
-}
-
-// ============================================================================
-// Concurrency — run with: go test -race
-// ============================================================================
-
-func TestConcurrentReads(t *testing.T) {
-	const goroutines = 100
-	var wg sync.WaitGroup
-	wg.Add(goroutines)
-
-	for range goroutines {
-		go func() {
-			defer wg.Done()
-			_ = GetGeneral()
-			_ = GetWriter()
-			_ = GetICMP()
-			_ = GetTCP()
-			_ = GetHTTP()
-			_ = GetXray()
-			_ = GetDNS()
-		}()
+	want := defaultScannerConfig()
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected config:\nwant: %+v\ngot:  %+v", want, got)
 	}
 
-	wg.Wait()
-}
-
-func TestConcurrentReadsAndWrites(t *testing.T) {
-	const goroutines = 50
-	var wg sync.WaitGroup
-	wg.Add(goroutines * 2)
-
-	// readers
-	for i := 0; i < goroutines; i++ {
-		go func() {
-			defer wg.Done()
-			_ = GetGeneral()
-			_ = GetTCP()
-		}()
+	files := []string{
+		generalFile,
+		writerFile,
+		icmpFile,
+		tcpFile,
+		httpFile,
+		xrayFile,
+		dnsFile,
 	}
 
-	// writers
-	for range goroutines {
-		go func() {
-			defer wg.Done()
-			setGeneral(DefaultGeneralConfig())
-			setTCP(DefaultTCPConfig())
-		}()
-	}
+	for _, filename := range files {
+		path := store.path(filename)
 
-	wg.Wait()
-}
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Errorf("expected settings file %q: %v", path, err)
+			continue
+		}
 
-func TestConcurrentGet_SingleInstance(t *testing.T) {
-	const goroutines = 200
-	instances := make([]*ScannerConfig, goroutines)
-	var wg sync.WaitGroup
-	wg.Add(goroutines)
-
-	for i := range goroutines {
-		go func() {
-			defer wg.Done()
-			instances[i] = Get()
-		}()
-	}
-
-	wg.Wait()
-
-	first := instances[0]
-	for i, inst := range instances {
-		if inst != first {
-			t.Errorf("goroutine %d got a different instance — singleton broken under concurrency", i)
+		if info.IsDir() {
+			t.Errorf("expected file at %q, found directory", path)
 		}
 	}
 }
 
-// ============================================================================
-// AppVersion
-// ============================================================================
+func TestStoreLoad_ReturnsErrorForInvalidFile(t *testing.T) {
+	store := newTestStore(t)
+	path := store.path(generalFile)
 
-func TestAppVersion_NotEmpty(t *testing.T) {
-	if AppVersion == "" {
-		t.Error("AppVersion is empty")
+	if err := os.WriteFile(path, []byte("invalid = ["), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := store.Load()
+	if err == nil {
+		t.Fatal("expected error for invalid TOML")
+	}
+}
+
+func TestStoreSave_WritesAllConfigurations(t *testing.T) {
+	store := newTestStore(t)
+	want := defaultScannerConfig()
+
+	if err := store.SaveGeneral(want.General); err != nil {
+		t.Fatalf("SaveGeneral() error: %v", err)
+	}
+	if err := store.SaveWriter(want.Writer); err != nil {
+		t.Fatalf("SaveWriter() error: %v", err)
+	}
+	if err := store.SaveICMP(want.ICMP); err != nil {
+		t.Fatalf("SaveICMP() error: %v", err)
+	}
+	if err := store.SaveTCP(want.TCP); err != nil {
+		t.Fatalf("SaveTCP() error: %v", err)
+	}
+	if err := store.SaveHTTP(want.HTTP); err != nil {
+		t.Fatalf("SaveHTTP() error: %v", err)
+	}
+	if err := store.SaveXray(want.Xray); err != nil {
+		t.Fatalf("SaveXray() error: %v", err)
+	}
+	if err := store.SaveDNS(want.DNS); err != nil {
+		t.Fatalf("SaveDNS() error: %v", err)
+	}
+
+	got, err := store.Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("saved config was not loaded correctly:\nwant: %+v\ngot:  %+v", want, got)
+	}
+}
+
+func TestStoreSave_ReturnsErrorWhenDirectoryIsAFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "not-a-directory")
+
+	if err := os.WriteFile(path, []byte("file"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store := NewStore(WithSettingsDir(path))
+
+	if err := store.SaveTCP(DefaultTCPConfig()); err == nil {
+		t.Fatal("expected save error")
 	}
 }

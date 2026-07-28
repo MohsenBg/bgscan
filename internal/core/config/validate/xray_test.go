@@ -47,7 +47,7 @@ func TestXrayConfig(t *testing.T) {
 		},
 		{
 			name:          "DownloadSpeed too high",
-			mutateCfg:     func(c *config.XrayConfig) { c.DownloadSpeed = 10001 },
+			mutateCfg:     func(c *config.XrayConfig) { c.DownloadSpeed = 100001 },
 			wantErrKeys:   []string{"DownloadSpeed"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
@@ -91,12 +91,12 @@ func TestXrayConfig(t *testing.T) {
 		},
 		{
 			name:          "PrefixOutput empty",
-			mutateCfg:     func(c *config.XrayConfig) { c.PrefixOutput = "" },
+			mutateCfg:     func(c *config.XrayConfig) { c.OutputPrefix = "" },
 			wantErrKeys:   []string{"PrefixOutput"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
-				if c.PrefixOutput != def.PrefixOutput {
-					t.Errorf("PrefixOutput = %q, want %q", c.PrefixOutput, def.PrefixOutput)
+				if c.OutputPrefix != def.OutputPrefix {
+					t.Errorf("PrefixOutput = %q, want %q", c.OutputPrefix, def.OutputPrefix)
 				}
 			},
 		},
@@ -105,7 +105,7 @@ func TestXrayConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := def
-			tt.mutateCfg(cfg)
+			tt.mutateCfg(&cfg)
 			errs := ValidateXray(cfg)
 			if len(errs) != len(tt.wantErrKeys) {
 				t.Errorf("ValidateXray() returned %d errors, want %d. Errors: %v", len(errs), len(tt.wantErrKeys), errs)
@@ -117,12 +117,12 @@ func TestXrayConfig(t *testing.T) {
 			}
 
 			cfg = def
-			tt.mutateCfg(cfg)
-			warns := NormalizeXray(cfg)
+			tt.mutateCfg(&cfg)
+			warns := NormalizeXray(&cfg)
 			if len(warns) != tt.wantWarnCount {
 				t.Errorf("NormalizeXray() returned %d warnings, want %d. Warnings: %v", len(warns), tt.wantWarnCount, warns)
 			}
-			tt.checkFixed(t, cfg)
+			tt.checkFixed(t, &cfg)
 		})
 	}
 }

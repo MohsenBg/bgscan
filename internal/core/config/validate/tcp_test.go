@@ -7,9 +7,6 @@ import (
 	"bgscan/internal/core/config"
 )
 
-// ============================================================================
-// TCP Config Tests
-// ============================================================================
 func TestTCPConfig(t *testing.T) {
 	def := config.DefaultTCPConfig()
 	tests := []struct {
@@ -83,12 +80,12 @@ func TestTCPConfig(t *testing.T) {
 		},
 		{
 			name:          "PrefixOutput invalid",
-			mutateCfg:     func(c *config.TCPConfig) { c.PrefixOutput = "invalid/prefix" },
+			mutateCfg:     func(c *config.TCPConfig) { c.OutputPrefix = "invalid/prefix" },
 			wantErrKeys:   []string{"PrefixOutput"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.TCPConfig) {
-				if c.PrefixOutput != def.PrefixOutput {
-					t.Errorf("PrefixOutput = %q, want %q", c.PrefixOutput, def.PrefixOutput)
+				if c.OutputPrefix != def.OutputPrefix {
+					t.Errorf("PrefixOutput = %q, want %q", c.OutputPrefix, def.OutputPrefix)
 				}
 			},
 		},
@@ -97,7 +94,7 @@ func TestTCPConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := def
-			tt.mutateCfg(cfg)
+			tt.mutateCfg(&cfg)
 			errs := ValidateTCP(cfg)
 			if len(errs) != len(tt.wantErrKeys) {
 				t.Errorf("ValidateTCP() returned %d errors, want %d. Errors: %v", len(errs), len(tt.wantErrKeys), errs)
@@ -109,12 +106,12 @@ func TestTCPConfig(t *testing.T) {
 			}
 
 			cfg = def
-			tt.mutateCfg(cfg)
-			warns := NormalizeTCP(cfg)
+			tt.mutateCfg(&cfg)
+			warns := NormalizeTCP(&cfg)
 			if len(warns) != tt.wantWarnCount {
 				t.Errorf("NormalizeTCP() returned %d warnings, want %d. Warnings: %v", len(warns), tt.wantWarnCount, warns)
 			}
-			tt.checkFixed(t, cfg)
+			tt.checkFixed(t, &cfg)
 		})
 	}
 }

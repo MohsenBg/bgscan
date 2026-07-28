@@ -1,17 +1,10 @@
-// Package validate provides validation and normalization for all scanner
-// configuration sections.
+// Package validate validates scanner configuration and normalizes invalid values.
 //
 // Two behaviors are intentionally separated:
 //
-//   - Validate*  strict checks that return per-field errors.
-//     Used by the UI (OnValidate) and SaveConfig to reject bad values
-//     before they reach disk.
+//   - Validate* performs strict checks and returns per-field errors.
 //
-//   - Normalize* lenient checks that auto-fix bad values to their defaults
-//     and return a list of Warnings describing what changed.
-//     Used only at TOML load time so the app always starts successfully.
-//     After normalizing, the corrected config is written back to disk so
-//     the TOML file always reflects what the app is actually running with.
+//   - Normalize* replaces invalid values with defaults and reports the changes.
 package validate
 
 import (
@@ -27,30 +20,32 @@ import (
 	"bgscan/internal/core/config"
 )
 
-// ============================================================================
-// Sentinel errors — returned (wrapped) by every check* function.
-// Callers can use errors.Is to distinguish failure kinds without
-// parsing message strings.
-// ============================================================================
-
 var (
-	ErrOutOfRange        = errors.New("value out of range")
-	ErrEmpty             = errors.New("value must not be empty")
-	ErrInvalidEnum       = errors.New("value not in allowed set")
-	ErrEnumOrder         = errors.New("min value exceeds max value")
-	ErrIllegalChars      = errors.New("value contains illegal characters")
-	ErrInvalidDomain     = errors.New("invalid domain")
-	ErrMalformedURL      = errors.New("malformed URL")
-	ErrPathOrPort        = errors.New("domain must not contain path or port")
+	// ErrOutOfRange indicates a value outside its allowed range.
+	ErrOutOfRange = errors.New("value out of range")
+	// ErrEmpty indicates a required value is empty.
+	ErrEmpty = errors.New("value must not be empty")
+	// ErrInvalidEnum indicates a value is not one of the allowed values.
+	ErrInvalidEnum = errors.New("value not in allowed set")
+	// ErrEnumOrder indicates a minimum value exceeds its maximum.
+	ErrEnumOrder = errors.New("min value exceeds max value")
+	// ErrIllegalChars indicates a value contains unsupported filename characters.
+	ErrIllegalChars = errors.New("value contains illegal characters")
+	// ErrInvalidDomain indicates a domain is malformed.
+	ErrInvalidDomain = errors.New("invalid domain")
+	// ErrMalformedURL indicates a URL cannot be parsed.
+	ErrMalformedURL = errors.New("malformed URL")
+	// ErrPathOrPort indicates a domain includes a path or port.
+	ErrPathOrPort = errors.New("domain must not contain path or port")
+	// ErrInvalidStatusCode indicates a status code is outside the HTTP range.
 	ErrInvalidStatusCode = errors.New("invalid HTTP status code")
-	ErrInvalidPubKey     = errors.New("invalid public key")
-	ErrLeadingTrailing   = errors.New("value must not start or end with a dot or space")
-	ErrDotDot            = errors.New("value cannot contain '..'")
+	// ErrInvalidPubKey indicates a public key is not a 64-character hexadecimal value.
+	ErrInvalidPubKey = errors.New("invalid public key")
+	// ErrLeadingTrailing indicates a value starts or ends with a dot or space.
+	ErrLeadingTrailing = errors.New("value must not start or end with a dot or space")
+	// ErrDotDot indicates a value contains two consecutive dots.
+	ErrDotDot = errors.New("value cannot contain '..'")
 )
-
-// ============================================================================
-// Warning — describes one auto-fix applied during normalization
-// ============================================================================
 
 // Warning describes a single field that was auto-fixed during normalization.
 type Warning struct {
@@ -64,10 +59,6 @@ type Warning struct {
 func (w Warning) String() string {
 	return fmt.Sprintf("%s: %v → %v (%s)", w.Field, w.OldVal, w.NewVal, w.Reason)
 }
-
-// ============================================================================
-// Internal helpers — shared by all Validate* and Normalize* functions
-// ============================================================================
 
 func checkInt(field string, v, min, max int) error {
 	if v < min || v > max {
@@ -113,14 +104,11 @@ func checkStringSlice(field string, v []string) error {
 	return nil
 }
 
-// checkEnumOrder verifies that the 'min' value appears before or at the same
-// index as the 'max' value in the provided ordered slice.
 func checkEnumOrder(minField, maxField, minVal, maxVal string, allowed []string) error {
 	minIdx := slices.Index(allowed, minVal)
 	maxIdx := slices.Index(allowed, maxVal)
 
-	// If either value is not in the allowed list, we return nil here.
-	// The individual checkEnum calls will catch and report the invalid values.
+	// Individual enum checks report values not present in allowed.
 	if minIdx == -1 || maxIdx == -1 {
 		return nil
 	}
@@ -133,12 +121,8 @@ func checkEnumOrder(minField, maxField, minVal, maxVal string, allowed []string)
 	return nil
 }
 
-// illegalFilenameRegex matches characters that are illegal in filenames on most
-// operating systems (Windows, Linux, macOS), including ASCII control characters.
 var illegalFilenameRegex = regexp.MustCompile(`[\\/:*?"<>|\x00-\x1F]`)
 
-// checkPrefix verifies that the string is safe to use as a filename or filename prefix.
-// It rejects empty strings, path separators, reserved characters, and leading/trailing dots/spaces.
 func checkPrefix(field, prefix string) error {
 	if strings.TrimSpace(prefix) == "" {
 		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
@@ -157,8 +141,6 @@ func checkPrefix(field, prefix string) error {
 	return nil
 }
 
-// checkDirectoryName verifies that the string is safe to use as a single directory name.
-// It rejects path traversal, nested directories, reserved characters, and invalid filesystem names.
 func checkDirectoryName(field, name string) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
@@ -184,8 +166,6 @@ func checkDirectoryName(field, name string) error {
 	return nil
 }
 
-// checkHost checks if the host is a valid domain, optionally followed by a path and/or port.
-// Examples: "google.com", "google.com/path", "example.com:8080/api/v1"
 func checkHost(field, host string) error {
 	if strings.TrimSpace(host) == "" {
 		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
@@ -217,8 +197,6 @@ func checkDomain(field, domain string) error {
 	return nil
 }
 
-// checkSNI checks if the SNI is a strict, valid domain without any paths, ports, or prefixes.
-// Examples: "google.com", "example.com"
 func checkSNI(field, sni string) error {
 	if strings.TrimSpace(sni) == "" {
 		return nil
@@ -239,7 +217,6 @@ func checkSNI(field, sni string) error {
 	return nil
 }
 
-// checkStatusCodes validates that all status codes are in the valid HTTP range.
 func checkStatusCodes(fieldName string, codes []int) error {
 	for _, c := range codes {
 		if !isValidHTTPStatusCode(c) {
@@ -250,10 +227,8 @@ func checkStatusCodes(fieldName string, codes []int) error {
 	return nil
 }
 
-// pubKeyRegex matches a 64-character hexadecimal string (common for Curve25519/Ed25519 keys).
 var pubKeyRegex = regexp.MustCompile(`^[a-fA-F0-9]{64}$`)
 
-// checkPubKey verifies that the string is a valid 64-character hexadecimal public key.
 func checkPubKey(field, key string) error {
 	if strings.TrimSpace(key) == "" {
 		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
@@ -265,10 +240,6 @@ func checkPubKey(field, key string) error {
 
 	return nil
 }
-
-// ============================================================================
-// Internal helpers for Normalize* functions
-// ============================================================================
 
 func fixInt(field string, v *int, min, max, def int, warns *[]Warning) {
 	if err := checkInt(field, *v, min, max); err != nil {
@@ -310,8 +281,6 @@ func fixStringSlice(field string, v *[]string, def []string, warns *[]Warning) {
 	}
 }
 
-// fixDurationMS is like fixDuration but operates directly on a DurationMS
-// field, avoiding the need to convert back and forth in every caller.
 func fixDurationMS(field string, v *config.DurationMS, min, max time.Duration, def config.DurationMS, warns *[]Warning) {
 	if err := checkDuration(field, v.Duration(), min, max); err != nil {
 		old := *v
@@ -352,9 +321,6 @@ func fixHTTPStatusCodes(field string, v *[]int, def []int, warns *[]Warning) {
 	}
 }
 
-// fixEnumOrder verifies that the 'min' value appears before or at the same
-// index as the 'max' value in the provided ordered slice. If the order is
-// invalid, it resets both fields to their respective defaults.
 func fixEnumOrder(minField, maxField string, minVal, maxVal *string, minDef, maxDef string, allowed []string, warns *[]Warning) {
 	if err := checkEnumOrder(minField, maxField, *minVal, *maxVal, allowed); err != nil {
 		oldMin, oldMax := *minVal, *maxVal
@@ -393,10 +359,6 @@ func fixDirectoryName(field string, v *string, def string, warns *[]Warning) {
 	}
 }
 
-// ============================================================================
-// Domain Helper
-// ============================================================================
-
 var domainRegex = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$`)
 
 func isValidDomain(host string) bool {
@@ -434,7 +396,6 @@ func isValidDomain(host string) bool {
 	return true
 }
 
-// isValidHTTPStatusCode checks if a status code is a valid HTTP status code (100-599).
 func isValidHTTPStatusCode(code int) bool {
 	return code >= 100 && code <= 599
 }

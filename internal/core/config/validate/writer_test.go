@@ -7,9 +7,6 @@ import (
 	"bgscan/internal/core/config"
 )
 
-// ============================================================================
-// Writer Config Tests
-// ============================================================================
 func TestWriterConfig(t *testing.T) {
 	def := config.DefaultWriterConfig()
 	tests := []struct {
@@ -75,7 +72,7 @@ func TestWriterConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := def
-			tt.mutateCfg(cfg)
+			tt.mutateCfg(&cfg)
 			errs := ValidateWriter(cfg)
 			if len(errs) != len(tt.wantErrKeys) {
 				t.Errorf("ValidateWriter() returned %d errors, want %d. Errors: %v", len(errs), len(tt.wantErrKeys), errs)
@@ -87,12 +84,12 @@ func TestWriterConfig(t *testing.T) {
 			}
 
 			cfg = def
-			tt.mutateCfg(cfg)
-			warns := NormalizeWriter(cfg)
+			tt.mutateCfg(&cfg)
+			warns := NormalizeWriter(&cfg)
 			if len(warns) != tt.wantWarnCount {
 				t.Errorf("NormalizeWriter() returned %d warnings, want %d. Warnings: %v", len(warns), tt.wantWarnCount, warns)
 			}
-			tt.checkFixed(t, cfg)
+			tt.checkFixed(t, &cfg)
 		})
 	}
 }

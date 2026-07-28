@@ -9,19 +9,19 @@ type XrayConfig struct {
 	DownloadSpeed        int              `toml:"download_speed"`
 	UploadSpeed          int              `toml:"upload_speed"`
 	Timeout              DurationMS       `toml:"timeout"`
-	PrefixOutput         string           `toml:"prefix_output"`
+	OutputPrefix         string           `toml:"prefix_output"`
 	PreScanType          string           `toml:"pre_scan_type"`
 }
 
 // DefaultXrayConfig returns the default configuration for Xray connectivity testing.
-func DefaultXrayConfig() *XrayConfig {
-	return &XrayConfig{
+func DefaultXrayConfig() XrayConfig {
+	return XrayConfig{
 		Workers:              32,
 		ConnectivityTestType: ConnectivityOnly,
 		DownloadSpeed:        100,
 		UploadSpeed:          50,
 		PreScanType:          "none",
 		Timeout:              NewDurationMS(6 * time.Second),
-		PrefixOutput:         "xray_",
+		OutputPrefix:         "xray_",
 	}
 }

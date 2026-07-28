@@ -2,12 +2,11 @@ package config
 
 import "time"
 
-// DNSConfig represents the top‑level DNS configuration, combining resolver,
-// DNSTT, and SlipStream settings.
+// DNSConfig contains resolver, DNSTT, and SlipStream settings.
 type DNSConfig struct {
-	Resolver   *ResolverConfig   `toml:"resolver"`
-	DNSTT      *DNSTTConfig      `toml:"dnstt"`
-	SlipStream *SlipStreamConfig `toml:"slip_stream"`
+	Resolver   ResolverConfig   `toml:"resolver"`
+	DNSTT      DNSTTConfig      `toml:"dnstt"`
+	SlipStream SlipStreamConfig `toml:"slip_stream"`
 }
 
 // ResolverConfig defines settings for traditional DNS resolvers.
@@ -35,7 +34,7 @@ type DNSTTConfig struct {
 	Domain       string     `toml:"domain"`
 	PublicKey    string     `toml:"public_key"`
 	Timeout      DurationMS `toml:"timeout"`
-	PrefixOutput string     `toml:"prefix_output"`
+	OutputPrefix string     `toml:"prefix_output"`
 }
 
 // SlipStreamConfig defines configuration for SlipStream-based DNS scanning.
@@ -45,13 +44,13 @@ type SlipStreamConfig struct {
 	Domain       string     `toml:"domain"`
 	CertPath     string     `toml:"cert_path"`
 	Timeout      DurationMS `toml:"timeout"`
-	PrefixOutput string     `toml:"prefix_output"`
+	OutputPrefix string     `toml:"prefix_output"`
 }
 
-// DefaultDNSConfig returns the default configuration for DNS‑based scanning methods.
-func DefaultDNSConfig() *DNSConfig {
-	return &DNSConfig{
-		Resolver: &ResolverConfig{
+// DefaultDNSConfig returns the default DNS scanning configuration.
+func DefaultDNSConfig() DNSConfig {
+	return DNSConfig{
+		Resolver: ResolverConfig{
 			Workers:         100,
 			Protocol:        "udp",
 			Domain:          "google.com",
@@ -67,21 +66,21 @@ func DefaultDNSConfig() *DNSConfig {
 			DPITries:        2,
 			PrefixOutput:    "dns_resolver_",
 		},
-		DNSTT: &DNSTTConfig{
+		DNSTT: DNSTTConfig{
 			Enabled:      false,
 			Workers:      20,
 			Domain:       "ns.example.com",
-			PublicKey:    "",
+			PublicKey:    "0000000000000000000000000000000000000000000000000000000000000000",
 			Timeout:      NewDurationMS(8 * time.Second),
-			PrefixOutput: "dns_dnstt_",
+			OutputPrefix: "dns_dnstt_",
 		},
-		SlipStream: &SlipStreamConfig{
+		SlipStream: SlipStreamConfig{
 			Enabled:      false,
 			Workers:      20,
 			Domain:       "ns.example.com",
 			CertPath:     "",
 			Timeout:      NewDurationMS(8 * time.Second),
-			PrefixOutput: "dns_slipstream_",
+			OutputPrefix: "dns_slipstream_",
 		},
 	}
 }

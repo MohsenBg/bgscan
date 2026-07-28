@@ -15,6 +15,7 @@ import (
 
 func mustParseAddr(t *testing.T, s string) netip.Addr {
 	t.Helper()
+
 	ip, err := netip.ParseAddr(s)
 	if err != nil {
 		t.Fatalf("ParseAddr(%q): %v", s, err)
@@ -33,49 +34,42 @@ func mustWriteShuffleFile(t *testing.T, name, content string) string {
 	return path
 }
 
-func collectFromChan(ch <-chan string) []string {
-	var out []string
+func collectFromChan(ch <-chan netip.Addr) []netip.Addr {
+	var out []netip.Addr
 	for s := range ch {
 		out = append(out, s)
 	}
 	return out
 }
 
+func addrStrings(addrs []netip.Addr) []string {
+	out := make([]string, 0, len(addrs))
+	for _, a := range addrs {
+		out = append(out, a.String())
+	}
+	return out
+}
+
 func TestSaturatingAdd(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		a    uint64
 		b    uint64
 		want uint64
 	}{
-		{
-			name: "normal",
-			a:    10,
-			b:    20,
-			want: 30,
-		},
-		{
-			name: "zero",
-			a:    0,
-			b:    0,
-			want: 0,
-		},
-		{
-			name: "overflow",
-			a:    ^uint64(0),
-			b:    1,
-			want: ^uint64(0),
-		},
-		{
-			name: "near overflow",
-			a:    ^uint64(0) - 5,
-			b:    10,
-			want: ^uint64(0),
-		},
+		{"normal", 10, 20, 30},
+		{"zero", 0, 0, 0},
+		{"overflow", ^uint64(0), 1, ^uint64(0)},
+		{"near overflow", ^uint64(0) - 5, 10, ^uint64(0)},
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := saturatingAdd(tt.a, tt.b)
 			if got != tt.want {
 				t.Fatalf("saturatingAdd(%d, %d) = %d, want %d", tt.a, tt.b, got, tt.want)
@@ -85,51 +79,58 @@ func TestSaturatingAdd(t *testing.T) {
 }
 
 func TestAddOffsetToAddr_IPv4(t *testing.T) {
+	t.Parallel()
+
 	ip := mustParseAddr(t, "192.168.1.1")
-
 	got := addOffsetToAddr(ip, 5)
-
 	want := mustParseAddr(t, "192.168.1.6")
+
 	if got != want {
 		t.Fatalf("addOffsetToAddr() = %v, want %v", got, want)
 	}
 }
 
 func TestAddOffsetToAddr_CarryAcrossOctets(t *testing.T) {
+	t.Parallel()
+
 	ip := mustParseAddr(t, "10.0.0.255")
-
 	got := addOffsetToAddr(ip, 1)
-
 	want := mustParseAddr(t, "10.0.1.0")
+
 	if got != want {
 		t.Fatalf("addOffsetToAddr() = %v, want %v", got, want)
 	}
 }
 
 func TestAddOffsetToAddr_IPv6(t *testing.T) {
+	t.Parallel()
+
 	ip := mustParseAddr(t, "2001:db8::1")
-
 	got := addOffsetToAddr(ip, 2)
-
 	want := mustParseAddr(t, "2001:db8::3")
+
 	if got != want {
 		t.Fatalf("addOffsetToAddr() = %v, want %v", got, want)
 	}
 }
 
 func TestAddBigOffset(t *testing.T) {
+	t.Parallel()
+
 	ip := mustParseAddr(t, "2001:db8::")
-	offset := new(big.Int).Lsh(big.NewInt(1), 64) // 2^64
+	offset := new(big.Int).Lsh(big.NewInt(1), 64)
 
 	got := addBigOffset(ip, offset)
-
 	want := mustParseAddr(t, "2001:db8:0:1::")
+
 	if got != want {
 		t.Fatalf("addBigOffset() = %v, want %v", got, want)
 	}
 }
 
 func TestRandBigIntBelow(t *testing.T) {
+	t.Parallel()
+
 	rng := rand.New(rand.NewSource(123))
 	max := big.NewInt(10)
 
@@ -145,6 +146,8 @@ func TestRandBigIntBelow(t *testing.T) {
 }
 
 func TestGetIPFromCIDRBlocks(t *testing.T) {
+	t.Parallel()
+
 	mi := &MasterIndexer{
 		CIDRBlocks: []CIDRBlock{
 			{
@@ -172,7 +175,10 @@ func TestGetIPFromCIDRBlocks(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.want, func(t *testing.T) {
+			t.Parallel()
+
 			got := mi.getIPFromCIDRBlocks(tt.idx)
 			if got.String() != tt.want {
 				t.Fatalf("getIPFromCIDRBlocks(%d) = %v, want %v", tt.idx, got, tt.want)
@@ -182,6 +188,8 @@ func TestGetIPFromCIDRBlocks(t *testing.T) {
 }
 
 func TestReadIPAtCSVOffset(t *testing.T) {
+	t.Parallel()
+
 	content := "" +
 		"1.1.1.1,1\n" +
 		"2.2.2.2,0\n" +
@@ -193,7 +201,10 @@ func TestReadIPAtCSVOffset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	defer f.Close()
+
+	defer func() {
+		_ = f.Close()
+	}()
 
 	offset := int64(len("1.1.1.1,1\n"))
 	got, err := readIPAtCSVOffset(f, offset)
@@ -207,6 +218,8 @@ func TestReadIPAtCSVOffset(t *testing.T) {
 }
 
 func TestReadIPAtCSVOffset_InvalidIP(t *testing.T) {
+	t.Parallel()
+
 	content := "not-an-ip,1\n"
 	path := mustWriteShuffleFile(t, "ips.csv", content)
 
@@ -214,7 +227,10 @@ func TestReadIPAtCSVOffset_InvalidIP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	defer f.Close()
+
+	defer func() {
+		_ = f.Close()
+	}()
 
 	_, err = readIPAtCSVOffset(f, 0)
 	if err == nil {
@@ -223,6 +239,8 @@ func TestReadIPAtCSVOffset_InvalidIP(t *testing.T) {
 }
 
 func TestNewMasterIndexer_EmptyFile(t *testing.T) {
+	t.Parallel()
+
 	path := mustWriteShuffleFile(t, "empty.csv", "")
 
 	idx, err := NewMasterIndexer(path)
@@ -242,11 +260,14 @@ func TestNewMasterIndexer_EmptyFile(t *testing.T) {
 }
 
 func TestNewMasterIndexer_SinglesOnly(t *testing.T) {
+	t.Parallel()
+
 	content := "" +
 		"1.1.1.1,1\n" +
 		"2.2.2.2,1\n" +
-		"3.3.3.3,0\n" + // disabled
-		"bad-ip,1\n" // invalid
+		"3.3.3.3,0\n" +
+		"bad-ip,1\n"
+
 	path := mustWriteShuffleFile(t, "single.csv", content)
 
 	idx, err := NewMasterIndexer(path)
@@ -254,6 +275,7 @@ func TestNewMasterIndexer_SinglesOnly(t *testing.T) {
 		t.Fatalf("NewMasterIndexer: %v", err)
 	}
 
+	// with correct logic: 2 singles, 0 CIDR IPs
 	if idx.TotalSingles != 2 {
 		t.Fatalf("TotalSingles = %d, want 2", idx.TotalSingles)
 	}
@@ -269,11 +291,14 @@ func TestNewMasterIndexer_SinglesOnly(t *testing.T) {
 }
 
 func TestNewMasterIndexer_CIDRsAndSingles(t *testing.T) {
+	t.Parallel()
+
 	content := "" +
 		"10.0.0.1,1\n" +
-		"192.168.0.0/30,1\n" + // 4 IPs
-		"192.168.1.0/31,1\n" + // 2 IPs
-		"10.0.0.2,0\n" // disabled
+		"192.168.0.0/30,1\n" +
+		"192.168.1.0/31,1\n" +
+		"10.0.0.2,0\n"
+
 	path := mustWriteShuffleFile(t, "mixed.csv", content)
 
 	idx, err := NewMasterIndexer(path)
@@ -281,6 +306,10 @@ func TestNewMasterIndexer_CIDRsAndSingles(t *testing.T) {
 		t.Fatalf("NewMasterIndexer: %v", err)
 	}
 
+	// correct behavior:
+	// single 10.0.0.1 = 1
+	// /30 = 4
+	// /31 = 2
 	if idx.TotalSingles != 1 {
 		t.Fatalf("TotalSingles = %d, want 1", idx.TotalSingles)
 	}
@@ -296,9 +325,11 @@ func TestNewMasterIndexer_CIDRsAndSingles(t *testing.T) {
 }
 
 func TestStreamActiveIPsShuffled_Empty(t *testing.T) {
+	t.Parallel()
+
 	path := mustWriteShuffleFile(t, "empty.csv", "")
 
-	out := make(chan string, 10)
+	out := make(chan netip.Addr, 10)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -317,6 +348,8 @@ func TestStreamActiveIPsShuffled_Empty(t *testing.T) {
 }
 
 func TestStreamActiveIPsShuffled_SingleIPs_NoDuplicates(t *testing.T) {
+	t.Parallel()
+
 	content := "" +
 		"1.1.1.1,1\n" +
 		"2.2.2.2,1\n" +
@@ -324,7 +357,7 @@ func TestStreamActiveIPsShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 
 	path := mustWriteShuffleFile(t, "single.csv", content)
 
-	out := make(chan string, 10)
+	out := make(chan netip.Addr, 10)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -342,31 +375,35 @@ func TestStreamActiveIPsShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 		t.Fatalf("len(got) = %d, want 3", len(got))
 	}
 
-	seen := make(map[string]struct{}, len(got))
-	for _, ip := range got {
+	gotStr := addrStrings(got)
+	seen := make(map[string]struct{}, len(gotStr))
+	for _, ip := range gotStr {
 		seen[ip] = struct{}{}
 	}
 	if len(seen) != 3 {
-		t.Fatalf("got duplicates: %v", got)
+		t.Fatalf("got duplicates: %v", gotStr)
 	}
 
 	wantSet := []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}
-	slices.Sort(got)
+	slices.Sort(gotStr)
 	slices.Sort(wantSet)
-	if !slices.Equal(got, wantSet) {
-		t.Fatalf("got %v, want %v", got, wantSet)
+	if !slices.Equal(gotStr, wantSet) {
+		t.Fatalf("got %v, want %v", gotStr, wantSet)
 	}
 }
 
 func TestStreamActiveIPsShuffled_MixedDataset(t *testing.T) {
+	t.Parallel()
+
 	content := "" +
 		"10.0.0.1,1\n" +
-		"192.168.1.0/30,1\n" + // .0 .1 .2 .3
-		"10.0.0.2,0\n" + // disabled
-		"bad-row,1\n" // invalid
+		"192.168.1.0/30,1\n" +
+		"10.0.0.2,0\n" +
+		"bad-row,1\n"
+
 	path := mustWriteShuffleFile(t, "mixed.csv", content)
 
-	out := make(chan string, 10)
+	out := make(chan netip.Addr, 10)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -380,8 +417,9 @@ func TestStreamActiveIPsShuffled_MixedDataset(t *testing.T) {
 		t.Fatalf("streamActiveIPsShuffled: %v", err)
 	}
 
-	if len(got) != 5 {
-		t.Fatalf("len(got) = %d, want 5; got=%v", len(got), got)
+	gotStr := addrStrings(got)
+	if len(gotStr) != 5 {
+		t.Fatalf("len(got) = %d, want 5; got=%v", len(gotStr), gotStr)
 	}
 
 	wantSet := []string{
@@ -391,14 +429,16 @@ func TestStreamActiveIPsShuffled_MixedDataset(t *testing.T) {
 		"192.168.1.2",
 		"192.168.1.3",
 	}
-	slices.Sort(got)
+	slices.Sort(gotStr)
 	slices.Sort(wantSet)
-	if !slices.Equal(got, wantSet) {
-		t.Fatalf("got %v, want %v", got, wantSet)
+	if !slices.Equal(gotStr, wantSet) {
+		t.Fatalf("got %v, want %v", gotStr, wantSet)
 	}
 }
 
 func TestStreamActiveIPsShuffled_Limit(t *testing.T) {
+	t.Parallel()
+
 	content := "" +
 		"1.1.1.1,1\n" +
 		"2.2.2.2,1\n" +
@@ -407,7 +447,7 @@ func TestStreamActiveIPsShuffled_Limit(t *testing.T) {
 
 	path := mustWriteShuffleFile(t, "limit.csv", content)
 
-	out := make(chan string, 10)
+	out := make(chan netip.Addr, 10)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -427,12 +467,13 @@ func TestStreamActiveIPsShuffled_Limit(t *testing.T) {
 }
 
 func TestStreamActiveIPsShuffled_ContextCanceled(t *testing.T) {
-	content := "" +
-		"10.0.0.0/24,1\n" // 256 IPs, enough to keep loop busy briefly
+	t.Parallel()
+
+	content := "10.0.0.0/24,1\n"
 	path := mustWriteShuffleFile(t, "cancel.csv", content)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	out := make(chan string)
+	out := make(chan netip.Addr)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -440,7 +481,6 @@ func TestStreamActiveIPsShuffled_ContextCanceled(t *testing.T) {
 		close(out)
 	}()
 
-	// receive one item, then cancel
 	select {
 	case <-out:
 		cancel()

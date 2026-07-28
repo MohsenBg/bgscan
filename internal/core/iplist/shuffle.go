@@ -16,25 +16,19 @@ import (
 	"bgscan/internal/logger"
 )
 
-// shuffleMemWarnThreshold is a rough line-count estimate above which
-// NewMasterIndexer will log a warning about peak memory usage.
-// At ~65 bytes per rawEntry, 5M lines ≈ 325MB peak during indexing.
+// Files larger than ~5M lines will cause peak memory to exceed ~325MB during
+// indexing (~65 bytes per entry). Sequential mode is preferred at that scale.
 const shuffleMemWarnThreshold = 5_000_000
 
-// avgLineBytes is the heuristic used to estimate line count from file size.
+// avgLineBytes is used to estimate line count from file size.
 const avgLineBytes = 20
 
 // NewMasterIndexer builds a hybrid index over an IP-list CSV file so that
 // streamActiveIPsShuffled can visit every IP in O(1) space.
 //
-// It counts all IPs using big.Int to handle ranges larger than uint64.
-// If the total fits in uint64, it builds a direct index.
-// If it exceeds uint64, it proportionally slices each range at a random
-// offset so the ranges share the 2^64 address space evenly.
-//
-// Memory note: all parsed entries are held in memory during indexing
-// (~65 bytes per CSV line). A 1M-line file peaks at ~65MB; a 5M-line
-// file peaks at ~325MB. For very large files prefer sequential mode.
+// If the total IP count fits in uint64, a direct index is built.
+// If not (e.g. many large IPv6 ranges), each range is proportionally sliced
+// at a random offset so they share the 2^64 address space evenly.
 func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 	indexer := &MasterIndexer{
 		FilePath:      filePath,
@@ -50,7 +44,6 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 		return indexer, nil
 	}
 
-	// Warn early if the file is large enough to cause memory pressure.
 	if estimatedLines := fi.Size() / avgLineBytes; estimatedLines > shuffleMemWarnThreshold {
 		logger.CoreWarn(
 			"shuffled mode: file %q has ~%dM estimated lines; peak memory during indexing may exceed 300MB — consider sequential mode for very large lists",
@@ -65,7 +58,6 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 		isCIDR  bool
 	}
 
-	// Pre-allocate based on file size to avoid repeated slice doubling.
 	estimatedLines := fi.Size() / avgLineBytes
 	entries := make([]rawEntry, 0, estimatedLines+1)
 
@@ -85,6 +77,7 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 	r := bufio.NewReaderSize(f, 64*1024)
 
 	for {
+		// Compute the line's byte offset before consuming it from the buffer.
 		filePos, _ := f.Seek(0, io.SeekCurrent)
 		lineOffset := filePos - int64(r.Buffered())
 
@@ -103,26 +96,24 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 
 			row, ok := ParseRecord(rec)
 			if ok && row.Enable {
-				if !row.IsCIDR() {
+				if row.IsSingle() {
 					entries = append(entries, rawEntry{offset: lineOffset, size: one, isCIDR: false})
 					totalCount.Add(totalCount, one)
 				} else {
-					prefix, err := netip.ParsePrefix(row.IP)
-					if err == nil {
-						addr := prefix.Masked().Addr()
-						hostBits := 32 - prefix.Bits()
-						if addr.Is6() {
-							hostBits = 128 - prefix.Bits()
-						}
-						size := new(big.Int).Lsh(one, uint(hostBits))
-						entries = append(entries, rawEntry{
-							startIP: addr,
-							offset:  lineOffset,
-							size:    size,
-							isCIDR:  true,
-						})
-						totalCount.Add(totalCount, size)
+					prefix := row.IP
+					addr := prefix.Masked().Addr()
+					hostBits := 32 - prefix.Bits()
+					if addr.Is6() {
+						hostBits = 128 - prefix.Bits()
 					}
+					size := new(big.Int).Lsh(one, uint(hostBits))
+					entries = append(entries, rawEntry{
+						startIP: addr,
+						offset:  lineOffset,
+						size:    size,
+						isCIDR:  true,
+					})
+					totalCount.Add(totalCount, size)
 				}
 			}
 		}
@@ -136,10 +127,9 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 		return indexer, nil
 	}
 
-	maxUint64 := new(big.Int).SetUint64(^uint64(0)) // 2^64 - 1
+	maxUint64 := new(big.Int).SetUint64(^uint64(0))
 	fitsInUint64 := totalCount.Cmp(maxUint64) <= 0
 
-	// not crypto-sensitive — used only for shuffle offset randomisation
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var globalIdx uint64
 
@@ -165,8 +155,8 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 		indexer.GrandTotal = saturatingAdd(globalIdx, indexer.TotalSingles)
 
 	} else {
-		// Total exceeds uint64: proportionally slice each range so they
-		// collectively fit within 2^64.
+		// Total exceeds uint64: give each range a proportional quota of the
+		// 2^64 space, then start it at a random offset within its own range.
 		for _, e := range entries {
 			quotaBig := new(big.Int).Mul(e.size, maxUint64)
 			quotaBig.Div(quotaBig, totalCount)
@@ -205,11 +195,10 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 	return indexer, nil
 }
 
-// streamActiveIPsShuffled streams IPs in pseudo-random order without loading
-// the entire dataset into memory. It uses a Linear Congruential Generator (LCG)
-// with rejection sampling to achieve an O(1)-space permutation over the index
-// built by NewMasterIndexer.
-func streamActiveIPsShuffled(ctx context.Context, path string, limit uint64, out chan<- string) error {
+// streamActiveIPsShuffled streams IPs in pseudo-random order using an LCG
+// over the index built by NewMasterIndexer. Memory usage is O(1) regardless
+// of how many IPs are in the list.
+func streamActiveIPsShuffled(ctx context.Context, path string, limit uint64, out chan<- netip.Addr) error {
 	indexer, err := NewMasterIndexer(path)
 	if err != nil {
 		return fmt.Errorf("shuffled pre-scan initialization failed: %w", err)
@@ -229,18 +218,15 @@ func streamActiveIPsShuffled(ctx context.Context, path string, limit uint64, out
 		}
 	}()
 
-	// LCG constants (Knuth / Newlib). These produce a full-period sequence
-	// over the uint64 space regardless of starting state.
+	// Knuth/Newlib LCG — full-period over the uint64 ring.
 	const lcgA = uint64(6364136223846793005)
 	const lcgC = uint64(1442695040888963407)
 
-	// not crypto-sensitive — shuffle seed only
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	// If GrandTotal is large enough to cover more than half of uint64,
-	// run the LCG over the full uint64 ring (rejection rate stays low).
-	// Otherwise use the next power-of-two above GrandTotal as the modulus
-	// so the rejection rate stays below 50%.
+	// When GrandTotal exceeds half of uint64, run the LCG over the full ring;
+	// rejection rate stays low. Otherwise round up to the next power of two
+	// so rejection stays below 50%.
 	useFullUint64 := indexer.GrandTotal > (uint64(1) << 63)
 
 	var mSize, state uint64
@@ -249,7 +235,7 @@ func streamActiveIPsShuffled(ctx context.Context, path string, limit uint64, out
 	} else {
 		mBits := bits.Len64(indexer.GrandTotal)
 		if indexer.GrandTotal&(indexer.GrandTotal-1) == 0 {
-			mBits-- // GrandTotal is already a power of two; don't double it
+			mBits--
 		}
 		mSize = uint64(1) << mBits
 		state = rng.Uint64() % mSize
@@ -275,13 +261,13 @@ func streamActiveIPsShuffled(ctx context.Context, path string, limit uint64, out
 		}
 
 		if state >= indexer.GrandTotal {
-			continue // rejection: outside valid range, advance LCG
+			continue
 		}
 
 		if state < indexer.TotalCIDRIPs {
 			ip := indexer.getIPFromCIDRBlocks(state)
 			select {
-			case out <- ip.String():
+			case out <- ip:
 				count++
 			case <-ctx.Done():
 				return ctx.Err()
@@ -290,12 +276,11 @@ func streamActiveIPsShuffled(ctx context.Context, path string, limit uint64, out
 			singleIdx := state - indexer.TotalCIDRIPs
 			ip, err := readIPAtCSVOffset(file, indexer.SingleOffsets[singleIdx])
 			if err != nil {
-				// Stale or corrupt offset — skip and keep going.
 				dispatched++
 				continue
 			}
 			select {
-			case out <- ip.String():
+			case out <- ip:
 				count++
 			case <-ctx.Done():
 				return ctx.Err()
@@ -307,8 +292,8 @@ func streamActiveIPsShuffled(ctx context.Context, path string, limit uint64, out
 	return nil
 }
 
-// getIPFromCIDRBlocks binary-searches the sorted CIDRBlocks slice to find
-// which block owns globalIdx, then computes the specific address within it.
+// getIPFromCIDRBlocks binary-searches CIDRBlocks to find the block that owns
+// globalIdx, then returns the address at that offset within the block.
 func (mi *MasterIndexer) getIPFromCIDRBlocks(globalIdx uint64) netip.Addr {
 	low, high := 0, len(mi.CIDRBlocks)-1
 	var target CIDRBlock
@@ -326,8 +311,8 @@ func (mi *MasterIndexer) getIPFromCIDRBlocks(globalIdx uint64) netip.Addr {
 	return addOffsetToAddr(target.StartIP, globalIdx-target.GlobalIdx)
 }
 
-// addOffsetToAddr adds a uint64 offset to a netip.Addr using byte-level
-// arithmetic, correctly wrapping across byte boundaries.
+// addOffsetToAddr adds a uint64 offset to addr using byte-level arithmetic,
+// propagating carry across byte boundaries. Works for both IPv4 and IPv6.
 func addOffsetToAddr(addr netip.Addr, offset uint64) netip.Addr {
 	b := addr.As16()
 	carry := offset
@@ -340,8 +325,8 @@ func addOffsetToAddr(addr netip.Addr, offset uint64) netip.Addr {
 	return result.Unmap()
 }
 
-// addBigOffset adds a big.Int offset to a netip.Addr, used when individual
-// CIDR ranges exceed uint64 (IPv6 /64 and larger).
+// addBigOffset is the big.Int equivalent of addOffsetToAddr, used when a
+// single CIDR range's offset exceeds uint64 (e.g. IPv6 /63 and larger).
 func addBigOffset(addr netip.Addr, offset *big.Int) netip.Addr {
 	b := addr.As16()
 	carry := new(big.Int).Set(offset)
@@ -356,9 +341,8 @@ func addBigOffset(addr netip.Addr, offset *big.Int) netip.Addr {
 	return result.Unmap()
 }
 
-// randBigIntBelow returns a cryptographically-unbiased random big.Int in
-// [0, max) using rejection sampling.
-// not crypto-sensitive — used only for CIDR slice offset randomisation.
+// randBigIntBelow returns a uniform random integer in [0, max) using
+// rejection sampling.
 func randBigIntBelow(rng *rand.Rand, max *big.Int) *big.Int {
 	nbits := max.BitLen()
 	bitMask := new(big.Int).Sub(
@@ -378,8 +362,8 @@ func randBigIntBelow(rng *rand.Rand, max *big.Int) *big.Int {
 	}
 }
 
-// readIPAtCSVOffset seeks to a byte offset in the file and parses the
-// first field of the CSV line there as a netip.Addr.
+// readIPAtCSVOffset seeks to a byte offset in file and parses the first CSV
+// field as a netip.Addr.
 func readIPAtCSVOffset(file *os.File, offset int64) (netip.Addr, error) {
 	if _, err := file.Seek(offset, io.SeekStart); err != nil {
 		return netip.Addr{}, err
@@ -399,8 +383,7 @@ func readIPAtCSVOffset(file *os.File, offset int64) (netip.Addr, error) {
 	return netip.ParseAddr(line)
 }
 
-// saturatingAdd adds two uint64 values, returning ^uint64(0) on overflow
-// instead of wrapping.
+// saturatingAdd returns a + b, clamped to ^uint64(0) on overflow.
 func saturatingAdd(a, b uint64) uint64 {
 	result := a + b
 	if result < a {

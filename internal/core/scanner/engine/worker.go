@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"net/netip"
 	"sync"
 )
 
@@ -9,9 +10,9 @@ import (
 func runWorkerPool(
 	ctx context.Context,
 	workers int,
-	pause *PauseController,
-	input <-chan string,
-	process func(string),
+	pause PauseController,
+	input <-chan netip.Addr,
+	process func(netip.Addr),
 ) {
 	workers = getWorkerCount(workers)
 
@@ -32,9 +33,9 @@ func runWorkerPool(
 // or the channel is closed.
 func runWorker(
 	ctx context.Context,
-	pause *PauseController,
-	input <-chan string,
-	process func(string),
+	pause PauseController,
+	input <-chan netip.Addr,
+	process func(netip.Addr),
 ) {
 	for {
 		if pause != nil && !pause.Wait(ctx) {

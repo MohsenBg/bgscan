@@ -2,57 +2,75 @@ package engine
 
 import (
 	"context"
+	"net/netip"
+	"sync"
 	"sync/atomic"
 	"time"
 
-	"bgscan/internal/core/config"
 	"bgscan/internal/logger"
 )
 
-// stageExecutor manages the execution state, metrics, and lifecycle of a scan stage.
+// stageExecutor owns the runtime state and lifecycle of one scan stage.
 type stageExecutor struct {
-	stage  ScanConfig
-	pause  *PauseController
+	stage ScanConfig
+	pause PauseController
+
 	rateCh <-chan time.Time
+	start  time.Time
+	total  atomic.Uint64
 
-	start     time.Time
-	total     atomic.Uint64
 	processed atomic.Uint64
-	succeed   atomic.Uint64
+	succeeded atomic.Uint64
 
-	progressDone chan struct{}
+	progressDone     chan struct{}
+	progressStopOnce sync.Once
 }
 
-// newStageExecutor creates and initializes a stage executor.
-func newStageExecutor(ctx context.Context, stage ScanConfig, pause *PauseController, total uint64) (*stageExecutor, error) {
-	exec := &stageExecutor{
+// newStageExecutor starts the writer, initializes the probe, and begins
+// progress reporting when the stage has an OnProgress hook.
+func newStageExecutor(
+	ctx context.Context,
+	stage ScanConfig,
+	pause PauseController,
+	total uint64,
+) (*stageExecutor, error) {
+	executor := &stageExecutor{
 		stage:  stage,
 		pause:  pause,
 		rateCh: makeRateCh(stage.Rate),
 		start:  time.Now(),
 	}
+	executor.total.Store(total)
 
-	exec.total.Store(total)
-	exec.stage.Writer.Start()
-	if err := exec.stage.Probe.Init(ctx); err != nil {
+	if err := executor.stage.Writer.Start(); err != nil {
 		return nil, err
 	}
 
-	exec.startProgressReporter(ctx)
+	if err := executor.stage.Probe.Init(ctx); err != nil {
+		if stopErr := executor.stage.Writer.Stop(); stopErr != nil {
+			executor.stage.Hooks.callOnError(stopErr)
+		}
 
-	return exec, nil
+		return nil, err
+	}
+
+	executor.startProgressReporter(ctx, stage.ProgressInterval)
+
+	return executor, nil
 }
 
-// startProgressReporter periodically reports stage progress.
-func (e *stageExecutor) startProgressReporter(ctx context.Context) {
-	if e.stage.Hooks.OnProgress == nil {
+// startProgressReporter starts periodic progress reporting when configured.
+func (e *stageExecutor) startProgressReporter(
+	ctx context.Context,
+	interval time.Duration,
+) {
+	if e.stage.Hooks.OnProgress == nil || interval <= 0 {
 		return
 	}
 
 	e.progressDone = make(chan struct{})
 
 	go func() {
-		interval := config.Get().General.StatusInterval.Duration()
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
@@ -60,48 +78,31 @@ func (e *stageExecutor) startProgressReporter(ctx context.Context) {
 			select {
 			case <-e.progressDone:
 				return
+
 			case <-ctx.Done():
 				return
+
 			case <-ticker.C:
 				if e.pause != nil && e.pause.IsPaused() {
 					continue
 				}
 
-				reportProgress(
-					e.start,
-					e.getPauseDuration(),
-					e.total.Load(),
-					e.processed.Load(),
-					e.succeed.Load(),
-					e.stage.Hooks.OnProgress,
-				)
+				e.reportProgress()
 			}
 		}
 	}()
 }
 
-// cleanup releases stage resources and emits a final progress update.
+// cleanup stops progress reporting, releases stage resources, and invokes the
+// final lifecycle hook.
 func (e *stageExecutor) cleanup() {
-	if e.progressDone != nil {
-		select {
-		case <-e.progressDone:
-		default:
-			close(e.progressDone)
-		}
-	}
+	e.stopProgressReporter()
 
 	if err := e.stage.Writer.Stop(); err != nil {
 		e.stage.Hooks.callOnError(err)
 	}
 
-	reportProgress(
-		e.start,
-		e.getPauseDuration(),
-		e.total.Load(),
-		e.processed.Load(),
-		e.succeed.Load(),
-		e.stage.Hooks.OnProgress,
-	)
+	e.reportProgress()
 
 	if err := e.stage.Probe.Close(); err != nil {
 		e.stage.Hooks.callOnError(err)
@@ -110,10 +111,21 @@ func (e *stageExecutor) cleanup() {
 	e.stage.Hooks.callOnScanEnd()
 }
 
-// processIP executes the stage probe against an IP and returns whether it matched.
-func (e *stageExecutor) processIP(ctx context.Context, ip string) bool {
+func (e *stageExecutor) stopProgressReporter() {
+	if e.progressDone == nil {
+		return
+	}
+
+	e.progressStopOnce.Do(func() {
+		close(e.progressDone)
+	})
+}
+
+// processIP runs the stage probe for ip and reports successful results.
+func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) bool {
 	select {
 	case <-e.rateCh:
+
 	case <-ctx.Done():
 		return false
 	}
@@ -122,19 +134,38 @@ func (e *stageExecutor) processIP(ctx context.Context, ip string) bool {
 	e.processed.Add(1)
 
 	if err != nil {
-		logger.CoreError("probe failed for %s: %v", ip, err)
+		// Cancellation is expected during scanner shutdown.
+		if ctx.Err() == nil {
+			logger.CoreError("probe failed for %s: %v", ip, err)
+		}
+
 		return false
 	}
 
-	e.succeed.Add(1)
+	e.succeeded.Add(1)
+
 	e.stage.Hooks.callOnSuccess(res)
 	e.stage.Writer.Write(res)
 
 	return true
 }
 
-// getPauseDuration returns the accumulated paused duration.
-func (e *stageExecutor) getPauseDuration() time.Duration {
+func (e *stageExecutor) reportProgress() {
+	if e.stage.Hooks.OnProgress == nil {
+		return
+	}
+
+	reportProgress(
+		e.start,
+		e.pausedDuration(),
+		e.total.Load(),
+		e.processed.Load(),
+		e.succeeded.Load(),
+		e.stage.Hooks.OnProgress,
+	)
+}
+
+func (e *stageExecutor) pausedDuration() time.Duration {
 	if e.pause == nil {
 		return 0
 	}

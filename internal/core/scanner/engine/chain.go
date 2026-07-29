@@ -2,9 +2,9 @@ package engine
 
 import (
 	"context"
+	"net/netip"
 	"sync"
 
-	"bgscan/internal/core/config"
 	"bgscan/internal/core/iplist"
 	"bgscan/internal/logger"
 )
@@ -16,7 +16,7 @@ const (
 
 // RunScanWithChain executes a scan pipeline based on the configured chain mode.
 func RunScanWithChain(ctx context.Context, input string, maxIP uint64, cfg *ChainConfig) {
-	if len(cfg.Stages) == 0 {
+	if cfg == nil || len(cfg.Stages) == 0 {
 		return
 	}
 
@@ -100,7 +100,7 @@ func executeStreamingPipeline(ctx context.Context, input string, maxIP uint64, c
 			next = executors[i+1]
 		}
 
-		go func(idx int, s ScanConfig, in, out chan string, exec, nextExec *stageExecutor) {
+		go func(idx int, s ScanConfig, in, out chan netip.Addr, exec, nextExec *stageExecutor) {
 			defer wg.Done()
 			defer closeOutputChannel(out)
 
@@ -116,22 +116,25 @@ func executeStreamingPipeline(ctx context.Context, input string, maxIP uint64, c
 }
 
 // createStageChannels creates buffered channels between pipeline stages.
-func createStageChannels(cfg *ChainConfig) []chan string {
-	channels := make([]chan string, len(cfg.Stages))
+func createStageChannels(cfg *ChainConfig) []chan netip.Addr {
+	channels := make([]chan netip.Addr, len(cfg.Stages))
 
 	for i := range channels {
-		size := defaultStageChanBuf
-		if i+1 < len(cfg.Stages) {
-			size = max(cfg.Stages[i+1].Workers, config.GetGeneral().MaxIPsPerStage)
+		size := cfg.MaxBuffer
+		if size <= 0 {
+			size = defaultStageChanBuf
 		}
-		channels[i] = make(chan string, size)
+		if i+1 < len(cfg.Stages) {
+			size = max(size, getWorkerCount(cfg.Stages[i+1].Workers))
+		}
+		channels[i] = make(chan netip.Addr, size)
 	}
 
 	return channels
 }
 
 // getInputChannel returns the input channel for a stage.
-func getInputChannel(stageIdx int, channels []chan string) chan string {
+func getInputChannel(stageIdx int, channels []chan netip.Addr) chan netip.Addr {
 	if stageIdx == 0 {
 		return nil
 	}
@@ -139,7 +142,7 @@ func getInputChannel(stageIdx int, channels []chan string) chan string {
 }
 
 // getOutputChannel returns the output channel for a stage.
-func getOutputChannel(stageIdx, total int, channels []chan string) chan string {
+func getOutputChannel(stageIdx, total int, channels []chan netip.Addr) chan netip.Addr {
 	if stageIdx >= total-1 {
 		return nil
 	}
@@ -147,7 +150,7 @@ func getOutputChannel(stageIdx, total int, channels []chan string) chan string {
 }
 
 // closeOutputChannel closes a channel safely.
-func closeOutputChannel(ch chan string) {
+func closeOutputChannel(ch chan netip.Addr) {
 	if ch != nil {
 		close(ch)
 	}
@@ -171,10 +174,6 @@ func executeBatchPipeline(ctx context.Context, input string, maxIP uint64, cfg *
 	defer func() {
 		for _, e := range executors {
 			e.cleanup()
-		}
-
-		for _, s := range cfg.Stages {
-			s.Hooks.callOnScanEnd()
 		}
 	}()
 
@@ -205,7 +204,7 @@ func executeBatchPipeline(ctx context.Context, input string, maxIP uint64, cfg *
 }
 
 // processBatch runs a single batch through all stages.
-func processBatch(ctx context.Context, batch []string, execs []*stageExecutor, pause *PauseController) {
+func processBatch(ctx context.Context, batch []netip.Addr, execs []*stageExecutor, pause PauseController) {
 	current := batch
 
 	for i, exec := range execs {
@@ -227,10 +226,10 @@ func processBatch(ctx context.Context, batch []string, execs []*stageExecutor, p
 	}
 }
 
-// executeBatch processes a batch in worker pool.
-func executeBatch(ctx context.Context, batch []string, exec *stageExecutor, pause *PauseController) []string {
+// executeBatch processes a batch in worker pool
+func executeBatch(ctx context.Context, batch []netip.Addr, exec *stageExecutor, pause PauseController) []netip.Addr {
 	workers := getWorkerCount(exec.stage.Workers)
-	input := make(chan string, workers*2)
+	input := make(chan netip.Addr, workers*2)
 	go func() {
 		defer close(input)
 		for _, ip := range batch {
@@ -244,10 +243,10 @@ func executeBatch(ctx context.Context, batch []string, exec *stageExecutor, paus
 
 	var (
 		mu  sync.Mutex
-		out = make([]string, 0, len(batch))
+		out = make([]netip.Addr, 0, len(batch))
 	)
 
-	runWorkerPool(ctx, workers, pause, input, func(ip string) {
+	runWorkerPool(ctx, workers, pause, input, func(ip netip.Addr) {
 		if exec.processIP(ctx, ip) {
 			mu.Lock()
 			out = append(out, ip)
@@ -260,8 +259,12 @@ func executeBatch(ctx context.Context, batch []string, exec *stageExecutor, paus
 
 // calculateBatchSize determines optimal batch size for pipeline mode.
 func calculateBatchSize(cfg *ChainConfig) int {
+	if cfg.BatchSize <= 0 {
+		return defaultBatchSize
+	}
+
 	if len(cfg.Stages) <= 1 {
-		return config.GetGeneral().BatchSize
+		return cfg.BatchSize
 	}
 
 	maxWorkers := 0
@@ -271,17 +274,17 @@ func calculateBatchSize(cfg *ChainConfig) int {
 		}
 	}
 
-	return max(maxWorkers, config.GetGeneral().BatchSize)
+	return max(maxWorkers, cfg.BatchSize)
 }
 
 // streamIPsFromFile streams IPs in batches from file input.
-func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP uint64, batchSize int) <-chan []string {
-	out := make(chan []string, 2)
+func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP uint64, batchSize int) <-chan []netip.Addr {
+	out := make(chan []netip.Addr, 2)
 
 	go func() {
 		defer close(out)
 
-		ipCh := make(chan string, batchSize*2)
+		ipCh := make(chan netip.Addr, batchSize*2)
 		done := make(chan error, 1)
 
 		go func() {
@@ -289,7 +292,7 @@ func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP u
 			done <- iplist.StreamActiveIPs(ctx, input, maxIP, shuffled, ipCh)
 		}()
 
-		batch := make([]string, 0, batchSize)
+		batch := make([]netip.Addr, 0, batchSize)
 
 		for ip := range ipCh {
 			batch = append(batch, ip)
@@ -297,7 +300,7 @@ func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP u
 			if len(batch) >= batchSize {
 				select {
 				case out <- batch:
-					batch = make([]string, 0, batchSize)
+					batch = make([]netip.Addr, 0, batchSize)
 				case <-ctx.Done():
 					return
 				}
@@ -325,13 +328,13 @@ func streamStageFromFile(
 	maxIP uint64,
 	stage ScanConfig,
 	shuffled bool,
-	output chan string,
+	output chan netip.Addr,
 	exec *stageExecutor,
 	next *stageExecutor,
-	pause *PauseController,
+	pause PauseController,
 ) {
 	workers := getWorkerCount(stage.Workers)
-	in := make(chan string, workers*2)
+	in := make(chan netip.Addr, workers*2)
 
 	done := make(chan error, 1)
 
@@ -340,7 +343,7 @@ func streamStageFromFile(
 		done <- iplist.StreamActiveIPs(ctx, input, maxIP, shuffled, in)
 	}()
 
-	runWorkerPool(ctx, workers, pause, in, func(ip string) {
+	runWorkerPool(ctx, workers, pause, in, func(ip netip.Addr) {
 		if exec.processIP(ctx, ip) && output != nil {
 			select {
 			case output <- ip:
@@ -360,16 +363,16 @@ func streamStageFromFile(
 
 func streamStageFromChannel(
 	ctx context.Context,
-	input chan string,
+	input chan netip.Addr,
 	stage ScanConfig,
-	output chan string,
+	output chan netip.Addr,
 	exec *stageExecutor,
 	next *stageExecutor,
-	pause *PauseController,
+	pause PauseController,
 ) {
 	workers := getWorkerCount(stage.Workers)
 
-	runWorkerPool(ctx, workers, pause, input, func(ip string) {
+	runWorkerPool(ctx, workers, pause, input, func(ip netip.Addr) {
 		if exec.processIP(ctx, ip) && output != nil {
 			select {
 			case output <- ip:

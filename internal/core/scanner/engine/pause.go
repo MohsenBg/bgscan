@@ -7,91 +7,97 @@ import (
 	"time"
 )
 
-// PauseController manages the pause, resume, and shutdown state of active scanning loops.
-// It is fully thread-safe and can be shared safely across multiple worker pools.
-type PauseController struct {
+// PauseController controls pause, resume, and shutdown state for scanning work.
+type PauseController interface {
+	Pause()
+	Resume()
+	Stop()
+	IsPaused() bool
+	PausedDuration() time.Duration
+	Wait(context.Context) bool
+}
+
+type pauseController struct {
 	isPaused atomic.Bool
 
 	mu       sync.RWMutex
 	resumeCh chan struct{}
 	pausedAt time.Time
 
-	// Accumulates paused time in nanoseconds
 	totalPauseNs atomic.Int64
 	stopOnce     sync.Once
 	doneCh       chan struct{}
 }
 
-// NewPauseController instantiates an initialized PauseController.
-func NewPauseController() *PauseController {
-	return &PauseController{
+// NewPauseController creates a controller in the running state.
+func NewPauseController() PauseController {
+	return &pauseController{
 		resumeCh: make(chan struct{}),
 		doneCh:   make(chan struct{}),
 	}
 }
 
-// Pause transitions the controller into a paused state.
-// Workers encountering Wait() will block until Resume() or Stop() is called.
-func (p *PauseController) Pause() {
+// Pause blocks workers at their next Wait call until Resume or Stop is called.
+func (p *pauseController) Pause() {
 	if !p.isPaused.CompareAndSwap(false, true) {
-		// Already paused
 		return
 	}
 
 	p.mu.Lock()
 	p.pausedAt = time.Now()
-
-	// Re-create the resume channel because the previous one might have been closed
 	p.resumeCh = make(chan struct{})
 	p.mu.Unlock()
 }
 
-// Resume transitions the controller out of a paused state, releasing any waiting workers.
-func (p *PauseController) Resume() {
+// Resume releases workers blocked by Wait.
+func (p *pauseController) Resume() {
 	if !p.isPaused.CompareAndSwap(true, false) {
-		// Already running
 		return
 	}
 
 	p.mu.Lock()
+
 	if !p.pausedAt.IsZero() {
 		p.totalPauseNs.Add(time.Since(p.pausedAt).Nanoseconds())
 		p.pausedAt = time.Time{}
 	}
+
 	close(p.resumeCh)
 	p.mu.Unlock()
 }
 
-// Stop signals to all waiting workers that the controller is permanently shutting down.
-func (p *PauseController) Stop() {
+// Stop permanently stops the controller and releases waiting workers.
+func (p *pauseController) Stop() {
 	p.stopOnce.Do(func() {
-		// Ensure we aren't leaving workers hung on a pause state during shutdown
 		p.Resume()
 		close(p.doneCh)
 	})
 }
 
-// IsPaused returns true if the engine is currently in a paused state.
-func (p *PauseController) IsPaused() bool {
+// IsPaused reports whether workers are currently paused.
+func (p *pauseController) IsPaused() bool {
 	return p.isPaused.Load()
 }
 
-// PausedDuration returns the total accumulated time spent in a paused state.
-func (p *PauseController) PausedDuration() time.Duration {
+// PausedDuration reports the total time spent paused, including the current
+// pause interval when the controller is paused.
+func (p *pauseController) PausedDuration() time.Duration {
 	p.mu.RLock()
+	defer p.mu.RUnlock()
+
 	total := p.totalPauseNs.Load()
+
 	if !p.pausedAt.IsZero() {
 		total += time.Since(p.pausedAt).Nanoseconds()
 	}
-	p.mu.RUnlock()
+
 	return time.Duration(total)
 }
 
-// Wait blocks the calling goroutine if the controller is paused.
-// It returns true if execution should continue, or false if the engine has been stopped
-// or the execution context was cancelled.
-func (p *PauseController) Wait(ctx context.Context) bool {
-	// Fast path: if not paused and not stopped, keep moving.
+// Wait blocks while paused.
+//
+// It returns false when ctx is canceled or the controller has stopped.
+func (p *pauseController) Wait(ctx context.Context) bool {
 	if !p.isPaused.Load() {
 		select {
 		case <-ctx.Done():
@@ -103,7 +109,6 @@ func (p *PauseController) Wait(ctx context.Context) bool {
 		}
 	}
 
-	// Slow path: we are paused, look up the channel and wait for broad-casted events.
 	p.mu.RLock()
 	resume := p.resumeCh
 	p.mu.RUnlock()
@@ -111,9 +116,18 @@ func (p *PauseController) Wait(ctx context.Context) bool {
 	select {
 	case <-ctx.Done():
 		return false
+
 	case <-p.doneCh:
 		return false
+
 	case <-resume:
-		return true
+		// Stop calls Resume before closing doneCh. Check done again so a worker
+		// does not continue after shutdown if both channels became ready.
+		select {
+		case <-p.doneCh:
+			return false
+		default:
+			return true
+		}
 	}
 }

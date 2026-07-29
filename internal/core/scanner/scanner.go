@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"bgscan/internal/core/config"
+	"bgscan/internal/core/config/validate"
 	"bgscan/internal/core/dns"
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/scanner/engine"
@@ -23,152 +24,317 @@ import (
 	"bgscan/internal/logger"
 )
 
-//
-// ────────────────────────────────────────────────────────────────
-// StageConfig
-// ────────────────────────────────────────────────────────────────
-//
-
+// StageConfig describes one stage in a scan pipeline.
 type StageConfig struct {
 	Workers int
 	Probe   probe.Probe
-	Writer  *result.Writer
+	Writer  result.Writer
 	Rate    int
 	Hooks   engine.ScanHooks
 }
 
-func (s *StageConfig) AddHooks(h engine.ScanHooks) *StageConfig {
-	s.Hooks = h
+// AddHooks sets the hooks invoked while this stage runs.
+func (s *StageConfig) AddHooks(hooks engine.ScanHooks) *StageConfig {
+	s.Hooks = hooks
 	return s
 }
 
-//
-// ────────────────────────────────────────────────────────────────
-// Scanner
-// ────────────────────────────────────────────────────────────────
-//
+// Scanner manages a scan pipeline and its lifecycle.
+type Scanner interface {
+	Run() error
+	Close() error
 
-type Scanner struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	GetStages() []StageConfig
+	AddStage(StageConfig)
 
-	mu     sync.Mutex
-	closed bool
-	wg     sync.WaitGroup // Tracks the active scan goroutine
+	Pause()
+	Resume()
+	IsPaused() bool
+	PausedDuration() time.Duration
 
-	pause  *engine.PauseController
-	input  string
-	pm     *portmgr.PortManager
-	stages []StageConfig
+	BuildICMPStage(context.Context) (StageConfig, error)
+	BuildTCPStage(context.Context) (StageConfig, error)
+	BuildHTTPStage(context.Context) (StageConfig, error)
+	BuildXrayStage(context.Context, string) (StageConfig, error)
+	BuildResolveStage(context.Context) (StageConfig, error)
+	BuildDNSTTStage(context.Context) (StageConfig, error)
+	BuildSlipStreamStage(context.Context) (StageConfig, error)
 }
 
-func NewScanner(ctx context.Context, input string) *Scanner {
-	scanCtx, cancel := context.WithCancel(ctx)
+// WriterFactory creates a result writer for a stage.
+type WriterFactory func(context.Context, result.WriterOptions) (result.Writer, error)
 
-	var poolSize uint16 = 3000
-	pm, _ := portmgr.NewPortManager(portmgr.RandomBasePort(poolSize), poolSize)
+// scanRunner executes scanner stages through the scan engine.
+//
+// Keeping this dependency small lets scanner tests verify the assembled engine
+// configuration without starting workers or performing network operations.
+type scanRunner interface {
+	RunSingle(context.Context, string, uint64, engine.ScanConfig, bool, engine.PauseController)
+	RunChain(context.Context, string, uint64, *engine.ChainConfig)
+}
 
-	return &Scanner{
-		ctx:    scanCtx,
-		cancel: cancel,
-		pause:  engine.NewPauseController(),
-		pm:     pm,
-		input:  input,
-		stages: make([]StageConfig, 0),
+type engineRunner struct{}
+
+func (engineRunner) RunSingle(
+	ctx context.Context,
+	input string,
+	maxIPs uint64,
+	cfg engine.ScanConfig,
+	shuffled bool,
+	pause engine.PauseController,
+) {
+	engine.RunScan(ctx, input, maxIPs, cfg, shuffled, pause)
+}
+
+func (engineRunner) RunChain(ctx context.Context, input string, maxIPs uint64, cfg *engine.ChainConfig) {
+	engine.RunScanWithChain(ctx, input, maxIPs, cfg)
+}
+
+type scanner struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	config *config.ScannerConfig
+
+	mu      sync.Mutex
+	closed  bool
+	started bool
+	wg      sync.WaitGroup
+
+	pause  engine.PauseController
+	input  string
+	pm     portmgr.Manager
+	stages []StageConfig
+
+	writerFactory WriterFactory
+	runner        scanRunner
+}
+
+// ScannerOption configures a Scanner.
+type ScannerOption func(*scanner)
+
+// WithConfig uses cfg instead of loading scanner configuration from disk.
+func WithConfig(cfg config.ScannerConfig) ScannerOption {
+	return func(s *scanner) {
+		s.config = &cfg
 	}
 }
 
-func (s *Scanner) GetStages() []StageConfig {
-	return s.stages
+// WithPauseController uses pause to coordinate pausing and resuming work.
+func WithPauseController(pause engine.PauseController) ScannerOption {
+	return func(s *scanner) {
+		if pause != nil {
+			s.pause = pause
+		}
+	}
 }
 
-func (s *Scanner) AddStage(stage StageConfig) {
-	s.stages = append(s.stages, stage)
+// WithPortManager uses pm to allocate local ports for tunnel-based probes.
+func WithPortManager(pm portmgr.Manager) ScannerOption {
+	return func(s *scanner) {
+		if pm != nil {
+			s.pm = pm
+		}
+	}
 }
 
+// WithWriterFactory replaces result writer creation.
 //
-// ────────────────────────────────────────────────────────────────
-// Run / Lifecycle
-// ────────────────────────────────────────────────────────────────
-//
+// It is primarily useful when constructing scanner stages in tests.
+func WithWriterFactory(factory WriterFactory) ScannerOption {
+	return func(s *scanner) {
+		if factory != nil {
+			s.writerFactory = factory
+		}
+	}
+}
 
-func (s *Scanner) Run() error {
-	s.wg.Add(1)
-	defer s.wg.Done()
+// withScanRunner replaces engine execution in scanner tests.
+func withScanRunner(runner scanRunner) ScannerOption {
+	return func(s *scanner) {
+		if runner != nil {
+			s.runner = runner
+		}
+	}
+}
+
+// NewScanner creates a scanner for input.
+func NewScanner(ctx context.Context, input string, opts ...ScannerOption) (Scanner, error) {
+	if ctx == nil {
+		return nil, errors.New("scanner context is nil")
+	}
+
+	scanCtx, cancel := context.WithCancel(ctx)
+
+	s := &scanner{
+		ctx:           scanCtx,
+		cancel:        cancel,
+		input:         input,
+		pause:         engine.NewPauseController(),
+		writerFactory: result.NewWriter,
+		runner:        engineRunner{},
+	}
+
+	for _, opt := range opts {
+		if opt != nil {
+			opt(s)
+		}
+	}
+
+	if s.config == nil {
+		store := config.NewStore()
+
+		cfg, err := store.Load()
+		if err != nil {
+			cancel()
+			return nil, fmt.Errorf("load scanner config: %w", err)
+		}
+
+		_ = validate.NormalizeAll(&cfg)
+		s.config = &cfg
+	}
+
+	if s.pm == nil {
+		const portPoolSize uint16 = 3000
+
+		pm, err := portmgr.New(portmgr.RandomBase(portPoolSize), portPoolSize)
+		if err != nil {
+			cancel()
+			return nil, fmt.Errorf("create port manager: %w", err)
+		}
+
+		s.pm = pm
+	}
+
+	return s, nil
+}
+
+// GetStages returns a snapshot of the configured scan stages.
+func (s *scanner) GetStages() []StageConfig {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return append([]StageConfig(nil), s.stages...)
+}
+
+// AddStage appends a stage to the scan pipeline.
+func (s *scanner) AddStage(stage StageConfig) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.closed && !s.started {
+		s.stages = append(s.stages, stage)
+	}
+}
+
+// Run executes the configured scan stages.
+func (s *scanner) Run() error {
+	s.mu.Lock()
 
 	if s.closed {
-		return errors.New("scanner already closed")
+		s.mu.Unlock()
+		return errors.New("scanner is closed")
+	}
+
+	if s.started {
+		s.mu.Unlock()
+		return errors.New("scanner has already run")
 	}
 
 	if s.ctx.Err() != nil {
-		return errors.New("scanner context is canceled")
+		s.mu.Unlock()
+		return s.ctx.Err()
 	}
 
 	if len(s.stages) == 0 {
-		return errors.New("no stages added to Scanner")
+		s.mu.Unlock()
+		return errors.New("scanner has no stages")
 	}
 
+	s.started = true
+	stages := append([]StageConfig(nil), s.stages...)
+	s.wg.Add(1)
+	s.mu.Unlock()
+
+	defer s.wg.Done()
 	defer s.pause.Stop()
 	defer s.pm.Close()
 
-	if len(s.stages) == 1 {
-		stg := s.stages[0]
-		s.runSingle(stg, stg.Hooks)
+	if len(stages) == 1 {
+		s.runSingle(stages[0])
 		return nil
 	}
 
-	s.runChain(s.stages)
+	s.runChain(stages)
 	return nil
 }
 
-func (s *Scanner) runSingle(stage StageConfig, hooks engine.ScanHooks) {
-	maxIP := max(config.GetGeneral().MaxIPsToTest, 0)
+func (s *scanner) runSingle(stage StageConfig) {
+	maxIPs := max(s.config.General.MaxIPsToTest, 0)
 
-	engine.RunScan(
+	s.runner.RunSingle(
 		s.ctx,
 		s.input,
-		uint64(maxIP),
+		uint64(maxIPs),
 		engine.ScanConfig{
-			Workers: stage.Workers,
-			Probe:   stage.Probe,
-			Writer:  stage.Writer,
-			Rate:    stage.Rate,
-			Hooks:   hooks,
+			Workers:          stage.Workers,
+			Probe:            stage.Probe,
+			Writer:           stage.Writer,
+			Rate:             stage.Rate,
+			ProgressInterval: s.config.General.StatusInterval.Duration(),
+			Hooks:            stage.Hooks,
 		},
-		config.GetGeneral().Shuffled,
+		s.config.General.Shuffled,
 		s.pause,
 	)
 }
 
-func (s *Scanner) runChain(stages []StageConfig) {
-	maxIP := max(config.GetGeneral().MaxIPsToTest, 0)
+func (s *scanner) runChain(stages []StageConfig) {
+	maxIPs := max(s.config.General.MaxIPsToTest, 0)
 
 	engineStages := make([]engine.ScanConfig, len(stages))
 	for i, stage := range stages {
 		engineStages[i] = engine.ScanConfig{
-			Workers: stage.Workers,
-			Probe:   stage.Probe,
-			Writer:  stage.Writer,
-			Rate:    stage.Rate,
-			Hooks:   stage.Hooks,
+			Workers:          stage.Workers,
+			Probe:            stage.Probe,
+			Writer:           stage.Writer,
+			Rate:             stage.Rate,
+			ProgressInterval: s.config.General.StatusInterval.Duration(),
+			Hooks:            stage.Hooks,
 		}
 	}
 
-	engine.RunScanWithChain(s.ctx, s.input, uint64(maxIP), &engine.ChainConfig{
-		Mode:      engine.ParsePipelineMode(config.GetGeneral().PipelineMode),
+	s.runner.RunChain(s.ctx, s.input, uint64(maxIPs), &engine.ChainConfig{
+		Mode:      engine.ParsePipelineMode(s.config.General.PipelineMode),
 		Stages:    engineStages,
 		Pause:     s.pause,
-		Shuffled:  config.GetGeneral().Shuffled,
-		MaxBuffer: config.GetGeneral().MaxIPsPerStage,
+		Shuffled:  s.config.General.Shuffled,
+		MaxBuffer: s.config.General.MaxIPsPerStage,
+		BatchSize: s.config.General.BatchSize,
 	})
 }
 
-func (s *Scanner) Pause()                        { s.pause.Pause() }
-func (s *Scanner) Resume()                       { s.pause.Resume() }
-func (s *Scanner) IsPaused() bool                { return s.pause.IsPaused() }
-func (s *Scanner) PausedDuration() time.Duration { return s.pause.PausedDuration() }
+// Pause pauses work at the next pause checkpoint.
+func (s *scanner) Pause() {
+	s.pause.Pause()
+}
 
-func (s *Scanner) Close() error {
+// Resume releases workers paused at a pause checkpoint.
+func (s *scanner) Resume() {
+	s.pause.Resume()
+}
+
+// IsPaused reports whether work is currently paused.
+func (s *scanner) IsPaused() bool {
+	return s.pause.IsPaused()
+}
+
+// PausedDuration reports the total time the scanner has spent paused.
+func (s *scanner) PausedDuration() time.Duration {
+	return s.pause.PausedDuration()
+}
+
+// Close cancels the scan and waits for Run to return.
+func (s *scanner) Close() error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -178,9 +344,8 @@ func (s *Scanner) Close() error {
 	s.closed = true
 	s.mu.Unlock()
 
-	if s.cancel != nil {
-		s.cancel()
-	}
+	s.cancel()
+	s.pause.Stop()
 
 	done := make(chan struct{})
 	go func() {
@@ -188,162 +353,107 @@ func (s *Scanner) Close() error {
 		close(done)
 	}()
 
-	timeout := 10 * time.Second
+	const shutdownTimeout = 5 * time.Second
 
 	select {
 	case <-done:
+		s.pm.Close()
 		return nil
-	case <-time.After(timeout):
-		logger.CoreError("Scanner.Close() timed out after %v, forcing shutdown (goroutine leak possible)", timeout)
-		return errors.New("timed out waiting for scanner goroutines to shut down")
+
+	case <-time.After(shutdownTimeout):
+		logger.CoreError("scanner shutdown timed out after %s", shutdownTimeout)
+		return errors.New("timed out waiting for scanner shutdown")
 	}
 }
 
-//
-// ────────────────────────────────────────────────────────────────
-// Stage Builders
-// ────────────────────────────────────────────────────────────────
-//
+// BuildICMPStage creates an ICMP scan stage from the scanner configuration.
+func (s *scanner) BuildICMPStage(ctx context.Context) (StageConfig, error) {
+	cfg := s.config.ICMP
 
-func (s *Scanner) BuildICMPStage(ctx context.Context) (StageConfig, error) {
-	cfg := config.GetICMP()
+	prb, err := icmpprobe.NewICMPProbe(icmpprobe.Options{
+		Timeout: cfg.Timeout.Duration(),
+		Tries:   cfg.Tries,
+	})
+	if err != nil {
+		return StageConfig{}, fmt.Errorf("create ICMP probe: %w", err)
+	}
 
-	file, err := result.BuildResultFilePath(icmpprobe.Schema, cfg.PrefixOutput)
+	writer, err := s.newWriter(ctx, cfg.OutputPrefix, icmpprobe.Schema)
 	if err != nil {
 		return StageConfig{}, err
 	}
 
-	writer, err := result.NewWriter(file, icmpprobe.Schema, writerConfig(), ctx)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	prb, err := icmpprobe.NewICMPProbe(cfg.Timeout.Duration(), cfg.Tries)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	return StageConfig{
-		Workers: cfg.Workers,
-		Probe:   prb,
-		Writer:  writer,
-		Rate:    calcRate(cfg.Workers, 25*time.Millisecond),
-	}, nil
+	return s.newStage(cfg.Workers, prb, writer, 25*time.Millisecond), nil
 }
 
-func (s *Scanner) BuildTCPStage(ctx context.Context) (StageConfig, error) {
-	cfg := config.GetTCP()
-
-	file, err := result.BuildResultFilePath(tcpprobe.Schema, cfg.PrefixOutput)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	writer, err := result.NewWriter(file, tcpprobe.Schema, writerConfig(), ctx)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
+// BuildTCPStage creates a TCP scan stage from the scanner configuration.
+func (s *scanner) BuildTCPStage(ctx context.Context) (StageConfig, error) {
+	cfg := s.config.TCP
 	prb := tcpprobe.NewTCPProbe(fmt.Sprint(cfg.Port), cfg.Timeout.Duration(), cfg.Tries)
 
-	return StageConfig{
-		Workers: cfg.Workers,
-		Probe:   prb,
-		Writer:  writer,
-		Rate:    calcRate(cfg.Workers, 50*time.Millisecond),
-	}, nil
+	writer, err := s.newWriter(ctx, cfg.OutputPrefix, tcpprobe.Schema)
+	if err != nil {
+		return StageConfig{}, err
+	}
+
+	return s.newStage(cfg.Workers, prb, writer, 50*time.Millisecond), nil
 }
 
-func (s *Scanner) BuildHTTPStage(ctx context.Context) (StageConfig, error) {
-	cfg := config.GetHTTP()
+// BuildHTTPStage creates an HTTP scan stage from the scanner configuration.
+func (s *scanner) BuildHTTPStage(ctx context.Context) (StageConfig, error) {
+	cfg := s.config.HTTP
 
-	file, err := result.BuildResultFilePath(httpprobe.Schema, cfg.PrefixOutput)
+	req, err := httpprobe.NewHTTPRequestFromConfig(cfg)
 	if err != nil {
-		return StageConfig{}, err
+		return StageConfig{}, fmt.Errorf("create HTTP request: %w", err)
 	}
 
-	writer, err := result.NewWriter(file, httpprobe.Schema, writerConfig(), ctx)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
+	var prb probe.Probe
 	if isHTTP3(cfg.Version) {
-		reqCfg, err := httpprobe.NewHTTPRequestFromConfig(*cfg)
+		prb, err = httpprobe.NewHTTP3Probe(*req, cfg.AcceptedStatusCodes)
 		if err != nil {
-			return StageConfig{}, err
+			return StageConfig{}, fmt.Errorf("create HTTP/3 probe: %w", err)
 		}
-		prb, err := httpprobe.NewHTTP3Probe(*reqCfg, cfg.AcceptedStatusCodes)
-		if err != nil {
-			return StageConfig{}, err
-		}
-		return StageConfig{
-			Workers: cfg.Workers,
-			Probe:   prb,
-			Writer:  writer,
-			Rate:    calcRate(cfg.Workers, 80*time.Millisecond),
-		}, nil
+	} else {
+		prb = httpprobe.NewHTTPProbe(*req, cfg.AcceptedStatusCodes)
 	}
 
-	reqCfg, err := httpprobe.NewHTTPRequestFromConfig(*cfg)
+	writer, err := s.newWriter(ctx, cfg.OutputPrefix, httpprobe.Schema)
 	if err != nil {
 		return StageConfig{}, err
 	}
-	prb := httpprobe.NewHTTPProbe(*reqCfg, cfg.AcceptedStatusCodes)
 
-	return StageConfig{
-		Workers: cfg.Workers,
-		Probe:   prb,
-		Writer:  writer,
-		Rate:    calcRate(cfg.Workers, 80*time.Millisecond),
-	}, nil
+	return s.newStage(cfg.Workers, prb, writer, 80*time.Millisecond), nil
 }
 
 func isHTTP3(version string) bool {
 	return version == "h3" || version == "http3"
 }
 
-func (s *Scanner) BuildXrayStage(ctx context.Context, template string) (StageConfig, error) {
-	cfg := config.GetXray()
+// BuildXrayStage creates an Xray scan stage for template.
+func (s *scanner) BuildXrayStage(ctx context.Context, template string) (StageConfig, error) {
+	cfg := s.config.Xray
 
-	file, err := result.BuildResultFilePath(xrayprobe.Schema, cfg.PrefixOutput)
+	prb, err := xrayprobe.NewXrayProbe(&cfg, template, s.pm)
+	if err != nil {
+		return StageConfig{}, fmt.Errorf("create Xray probe: %w", err)
+	}
+
+	writer, err := s.newWriter(ctx, cfg.OutputPrefix, xrayprobe.Schema)
 	if err != nil {
 		return StageConfig{}, err
 	}
 
-	writer, err := result.NewWriter(file, xrayprobe.Schema, writerConfig(), ctx)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	prb, err := xrayprobe.NewXrayProbe(cfg, template, s.pm)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	return StageConfig{
-		Workers: cfg.Workers,
-		Probe:   prb,
-		Writer:  writer,
-		Rate:    calcRate(cfg.Workers, 200*time.Millisecond),
-	}, nil
+	return s.newStage(cfg.Workers, prb, writer, 200*time.Millisecond), nil
 }
 
-func (s *Scanner) BuildResolveStage(ctx context.Context) (StageConfig, error) {
-	cfg := config.GetDNS().Resolver
-
-	file, err := result.BuildResultFilePath(resolveprobe.Schema, cfg.PrefixOutput)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	writer, err := result.NewWriter(file, resolveprobe.Schema, writerConfig(), ctx)
-	if err != nil {
-		return StageConfig{}, err
-	}
+// BuildResolveStage creates a DNS resolver scan stage.
+func (s *scanner) BuildResolveStage(ctx context.Context) (StageConfig, error) {
+	cfg := s.config.DNS.Resolver
 
 	rcodes := make([]uint16, 0, len(cfg.AcceptedRCodes))
-	for _, r := range cfg.AcceptedRCodes {
-		rcodes = append(rcodes, uint16(dns.ParseDNSRcode(r)))
+	for _, code := range cfg.AcceptedRCodes {
+		rcodes = append(rcodes, uint16(dns.ParseDNSRcode(code)))
 	}
 
 	prb := resolveprobe.NewResolverProbe(&resolveprobe.DNSRequest{
@@ -361,95 +471,87 @@ func (s *Scanner) BuildResolveStage(ctx context.Context) (StageConfig, error) {
 		Tries:           cfg.Tries,
 	})
 
-	return StageConfig{
-		Workers: cfg.Workers,
-		Probe:   prb,
-		Writer:  writer,
-		Rate:    calcRate(cfg.Workers, 500*time.Millisecond),
-	}, nil
+	writer, err := s.newWriter(ctx, cfg.PrefixOutput, resolveprobe.Schema)
+	if err != nil {
+		return StageConfig{}, err
+	}
+
+	return s.newStage(cfg.Workers, prb, writer, 500*time.Millisecond), nil
 }
 
-func (s *Scanner) BuildDNSTTStage(ctx context.Context) (StageConfig, error) {
-	cfg := config.GetDNS().DNSTT
-	transport := config.GetDNS().Resolver.Protocol
-	port := config.GetDNS().Resolver.Port
-
-	file, err := result.BuildResultFilePath(dnsttprobe.Schema, cfg.PrefixOutput)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	writer, err := result.NewWriter(file, dnsttprobe.Schema, writerConfig(), ctx)
-	if err != nil {
-		return StageConfig{}, err
-	}
+// BuildDNSTTStage creates a DNSTT tunnel scan stage.
+func (s *scanner) BuildDNSTTStage(ctx context.Context) (StageConfig, error) {
+	cfg := s.config.DNS.DNSTT
+	resolver := s.config.DNS.Resolver
 
 	prb, err := dnsttprobe.NewDNSTTProbe(dnsttprobe.DNSTTConfig{
 		Domain:    cfg.Domain,
 		PubKey:    cfg.PublicKey,
-		Transport: dns.ParseTransport(transport),
-		DNSPort:   port,
+		Transport: dns.ParseTransport(resolver.Protocol),
+		DNSPort:   resolver.Port,
 		Timeout:   cfg.Timeout.Duration(),
 	}, s.pm)
 	if err != nil {
+		return StageConfig{}, fmt.Errorf("create DNSTT probe: %w", err)
+	}
+
+	writer, err := s.newWriter(ctx, cfg.OutputPrefix, dnsttprobe.Schema)
+	if err != nil {
 		return StageConfig{}, err
 	}
 
-	return StageConfig{
-		Workers: cfg.Workers,
-		Probe:   prb,
-		Writer:  writer,
-		Rate:    calcRate(cfg.Workers, time.Second),
-	}, nil
+	return s.newStage(cfg.Workers, prb, writer, time.Second), nil
 }
 
-func (s *Scanner) BuildSlipStreamStage(ctx context.Context) (StageConfig, error) {
-	cfg := config.GetDNS().SlipStream
-	port := config.GetDNS().Resolver.Port
+// BuildSlipStreamStage creates a Slipstream tunnel scan stage.
+func (s *scanner) BuildSlipStreamStage(ctx context.Context) (StageConfig, error) {
+	cfg := s.config.DNS.SlipStream
+	resolver := s.config.DNS.Resolver
 
-	file, err := result.BuildResultFilePath(slipstreamprobe.Schema, cfg.PrefixOutput)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	writer, err := result.NewWriter(file, slipstreamprobe.Schema, writerConfig(), ctx)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	prb, err := slipstreamprobe.NewSlipstreamProbe(cfg.Workers, slipstreamprobe.SlipstreamConfig{
+	prb, err := slipstreamprobe.NewSlipstreamProbe(slipstreamprobe.SlipstreamConfig{
 		Domain:   cfg.Domain,
 		CertPath: cfg.CertPath,
-		DNSPort:  port,
+		DNSPort:  resolver.Port,
 		Timeout:  cfg.Timeout.Duration(),
 	}, s.pm)
 	if err != nil {
+		return StageConfig{}, fmt.Errorf("create Slipstream probe: %w", err)
+	}
+
+	writer, err := s.newWriter(ctx, cfg.OutputPrefix, slipstreamprobe.Schema)
+	if err != nil {
 		return StageConfig{}, err
 	}
 
+	return s.newStage(cfg.Workers, prb, writer, time.Second), nil
+}
+
+func (s *scanner) newWriter(ctx context.Context, prefix string, schema result.ResultSchema) (result.Writer, error) {
+	writer, err := s.writerFactory(ctx, result.WriterOptions{
+		ResultPrefix: prefix,
+		Schema:       schema,
+		Config:       s.config.Writer,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create %s result writer: %w", schema.Name, err)
+	}
+
+	return writer, nil
+}
+
+func (s *scanner) newStage(workers int, prb probe.Probe, writer result.Writer, minimumProbeTime time.Duration) StageConfig {
 	return StageConfig{
-		Workers: cfg.Workers,
+		Workers: workers,
 		Probe:   prb,
 		Writer:  writer,
-		Rate:    calcRate(cfg.Workers, time.Second),
-	}, nil
-}
-
-//
-// ────────────────────────────────────────────────────────────────
-// Helpers
-// ────────────────────────────────────────────────────────────────
-//
-
-func calcRate(workers int, minProbeTime time.Duration) int {
-	return int(time.Second/minProbeTime) * workers
-}
-
-func writerConfig() result.Config {
-	cfg := config.GetWriter()
-	return result.Config{
-		MergeFlushInterval: cfg.MergeFlushInterval.Duration(),
-		ChanSize:           cfg.ChanSize,
-		BatchSize:          cfg.BatchSize,
+		Rate:    calcRate(workers, minimumProbeTime),
 	}
+}
+
+func calcRate(workers int, minimumProbeTime time.Duration) int {
+	if workers <= 0 || minimumProbeTime <= 0 {
+		return 0
+	}
+
+	return int(time.Second/minimumProbeTime) * workers
 }

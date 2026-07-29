@@ -2,11 +2,11 @@ package engine
 
 import (
 	"context"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"bgscan/internal/core/config"
 	"bgscan/internal/core/iplist"
 	"bgscan/internal/core/result"
 	"bgscan/internal/logger"
@@ -21,7 +21,7 @@ func RunScan(
 	maxIP uint64,
 	cfg ScanConfig,
 	shuffled bool,
-	pause *PauseController,
+	pause PauseController,
 ) {
 	// Resolve and calculate workload size
 	total, err := iplist.CountActiveIPs(input)
@@ -42,7 +42,7 @@ func RunScan(
 	}
 
 	// Instantiate communication pipelines
-	ips := make(chan string, workers*2)
+	ips := make(chan netip.Addr, workers*2)
 	results := make(chan result.Result, workers*4)
 
 	var (
@@ -56,7 +56,14 @@ func RunScan(
 	progressDone := make(chan struct{})
 
 	// Initialize required system dependencies
-	cfg.Writer.Start()
+	err = cfg.Writer.Start()
+	if err != nil {
+		_ = cfg.Writer.Stop()
+		cfg.Hooks.callOnError(err)
+		cfg.Hooks.callOnScanEnd()
+		return
+	}
+
 	if err := cfg.Probe.Init(ctx); err != nil {
 		_ = cfg.Writer.Stop()
 		cfg.Hooks.callOnError(err)
@@ -77,7 +84,7 @@ func RunScan(
 		}
 
 		// Send one final, exact progress update before signaling absolute termination
-		reportProgress(start, getPauseDuration(pause), total, processed.Load(), succeed.Load(), cfg.Hooks.OnProgress)
+		reportProgress(start, pausedDuration(pause), total, processed.Load(), succeed.Load(), cfg.Hooks.OnProgress)
 		cfg.Hooks.callOnScanEnd()
 	}()
 
@@ -89,7 +96,7 @@ func RunScan(
 	})
 
 	// Spin up background progress telemetry metrics
-	go runProgressReporter(ctx, progressDone, pause, start, total, &processed, &succeed, cfg.Hooks.OnProgress)
+	go runProgressReporter(ctx, progressDone, pause, cfg.ProgressInterval, start, total, &processed, &succeed, cfg.Hooks.OnProgress)
 
 	// Spin up downstream compute engine (Worker Pool)
 	var workerWg sync.WaitGroup
@@ -98,7 +105,7 @@ func RunScan(
 	for i := 0; i < workers; i++ {
 		go func() {
 			defer workerWg.Done()
-			runWorker(ctx, pause, ips, func(ip string) {
+			runWorker(ctx, pause, ips, func(ip netip.Addr) {
 				// Enforce rate limiting boundaries
 				select {
 				case <-rateCh:
@@ -111,7 +118,9 @@ func RunScan(
 				processed.Add(1)
 
 				if err != nil {
-					logger.CoreError("probe failed for %s: %v", ip, err)
+					if ctx.Err() == nil {
+						logger.CoreError("probe failed for %s: %v", ip, err)
+					}
 					return
 				}
 
@@ -153,7 +162,8 @@ func makeRateCh(rate int) <-chan time.Time {
 func runProgressReporter(
 	ctx context.Context,
 	progressDone <-chan struct{},
-	pause *PauseController,
+	pause PauseController,
+	interval time.Duration,
 	start time.Time,
 	total uint64,
 	processed *atomic.Uint64,
@@ -164,7 +174,10 @@ func runProgressReporter(
 		return
 	}
 
-	interval := config.Get().General.StatusInterval.Duration()
+	if onProgress == nil || interval <= 0 {
+		return
+	}
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -180,7 +193,7 @@ func runProgressReporter(
 			}
 			reportProgress(
 				start,
-				getPauseDuration(pause),
+				pausedDuration(pause),
 				total,
 				processed.Load(),
 				succeed.Load(),
@@ -190,10 +203,10 @@ func runProgressReporter(
 	}
 }
 
-// getPauseDuration isolates nil-safe evaluations of pause timings.
-func getPauseDuration(p *PauseController) time.Duration {
-	if p == nil {
+// pausedDuration returns the pause duration when pause control is enabled.
+func pausedDuration(pause PauseController) time.Duration {
+	if pause == nil {
 		return 0
 	}
-	return p.PausedDuration()
+	return pause.PausedDuration()
 }

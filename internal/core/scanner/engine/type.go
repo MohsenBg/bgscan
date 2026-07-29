@@ -2,6 +2,7 @@ package engine
 
 import (
 	"strings"
+	"time"
 
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/scanner/probe"
@@ -31,21 +32,23 @@ type ChainConfig struct {
 	// MaxBuffer is the channel buffer size between streaming stages.
 	// Larger values reduce inter-stage blocking at the cost of memory.
 	MaxBuffer int
+	BatchSize int
 
 	Stages []ScanConfig
 
-	Pause *PauseController
+	Pause PauseController
 
 	Shuffled bool
 }
 
 // ScanConfig defines settings and dependencies for a single scan stage.
 type ScanConfig struct {
-	Workers int
-	Rate    int
+	Workers          int
+	Rate             int
+	ProgressInterval time.Duration
 
 	Probe  probe.Probe
-	Writer *result.Writer
+	Writer result.Writer
 	Hooks  ScanHooks
 }
 

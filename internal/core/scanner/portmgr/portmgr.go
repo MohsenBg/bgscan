@@ -9,161 +9,159 @@ import (
 	"os"
 	"sync"
 	"time"
-
-	"bgscan/internal/logger"
 )
 
-// PortManager manages a pool of reusable TCP ports.
-//
-// Ports are handed out to callers on demand and returned to the pool when
-// released. The manager verifies that a port is actually free before
-// returning it, preventing conflicts with other processes.
-//
-// The type is safe for concurrent use.
-type PortManager struct {
-	ports     chan uint16
-	done      chan struct{}
+var ErrClosed = errors.New("port manager closed")
+
+type Manager interface {
+	Get(context.Context) (uint16, error)
+	Release(uint16)
+	Close()
+}
+
+// manager provides reusable TCP ports from a managed pool.
+type manager struct {
+	ports chan uint16
+	done  chan struct{}
+
 	closeOnce sync.Once
+
+	isFree func(uint16) bool
 }
 
-// GenerateInstancePortRange returns a port range derived from the current
-// process ID and a random offset.
-//
-// This helps reduce collisions when multiple instances of the program run
-// on the same machine by shifting the starting port of the pool.
-func GenerateInstancePortRange(base, poolSize uint16) (uint16, uint16) {
-	pid := os.Getpid()
-	randomPart := uint16(rand.Intn(1500))
-	start := base + uint16(pid%20000) + randomPart
-	return start, poolSize
-}
-
-// NewPortManager creates a new PortManager with a sequential port pool
-// starting at startPort and containing count ports.
-func NewPortManager(startPort, count uint16) (*PortManager, error) {
+// New creates a port manager with ports starting from startPort.
+func New(startPort, count uint16) (Manager, error) {
 	if count == 0 {
 		return nil, errors.New("port count must be greater than zero")
 	}
 
-	pm := &PortManager{
-		ports: make(chan uint16, count),
-		done:  make(chan struct{}),
+	m := &manager{
+		ports:  make(chan uint16, count),
+		done:   make(chan struct{}),
+		isFree: portAvailable,
 	}
 
 	for i := range count {
-		pm.ports <- startPort + i
+		m.ports <- startPort + i
 	}
 
-	return pm, nil
+	return m, nil
 }
 
-// GetPort retrieves an available port from the pool.
-//
-// The function blocks until a port becomes available, the context is
-// canceled, or the manager is closed. Before returning a port, the manager
-// verifies that it can be bound locally.
-func (pm *PortManager) GetPort(ctx context.Context) (uint16, error) {
+// Get returns an available port.
+// It waits until a port is free, the context is canceled,
+// or the manager is closed.
+func (m *manager) Get(ctx context.Context) (uint16, error) {
 	for {
 		select {
-		case <-pm.done:
-			return 0, errors.New("port manager closed")
+		case <-m.done:
+			return 0, ErrClosed
+		default:
+		}
+
+		select {
+		case <-m.done:
+			return 0, ErrClosed
 
 		case <-ctx.Done():
 			return 0, ctx.Err()
 
-		case port, ok := <-pm.ports:
-			if !ok {
-				return 0, errors.New("port manager closed")
+		case port := <-m.ports:
+			select {
+			case <-m.done:
+				return 0, ErrClosed
+			default:
 			}
 
-			if isPortFree(port) {
+			if m.isFree(port) {
 				return port, nil
 			}
 		}
 	}
 }
 
-// ReleasePort returns a previously acquired port back to the pool.
-//
-// If the pool is already full or the manager is closed, the port is silently
-// discarded.
-func (pm *PortManager) ReleasePort(port uint16) {
+// Release puts a port back into the pool.
+func (m *manager) Release(port uint16) {
 	select {
-	case <-pm.done:
+	case <-m.done:
 		return
-	case pm.ports <- port:
 	default:
+	}
+
+	select {
+	case <-m.done:
+		return
+
+	case m.ports <- port:
+	default:
+		// Pool is full.
 	}
 }
 
-// Close shuts down the PortManager and releases all resources.
-//
-// After calling Close, all blocked GetPort calls will return an error and
-// future operations become no‑ops.
-func (pm *PortManager) Close() {
-	pm.closeOnce.Do(func() {
-		close(pm.done)
-		close(pm.ports)
+// Close releases all resources.
+func (m *manager) Close() {
+	m.closeOnce.Do(func() {
+		close(m.done)
 	})
 }
 
-// isPortFree checks whether a TCP port can be bound locally.
-func isPortFree(port uint16) bool {
+func portAvailable(port uint16) bool {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 
-	ln, err := net.Listen("tcp", addr)
+	conn, err := net.Listen("tcp", addr)
 	if err != nil {
 		return false
 	}
 
-	if err := ln.Close(); err != nil {
-		logger.CoreError("error closing listener: %v", err)
-	}
-
-	return true
+	return conn.Close() == nil
 }
 
-// WaitPortOpen waits until a TCP service becomes reachable at addr.
-//
-// The function repeatedly attempts to connect until either the port opens
-// or the timeout expires.
-func WaitPortOpen(ctx context.Context, addr string, timeout time.Duration) error {
+// GenerateInstanceRange creates a different port range for each process.
+func GenerateInstanceRange(base, size uint16) (uint16, uint16) {
+	offset := uint16(os.Getpid()%20000) + uint16(rand.Intn(1500))
+
+	return base + offset, size
+}
+
+// RandomBase returns a random starting port avoiding ephemeral ports.
+func RandomBase(size uint16) uint16 {
+	const (
+		minPort       = 20000
+		ephemeralPort = 49152
+	)
+
+	max := ephemeralPort - size
+
+	return minPort + uint16(rand.Intn(int(max-minPort)))
+}
+
+// WaitOpen waits until a TCP service accepts connections.
+func WaitOpen(ctx context.Context, addr string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
-	dialer := net.Dialer{Timeout: 300 * time.Millisecond}
+	dialer := net.Dialer{
+		Timeout: 300 * time.Millisecond,
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return fmt.Errorf("timeout waiting for port %s", addr)
-			}
-			return ctx.Err()
+			return fmt.Errorf("waiting for %s: %w", addr, ctx.Err())
 
 		case <-ticker.C:
 			conn, err := dialer.DialContext(ctx, "tcp", addr)
-			if err == nil {
-				if err := conn.Close(); err != nil {
-					logger.CoreError("error closing connection: %v", err)
-				}
-				return nil
+			if err != nil {
+				continue
 			}
+
+			defer func() {
+				_ = conn.Close()
+			}()
+			return nil
 		}
 	}
-}
-
-// RandomBasePort returns a randomized base port suitable for allocating
-// a port pool of the given size.
-//
-// The generated range avoids the system ephemeral port range.
-func RandomBasePort(poolSize uint16) uint16 {
-	const min uint16 = 20000
-	const ephemeralStart uint16 = 49152
-
-	maxBase := ephemeralStart - poolSize
-	return min + uint16(rand.Intn(int(maxBase-min)))
 }

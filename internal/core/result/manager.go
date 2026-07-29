@@ -6,13 +6,15 @@ import (
 	"sync"
 	"time"
 
+	"bgscan/internal/core/config"
+	"bgscan/internal/core/config/validate"
 	"bgscan/internal/core/fileutil"
 	"bgscan/internal/logger"
 )
 
-// Writer asynchronously batches and flushes IPScanResult items to a result file.
-type Writer struct {
-	config     Config
+// writer asynchronously batches and flushes Result items to a result file.
+type writer struct {
+	config     config.WriterConfig
 	ctx        context.Context
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
@@ -25,27 +27,56 @@ type Writer struct {
 	stopOnce   sync.Once
 }
 
+// Writer batches Result items and persists them to a result file.
+type Writer interface {
+	Start() error
+	Stop() error
+	Write(r Result)
+	GetResultPath() string
+}
+
+// WriterOptions configures a Writer.
+type WriterOptions struct {
+	ResultPrefix string
+	Schema       ResultSchema
+	Config       config.WriterConfig
+}
+
 // NewWriter creates a Writer tied to the given context (defaults to Background if nil).
-func NewWriter(resultPath string, schema ResultSchema, cfg Config, ctx context.Context) (*Writer, error) {
+func NewWriter(ctx context.Context, opts WriterOptions) (Writer, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	cfg.Normalize()
+	errs := validate.ValidateWriter(opts.Config)
+	for _, err := range errs {
+		return nil, err
+	}
+
+	path, err := prepareResultFilePath(opts.Config, opts.Schema, opts.ResultPrefix)
+	if err != nil {
+		return nil, err
+	}
+
+	err = opts.Schema.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
-	return &Writer{
-		config:     cfg,
-		resultPath: resultPath,
-		schema:     schema,
-		input:      make(chan Result, cfg.ChanSize),
-		batch:      make([]Result, 0, cfg.BatchSize),
-		batchSize:  cfg.BatchSize,
+	return &writer{
+		config:     opts.Config,
+		resultPath: path,
+		schema:     opts.Schema,
+		input:      make(chan Result, opts.Config.ChanSize),
+		batch:      make([]Result, 0, opts.Config.BatchSize),
+		batchSize:  opts.Config.BatchSize,
 		ctx:        ctx,
 		cancel:     cancel,
 	}, nil
 }
 
 // Start ensures the result directory exists and removes any stale result file.
-func (w *Writer) Start() error {
+func (w *writer) Start() error {
 	var err error
 	w.startOnce.Do(func() {
 		if err = fileutil.EnsureDir(w.resultPath); err != nil {
@@ -65,7 +96,7 @@ func (w *Writer) Start() error {
 }
 
 // Stop cancels the writer, drains remaining items, and waits for the loop to exit.
-func (w *Writer) Stop() error {
+func (w *writer) Stop() error {
 	w.stopOnce.Do(func() {
 		w.cancel()
 		w.wg.Wait()
@@ -74,7 +105,7 @@ func (w *Writer) Stop() error {
 }
 
 // Write enqueues a result, dropping it if the context is already canceled.
-func (w *Writer) Write(r Result) {
+func (w *writer) Write(r Result) {
 	select {
 	case <-w.ctx.Done():
 		return
@@ -82,9 +113,9 @@ func (w *Writer) Write(r Result) {
 	}
 }
 
-func (w *Writer) writeLoop() {
+func (w *writer) writeLoop() {
 	defer w.wg.Done()
-	ticker := time.NewTicker(w.config.MergeFlushInterval)
+	ticker := time.NewTicker(w.config.MergeFlushInterval.Duration())
 	defer ticker.Stop()
 
 	for {
@@ -108,7 +139,7 @@ func (w *Writer) writeLoop() {
 	}
 }
 
-func (w *Writer) drain() {
+func (w *writer) drain() {
 	for {
 		select {
 		case r, ok := <-w.input:
@@ -122,7 +153,7 @@ func (w *Writer) drain() {
 	}
 }
 
-func (w *Writer) flush() {
+func (w *writer) flush() {
 	if len(w.batch) == 0 {
 		return
 	}
@@ -130,13 +161,13 @@ func (w *Writer) flush() {
 	copy(tmp, w.batch)
 	w.batch = w.batch[:0]
 
-	if err := mergeResults(w.resultPath, w.schema, tmp); err != nil {
+	if err := mergeResults(w.resultPath, w.batchSize, w.schema, tmp); err != nil {
 		logger.DebugError("failed to flush results: %v", err)
 	}
 }
 
 // GetResultPath returns the result file path if the file exists, otherwise empty string.
-func (w *Writer) GetResultPath() string {
+func (w *writer) GetResultPath() string {
 	if fileutil.CheckFileExists(w.resultPath) {
 		return w.resultPath
 	}

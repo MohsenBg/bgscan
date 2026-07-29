@@ -8,7 +8,7 @@ import (
 
 func TestMergeResults_EmptyBatch(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "out.csv")
-	if err := mergeResults(path, validSchema(t), nil); err != nil {
+	if err := mergeResults(path, 1024, validSchema(t), nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
@@ -22,7 +22,7 @@ func TestMergeResults_NewFile(t *testing.T) {
 		newMockResult("1.1.1.1", 90, "1.1.1.1", "90"),
 		newMockResult("2.2.2.2", 50, "2.2.2.2", "50"),
 	}
-	if err := mergeResults(path, validSchema(t), results); err != nil {
+	if err := mergeResults(path, 1024, validSchema(t), results); err != nil {
 		t.Fatal(err)
 	}
 	rows := readCSVRows(t, path)
@@ -41,7 +41,7 @@ func TestMergeResults_SortedByScore(t *testing.T) {
 		newMockResult("b", 99, "b", "99"),
 		newMockResult("c", 55, "c", "55"),
 	}
-	if err := mergeResults(path, validSchema(t), results); err != nil {
+	if err := mergeResults(path, 1024, validSchema(t), results); err != nil {
 		t.Fatal(err)
 	}
 	rows := readCSVRows(t, path)
@@ -56,7 +56,7 @@ func TestMergeResults_SortedByScore(t *testing.T) {
 func TestMergeResults_AtomicReplacement(t *testing.T) {
 	path := writeTempCSV(t, "a,100\n")
 	delta := []Result{newMockResult("b", 200, "b", "200")}
-	if err := mergeResults(path, validSchema(t), delta); err != nil {
+	if err := mergeResults(path, 1024, validSchema(t), delta); err != nil {
 		t.Fatal(err)
 	}
 

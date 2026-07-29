@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"bgscan/internal/core/config"
+	"bgscan/internal/core/config/validate"
 	"bgscan/internal/core/fileutil"
 )
 
@@ -20,22 +21,22 @@ const (
 	timestampFormat = "20060102_150405"
 )
 
-// DefaultRegistry is the package-level registry used by GetResultFiles.
+// DefaultRegistry holds schemas used by GetResultFiles.
 var DefaultRegistry = NewResultRegistry()
 
-// ResultRegistry provides thread-safe storage for result schemas.
+// ResultRegistry stores result schemas safely for concurrent use.
 type ResultRegistry struct {
 	mu      sync.RWMutex
 	schemas []ResultSchema
 }
 
-// NewResultRegistry creates an empty ResultRegistry.
+// NewResultRegistry returns an empty schema registry.
 func NewResultRegistry() *ResultRegistry {
 	return &ResultRegistry{}
 }
 
-// Register adds a schema to the registry. Returns an error if the schema
-// is invalid or if a schema with the same Directory is already registered.
+// Register adds schema to the registry.
+// It rejects invalid schemas and duplicate directories.
 func (r *ResultRegistry) Register(schema ResultSchema) error {
 	if err := schema.Validate(); err != nil {
 		return fmt.Errorf("register schema: %w", err)
@@ -54,7 +55,7 @@ func (r *ResultRegistry) Register(schema ResultSchema) error {
 	return nil
 }
 
-// Get retrieves a schema by its Directory.
+// Get returns the schema registered for directory.
 func (r *ResultRegistry) Get(directory string) (ResultSchema, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -67,7 +68,7 @@ func (r *ResultRegistry) Get(directory string) (ResultSchema, bool) {
 	return ResultSchema{}, false
 }
 
-// All returns all registered schemas, sorted by Directory for deterministic ordering.
+// All returns a copy of the registered schemas, sorted by directory.
 func (r *ResultRegistry) All() []ResultSchema {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -88,8 +89,8 @@ func (r *ResultRegistry) Len() int {
 	return len(r.schemas)
 }
 
-// Unregister removes a schema from the registry by its Directory.
-// Returns true if a schema was removed.
+// Unregister removes the schema registered for directory.
+// It reports whether a schema was removed.
 func (r *ResultRegistry) Unregister(directory string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -103,19 +104,20 @@ func (r *ResultRegistry) Unregister(directory string) bool {
 	return false
 }
 
-// resultBaseDir returns the configured base directory for all result files.
-func resultBaseDir() string {
-	return config.GetWriter().ResultBaseDir
-}
-
-// FindResultFiles returns metadata for all result CSV files belonging to
-// the provided schemas. At least one schema is required.
-func FindResultFiles(schemas ...ResultSchema) ([]ResultFile, error) {
+// FindResultFiles returns metadata for CSV files in the given schema directories.
+//
+// Directories that do not exist are skipped. At least one schema is required.
+func FindResultFiles(cfg config.WriterConfig, schemas ...ResultSchema) ([]ResultFile, error) {
 	if len(schemas) == 0 {
 		return nil, errors.New("result: at least one schema is required")
 	}
 
-	baseDir := resultBaseDir()
+	errs := validate.ValidateWriter(cfg)
+	for _, err := range errs {
+		return nil, err
+	}
+
+	baseDir := cfg.ResultBaseDir
 	var results []ResultFile
 
 	for _, schema := range schemas {
@@ -155,17 +157,16 @@ func FindResultFiles(schemas ...ResultSchema) ([]ResultFile, error) {
 	return results, nil
 }
 
-// GetResultFiles returns all result files across every schema registered
-// in DefaultRegistry.
-func GetResultFiles() ([]ResultFile, error) {
+// GetResultFiles returns files for every schema in DefaultRegistry.
+func GetResultFiles(cfg config.WriterConfig) ([]ResultFile, error) {
 	schemas := DefaultRegistry.All()
 	if len(schemas) == 0 {
 		return nil, nil
 	}
-	return FindResultFiles(schemas...)
+	return FindResultFiles(cfg, schemas...)
 }
 
-// ReadResultFile reads metadata for a single result file.
+// ReadResultFile returns metadata for one result file.
 func ReadResultFile(path string, schema ResultSchema) (ResultFile, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -182,8 +183,8 @@ func ReadResultFile(path string, schema ResultSchema) (ResultFile, error) {
 	}, nil
 }
 
-// NormalizeResultFileName ensures the name has a .csv extension and
-// contains no directory components.
+// NormalizeResultFileName removes directory components and adds a .csv
+// extension when one is missing.
 func NormalizeResultFileName(name string) string {
 	if name == "" {
 		return ".csv"
@@ -195,15 +196,14 @@ func NormalizeResultFileName(name string) string {
 	return base
 }
 
-// BuildResultFilePath creates a new output path using the provided schema
-// and filename prefix. The base directory is read from config. The target
-// directory is created if it does not already exist.
-func BuildResultFilePath(schema ResultSchema, prefix string) (string, error) {
+// prepareResultFilePath builds a timestamped CSV path for schema and prefix.
+// It creates the parent directory but does not create the file.
+func prepareResultFilePath(cfg config.WriterConfig, schema ResultSchema, prefix string) (string, error) {
 	if prefix == "" {
 		return "", errors.New("result: prefix cannot be empty")
 	}
 
-	dir := filepath.Join(resultBaseDir(), schema.Directory)
+	dir := filepath.Join(cfg.ResultBaseDir, schema.Directory)
 	if err := os.MkdirAll(dir, resultDirPerm); err != nil {
 		return "", fmt.Errorf("create result directory %q: %w", dir, err)
 	}

@@ -10,10 +10,13 @@ import (
 type KeyType uint8
 
 const (
+	// KeyIP identifies results keyed by IP address.
 	KeyIP KeyType = iota
+	// KeyDomain identifies results keyed by domain name.
 	KeyDomain
 )
 
+// String returns the string representation of the key type.
 func (k KeyType) String() string {
 	switch k {
 	case KeyIP:
@@ -73,57 +76,6 @@ func (s ResultSchema) Validate() error {
 	return nil
 }
 
-// Config controls asynchronous result writing behavior.
-type Config struct {
-	MergeFlushInterval time.Duration
-	ChanSize           int
-	BatchSize          int
-}
-
-const (
-	DefaultChanSize       = 1024
-	DefaultBatchSize      = 4096
-	MinMergeFlushInterval = 120 * time.Millisecond
-)
-
-// DefaultConfig returns a Config with sensible defaults.
-func DefaultConfig() Config {
-	return Config{
-		MergeFlushInterval: MinMergeFlushInterval,
-		ChanSize:           DefaultChanSize,
-		BatchSize:          DefaultBatchSize,
-	}
-}
-
-// Validate checks the config and returns an error if any value is invalid.
-func (c Config) Validate() error {
-	if c.MergeFlushInterval < MinMergeFlushInterval {
-		return fmt.Errorf("MergeFlushInterval must be >= %v, got %v",
-			MinMergeFlushInterval, c.MergeFlushInterval)
-	}
-	if c.ChanSize <= 0 {
-		return fmt.Errorf("ChanSize must be > 0, got %d", c.ChanSize)
-	}
-	if c.BatchSize <= 0 {
-		return fmt.Errorf("BatchSize must be > 0, got %d", c.BatchSize)
-	}
-	return nil
-}
-
-// Normalize clamps invalid values to sensible defaults.
-// Use Validate() if you want to detect errors instead of silently fixing them.
-func (c *Config) Normalize() {
-	if c.MergeFlushInterval < MinMergeFlushInterval {
-		c.MergeFlushInterval = MinMergeFlushInterval
-	}
-	if c.ChanSize <= 0 {
-		c.ChanSize = DefaultChanSize
-	}
-	if c.BatchSize <= 0 {
-		c.BatchSize = DefaultBatchSize
-	}
-}
-
 // ResultFile describes a stored result file on disk.
 type ResultFile struct {
 	Name        string
@@ -135,7 +87,6 @@ type ResultFile struct {
 }
 
 // SizeString returns a human-readable file size (e.g., "1.5 MB").
-
 func (f ResultFile) SizeString() string {
 	const (
 		KB = 1024

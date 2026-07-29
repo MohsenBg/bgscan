@@ -20,6 +20,7 @@ import (
 //   - Atomic file replacement
 func mergeResults(
 	resultPath string,
+	batchSize int,
 	schema ResultSchema,
 	results []Result,
 ) error {
@@ -56,7 +57,7 @@ func mergeResults(
 		return err
 	}
 
-	bw := bufio.NewWriterSize(out, DefaultBatchSize)
+	bw := bufio.NewWriterSize(out, batchSize)
 	cw := csv.NewWriter(bw)
 
 	cleanup := func(err error) error {
@@ -110,7 +111,6 @@ func mergeWithExisting(
 		func(existing Result) error {
 			// Write better scored new results first.
 			for index < len(delta) {
-
 				current := delta[index]
 
 				if current.Score() <= existing.Score() {
@@ -128,11 +128,9 @@ func mergeWithExisting(
 
 			// Replace duplicate record.
 			if index < len(delta) {
-
 				current := delta[index]
 
 				if current.Key() == existing.Key() {
-
 					if err := cw.Write(
 						current.ToRecord(),
 					); err != nil {
@@ -140,7 +138,6 @@ func mergeWithExisting(
 					}
 
 					index++
-
 					return nil
 				}
 			}

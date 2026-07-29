@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
-)
+	"time"
 
-// ---------- ResultRegistry ----------
+	"bgscan/internal/core/config"
+)
 
 func TestNewResultRegistry_Empty(t *testing.T) {
 	r := NewResultRegistry()
@@ -183,14 +184,16 @@ func TestResultRegistry_ConcurrentAccess(t *testing.T) {
 	s := validSchema(t)
 
 	var wg sync.WaitGroup
-	for range 50 {
-		wg.Go(func() {
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			_ = r.Register(s)
 			_, _ = r.Get(s.Directory)
 			_ = r.All()
 			_ = r.Len()
 			_ = r.Unregister(s.Directory)
-		})
+		}()
 	}
 	wg.Wait()
 }
@@ -226,7 +229,7 @@ func TestNormalizeResultFileName(t *testing.T) {
 // ---------- FindResultFiles ----------
 
 func TestFindResultFiles_NoSchemas(t *testing.T) {
-	_, err := FindResultFiles()
+	_, err := FindResultFiles(defaultTestWriterConfig(t))
 	if err == nil {
 		t.Fatal("expected error when no schemas provided, got nil")
 	}
@@ -240,7 +243,7 @@ func TestFindResultFiles_NonexistentDir(t *testing.T) {
 	}
 
 	// Non-existent directories are silently skipped per the implementation.
-	files, err := FindResultFiles(schema)
+	files, err := FindResultFiles(defaultTestWriterConfig(t), schema)
 	if err != nil {
 		t.Fatalf("FindResultFiles() unexpected error = %v", err)
 	}
@@ -250,7 +253,9 @@ func TestFindResultFiles_NonexistentDir(t *testing.T) {
 }
 
 func TestFindResultFiles_FindsCSVFiles(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := "tmp"
+	cfg := defaultTestWriterConfig(t)
+	cfg.ResultBaseDir = tmpDir
 
 	// Create a directory that matches the schema's directory name.
 	schemaDir := filepath.Join(tmpDir, "myscan")
@@ -270,21 +275,19 @@ func TestFindResultFiles_FindsCSVFiles(t *testing.T) {
 	f, _ := os.Create(filepath.Join(schemaDir, "readme.txt"))
 	_ = f.Close()
 	_ = os.MkdirAll(filepath.Join(schemaDir, "subdir"), 0o755)
-	_ = schemaDir
-
 	schema := ResultSchema{
 		Name:      "test",
-		Directory: "nonexistent_xyz_finds_csv_test",
+		Directory: "myscan",
 		Parser:    func([]string) (Result, error) { return nil, nil },
 	}
 
-	files, err := FindResultFiles(schema)
+	files, err := FindResultFiles(cfg, schema)
 	if err != nil {
 		t.Fatalf("FindResultFiles() error = %v", err)
 	}
-	// We can't assert the count because config controls the base dir.
-	// We only verify no error is returned.
-	_ = files
+	if len(files) != 2 {
+		t.Fatalf("FindResultFiles() returned %d files, want 2", len(files))
+	}
 }
 
 // ---------- ReadResultFile ----------
@@ -324,27 +327,51 @@ func TestReadResultFile_Nonexistent(t *testing.T) {
 	}
 }
 
-// ---------- BuildResultFilePath ----------
-
-func TestBuildResultFilePath_EmptyPrefix(t *testing.T) {
+func TestPrepareResultFilePath(t *testing.T) {
+	cfg := defaultTestWriterConfig(t)
 	schema := validSchema(t)
-	_, err := BuildResultFilePath(schema, "")
-	if err == nil {
-		t.Fatal("expected error for empty prefix, got nil")
+
+	path, err := prepareResultFilePath(cfg, schema, "scan_")
+	if err != nil {
+		t.Fatalf("prepareResultFilePath() error: %v", err)
+	}
+
+	if filepath.Dir(path) != filepath.Join(cfg.ResultBaseDir, schema.Directory) {
+		t.Errorf("unexpected result directory: %q", filepath.Dir(path))
+	}
+	if filepath.Ext(path) != csvExtension {
+		t.Errorf("result path %q does not have a CSV extension", path)
+	}
+	if _, err := os.Stat(filepath.Dir(path)); err != nil {
+		t.Fatalf("result directory was not created: %v", err)
 	}
 }
 
-func TestBuildResultFilePath_CreatesDirectory(t *testing.T) {
-	// BuildResultFilePath uses config.GetWriter().ResultBaseDir
-	// which we cannot control without modifying production code.
-	// We verify that an empty prefix returns an error.
-	// A full test would require the config package to be set up.
-	schema := validSchema(t)
-	_, err := BuildResultFilePath(schema, "prefix_")
-	// This may fail if config is not initialised, or succeed if it is.
-	// We only assert that non-empty prefix doesn't return "prefix cannot be empty".
+func TestPrepareResultFilePath_RejectsEmptyPrefix(t *testing.T) {
+	_, err := prepareResultFilePath(defaultTestWriterConfig(t), validSchema(t), "")
+	if err == nil {
+		t.Fatal("expected empty prefix error")
+	}
+}
+
+func TestFindResultFiles_RejectsInvalidWriterConfig(t *testing.T) {
+	_, err := FindResultFiles(config.WriterConfig{}, validSchema(t))
+	if err == nil {
+		t.Fatal("expected invalid writer config error")
+	}
+}
+
+func TestReadResultFile_UsesModificationTime(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "result.csv")
+	if err := os.WriteFile(path, []byte("a,1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	file, err := ReadResultFile(path, validSchema(t))
 	if err != nil {
-		// Acceptable — config may not be set up in test env.
-		t.Skipf("BuildResultFilePath requires config setup: %v", err)
+		t.Fatal(err)
+	}
+	if time.Since(file.CreatedTime) > time.Minute {
+		t.Fatalf("unexpected modification time: %v", file.CreatedTime)
 	}
 }

@@ -2,13 +2,14 @@ package xrayprobe
 
 import (
 	"fmt"
+	"net/netip"
 	"time"
 
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/speedtest"
 )
 
-// Schema is the result schema emitted by the Xray probe.
+// Schema defines the output format and parsing logic for Xray probe results.
 var Schema = result.ResultSchema{
 	Name:      "Xray",
 	Directory: "xray",
@@ -23,42 +24,44 @@ var Schema = result.ResultSchema{
 	Parser: parseXrayResult,
 }
 
-// XrayResult holds the outcome of a single Xray probe. Download and Upload
-// are zero when the corresponding test mode was not enabled (ConnectivityOnly).
+// XrayResult represents the outcome of a single Xray probe.
+// Download and Upload are zero when the corresponding test mode is disabled.
 type XrayResult struct {
-	IP       string
+	IP       netip.Addr
 	Latency  time.Duration
 	Download speedtest.BitsPerSec
 	Upload   speedtest.BitsPerSec
 }
 
-// Key returns the IP used to deduplicate results.
-func (r XrayResult) Key() string { return r.IP }
+// Key returns the IP address string used for result deduplication.
+func (r XrayResult) Key() string { return r.IP.String() }
 
-// KeyType returns the result key type.
+// KeyType implements result.Result, identifying this as an IP-based key.
 func (r XrayResult) KeyType() result.KeyType { return result.KeyIP }
 
-// Equal reports whether r and rs identify the same IP.
-func (r XrayResult) Equal(rs result.Result) bool { return r.IP == rs.Key() }
+// Equal reports whether r and other represent the same target IP.
+func (r XrayResult) Equal(rs result.Result) bool { return r.IP.String() == rs.Key() }
 
-// ToRecord serializes the result into a CSV-style string slice.
+// ToRecord serializes the result into a string slice for tabular output.
 func (r XrayResult) ToRecord() []string {
 	return []string{
-		r.IP,
+		r.IP.String(),
 		r.Latency.String(),
 		r.Download.String(),
 		r.Upload.String(),
 	}
 }
 
-// Score combines latency, download, and upload into a single comparable value.
-// Weights:
-//   - Latency:  0.1  (lower is better → inverted to 1000/ms)
-//   - Download: 0.6  (higher is better → Mbps)
-//   - Upload:   0.3  (higher is better → Mbps)
+// Score calculates a weighted performance metric where lower latency and
+// higher throughput yield a higher score.
 //
-// Zero download or upload (test mode not enabled) contributes 0 to that
-// component, so ConnectivityOnly results sort purely by latency.
+// Weights:
+//   - Latency:  0.1 (inverted as 1000/ms, minimum 1ms)
+//   - Download: 0.6 (in Mbps)
+//   - Upload:   0.3 (in Mbps)
+//
+// If a test mode is disabled, its speed is zero and contributes nothing,
+// causing ConnectivityOnly results to sort purely by latency.
 func (r XrayResult) Score() float64 {
 	ms := float64(r.Latency.Milliseconds())
 	if ms < 1 {
@@ -72,9 +75,16 @@ func (r XrayResult) Score() float64 {
 	return latencyScore*0.1 + downloadScore*0.6 + uploadScore*0.3
 }
 
+// parseXrayResult reconstructs an XrayResult from a string slice.
+// It enforces a minimum latency of 1ms and silently defaults download/upload
+// speeds to zero if parsing fails.
 func parseXrayResult(record []string) (result.Result, error) {
 	if len(record) < 4 {
 		return nil, fmt.Errorf("invalid Xray result record: expected 4 fields, got %d", len(record))
+	}
+	ip, err := netip.ParseAddr(record[0])
+	if err != nil {
+		return nil, fmt.Errorf("parse IP: %w", err)
 	}
 
 	latency, err := time.ParseDuration(record[1])
@@ -86,7 +96,7 @@ func parseXrayResult(record []string) (result.Result, error) {
 	upload, _ := speedtest.ParseBitsPerSec(record[3])
 
 	return XrayResult{
-		IP:       record[0],
+		IP:       ip,
 		Latency:  max(time.Millisecond, latency.Round(time.Millisecond)),
 		Download: download,
 		Upload:   upload,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/netip"
 	"slices"
 	"strings"
 	"time"
@@ -13,71 +14,66 @@ import (
 	"bgscan/internal/core/scanner/probe"
 )
 
-// DNSRequest defines how a DNS resolver should be tested.
-//
-// It controls the target domain, DNS record types, transport mode,
-// EDNS0 buffer size, resolver honesty/DPI detection, and retry behavior.
+// queryRunner abstracts DNS query execution, primarily to allow mocking in tests.
+type queryRunner func(ctx context.Context, q dns.DNSQuery) (*dns.Msg, error)
+
+// DNSRequest configures the parameters for testing a DNS resolver.
 type DNSRequest struct {
-	// Domain is the base domain to query during normal probing.
-	// It may be prefixed with a random label when RandomSubdomain is enabled.
+	// Domain is the base domain to query.
+	// If RandomSubdomain is true, a random prefix is added to bypass cache.
 	Domain string
 
-	// Port is the resolver port (typically 53 for UDP/TCP DNS,
-	// or protocol-specific ports for encrypted transports).
+	// Port is the resolver port (e.g., 53).
 	Port uint16
 
-	// RandomSubdomain, when true, causes each probe to generate a unique
-	// random subdomain under Domain in order to avoid resolver cache effects.
+	// RandomSubdomain prevents resolver caching by appending a random
+	// label to the Domain for each probe.
 	RandomSubdomain bool
 
-	// DpiCheck enables resolver honesty/DPI detection using a guaranteed
-	// NXDOMAIN domain prior to normal record queries.
+	// DpiCheck enables an honesty check using a guaranteed NXDOMAIN
+	// (.invalid) prior to normal queries to detect hijacking or DPI.
 	DpiCheck bool
 
 	// DpiTimeout is the per-request timeout for DPI verification queries.
+	// Defaults to 500ms if zero.
 	DpiTimeout time.Duration
 
-	// DpiTries is the maximum number of DPI verification attempts before
-	// giving up and treating the resolver as unresponsive or unreliable.
+	// DpiTries is the max number of DPI verification attempts.
+	// Defaults to 1 if zero or negative.
 	DpiTries int
 
-	// Edns0Size controls the EDNS0 UDP buffer size advertised in queries.
+	// Edns0Size sets the advertised EDNS0 UDP buffer size.
 	Edns0Size uint16
 
-	// CheckTypes is the ordered list of DNS record types to test (by name),
-	// e.g., []string{"A", "AAAA"}. The first acceptable response terminates
-	// the probe successfully.
+	// CheckTypes is the ordered list of DNS record types to test
+	// (e.g., "A", "AAAA"). The first acceptable response stops the probe.
 	CheckTypes []string
 
-	// AcceptedRcodes defines which DNS response codes are considered
-	// successful for normal probing. Responses with other rcodes are treated
-	// as failures for that record type.
+	// AcceptedRcodes lists the DNS response codes considered successful.
+	// Responses outside this list are treated as failures for that type.
 	AcceptedRcodes []uint16
 
-	// Timeout is the per-query timeout for normal (non-DPI) resolver tests.
+	// Timeout is the per-query timeout for normal resolver tests.
 	Timeout time.Duration
 
-	// Transport is the underlying transport mechanism used to contact the
-	// resolver (UDP, TCP, DoT, DoH, etc.), as defined by dns.Transport.
+	// Transport is the underlying mechanism (UDP, TCP, DoT, DoH, etc.).
 	Transport dns.Transport
 
-	// Tries is the maximum number of retries per record type during normal
-	// probing before considering that type failed.
+	// Tries is the max number of retries per record type during normal probing.
+	// Defaults to 1 if zero or negative.
 	Tries int
 }
 
-// ResolverProbe performs recursive DNS validation against a single resolver
-// IP address.
-//
-// It optionally runs a DPI/hijacking honesty check using a guaranteed-invalid
-// domain (under the .invalid TLD) and then executes normal DNS record tests
-// according to the DNSRequest configuration.
+// ResolverProbe validates a single DNS resolver IP address.
+// It optionally performs a DPI/hijacking honesty check before executing
+// standard record queries based on the DNSRequest configuration.
 type ResolverProbe struct {
-	request *DNSRequest
+	request  *DNSRequest
+	runQuery queryRunner
 }
 
-// NewResolverProbe constructs a ResolverProbe, normalizing retry counters
-// to a safe minimum of 1 if they are <= 0.
+// NewResolverProbe creates a new ResolverProbe.
+// Note: It mutates req to ensure Tries and DpiTries are at least 1.
 func NewResolverProbe(req *DNSRequest) probe.Probe {
 	if req.Tries <= 0 {
 		req.Tries = 1
@@ -85,29 +81,33 @@ func NewResolverProbe(req *DNSRequest) probe.Probe {
 	if req.DpiTries <= 0 {
 		req.DpiTries = 1
 	}
-	return &ResolverProbe{request: req}
+
+	return &ResolverProbe{
+		request: req,
+		runQuery: func(ctx context.Context, q dns.DNSQuery) (*dns.Msg, error) {
+			return q.Run(ctx)
+		},
+	}
 }
 
-// Schema returns the DNS resolver result schema.
+// Schema returns the result schema for this probe.
 func (r *ResolverProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init implements [probe.Probe]. It is a no-op as ResolverProbe does not
-// maintain background goroutines or shared state.
+// Init implements probe.Probe. It is a no-op since the probe is stateless.
 func (r *ResolverProbe) Init(_ context.Context) error {
 	return nil
 }
 
-// Close implements [probe.Probe]. It is a no-op as ResolverProbe has no
-// persistent resources.
+// Close implements probe.Probe. It is a no-op.
 func (r *ResolverProbe) Close() error {
 	return nil
 }
 
-// Run executes the full resolver validation sequence against the given IP.
-// It optionally runs a DPI/honesty check before executing normal probing.
-func (r *ResolverProbe) Run(ctx context.Context, ip string) (result.Result, error) {
+// Run implements probe.Probe. It validates the resolver at the given IP,
+// optionally performing a DPI check before standard queries.
+func (r *ResolverProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -121,10 +121,10 @@ func (r *ResolverProbe) Run(ctx context.Context, ip string) (result.Result, erro
 	return r.executeNormalProbe(ctx, ip)
 }
 
-// verifyResolverHonesty checks whether a resolver improperly returns a
-// success rcode (0) for a guaranteed-invalid domain, indicating potential
-// DPI, hijacking, or other dishonest behavior.
-func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip string) error {
+// verifyResolverHonesty queries a guaranteed-invalid .invalid domain.
+// It returns an error if the resolver returns a success rcode (0),
+// indicating potential hijacking or DPI.
+func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip netip.Addr) error {
 	fakeDomain := generateRandomString(16) + ".invalid"
 
 	timeout := r.request.DpiTimeout
@@ -133,7 +133,7 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip string) er
 	}
 
 	query := dns.DNSQuery{
-		Resolver:         ip,
+		Resolver:         ip.String(),
 		Port:             r.request.Port,
 		Domain:           fakeDomain,
 		RecordType:       dns.TypeA,
@@ -150,7 +150,7 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip string) er
 			return err
 		}
 
-		resp, err := query.Run(ctx)
+		resp, err := r.runQuery(ctx, query)
 		if err != nil {
 			lastErr = err
 			continue
@@ -168,11 +168,11 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip string) er
 	return fmt.Errorf("dpi verification failed after %d tries: %w", r.request.DpiTries, lastErr)
 }
 
-// executeNormalProbe runs DNS queries against the configured record types
-// and returns the first acceptable result as defined by AcceptedRcodes.
-func (r *ResolverProbe) executeNormalProbe(ctx context.Context, ip string) (result.Result, error) {
+// executeNormalProbe iterates through the configured CheckTypes,
+// returning the first query that yields an AcceptedRcode.
+func (r *ResolverProbe) executeNormalProbe(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	query := dns.DNSQuery{
-		Resolver:         ip,
+		Resolver:         ip.String(),
 		Port:             r.request.Port,
 		Transport:        r.request.Transport,
 		EDNSBufSize:      r.request.Edns0Size,
@@ -198,7 +198,7 @@ func (r *ResolverProbe) executeNormalProbe(ctx context.Context, ip string) (resu
 
 			start := time.Now()
 
-			resp, err := query.Run(ctx)
+			resp, err := r.runQuery(ctx, query)
 			if err != nil {
 				lastErr = err
 				continue
@@ -230,6 +230,8 @@ func (r *ResolverProbe) isRcodeAccepted(code uint16) bool {
 	return slices.Contains(r.request.AcceptedRcodes, code)
 }
 
+// parseRecordType maps a string to a dns.RecordType,
+// defaulting to TypeA for unknown or empty values.
 func parseRecordType(s string) dns.RecordType {
 	switch strings.ToUpper(strings.TrimSpace(s)) {
 	case "A":
@@ -249,9 +251,9 @@ func parseRecordType(s string) dns.RecordType {
 	}
 }
 
-// generateRandomString returns a random alphanumeric string of length n.
-//
-// Note: this uses math/rand and is intended for non-cryptographic purposes.
+// generateRandomString returns a random lowercase alphanumeric string of length n.
+// It uses math/rand and is not cryptographically secure, which is acceptable
+// for simple cache-busting.
 func generateRandomString(n int) string {
 	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, n)

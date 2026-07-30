@@ -3,6 +3,8 @@ package dnsttprobe
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/netip"
 	"time"
 
 	"bgscan/internal/core/dns"
@@ -12,158 +14,183 @@ import (
 	"bgscan/internal/logger"
 )
 
-// DNSTTConfig describes the static configuration required to establish
-// a DNSTT tunnel from a scan worker. All fields are intended to be
-// configured once per worker and reused across multiple probe runs.
+// DNSTTConfig configures a DNSTT tunnel probe.
 type DNSTTConfig struct {
-	// Domain is the DNSTT front domain used for encapsulating DNS traffic.
-	// This is typically a domain controlled by the operator or provided
-	// by the DNSTT service configuration.
+	// Domain is the DNSTT server domain.
 	Domain string
 
-	// PubKey is the server's public key used by the DNSTT client for
-	// establishing a secure tunnel. The exact format is defined by the
-	// underlying dns.DNSTTClient implementation.
+	// PubKey is the server's public encryption key.
 	PubKey string
 
-	// Transport selects the DNS transport mechanism (e.g. UDP, DoH, DoT)
-	// used by the tunnel. The concrete options are defined in the
-	// bgscan/internal/core/dns package.
+	// Transport selects the DNS transport used by the tunnel.
 	Transport dns.Transport
 
-	// DNSPort is the remote DNS port on the target resolver. For standard
-	// DNS this is usually 53, but DNSTT deployments may use alternative
-	// ports depending on the environment.
+	// DNSPort is the DNS resolver port.
 	DNSPort uint16
 
-	// Timeout defines the maximum duration allowed for proxy validation
-	// and end-to-end tunnel checks performed by the probe. If set to a
-	// non-positive value, a sensible default is applied.
+	// Timeout limits the end-to-end proxy connectivity check.
 	Timeout time.Duration
 }
 
-// DNSTTProbe implements the Probe interface using a DNSTT tunnel as the
-// underlying measurement primitive. For each Run call, a DNSTT tunnel is
-// established to the target resolver, a local SOCKS5 proxy is exposed,
-// and connectivity through the tunnel is verified.
+// DNSTTProbe verifies connectivity through a DNSTT tunnel.
 type DNSTTProbe struct {
-	pm              *portmgr.PortManager
-	processRegistry *probe.ProcessRegistry
-	config          DNSTTConfig
+	pm             portmgr.Manager
+	processTracker probe.ProcessTracker
+	config         DNSTTConfig
+	client         dns.DNSTTClient
+
+	testProxy func(context.Context, string, time.Duration) bool
+	waitOpen  func(context.Context, string, time.Duration) error
+	now       func() time.Time
 }
 
-// NewDNSTTProbe returns a new DNSTTProbe configured with the given
-// DNSTTConfig and PortManager. If config.Timeout is non-positive, a
-// default of 5 seconds is applied. It does not start any background
-// goroutines; call Init to start the process registry.
-func NewDNSTTProbe(config DNSTTConfig, pm *portmgr.PortManager) (probe.Probe, error) {
+// Option configures a DNSTTProbe.
+type Option func(*DNSTTProbe)
+
+// WithProcessTracker uses tracker to register tunnel processes.
+//
+// It is useful when several probes must share the same shutdown lifecycle or
+// when tests need to inspect process registration.
+func WithProcessTracker(tracker probe.ProcessTracker) Option {
+	return func(p *DNSTTProbe) {
+		if tracker != nil {
+			p.processTracker = tracker
+		}
+	}
+}
+
+// WithClient uses client to create and stop DNSTT tunnels.
+//
+// It is primarily useful in tests.
+func WithClient(client dns.DNSTTClient) Option {
+	return func(p *DNSTTProbe) {
+		if client != nil {
+			p.client = client
+		}
+	}
+}
+
+// NewDNSTTProbe creates a DNSTT probe.
+//
+// The caller must invoke Init before Run so the process tracker can terminate
+// registered tunnel processes during shutdown.
+func NewDNSTTProbe(
+	config DNSTTConfig,
+	pm portmgr.Manager,
+	opts ...Option,
+) (probe.Probe, error) {
 	if pm == nil {
-		return nil, fmt.Errorf("port manager cannot be nil")
+		return nil, fmt.Errorf("port manager is nil")
 	}
 
 	if config.Domain == "" {
-		return nil, fmt.Errorf("dns domain cannot be empty")
+		return nil, fmt.Errorf("DNSTT domain is empty")
 	}
 
 	if config.Timeout <= 0 {
 		config.Timeout = 5 * time.Second
 	}
 
-	return &DNSTTProbe{
-		pm:              pm,
-		processRegistry: probe.NewProcessRegistry(),
-		config:          config,
-	}, nil
+	p := &DNSTTProbe{
+		pm:             pm,
+		processTracker: probe.NewProcessTracker(),
+		config:         config,
+		testProxy:      dns.TestProxy,
+		waitOpen:       portmgr.WaitOpen,
+		now:            time.Now,
+	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	if p.client == nil {
+		client, err := dns.NewDNSTTClient(
+			config.Domain,
+			config.PubKey,
+			config.Transport,
+			config.DNSPort,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create DNSTT client: %w", err)
+		}
+
+		p.client = client
+	}
+
+	return p, nil
 }
 
-// Schema returns the result schema for DNSTT probes.
+// Schema returns the result schema emitted by the probe.
 func (d *DNSTTProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init starts the internal process registry. The provided context governs
-// the lifecycle of the registry's monitoring goroutine; canceling it
-// terminates all tracked processes.
+// Init starts process tracking for the probe.
 func (d *DNSTTProbe) Init(ctx context.Context) error {
-	d.processRegistry.Start(ctx)
+	d.processTracker.Start(ctx)
+
 	return nil
 }
 
-// Run executes a single DNSTT measurement against the given IP address.
-// It allocates a local port, establishes a DNSTT tunnel, and verifies
-// connectivity through the resulting local SOCKS5 proxy. All operations
-// honor the provided context, and resources are cleaned up on failure
-// or early cancellation.
-func (d *DNSTTProbe) Run(ctx context.Context, ip string) (result.Result, error) {
+// Run opens a DNSTT tunnel to ip and verifies connectivity through its local
+// SOCKS5 listener.
+func (d *DNSTTProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	localPort, err := d.pm.GetPort(ctx)
+	localPort, err := d.pm.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer d.pm.ReleasePort(localPort)
+	defer d.pm.Release(localPort)
 
-	client, err := dns.NewDNSTTClient(
-		d.config.Domain,
-		d.config.PubKey,
-		d.config.Transport,
-		d.config.DNSPort,
-	)
+	proc, err := d.client.RunTunnel(ctx, ip.String(), localPort)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("start DNSTT tunnel: %w", err)
 	}
 
-	proc, err := client.RunTunnel(ctx, ip, localPort)
+	id, err := d.processTracker.Register(ctx, proc)
 	if err != nil {
-		return nil, err
-	}
-
-	// Register process for coordinated shutdown.
-	id, err := d.processRegistry.Register(ctx, proc)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("register DNSTT process: %w", err)
 	}
 
 	defer func() {
-		if err := d.processRegistry.Unregister(ctx, id); err != nil {
-			logger.CoreError("failed to unregister process %s: %s", id, err)
+		_ = proc.StopGracefully(time.Second)
+
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		if err := d.processTracker.Unregister(cleanupCtx, id); err != nil {
+			logger.CoreError("unregister DNSTT process %s: %s", id, err)
 		}
 	}()
 
-	// Ensure the tunnel is stopped when Run returns.
-	defer func() {
-		_ = client.StopTunnel(context.Background())
-	}()
+	addr := net.JoinHostPort("127.0.0.1", fmt.Sprint(localPort))
 
-	localProxyAddr := fmt.Sprintf("127.0.0.1:%d", localPort)
-
-	// Wait for local SOCKS5 proxy to accept connections.
-	if err := portmgr.WaitPortOpen(ctx, localProxyAddr, time.Second); err != nil {
-		return nil, err
+	if err := d.waitOpen(ctx, addr, time.Second); err != nil {
+		return nil, fmt.Errorf("wait for DNSTT proxy: %w", err)
 	}
 
-	start := time.Now()
+	start := d.now()
 
-	// Validate connectivity through the tunnelled proxy.
-	if ok := dns.TestProxy(ctx, localProxyAddr, d.config.Timeout); !ok {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
+	if ok := d.testProxy(ctx, addr, d.config.Timeout); !ok {
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
-		return nil, fmt.Errorf("tunnel connectivity failed: %s", ip)
+
+		return nil, fmt.Errorf("DNSTT tunnel connectivity failed for %s", ip)
 	}
 
 	return DNSTTResult{
 		IP:        ip,
-		Latency:   time.Since(start),
+		Latency:   d.now().Sub(start),
 		Transport: d.config.Transport,
 		Port:      localPort,
 	}, nil
 }
 
-// Close is a no-op as DNSTTProbe does not maintain long-lived resources
-// beyond per-Run cleanup.
 func (d *DNSTTProbe) Close() error {
 	return nil
 }

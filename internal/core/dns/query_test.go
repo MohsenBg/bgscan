@@ -9,10 +9,6 @@ import (
 	"github.com/miekg/dns"
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
 func testDNSServer(t *testing.T) (addr string, stop func()) {
 	t.Helper()
 	pc, err := net.ListenPacket("udp", "127.0.0.1:0")

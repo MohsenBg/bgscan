@@ -2,85 +2,214 @@ package dns
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"testing"
+	"time"
+
+	"bgscan/internal/core/process"
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// dnstt.go — path helpers & construction
-// ─────────────────────────────────────────────────────────────────────────────
+type mockProcess struct {
+	stopErr error
+	killErr error
+	waitErr error
 
-func TestDNSTTClientPaths_NonEmpty(t *testing.T) {
-	if paths := DNSTTClientPaths(); len(paths) == 0 {
-		t.Error("DNSTTClientPaths() should return at least one candidate path")
+	stopCalled bool
+	killCalled bool
+	waitCalled bool
+
+	stopTimeout time.Duration
+}
+
+func (p *mockProcess) StopGracefully(timeout time.Duration) error {
+	p.stopCalled = true
+	p.stopTimeout = timeout
+
+	return p.stopErr
+}
+
+func (p *mockProcess) Kill() error {
+	p.killCalled = true
+
+	return p.killErr
+}
+
+func (p *mockProcess) Wait() error {
+	p.waitCalled = true
+
+	return p.waitErr
+}
+
+func TestNewDNSTTClient(t *testing.T) {
+	t.Parallel()
+
+	client, err := NewDNSTTClient(
+		"example.com",
+		"public-key",
+		UDP,
+		53,
+		WithDNSTTClientBinary("test-dnstt-client"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if client == nil {
+		t.Fatal("NewDNSTTClient returned nil client")
 	}
 }
 
-func TestDNSTTClientPaths_ContainsExpectedEntries(t *testing.T) {
-	paths := DNSTTClientPaths()
-	required := []string{"assets/dnstt-client", "assets/dns/dnstt-client", "dnstt-client"}
-	pathSet := make(map[string]bool, len(paths))
-	for _, p := range paths {
-		pathSet[p] = true
+func TestRunTunnel(t *testing.T) {
+	t.Parallel()
+
+	wantProc := &mockProcess{}
+
+	var gotBin string
+	var gotArgs []string
+	var startCalls int
+
+	client, err := NewDNSTTClient(
+		"example.com",
+		"public-key",
+		UDP,
+		53,
+		WithDNSTTClientBinary("test-dnstt-client"),
+		WithProcessStarter(func(
+			_ context.Context,
+			bin string,
+			args ...string,
+		) (process.Process, error) {
+			startCalls++
+			gotBin = bin
+			gotArgs = append([]string(nil), args...)
+
+			return wantProc, nil
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, r := range required {
-		if !pathSet[r] {
-			t.Errorf("DNSTTClientPaths() missing expected entry %q", r)
-		}
+
+	gotProc, err := client.RunTunnel(context.Background(), "8.8.8.8", 1080)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if gotProc != wantProc {
+		t.Fatalf("RunTunnel() process = %v, want %v", gotProc, wantProc)
+	}
+
+	if startCalls != 1 {
+		t.Fatalf("starter called %d times, want 1", startCalls)
+	}
+
+	if gotBin != "test-dnstt-client" {
+		t.Fatalf("binary = %q, want %q", gotBin, "test-dnstt-client")
+	}
+
+	wantArgs := []string{
+		"-udp",
+		"8.8.8.8:53",
+		"-pubkey",
+		"public-key",
+		"example.com",
+		"127.0.0.1:1080",
+	}
+
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Fatalf("arguments = %#v, want %#v", gotArgs, wantArgs)
 	}
 }
 
-func TestFindDNSTTClient_ReturnsErrorWhenMissing(t *testing.T) {
-	if _, err := FindDNSTTClient(); err == nil {
-		t.Skip("dnstt-client binary found on PATH; skipping absence test")
+func TestRunTunnelReturnsStarterError(t *testing.T) {
+	t.Parallel()
+
+	wantErr := errors.New("start failed")
+
+	client, err := NewDNSTTClient(
+		"example.com",
+		"public-key",
+		UDP,
+		53,
+		WithDNSTTClientBinary("test-dnstt-client"),
+		WithProcessStarter(func(
+			context.Context,
+			string,
+			...string,
+		) (process.Process, error) {
+			return nil, wantErr
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	proc, err := client.RunTunnel(context.Background(), "8.8.8.8", 1080)
+
+	if proc != nil {
+		t.Fatalf("process = %v, want nil", proc)
+	}
+
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("error = %v, want %v", err, wantErr)
 	}
 }
-
-func TestNewDNSTTClient_ReturnsErrorWhenBinaryMissing(t *testing.T) {
-	if _, err := NewDNSTTClient("example.com", "deadbeef", UDP, 53); err == nil {
-		t.Skip("dnstt-client binary found; skipping missing-binary test")
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// dnstt.go — StopTunnel nil-guard
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestDNSTTClient_StopTunnel_WhenProcessNil(t *testing.T) {
-	client := &DNSTTClient{} // process field is nil
-	if err := client.StopTunnel(context.Background()); err == nil {
-		t.Error("StopTunnel with nil process should return an error")
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// dnstt.go — getDNSTransportFlag
-// ─────────────────────────────────────────────────────────────────────────────
 
 func TestGetDNSTransportFlag(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
+		name      string
 		transport Transport
 		want      string
 	}{
-		{UDP, "-udp"},
-		{DOT, "-dot"},
-		{DOH, "-dot"},
-		{TCP, "-dot"},
-		{Transport("QUIC"), "-udp"},
-		{Transport(""), "-udp"},
+		{
+			name:      "UDP",
+			transport: UDP,
+			want:      "-udp",
+		},
+		{
+			name:      "TCP",
+			transport: TCP,
+			want:      "-dot",
+		},
+		{
+			name:      "DOT",
+			transport: DOT,
+			want:      "-dot",
+		},
+		{
+			name:      "DOH falls back to DOT",
+			transport: DOH,
+			want:      "-dot",
+		},
+		{
+			name:      "unknown falls back to UDP",
+			transport: Transport("unknown"),
+			want:      "-udp",
+		},
 	}
-	for _, tc := range tests {
-		if got := getDNSTransportFlag(tc.transport); got != tc.want {
-			t.Errorf("getDNSTransportFlag(%q) = %q; want %q", tc.transport, got, tc.want)
-		}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getDNSTransportFlag(tt.transport); got != tt.want {
+				t.Fatalf("getDNSTransportFlag() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
-func TestGetDNSTransportFlag_BUG_TCPMappedToDot(t *testing.T) {
-	flag := getDNSTransportFlag(TCP)
-	if flag == "-dot" {
-		t.Logf("BUG 1 CONFIRMED: getDNSTransportFlag(TCP) = %q. TCP is plaintext; correct flag should be \"-tcp\", not \"-dot\".", flag)
+func TestDNSTTClientPaths(t *testing.T) {
+	t.Parallel()
+
+	want := []string{
+		"assets/dnstt-client",
+		"assets/dns/dnstt-client",
+		"dnstt-client",
 	}
-	if flag == "-tcp" {
-		t.Log("BUG 1 appears to be fixed: getDNSTransportFlag(TCP) now returns \"-tcp\"")
+
+	if got := DNSTTClientPaths(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("DNSTTClientPaths() = %#v, want %#v", got, want)
 	}
 }

@@ -2,52 +2,58 @@ package dns
 
 import (
 	"context"
+	"reflect"
 	"testing"
+
+	"bgscan/internal/core/process"
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// slipstream.go — path helpers & construction
-// ─────────────────────────────────────────────────────────────────────────────
+func TestSlipstreamRunTunnel(t *testing.T) {
+	wantProc := &mockProcess{}
 
-func TestSlipstreamClientPaths_NonEmpty(t *testing.T) {
-	if paths := SlipstreamClientPaths(); len(paths) == 0 {
-		t.Error("SlipstreamClientPaths() should return at least one candidate path")
+	var gotBin string
+	var gotArgs []string
+
+	client, err := NewSlipstreamClient(
+		"example.com",
+		53,
+		"cert.pem",
+		WithSlipstreamClientBinary("test-slipstream-client"),
+		WithSlipstreamProcessStarter(func(
+			_ context.Context,
+			bin string,
+			args ...string,
+		) (process.Process, error) {
+			gotBin = bin
+			gotArgs = append([]string(nil), args...)
+			return wantProc, nil
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
 	}
-}
 
-func TestSlipstreamClientPaths_ContainsExpectedEntries(t *testing.T) {
-	paths := SlipstreamClientPaths()
-	required := []string{"assets/slipstream-client", "assets/dns/slipstream-client", "slipstream-client"}
-	pathSet := make(map[string]bool, len(paths))
-	for _, p := range paths {
-		pathSet[p] = true
+	gotProc, err := client.RunTunnel(context.Background(), "8.8.8.8", 1080)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, r := range required {
-		if !pathSet[r] {
-			t.Errorf("SlipstreamClientPaths() missing expected entry %q", r)
-		}
+
+	if gotProc != wantProc {
+		t.Fatalf("process = %v, want %v", gotProc, wantProc)
 	}
-}
 
-func TestFindSlipstreamClient_ReturnsErrorWhenMissing(t *testing.T) {
-	if _, err := FindSlipstreamClient(); err == nil {
-		t.Skip("slipstream-client binary found on PATH; skipping absence test")
+	if gotBin != "test-slipstream-client" {
+		t.Fatalf("binary = %q", gotBin)
 	}
-}
 
-func TestNewSlipstreamClient_ReturnsErrorWhenBinaryMissing(t *testing.T) {
-	if _, err := NewSlipstreamClient("example.com", 53, ""); err == nil {
-		t.Skip("slipstream-client binary found; skipping missing-binary test")
+	wantArgs := []string{
+		"-d", "example.com",
+		"-r", "8.8.8.8:53",
+		"-l", "1080",
+		"--cert", "cert.pem",
 	}
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// slipstream.go — StopTunnel nil-guard
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestSlipstreamClient_StopTunnel_WhenProcessNil(t *testing.T) {
-	client := &SlipstreamClient{} // process field is nil
-	if err := client.StopTunnel(context.Background()); err == nil {
-		t.Error("StopTunnel with nil process should return an error")
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Fatalf("args = %#v, want %#v", gotArgs, wantArgs)
 	}
 }

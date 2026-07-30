@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// socks5.go — TestProxy
-// ─────────────────────────────────────────────────────────────────────────────
-
 func TestTestProxy_AlreadyCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

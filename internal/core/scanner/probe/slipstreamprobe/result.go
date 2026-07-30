@@ -2,12 +2,13 @@ package slipstreamprobe
 
 import (
 	"fmt"
+	"net/netip"
 	"time"
 
 	"bgscan/internal/core/result"
 )
 
-// Schema is the result schema for Slipstream probes, defining columns and the parsing function.
+// Schema defines the output format and parsing logic for Slipstream probe results.
 var Schema = result.ResultSchema{
 	Name:      "Slipstream",
 	Directory: "slipstream",
@@ -30,41 +31,39 @@ var Schema = result.ResultSchema{
 	Parser: parseSlipstreamResult,
 }
 
-// SlipstreamResult holds the outcome of a single Slipstream tunnel probe.
-//
-// Latency measures only the proxy validation phase — after the tunnel is up —
-// so it reflects tunnel quality rather than startup overhead.
+// SlipstreamResult represents the outcome of a single Slipstream tunnel probe.
 type SlipstreamResult struct {
-	IP      string
-	Latency time.Duration
-	Port    uint16 // local SOCKS5 port allocated for this run
+	IP      netip.Addr
+	Latency time.Duration // Measures only the proxy validation phase, reflecting tunnel quality rather than startup overhead.
+	Port    uint16        // Local SOCKS5 port allocated for this run.
 }
 
-// Key returns the IP address as the unique identifier for this result.
+// Key returns the IP address string used for result deduplication.
 func (r SlipstreamResult) Key() string {
-	return r.IP
+	return r.IP.String()
 }
 
-// KeyType returns the type of key used for this result, which is KeyIP.
+// KeyType implements result.Result, identifying this as an IP-based key.
 func (r SlipstreamResult) KeyType() result.KeyType {
 	return result.KeyIP
 }
 
-// Equal checks if the given result represents the same probe target by comparing IP addresses.
+// Equal reports whether r and other represent the same target IP.
 func (r SlipstreamResult) Equal(rs result.Result) bool {
-	return r.IP == rs.Key()
+	return r.IP.String() == rs.Key()
 }
 
-// ToRecord converts the result fields into a slice of strings for tabular output.
+// ToRecord serializes the result into a string slice for tabular output.
 func (r SlipstreamResult) ToRecord() []string {
 	return []string{
-		r.IP,
+		r.IP.String(),
 		r.Latency.String(),
 		fmt.Sprintf("%d", r.Port),
 	}
 }
 
-// Score returns a latency-based score (lower latency → higher score).
+// Score calculates a performance metric where lower latency yields a higher score.
+// It guards against division by zero by enforcing a minimum latency of 1ms.
 func (r SlipstreamResult) Score() float64 {
 	ms := float64(r.Latency.Milliseconds())
 	if ms < 1 {
@@ -73,12 +72,19 @@ func (r SlipstreamResult) Score() float64 {
 	return 1000.0 / ms
 }
 
+// parseSlipstreamResult reconstructs a SlipstreamResult from a string slice.
+// It provides backward compatibility for older records that only contain IP and latency.
 func parseSlipstreamResult(record []string) (result.Result, error) {
 	if len(record) < 2 {
 		return nil, fmt.Errorf(
 			"invalid Slipstream result record: expected at least 2 fields, got %d",
 			len(record),
 		)
+	}
+
+	ip, err := netip.ParseAddr(record[0])
+	if err != nil {
+		return nil, fmt.Errorf("parse IP: %w", err)
 	}
 
 	latency, err := time.ParseDuration(record[1])
@@ -95,7 +101,7 @@ func parseSlipstreamResult(record []string) (result.Result, error) {
 	}
 
 	return SlipstreamResult{
-		IP:      record[0],
+		IP:      ip,
 		Latency: latency,
 		Port:    port,
 	}, nil

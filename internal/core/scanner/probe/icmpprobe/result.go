@@ -2,6 +2,7 @@ package icmpprobe
 
 import (
 	"fmt"
+	"net/netip"
 	"strconv"
 	"time"
 
@@ -37,7 +38,7 @@ var Schema = result.ResultSchema{
 
 // ICMPResult holds the outcome of a single ICMP echo probe.
 type ICMPResult struct {
-	IP      string
+	IP      netip.Addr
 	Latency time.Duration
 	Tries   int    // number of attempts before success
 	Mode    string // "raw" or "udp"
@@ -45,7 +46,7 @@ type ICMPResult struct {
 
 // Key returns the IP address as the unique identifier for the result.
 func (r ICMPResult) Key() string {
-	return r.IP
+	return r.IP.String()
 }
 
 // KeyType returns the type of key used for this result.
@@ -55,7 +56,7 @@ func (r ICMPResult) KeyType() result.KeyType {
 
 // Equal checks if the given result matches this result's IP address.
 func (r ICMPResult) Equal(rs result.Result) bool {
-	return r.IP == rs.Key()
+	return r.IP.String() == rs.Key()
 }
 
 // ToRecord converts the ICMPResult into a slice of strings for serialization.
@@ -65,7 +66,7 @@ func (r ICMPResult) ToRecord() []string {
 		tries = r.Tries
 	}
 	return []string{
-		r.IP,
+		r.IP.String(),
 		r.Latency.String(),
 		strconv.Itoa(tries),
 		r.Mode,
@@ -89,6 +90,11 @@ func parseICMPResult(record []string) (result.Result, error) {
 		)
 	}
 
+	ip, err := netip.ParseAddr(record[0])
+	if err != nil {
+		return nil, fmt.Errorf("parse IP: %w", err)
+	}
+
 	latency, err := time.ParseDuration(record[1])
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
@@ -105,7 +111,7 @@ func parseICMPResult(record []string) (result.Result, error) {
 	}
 
 	return ICMPResult{
-		IP:      record[0],
+		IP:      ip,
 		Latency: max(time.Millisecond, latency.Round(time.Millisecond)),
 		Tries:   max(1, tries),
 		Mode:    mode,

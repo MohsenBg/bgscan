@@ -2,13 +2,14 @@ package tcpprobe
 
 import (
 	"fmt"
+	"net/netip"
 	"strconv"
 	"time"
 
 	"bgscan/internal/core/result"
 )
 
-// Schema is the result schema emitted by the TCP probe.
+// Schema defines the output format and parsing logic for TCP probe results.
 var Schema = result.ResultSchema{
 	Name:      "TCP",
 	Directory: "tcp",
@@ -35,30 +36,31 @@ var Schema = result.ResultSchema{
 	Parser: parseTCPResult,
 }
 
-// TCPResult holds the outcome of a single TCP handshake probe.
+// TCPResult represents the outcome of a single TCP handshake probe.
 type TCPResult struct {
-	IP      string
-	Port    uint16
+	IP      netip.Addr
+	Port    uint16 // 0 if the connection failed before a port could be established.
 	Latency time.Duration
-	Tries   int
+	Tries   int // Number of connection attempts made.
 }
 
-// Key returns the IP used to deduplicate results.
+// Key returns the IP address string used for result deduplication.
 func (r TCPResult) Key() string {
-	return r.IP
+	return r.IP.String()
 }
 
-// KeyType returns the result key type.
+// KeyType implements result.Result, identifying this as an IP-based key.
 func (r TCPResult) KeyType() result.KeyType {
 	return result.KeyIP
 }
 
-// Equal reports whether r and rs identify the same IP.
+// Equal reports whether r and other represent the same target IP.
 func (r TCPResult) Equal(rs result.Result) bool {
-	return r.IP == rs.Key()
+	return r.IP.String() == rs.Key()
 }
 
-// ToRecord serializes the result into a CSV-style string slice.
+// ToRecord serializes the result into a string slice for tabular output.
+// It renders port as "-" if 0, and defaults tries to 1 if 0.
 func (r TCPResult) ToRecord() []string {
 	port := "-"
 	if r.Port != 0 {
@@ -71,14 +73,15 @@ func (r TCPResult) ToRecord() []string {
 	}
 
 	return []string{
-		r.IP,
+		r.IP.String(),
 		r.Latency.String(),
 		port,
 		strconv.Itoa(tries),
 	}
 }
 
-// Score returns a latency-based score where lower latency yields a higher score.
+// Score calculates a performance metric where lower latency yields a higher score.
+// It guards against division by zero by enforcing a minimum latency of 1ms.
 func (r TCPResult) Score() float64 {
 	ms := float64(r.Latency.Milliseconds())
 	if ms < 1 {
@@ -87,12 +90,20 @@ func (r TCPResult) Score() float64 {
 	return 1000.0 / ms
 }
 
+// parseTCPResult reconstructs a TCPResult from a string slice.
+// It enforces a minimum latency of 1ms and a minimum of 1 try,
+// and provides backward compatibility for legacy records missing the Tries field.
 func parseTCPResult(record []string) (result.Result, error) {
 	if len(record) < 3 {
 		return nil, fmt.Errorf(
 			"invalid TCP result record: expected at least 3 fields, got %d",
 			len(record),
 		)
+	}
+
+	ip, err := netip.ParseAddr(record[0])
+	if err != nil {
+		return nil, fmt.Errorf("parse IP: %w", err)
 	}
 
 	latency, err := time.ParseDuration(record[1])
@@ -114,7 +125,7 @@ func parseTCPResult(record []string) (result.Result, error) {
 	}
 
 	return TCPResult{
-		IP:      record[0],
+		IP:      ip,
 		Latency: max(time.Millisecond, latency.Round(time.Millisecond)),
 		Port:    uint16(port),
 		Tries:   max(1, tries),

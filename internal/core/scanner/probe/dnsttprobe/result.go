@@ -2,13 +2,14 @@ package dnsttprobe
 
 import (
 	"fmt"
+	"net/netip"
 	"time"
 
 	"bgscan/internal/core/dns"
 	"bgscan/internal/core/result"
 )
 
-// Schema is the result schema for DNSTT probes, defining columns and the parsing function.
+// Schema defines the database layout and parsing rules for DNSTT probe outcomes.
 var Schema = result.ResultSchema{
 	Name:      "DNSTT",
 	Directory: "dnstt",
@@ -37,42 +38,39 @@ var Schema = result.ResultSchema{
 
 // DNSTTResult holds the outcome of a single DNSTT tunnel probe.
 //
-// Latency measures only the proxy validation phase — the time from first
-// byte through the tunnel to a confirmed response. Tunnel startup is
-// excluded so the value reflects tunnel quality, not startup overhead.
+// Latency measures only the proxy validation phase—from the first byte sent
+// through the tunnel until a valid response is received. It excludes the initial
+// tunnel startup overhead to reflect sustained tunnel performance.
 type DNSTTResult struct {
-	IP        string
+	IP        netip.Addr
 	Latency   time.Duration
-	Transport dns.Transport // transport used for the tunnel (UDP, DoH, DoT, …)
-	Port      uint16        // local SOCKS5 port allocated for this run
+	Transport dns.Transport // Underlying DNS transport used for the tunnel (e.g., UDP, DoH, DoT).
+	Port      uint16        // Local SOCKS5 port allocated for validation.
 }
 
-// Key returns the IP address as the unique identifier for this result.
 func (r DNSTTResult) Key() string {
-	return r.IP
+	return r.IP.String()
 }
 
-// KeyType returns the type of key used for this result, which is KeyIP.
 func (r DNSTTResult) KeyType() result.KeyType {
 	return result.KeyIP
 }
 
-// Equal checks if the given result represents the same probe target by comparing IP addresses.
 func (r DNSTTResult) Equal(rs result.Result) bool {
-	return r.IP == rs.Key()
+	return r.IP.String() == rs.Key()
 }
 
-// ToRecord converts the result fields into a slice of strings for tabular output.
 func (r DNSTTResult) ToRecord() []string {
 	return []string{
-		r.IP,
+		r.IP.String(),
 		r.Latency.String(),
 		string(r.Transport),
 		fmt.Sprintf("%d", r.Port),
 	}
 }
 
-// Score returns a latency-based score where lower latency yields a higher score.
+// Score calculates a performance rating where lower latency yields a higher score.
+// A latency of 0 or negative values are clamped to 1ms to prevent division by zero.
 func (r DNSTTResult) Score() float64 {
 	ms := float64(r.Latency.Milliseconds())
 	if ms < 1 {
@@ -89,12 +87,17 @@ func parseDNSTTResult(record []string) (result.Result, error) {
 		)
 	}
 
+	ip, err := netip.ParseAddr(record[0])
+	if err != nil {
+		return nil, fmt.Errorf("parse IP: %w", err)
+	}
+
 	latency, err := time.ParseDuration(record[1])
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
 	}
 
-	// Backward compatibility: old records had only IP + Latency.
+	// Legacy records contain only IP and Latency.
 	var transport dns.Transport
 	var port uint16
 	if len(record) >= 4 {
@@ -105,7 +108,7 @@ func parseDNSTTResult(record []string) (result.Result, error) {
 	}
 
 	return DNSTTResult{
-		IP:        record[0],
+		IP:        ip,
 		Latency:   latency,
 		Transport: transport,
 		Port:      port,

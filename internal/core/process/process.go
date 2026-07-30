@@ -12,40 +12,27 @@ import (
 	"time"
 )
 
-// Process represents a started external process. It manages background waiting,
-// graceful shutdown, forceful termination, and exposes a Wait method similar to
-// exec.Cmd.
-//
-// The process is waited on exactly once, protected by waitOnce, and waitDone is
-// closed when Wait() completes, regardless of success or failure.
-type Process struct {
+// Process represents a running external process that can be terminated
+// gracefully or forcefully.
+type Process interface {
+	StopGracefully(timeout time.Duration) error
+	Kill() error
+	Wait() error
+}
+
+// process wraps an exec.Cmd and manages waiting and shutdown.
+type process struct {
 	cmd      *exec.Cmd
 	waitOnce sync.Once
 	waitErr  error
 	waitDone chan struct{}
 }
 
-// Start resolves the binary path if necessary, sets platform‑specific
-// SysProcAttr values (via setSysProcAttr), starts the process, and returns a
-// Process wrapper.
+// Start launches a binary with the provided arguments.
 //
-// The given context controls the lifetime of the process through
-// exec.CommandContext. When the context is cancelled, the process receives its
-// OS‑specific termination signal automatically.
-//
-// Example:
-//
-//	p, err := process.Start(ctx, "/usr/bin/somebinary", "--flag")
-//	if err != nil {
-//	    return err
-//	}
-//	defer p.Kill()
-//
-//	if err := p.Wait(); err != nil {
-//	    return err
-//	}
-func Start(ctx context.Context, binary string, args ...string) (*Process, error) {
-	// Ensure binary path is absolute.
+// The returned Process owns the started command and should be stopped by the
+// caller when it is no longer needed.
+func Start(ctx context.Context, binary string, args ...string) (Process, error) {
 	if !filepath.IsAbs(binary) {
 		abs, err := filepath.Abs(binary)
 		if err != nil {
@@ -58,74 +45,90 @@ func Start(ctx context.Context, binary string, args ...string) (*Process, error)
 	setSysProcAttr(cmd)
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start: %w", err)
+		return nil, fmt.Errorf("start process: %w", err)
 	}
 
-	p := &Process{
+	p := &process{
 		cmd:      cmd,
 		waitDone: make(chan struct{}),
 	}
 
 	go p.backgroundWait()
+
 	return p, nil
 }
 
-// backgroundWait waits for the process to exit.
-// It runs in a goroutine immediately after Start() and ensures Wait() semantics
-// complete exactly once.
-func (p *Process) backgroundWait() {
+func (p *process) backgroundWait() {
 	p.waitOnce.Do(func() {
 		if p.cmd != nil && p.cmd.Process != nil {
 			p.waitErr = p.cmd.Wait()
 		}
+
 		close(p.waitDone)
 	})
 }
 
-// StopGracefully attempts to shut down the process by sending the OS‑specific
-// termination signal via signalTerminate(). If the process does not exit within
-// the provided timeout, the process is force‑killed.
+// StopGracefully sends a termination request and waits for the process to exit.
 //
-// Returns the wait result from the process, or Kill()’s error if forced.
-func (p *Process) StopGracefully(timeout time.Duration) error {
+// If the process does not exit before timeout, it is forcefully killed.
+func (p *process) StopGracefully(timeout time.Duration) error {
 	if p.cmd == nil || p.cmd.Process == nil {
 		return fmt.Errorf("process not running")
+	}
+
+	select {
+	case <-p.waitDone:
+		return nil
+	default:
 	}
 
 	signalTerminate(p.cmd)
 
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
 	select {
 	case <-p.waitDone:
-		return p.waitErr
-	case <-time.After(timeout):
+		return nil
+
+	case <-timer.C:
 		return p.Kill()
 	}
 }
 
-// Kill forcefully terminates the process using killProcess() and waits for it
-// to complete. The returned error is the process wait result.
-func (p *Process) Kill() error {
+// Kill forcefully terminates the process and waits until it exits.
+//
+// It does not return the child's exit status; use Wait when that information
+// is needed.
+func (p *process) Kill() error {
 	if p.cmd == nil || p.cmd.Process == nil {
 		return fmt.Errorf("process not running")
 	}
 
+	select {
+	case <-p.waitDone:
+		return nil
+	default:
+	}
+
 	killProcess(p.cmd)
+
 	<-p.waitDone
 
-	return p.waitErr
+	return nil
 }
 
 // Wait blocks until the process exits and returns its exit status.
-func (p *Process) Wait() error {
+func (p *process) Wait() error {
 	<-p.waitDone
 	return p.waitErr
 }
 
-// FindBinaryInPaths searches for a binary within the provided directories.
-// If not found, it falls back to exec.LookPath. On Windows, ".exe" is appended
-// automatically unless already present.
+// FindBinaryInPaths searches the provided directories and then the system PATH
+// for a binary.
 //
-// Returns the absolute path if the binary is located.
+// The returned path is always absolute. On Windows, ".exe" is added when the
+// binary name does not already contain it.
 func FindBinaryInPaths(binary string, dirs []string) (string, error) {
 	if runtime.GOOS == "windows" && !strings.HasSuffix(binary, ".exe") {
 		binary += ".exe"
@@ -134,30 +137,24 @@ func FindBinaryInPaths(binary string, dirs []string) (string, error) {
 	for _, dir := range dirs {
 		fullPath := filepath.Join(dir, binary)
 
-		if info, err := os.Stat(fullPath); err == nil && !info.IsDir() {
-			abs, err := filepath.Abs(fullPath)
-			if err != nil {
-				return "", err
-			}
-			return abs, nil
+		info, err := os.Stat(fullPath)
+		if err == nil && !info.IsDir() {
+			return filepath.Abs(fullPath)
 		}
 	}
 
-	// Try system PATH.
-	if path, err := exec.LookPath(binary); err == nil {
-		abs, err := filepath.Abs(path)
-		if err != nil {
-			return "", err
-		}
-		return abs, nil
+	path, err := exec.LookPath(binary)
+	if err != nil {
+		return "", fmt.Errorf("binary %q not found", binary)
 	}
 
-	return "", fmt.Errorf("binary '%s' not found", binary)
+	return filepath.Abs(path)
 }
 
-// EnsureExecutable verifies that a Unix file has executable permissions.
-// On Windows, this is a no‑op. If the file is not executable, it is chmod’d to
-// mode 0755. The original permission bits (except exec flags) are preserved.
+// EnsureExecutable adds executable permissions to a file on Unix systems.
+//
+// Windows does not use Unix executable bits, so this function does nothing
+// there.
 func EnsureExecutable(path string) error {
 	if runtime.GOOS == "windows" {
 		return nil
@@ -168,11 +165,9 @@ func EnsureExecutable(path string) error {
 		return err
 	}
 
-	mode := info.Mode()
-	if mode&0111 != 0 {
+	if info.Mode()&0o111 != 0 {
 		return nil
 	}
 
-	// Add execute bits without removing existing permissions.
-	return os.Chmod(path, mode|0755)
+	return os.Chmod(path, info.Mode()|0o755)
 }

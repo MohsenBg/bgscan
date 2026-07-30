@@ -1,16 +1,56 @@
 package dns
 
 import (
-	"bgscan/internal/core/process"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os/exec"
-	"time"
+
+	"bgscan/internal/core/process"
 )
 
-// SlipstreamClientPaths returns the candidate filesystem paths where the
-// slipstream-client binary may be located.
+var ErrSlipstreamTunnelNotRunning = errors.New("slipstream-client process is not running")
+
+// SlipstreamClient manages a slipstream-client tunnel process.
+type SlipstreamClient interface {
+	RunTunnel(context.Context, string, uint16) (process.Process, error)
+}
+
+type slipstreamClient struct {
+	bin      string
+	domain   string
+	certPath string
+	dnsPort  uint16
+
+	start ProcessStarter
+}
+
+// SlipstreamClientOption configures a Slipstream client.
+type SlipstreamClientOption func(*slipstreamClient)
+
+// WithSlipstreamProcessStarter replaces the process launcher.
+//
+// It allows tests to run without starting a real slipstream-client binary.
+func WithSlipstreamProcessStarter(start ProcessStarter) SlipstreamClientOption {
+	return func(client *slipstreamClient) {
+		if start != nil {
+			client.start = start
+		}
+	}
+}
+
+// WithSlipstreamClientBinary uses bin as the slipstream-client executable
+// instead of searching the known locations.
+func WithSlipstreamClientBinary(bin string) SlipstreamClientOption {
+	return func(client *slipstreamClient) {
+		if bin != "" {
+			client.bin = bin
+		}
+	}
+}
+
+// SlipstreamClientPaths returns the locations searched for slipstream-client.
 func SlipstreamClientPaths() []string {
 	return []string{
 		"assets/slipstream-client",
@@ -19,93 +59,77 @@ func SlipstreamClientPaths() []string {
 	}
 }
 
-// SlipstreamClient wraps the external slipstream-client binary and manages
-// the lifecycle of a DNS tunneling session.
-type SlipstreamClient struct {
-	bin      string
-	domain   string
-	certPath string
-	dnsPort  uint16
-	process  *process.Process
-}
-
-// NewSlipstreamClient initializes a Slipstream client wrapper.
+// NewSlipstreamClient creates a client for a Slipstream DNS tunnel.
 //
-// The function resolves the slipstream-client binary automatically using
-// FindSlipstreamClient and prepares the runtime configuration.
-func NewSlipstreamClient(domain string, dnsPort uint16, certPath string) (*SlipstreamClient, error) {
-	path, err := FindSlipstreamClient()
-	if err != nil {
-		return nil, err
+// Unless WithSlipstreamClientBinary is provided, it locates slipstream-client
+// before returning the client.
+func NewSlipstreamClient(
+	domain string,
+	dnsPort uint16,
+	certPath string,
+	opts ...SlipstreamClientOption,
+) (SlipstreamClient, error) {
+	client := &slipstreamClient{
+		domain:   domain,
+		dnsPort:  dnsPort,
+		certPath: certPath,
+		start:    process.Start,
 	}
 
-	return &SlipstreamClient{
-		bin:      path,
-		domain:   domain,
-		certPath: certPath,
-		dnsPort:  dnsPort,
-	}, nil
+	for _, opt := range opts {
+		opt(client)
+	}
+
+	if client.bin == "" {
+		bin, err := FindSlipstreamClient()
+		if err != nil {
+			return nil, err
+		}
+
+		client.bin = bin
+	}
+
+	return client, nil
 }
 
-// FindSlipstreamClient searches for the slipstream-client binary in common
-// project paths and returns the resolved executable path.
+// FindSlipstreamClient locates slipstream-client in known locations or PATH.
 func FindSlipstreamClient() (string, error) {
 	return process.FindBinaryInPaths("slipstream-client", SlipstreamClientPaths())
 }
 
-// RunTunnel starts a Slipstream DNS tunnel.
-//
-// The command executed resembles:
-//
-//	slipstream-client -d <domain> -r <resolver>:<port> -l <listenPort> [--cert <cert>]
-//
-// The process is managed via the internal process package and is stored
-// in the client instance for later shutdown.
-func (s *SlipstreamClient) RunTunnel(ctx context.Context, ip string, listenPort uint16) (*process.Process, error) {
+// RunTunnel starts a Slipstream DNS tunnel and listens on listenPort.
+func (s *slipstreamClient) RunTunnel(
+	ctx context.Context,
+	ip string,
+	listenPort uint16,
+) (process.Process, error) {
 	args := []string{
 		"-d", s.domain,
 		"-r", net.JoinHostPort(ip, fmt.Sprint(s.dnsPort)),
-		"-l", fmt.Sprintf("%d", listenPort),
+		"-l", fmt.Sprint(listenPort),
 	}
 
 	if s.certPath != "" {
 		args = append(args, "--cert", s.certPath)
 	}
 
-	proc, err := process.Start(ctx, s.bin, args...)
+	proc, err := s.start(ctx, s.bin, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	s.process = proc
 	return proc, nil
 }
 
-// StopTunnel gracefully terminates the running Slipstream tunnel process.
-//
-// If no process is currently active, an error is returned.
-func (s *SlipstreamClient) StopTunnel(ctx context.Context) error {
-	if s.process == nil {
-		return fmt.Errorf("slipstream-client process not running")
-	}
-
-	return s.process.StopGracefully(2 * time.Second)
-}
-
-// VerifySlipstreamClient performs a basic health check of the
-// slipstream-client binary by executing the "--help" command.
-//
-// This ensures the binary exists and can start successfully.
+// VerifySlipstreamClient verifies that slipstream-client can execute.
 func VerifySlipstreamClient() error {
 	path, err := FindSlipstreamClient()
 	if err != nil {
-		return fmt.Errorf("slipstream-client not found: %w", err)
+		return fmt.Errorf("find slipstream-client: %w", err)
 	}
 
-	cmd := exec.Command(path, "--help")
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("slipstream-client failed to start: %w", err)
+	if err := exec.Command(path, "--help").Run(); err != nil {
+		return fmt.Errorf("run slipstream-client: %w", err)
 	}
 
 	return nil

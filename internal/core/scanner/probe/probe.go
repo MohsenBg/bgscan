@@ -2,6 +2,7 @@ package probe
 
 import (
 	"context"
+	"net/netip"
 
 	"bgscan/internal/core/result"
 )
@@ -16,7 +17,7 @@ type Probe interface {
 	// Run executes a probe against the provided IP address. It must honor
 	// ctx for cancellation, return a populated Result on success, and
 	// return an error if the probe fails or times out.
-	Run(ctx context.Context, ip string) (result.Result, error)
+	Run(ctx context.Context, ip netip.Addr) (result.Result, error)
 
 	// Schema returns the schema describing this probe's results.
 	Schema() result.ResultSchema

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -14,34 +15,44 @@ import (
 	"bgscan/internal/logger"
 )
 
-// HTTPProbe performs HTTP/HTTPS validation against a target IP while preserving
+// httpClientFactory abstracts HTTP client creation, primarily to allow mocking in tests.
+type httpClientFactory func(ip netip.Addr) (*http.Transport, *http.Client)
+
+// HTTPProbe validates HTTP/HTTPS connectivity to a target IP, preserving
 // Host and SNI semantics.
 type HTTPProbe struct {
-	req    HTTPRequest
-	filter statusFilter
-	dialer *net.Dialer
-	tls    *tls.Config
+	req           HTTPRequest
+	filter        statusFilter
+	dialer        *net.Dialer
+	tls           *tls.Config
+	clientFactory httpClientFactory
 }
 
-// NewHTTPProbe creates a new HTTPProbe with optional accepted status codes.
-// If acceptedCodes is empty or covers all known codes, all responses are accepted.
+// NewHTTPProbe creates an HTTPProbe. If acceptedCodes is empty or covers all
+// known codes, all response status codes are accepted.
 func NewHTTPProbe(req HTTPRequest, acceptedCodes []int) probe.Probe {
-	return &HTTPProbe{
+	p := &HTTPProbe{
 		req:    req,
 		filter: newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
-		dialer: &net.Dialer{Timeout: req.Timeout},
-		tls:    newTLSConfig(req),
 	}
+
+	p.clientFactory = func(ip netip.Addr) (*http.Transport, *http.Client) {
+		return p.buildClient(ip)
+	}
+
+	return p
 }
 
-// Init implements [probe.Probe]. It is a no-op for HTTP probes.
+// Init implements probe.Probe. It is a no-op.
 func (p *HTTPProbe) Init(context.Context) error { return nil }
 
-// Close implements [probe.Probe]. It is a no-op for HTTP probes.
+// Close implements probe.Probe. It is a no-op.
 func (p *HTTPProbe) Close() error { return nil }
 
-// Run executes a single HTTP HEAD request against the target IP.
-func (p *HTTPProbe) Run(ctx context.Context, ip string) (result.Result, error) {
+// Run executes an HTTP HEAD request against the target IP.
+// It returns an HTTPResult on success, or an error if the request fails
+// or the response status code is not in the accepted list.
+func (p *HTTPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -53,7 +64,7 @@ func (p *HTTPProbe) Run(ctx context.Context, ip string) (result.Result, error) {
 
 	start := time.Now()
 
-	t, client := p.buildClient(ip)
+	t, client := p.clientFactory(ip)
 	resp, err := client.Do(req)
 
 	t.CloseIdleConnections()
@@ -85,20 +96,17 @@ func (p *HTTPProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// buildClient creates a fresh *http.Transport bound to the given target IP.
-//
-// A new transport is created per Run call because HTTP/2 connections spawn a
-// persistent readLoop goroutine per connection that only exits when the
-// transport is closed. The caller must call t.CloseIdleConnections() after
-// the request completes to release that goroutine immediately.
-func (p *HTTPProbe) buildClient(ip string) (*http.Transport, *http.Client) {
+// buildClient creates a fresh *http.Transport and *http.Client bound to the target IP.
+// A new transport is instantiated per call to prevent HTTP/2 readLoop goroutine leaks.
+// The caller must invoke CloseIdleConnections on the returned transport after the request completes.
+func (p *HTTPProbe) buildClient(ip netip.Addr) (*http.Transport, *http.Client) {
 	t := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			_, port, err := net.SplitHostPort(addr)
 			if err != nil {
 				return nil, fmt.Errorf("parse addr: %w", err)
 			}
-			return p.dialer.DialContext(ctx, network, net.JoinHostPort(ip, port))
+			return p.dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
 		},
 		DisableKeepAlives:     true,
 		TLSHandshakeTimeout:   p.req.Timeout,
@@ -114,10 +122,8 @@ func (p *HTTPProbe) buildClient(ip string) (*http.Transport, *http.Client) {
 	}
 }
 
-// tlsNextProto returns the TLSNextProto map for the transport.
-// For H1-only mode, returning an empty (non-nil) map disables ALPN-based
-// HTTP/2 upgrade even if the server advertises h2 in its TLS handshake.
-// For all other modes nil lets the transport manage h2 itself.
+// tlsNextProto configures ALPN behavior for the transport.
+// An empty map disables HTTP/2 upgrades for H1-only mode, while nil allows default HTTP/2 negotiation.
 func tlsNextProto(v HTTPVersion) map[string]func(authority string, c *tls.Conn) http.RoundTripper {
 	if v == HTTPVersionH1 {
 		return map[string]func(authority string, c *tls.Conn) http.RoundTripper{}
@@ -125,6 +131,7 @@ func tlsNextProto(v HTTPVersion) map[string]func(authority string, c *tls.Conn) 
 	return nil
 }
 
+// isHTTPS reports whether the protocol string indicates an HTTPS connection.
 func isHTTPS(proto string) bool {
 	p := strings.ToLower(proto)
 	p = strings.TrimSpace(p)

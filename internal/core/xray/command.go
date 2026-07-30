@@ -16,7 +16,7 @@ var xrayPaths = []string{
 	"xray",
 }
 
-// findXrayBinary attempts to locate the Xray executable.
+// FindXrayBinary attempts to locate the Xray executable.
 func FindXrayBinary() (string, error) {
 	return process.FindBinaryInPaths("xray", xrayPaths)
 }
@@ -77,7 +77,7 @@ func ValidateConfig(ctx context.Context, configPath string) error {
 //
 // The provided context controls the lifetime of the process. If the
 // context is canceled, the Xray process will be terminated automatically.
-func StartXray(ctx context.Context, configPath string) (*process.Process, error) {
+func StartXray(ctx context.Context, configPath string) (process.Process, error) {
 	if !fileutil.CheckFileExists(configPath) {
 		return nil, fmt.Errorf("config file does not exist: %s", configPath)
 	}

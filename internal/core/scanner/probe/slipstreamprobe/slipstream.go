@@ -3,6 +3,8 @@ package slipstreamprobe
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/netip"
 	"time"
 
 	"bgscan/internal/core/dns"
@@ -12,121 +14,183 @@ import (
 	"bgscan/internal/logger"
 )
 
-// SlipstreamConfig holds parameters required to establish and verify
-// a Slipstream DNS tunnel.
+// SlipstreamConfig configures a Slipstream tunnel probe.
 type SlipstreamConfig struct {
-	Domain   string
+	// Domain is the DNS domain used by the tunnel.
+	Domain string
+
+	// CertPath is an optional TLS certificate path for slipstream-client.
 	CertPath string
-	DNSPort  uint16
-	Timeout  time.Duration
+
+	// DNSPort is the DNS resolver port.
+	DNSPort uint16
+
+	// Timeout limits the end-to-end proxy connectivity check.
+	Timeout time.Duration
 }
 
-// SlipstreamProbe performs connectivity verification by creating a
-// Slipstream DNS tunnel toward a target IP and testing the resulting
-// local SOCKS5 proxy.
+// SlipstreamProbe verifies connectivity through a Slipstream DNS tunnel.
 type SlipstreamProbe struct {
-	pm              *portmgr.PortManager
-	processRegistry *probe.ProcessRegistry
-	config          SlipstreamConfig
+	pm             portmgr.Manager
+	processTracker probe.ProcessTracker
+	config         SlipstreamConfig
+	client         dns.SlipstreamClient
+
+	testProxy func(context.Context, string, time.Duration) bool
+	waitOpen  func(context.Context, string, time.Duration) error
+	now       func() time.Time
 }
 
-// NewSlipstreamProbe creates a new SlipstreamProbe instance, validating
-// that workerCount is positive.
-func NewSlipstreamProbe(workerCount int, config SlipstreamConfig, pm *portmgr.PortManager) (probe.Probe, error) {
-	if workerCount <= 0 {
-		return nil, fmt.Errorf("worker count must be positive, got %d", workerCount)
+// Option configures a SlipstreamProbe.
+type Option func(*SlipstreamProbe)
+
+// WithProcessTracker uses tracker to manage tunnel processes.
+//
+// It is useful when multiple probes share a shutdown lifecycle or when tests
+// need to inspect registered processes.
+func WithProcessTracker(tracker probe.ProcessTracker) Option {
+	return func(p *SlipstreamProbe) {
+		if tracker != nil {
+			p.processTracker = tracker
+		}
+	}
+}
+
+// WithClient uses client to manage Slipstream tunnels.
+//
+// It is primarily useful for tests. A client stores its active process, so do
+// not use this option when concurrent Run calls share the same probe.
+func WithClient(client dns.SlipstreamClient) Option {
+	return func(p *SlipstreamProbe) {
+		if client != nil {
+			p.client = client
+		}
+	}
+}
+
+// NewSlipstreamProbe creates a Slipstream tunnel probe.
+//
+// Init must be called before Run so tracked tunnel processes are terminated
+// when the probe's lifecycle context is canceled.
+func NewSlipstreamProbe(
+	config SlipstreamConfig,
+	pm portmgr.Manager,
+	opts ...Option,
+) (probe.Probe, error) {
+	if pm == nil {
+		return nil, fmt.Errorf("port manager is nil")
 	}
 
-	return &SlipstreamProbe{
-		pm:              pm,
-		processRegistry: probe.NewProcessRegistry(),
-		config:          config,
-	}, nil
+	if config.Domain == "" {
+		return nil, fmt.Errorf("slipstream domain is empty")
+	}
+
+	if config.Timeout <= 0 {
+		config.Timeout = 5 * time.Second
+	}
+
+	p := &SlipstreamProbe{
+		pm:             pm,
+		processTracker: probe.NewProcessTracker(),
+		config:         config,
+		testProxy:      dns.TestProxy,
+		waitOpen:       portmgr.WaitOpen,
+		now:            time.Now,
+	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	if p.client == nil {
+		client, err := dns.NewSlipstreamClient(
+			config.Domain,
+			config.DNSPort,
+			config.CertPath,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create Slipstream client: %w", err)
+		}
+
+		p.client = client
+	}
+
+	return p, nil
 }
 
-// Schema returns the result schema for Slipstream probes.
+// Schema returns the result schema emitted by the probe.
 func (s *SlipstreamProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init implements [probe.Probe] and starts the internal ProcessRegistry
-// used to track and manage Slipstream tunnel processes.
+// Init starts process tracking for the probe.
 func (s *SlipstreamProbe) Init(ctx context.Context) error {
-	s.processRegistry.Start(ctx)
+	s.processTracker.Start(ctx)
+
 	return nil
 }
 
-// Run implements [probe.Probe] and establishes a Slipstream tunnel toward
-// the target IP, verifying connectivity via the resulting local SOCKS5 proxy.
-//
-// On success, it returns a SlipstreamResult containing the target IP and
-// post-tunnel validation latency.
-func (s *SlipstreamProbe) Run(ctx context.Context, ip string) (result.Result, error) {
+// Run opens a Slipstream tunnel to ip and verifies its local SOCKS5 listener.
+func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	localPort, err := s.pm.GetPort(ctx)
+	localPort, err := s.pm.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer s.pm.ReleasePort(localPort)
+	defer s.pm.Release(localPort)
 
-	client, err := dns.NewSlipstreamClient(
-		s.config.Domain,
-		s.config.DNSPort,
-		s.config.CertPath,
-	)
+	proc, err := s.client.RunTunnel(ctx, ip.String(), localPort)
 	if err != nil {
-		return nil, fmt.Errorf("slipstream client init failed: %w", err)
+		return nil, fmt.Errorf("start Slipstream tunnel: %w", err)
 	}
 
-	proc, err := client.RunTunnel(ctx, ip, localPort)
+	id, err := s.processTracker.Register(ctx, proc)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start slipstream tunnel: %w", err)
-	}
-
-	id, err := s.processRegistry.Register(ctx, proc)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("register Slipstream process: %w", err)
 	}
 
 	defer func() {
-		if err := s.processRegistry.Unregister(ctx, id); err != nil {
-			logger.CoreError("error unregistering process: %v", err)
+		_ = proc.StopGracefully(time.Second)
+
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		if err := s.processTracker.Unregister(cleanupCtx, id); err != nil {
+			logger.CoreError("unregister DNSTT process %s: %s", id, err)
 		}
-		_ = client.StopTunnel(context.Background())
 	}()
 
-	localProxyAddr := fmt.Sprintf("127.0.0.1:%d", localPort)
+	addr := net.JoinHostPort("127.0.0.1", fmt.Sprint(localPort))
 
-	if err := portmgr.WaitPortOpen(ctx, localProxyAddr, time.Second); err != nil {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
+	if err := s.waitOpen(ctx, addr, time.Second); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
 		}
-		return nil, fmt.Errorf("proxy port did not open for %s: %w", ip, err)
+
+		return nil, fmt.Errorf("wait for Slipstream proxy: %w", err)
 	}
 
-	start := time.Now()
+	start := s.now()
 
-	ok := dns.TestProxy(ctx, localProxyAddr, s.config.Timeout)
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
+	if ok := s.testProxy(ctx, addr, s.config.Timeout); !ok {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 
-	if !ok {
-		return nil, fmt.Errorf("slipstream handshake failed for %s", ip)
+		return nil, fmt.Errorf("slipstream tunnel connectivity failed for %s", ip)
 	}
 
 	return SlipstreamResult{
 		IP:      ip,
-		Latency: time.Since(start),
+		Latency: s.now().Sub(start),
 		Port:    localPort,
 	}, nil
 }
 
-// Close implements [probe.Probe]. It is a no-op as SlipstreamProbe holds
-// no long-lived resources outside of the per-Run scope.
+// Close releases no shared resources. Each Run cleans up its own tunnel.
 func (s *SlipstreamProbe) Close() error {
 	return nil
 }

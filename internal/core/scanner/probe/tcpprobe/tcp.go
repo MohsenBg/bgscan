@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"time"
 
@@ -12,9 +13,8 @@ import (
 	"bgscan/internal/logger"
 )
 
-// TCPProbe performs a lightweight TCP connectivity probe against a target IP.
-// It verifies Layer-4 reachability and measures handshake RTT without making
-// assumptions about the application-layer protocol.
+// TCPProbe verifies Layer-4 reachability and measures handshake RTT without
+// making assumptions about the application-layer protocol.
 type TCPProbe struct {
 	port    uint16
 	timeout time.Duration
@@ -22,9 +22,8 @@ type TCPProbe struct {
 	tries   uint16
 }
 
-// NewTCPProbe creates a TCPProbe targeting the given port. If port is not a
-// valid uint16, 80 is used as a fallback. timeout bounds each DialContext
-// attempt and tries caps the number of attempts.
+// NewTCPProbe creates a TCPProbe targeting the specified port.
+// If the port string is invalid or out of range, it defaults to 80.
 func NewTCPProbe(port string, timeout time.Duration, tries uint16) probe.Probe {
 	p, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
@@ -41,27 +40,26 @@ func NewTCPProbe(port string, timeout time.Duration, tries uint16) probe.Probe {
 	}
 }
 
-// Schema returns the TCP result schema.
+// Schema returns the result schema for TCP probes.
 func (p *TCPProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init is a no-op; TCPProbe holds no persistent state.
+// Init implements probe.Probe. It is a no-op since TCPProbe is stateless.
 func (p *TCPProbe) Init(_ context.Context) error {
 	return nil
 }
 
-// Run attempts up to p.tries TCP handshakes to ip:port. A timeout on an attempt
-// is retried; any other error (e.g. connection refused) fails fast to keep
-// scanning throughput high. On success, returns a TCPResult with the first
-// successful attempt's latency; on failure, returns an error wrapping the last
-// error seen.
-func (p *TCPProbe) Run(ctx context.Context, ip string) (result.Result, error) {
+// Run implements probe.Probe. It attempts up to `tries` TCP handshakes to the
+// target IP. Timeouts are retried, while other errors (e.g., connection refused)
+// fail immediately to preserve scanning throughput. On success, it returns a
+// TCPResult with the latency of the first successful attempt.
+func (p *TCPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	address := net.JoinHostPort(ip, strconv.FormatUint(uint64(p.port), 10))
+	address := net.JoinHostPort(ip.String(), strconv.FormatUint(uint64(p.port), 10))
 	var lastErr error
 
 	for i := 0; i < int(p.tries); i++ {
@@ -93,11 +91,14 @@ func (p *TCPProbe) Run(ctx context.Context, ip string) (result.Result, error) {
 	return nil, fmt.Errorf("tcp probe failed after %d tries: %w", p.tries, lastErr)
 }
 
-// Close is a no-op; TCPProbe drops sockets inside Run.
+// Close implements probe.Probe. It is a no-op, as connections are released
+// immediately after each attempt within Run.
 func (p *TCPProbe) Close() error {
 	return nil
 }
 
+// isTimeout reports whether the given error represents a network timeout,
+// which determines if the probe should retry the connection.
 func isTimeout(err error) bool {
 	if ne, ok := err.(net.Error); ok {
 		return ne.Timeout()

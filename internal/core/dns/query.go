@@ -92,7 +92,7 @@ func (q *DNSQuery) Run(ctx context.Context) (*Msg, error) {
 
 	// Retry over TCP if UDP reply was truncated.
 	if q.Transport == UDP && resp != nil && resp.Truncated {
-		return q.exchangeTCP(req)
+		return q.exchangeTCP(ctx, req)
 	}
 
 	return resp, nil
@@ -130,13 +130,13 @@ func (q *DNSQuery) exchange(ctx context.Context, msg *Msg) (*Msg, error) {
 // exchangeTCP reruns the query specifically over TCP.
 //
 // Used when a UDP response is truncated (TC bit set).
-func (q *DNSQuery) exchangeTCP(msg *Msg) (*Msg, error) {
+func (q *DNSQuery) exchangeTCP(ctx context.Context, msg *Msg) (*Msg, error) {
 	client := &dns.Client{
 		Net:     "tcp",
 		Timeout: q.Timeout,
 	}
 
-	resp, _, err := client.Exchange(msg, q.address())
+	resp, _, err := client.ExchangeContext(ctx, msg, q.address())
 	return resp, err
 }
 

@@ -2,13 +2,14 @@ package httpprobe
 
 import (
 	"fmt"
+	"net/netip"
 	"strconv"
 	"time"
 
 	"bgscan/internal/core/result"
 )
 
-// Schema defines the result schema for HTTP probes.
+// Schema defines the output format and parsing logic for HTTP probe results.
 var Schema = result.ResultSchema{
 	Name:      "HTTP",
 	Directory: "http",
@@ -39,34 +40,32 @@ var Schema = result.ResultSchema{
 	Parser: parseHTTPResult,
 }
 
-// HTTPResult holds the outcome of a single HTTP probe.
+// HTTPResult represents the outcome of a single HTTP probe.
 type HTTPResult struct {
-	IP string
-
-	StatusCode  int
-	HTTPVersion string
-
-	UseTLS bool
-
-	Latency time.Duration
+	IP          netip.Addr
+	StatusCode  int    // 0 if the request failed before a response was received.
+	HTTPVersion string // e.g., "HTTP/1.1" or "HTTP/2.0".
+	UseTLS      bool   // True if the connection was established over TLS.
+	Latency     time.Duration
 }
 
-// Equal checks if the given result matches this result's IP address.
-func (r HTTPResult) Equal(rs result.Result) bool {
-	return r.IP == rs.Key()
-}
-
-// Key returns the IP address as the unique identifier for the result.
+// Key returns the IP address string used for result deduplication.
 func (r HTTPResult) Key() string {
-	return r.IP
+	return r.IP.String()
 }
 
-// KeyType returns the type of key used for this result.
+// KeyType implements result.Result, identifying this as an IP-based key.
 func (r HTTPResult) KeyType() result.KeyType {
 	return result.KeyIP
 }
 
-// ToRecord converts the HTTPResult into a slice of strings for serialization.
+// Equal reports whether r and other represent the same target IP.
+func (r HTTPResult) Equal(rs result.Result) bool {
+	return r.IP.String() == rs.Key()
+}
+
+// ToRecord serializes the result into a string slice for tabular output.
+// Failed requests (StatusCode 0) render as "-" for status and TLS.
 func (r HTTPResult) ToRecord() []string {
 	status := "-"
 	useTLS := "-"
@@ -76,7 +75,7 @@ func (r HTTPResult) ToRecord() []string {
 	}
 
 	return []string{
-		r.IP,
+		r.IP.String(),
 		r.Latency.String(),
 		status,
 		r.HTTPVersion,
@@ -84,7 +83,8 @@ func (r HTTPResult) ToRecord() []string {
 	}
 }
 
-// Score returns a latency-based score where lower latency yields a higher score.
+// Score calculates a performance metric where lower latency yields a higher score.
+// It guards against division by zero by enforcing a minimum latency of 1ms.
 func (r HTTPResult) Score() float64 {
 	ms := float64(r.Latency.Milliseconds())
 
@@ -97,6 +97,9 @@ func (r HTTPResult) Score() float64 {
 	return score
 }
 
+// parseHTTPResult reconstructs an HTTPResult from a string slice.
+// It enforces a minimum latency of 1ms and supports backward compatibility
+// for legacy records containing only IP and latency.
 func parseHTTPResult(record []string) (result.Result, error) {
 	if len(record) < 2 {
 		return nil, fmt.Errorf("invalid HTTP result record: expected 6 fields, got %d", len(record))
@@ -105,6 +108,11 @@ func parseHTTPResult(record []string) (result.Result, error) {
 	latency, err := time.ParseDuration(record[1])
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
+	}
+
+	ip, err := netip.ParseAddr(record[0])
+	if err != nil {
+		return nil, fmt.Errorf("parse IP: %w", err)
 	}
 
 	status := 0
@@ -128,7 +136,7 @@ func parseHTTPResult(record []string) (result.Result, error) {
 
 	}
 	return HTTPResult{
-		IP:      record[0],
+		IP:      ip,
 		Latency: max(time.Millisecond, latency.Round(time.Millisecond)),
 
 		StatusCode:  status,

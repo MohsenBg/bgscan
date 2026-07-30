@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -15,74 +16,84 @@ import (
 	"golang.org/x/net/ipv6"
 
 	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/probe"
 )
 
 const (
-	// icmpProtocol is the IP protocol number for ICMPv4.
-	icmpProtocol = 1
-
-	// icmp6Protocol is the IP protocol number for ICMPv6.
-	icmp6Protocol = 58
-
-	// maxPacket is the maximum size of an incoming ICMP packet buffer.
-	maxPacket = 4096
-
-	// readTimeout is the per-iteration read deadline used by the reader loop.
-	// Short timeouts ensure the goroutine wakes up frequently to check for shutdown.
-	readTimeout = 200 * time.Millisecond
-
-	// payload is the optional ICMP echo payload.
-	// Kept empty to minimize packet size for scanning workloads.
-	payload = ""
+	icmpProtocol  = 1  // IP protocol number for ICMPv4.
+	icmp6Protocol = 58 // IP protocol number for ICMPv6.
+	maxPacket     = 4096
+	readTimeout   = 200 * time.Millisecond // Short timeout ensures the reader loop checks for shutdown frequently.
+	payload       = ""                     // Empty payload minimizes packet size for scanning workloads.
 )
 
-// ICMPProbe implements the [probe.Probe] interface using ICMP echo requests
-// to measure reachability and latency for IPv4 and IPv6 targets.
-//
-// It maintains two shared ICMP sockets (one per IP family) and a dedicated
-// reader goroutine per socket that demultiplexes echo replies back to waiting
-// Ping callers. IPv6 support is best-effort: if the host has no IPv6 capability,
-// conn6 is nil and IPv6 targets return an error instead of crashing.
+// socket abstracts an ICMP packet connection, primarily to allow mocking in tests.
+type socket interface {
+	WriteTo(b []byte, addr net.Addr) (int, error)
+	ReadFrom(b []byte) (int, net.Addr, error)
+	SetReadDeadline(t time.Time) error
+	Close() error
+}
+
+// clock abstracts time operations for testing.
+type clock interface {
+	Now() time.Time
+	NewTimer(d time.Duration) *time.Timer
+}
+
+type realClock struct{}
+
+func (realClock) Now() time.Time                       { return time.Now() }
+func (realClock) NewTimer(d time.Duration) *time.Timer { return time.NewTimer(d) }
+
+// socketFactory abstracts socket creation for testing.
+type socketFactory func(privileged, unprivileged, addr string) (socket, string, int, error)
+
+// ICMPProbe measures reachability and latency for IPv4 and IPv6 targets using ICMP echo requests.
+// It maintains shared ICMP sockets and dedicated reader goroutines to demultiplex echo replies.
+// IPv6 support is best-effort; if unavailable, IPv6 targets return an error.
 type ICMPProbe struct {
-	// IPv4 socket state
-	conn4 *icmp.PacketConn
+	conn4 socket
 	mode4 string
 	id4   int
 
-	// IPv6 socket state (nil if unavailable on this system)
-	conn6 *icmp.PacketConn
+	conn6 socket // nil if unavailable
 	mode6 string
 	id6   int
 
-	// seq is an atomically incremented sequence number shared across both
-	// sockets. Masked to 16-bit before use to match the ICMP wire format.
-	seq atomic.Uint32
-
+	seq     atomic.Uint32
 	timeout time.Duration
 	tries   uint16
+	clock   clock
 
-	// waiters holds per-request channels keyed by (id, seq).
-	// Both the v4 and v6 readers signal into this shared map.
-	// Collisions between v4 and v6 are impossible because id4 != id6.
-	waiters sync.Map
-
+	waiters   sync.Map
 	done      chan struct{}
 	closeOnce sync.Once
 	startOnce sync.Once
 }
 
-// NewICMPProbe creates a new ICMPProbe. It always opens an IPv4 socket and
-// attempts to open an IPv6 socket as well. IPv6 failure is non-fatal: targets
-// that resolve to IPv6 addresses will return an error at Ping time.
-func NewICMPProbe(timeout time.Duration, timesTry uint16) (probe.Probe, error) {
-	conn4, mode4, id4, err := openSocket("ip4:icmp", "udp4", "0.0.0.0")
+// Options configures the behavior of an ICMPProbe.
+type Options struct {
+	Timeout time.Duration // Per-ping timeout.
+	Tries   uint16        // Maximum number of ping attempts.
+	Clock   clock         // Optional clock interface for testing.
+	Factory socketFactory // Optional socket factory for testing.
+}
+
+// NewICMPProbe creates a new ICMPProbe. If opts.Clock or opts.Factory are nil, real implementations are used.
+func NewICMPProbe(opts Options) (*ICMPProbe, error) {
+	if opts.Clock == nil {
+		opts.Clock = realClock{}
+	}
+	if opts.Factory == nil {
+		opts.Factory = defaultFactory
+	}
+
+	conn4, mode4, id4, err := opts.Factory("ip4:icmp", "udp4", "0.0.0.0")
 	if err != nil {
 		return nil, err
 	}
 
-	// IPv6 is best-effort. A nil conn6 means "not available on this system".
-	conn6, mode6, id6, _ := openSocket("ip6:ipv6-icmp", "udp6", "::")
+	conn6, mode6, id6, _ := opts.Factory("ip6:ipv6-icmp", "udp6", "::")
 
 	return &ICMPProbe{
 		conn4:   conn4,
@@ -91,8 +102,9 @@ func NewICMPProbe(timeout time.Duration, timesTry uint16) (probe.Probe, error) {
 		conn6:   conn6,
 		mode6:   mode6,
 		id6:     id6,
-		timeout: timeout,
-		tries:   timesTry,
+		timeout: opts.Timeout,
+		tries:   opts.Tries,
+		clock:   opts.Clock,
 		done:    make(chan struct{}),
 	}, nil
 }
@@ -102,8 +114,7 @@ func (p *ICMPProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init implements [probe.Probe] and starts the background reader goroutines
-// on first invocation. One goroutine is started per open socket.
+// Init implements probe.Probe. It starts the background reader goroutines on first invocation.
 func (p *ICMPProbe) Init(_ context.Context) error {
 	p.startOnce.Do(func() {
 		go p.reader(p.conn4, icmpProtocol)
@@ -114,28 +125,8 @@ func (p *ICMPProbe) Init(_ context.Context) error {
 	return nil
 }
 
-// openSocket attempts to create an ICMP-capable socket. It first tries the
-// privileged network type (e.g. "ip4:icmp") and falls back to the unprivileged
-// UDP type (e.g. "udp4") if raw sockets are not permitted.
-func openSocket(privileged, unprivileged, addr string) (*icmp.PacketConn, string, int, error) {
-	conn, err := icmp.ListenPacket(privileged, addr)
-	if err == nil {
-		return conn, "raw", os.Getpid() & 0xffff, nil
-	}
-
-	conn, err = icmp.ListenPacket(unprivileged, addr)
-	if err != nil {
-		return nil, "", 0, err
-	}
-
-	id := conn.LocalAddr().(*net.UDPAddr).Port
-	return conn, "udp", id, nil
-}
-
-// reader is the background goroutine responsible for consuming incoming
-// ICMP packets from a single socket. protocol must match the socket family:
-// icmpProtocol (1) for IPv4, icmp6Protocol (58) for IPv6.
-func (p *ICMPProbe) reader(conn *icmp.PacketConn, protocol int) {
+// reader consumes incoming ICMP packets from a socket and demultiplexes replies to waiting Ping callers.
+func (p *ICMPProbe) reader(conn socket, protocol int) {
 	buf := make([]byte, maxPacket)
 
 	for {
@@ -145,7 +136,7 @@ func (p *ICMPProbe) reader(conn *icmp.PacketConn, protocol int) {
 		default:
 		}
 
-		_ = conn.SetReadDeadline(time.Now().Add(readTimeout))
+		_ = conn.SetReadDeadline(p.clock.Now().Add(readTimeout))
 
 		n, _, err := conn.ReadFrom(buf)
 		if err != nil {
@@ -159,9 +150,7 @@ func (p *ICMPProbe) reader(conn *icmp.PacketConn, protocol int) {
 	}
 }
 
-// handlePacket parses a single ICMP packet and, if it is an Echo Reply
-// matching an active Ping request, notifies the corresponding waiter channel.
-// protocol selects which ICMP message type to expect as a reply.
+// handlePacket parses an incoming ICMP packet and signals the corresponding waiter if it matches an active Echo Reply.
 func (p *ICMPProbe) handlePacket(packet []byte, protocol int) {
 	msg, err := icmp.ParseMessage(protocol, packet)
 	if err != nil {
@@ -196,36 +185,26 @@ func (p *ICMPProbe) handlePacket(packet []byte, protocol int) {
 	}
 }
 
-// makeKey composes a 64-bit key from ICMP identifier and sequence number.
+// makeKey generates a unique 64-bit identifier from an ICMP ID and sequence number.
 func makeKey(id, seq int) uint64 {
 	return uint64(id)<<32 | uint64(seq)
 }
 
-// Ping sends a single ICMP echo request to the given IP address and
-// waits for a corresponding echo reply or timeout. It selects the correct
-// socket (v4 or v6) based on the target address family.
-func (p *ICMPProbe) Ping(ctx context.Context, ip string, timeout time.Duration) error {
-	dstIP := net.ParseIP(ip)
-	if dstIP == nil {
-		return errors.New("invalid ip")
-	}
-
-	// Select socket, id, and mode based on IP family.
+// Ping sends a single ICMP echo request to the target IP and waits for a reply or timeout.
+func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Duration) error {
 	var (
-		conn  *icmp.PacketConn
+		conn  socket
 		id    int
 		mode  string
 		proto int
 	)
 
-	if dstIP.To4() != nil {
-		// IPv4 target
+	if ip.Is4() {
 		conn = p.conn4
 		id = p.id4
 		mode = p.mode4
 		proto = icmpProtocol
 	} else {
-		// IPv6 target
 		if p.conn6 == nil {
 			return errors.New("IPv6 is not available on this system")
 		}
@@ -235,7 +214,6 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip string, timeout time.Duration) 
 		proto = icmp6Protocol
 	}
 
-	// Mask to 16-bit to match the ICMP wire format (Seq field is uint16).
 	seq := int(p.seq.Add(1) & 0xffff)
 	key := makeKey(id, seq)
 
@@ -265,11 +243,11 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip string, timeout time.Duration) 
 		return err
 	}
 
-	if _, err = conn.WriteTo(data, destination(dstIP, mode)); err != nil {
+	if _, err = conn.WriteTo(data, destination(ip, mode)); err != nil {
 		return err
 	}
 
-	timer := time.NewTimer(timeout)
+	timer := p.clock.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
@@ -284,20 +262,17 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip string, timeout time.Duration) 
 	}
 }
 
-// destination returns the appropriate net.Addr for the given IP and socket mode.
-func destination(ip net.IP, mode string) net.Addr {
+// destination returns the appropriate net.Addr for the target IP, adapting to raw or UDP socket modes.
+func destination(ip netip.Addr, mode string) net.Addr {
+	stdIP := net.IP(ip.Unmap().AsSlice())
 	if mode == "udp" {
-		return &net.UDPAddr{IP: ip}
+		return &net.UDPAddr{IP: stdIP}
 	}
-	return &net.IPAddr{IP: ip}
+	return &net.IPAddr{IP: stdIP}
 }
 
-// Run implements [probe.Probe] and performs an ICMP-based reachability check
-// for the given IP address. It handles both IPv4 and IPv6 targets transparently.
-//
-// It executes up to p.tries Ping attempts, each using the Probe's configured
-// timeout. It returns an ICMPResult on the first successful ping.
-func (p *ICMPProbe) Run(ctx context.Context, ip string) (result.Result, error) {
+// Run implements probe.Probe. It performs an ICMP reachability check, retrying up to the configured Tries limit on failure.
+func (p *ICMPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -309,22 +284,21 @@ func (p *ICMPProbe) Run(ctx context.Context, ip string) (result.Result, error) {
 			return nil, err
 		}
 
-		start := time.Now()
+		start := p.clock.Now()
 
 		if err := p.Ping(ctx, ip, p.timeout); err != nil {
 			lastErr = err
 			continue
 		}
 
-		// Determine which mode to report based on the target IP family.
 		reportMode := p.mode4
-		if addr := net.ParseIP(ip); addr != nil && addr.To4() == nil {
+		if !ip.Is4() {
 			reportMode = p.mode6
 		}
 
 		return ICMPResult{
 			IP:      ip,
-			Latency: time.Since(start),
+			Latency: p.clock.Now().Sub(start),
 			Tries:   i + 1,
 			Mode:    reportMode,
 		}, nil
@@ -333,8 +307,7 @@ func (p *ICMPProbe) Run(ctx context.Context, ip string) (result.Result, error) {
 	return nil, lastErr
 }
 
-// Close terminates the ICMPProbe and releases all associated resources.
-// Both the IPv4 and IPv6 sockets are closed if open.
+// Close implements probe.Probe. It terminates the background readers and closes the ICMP sockets.
 func (p *ICMPProbe) Close() error {
 	var errs []error
 
@@ -357,7 +330,23 @@ func (p *ICMPProbe) Close() error {
 	return errors.Join(errs...)
 }
 
-// isTimeout reports whether the provided error represents a network timeout.
+// defaultFactory attempts to open a raw ICMP socket, falling back to an unprivileged UDP socket if permissions are denied.
+func defaultFactory(privileged, unprivileged, addr string) (socket, string, int, error) {
+	conn, err := icmp.ListenPacket(privileged, addr)
+	if err == nil {
+		return conn, "raw", os.Getpid() & 0xffff, nil
+	}
+
+	conn, err = icmp.ListenPacket(unprivileged, addr)
+	if err != nil {
+		return nil, "", 0, err
+	}
+
+	id := conn.LocalAddr().(*net.UDPAddr).Port
+	return conn, "udp", id, nil
+}
+
+// isTimeout checks if the error represents a network timeout.
 func isTimeout(err error) bool {
 	if ne, ok := err.(net.Error); ok {
 		return ne.Timeout()

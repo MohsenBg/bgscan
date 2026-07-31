@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Key string constants used when matching Bubble Tea key press messages.
 const (
 	KeyEnter     = "enter"
 	KeyEsc       = "esc"
@@ -28,6 +29,7 @@ var quitKeys = map[Mode][]string{
 	ScanMode:   {KeyCtrlC},
 }
 
+// IsBackKey reports whether the key press represents a back action in the given mode.
 func IsBackKey(msg tea.KeyPressMsg, mode Mode) bool {
 	if keys, ok := backKeys[mode]; ok {
 		return slices.Contains(keys, msg.String())
@@ -35,6 +37,7 @@ func IsBackKey(msg tea.KeyPressMsg, mode Mode) bool {
 	return false
 }
 
+// IsQuitKey reports whether the key press represents a quit action in the given mode.
 func IsQuitKey(msg tea.KeyPressMsg, mode Mode) bool {
 	if keys, ok := quitKeys[mode]; ok {
 		return slices.Contains(keys, msg.String())

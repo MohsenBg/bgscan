@@ -12,7 +12,6 @@ import (
 	"bgscan/internal/ui/components/basic/inspector"
 	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -32,7 +31,7 @@ const (
 )
 
 type Model struct {
-	layout    *layout.Layout
+	state     *ui.AppState
 	name      string
 	id        ui.ComponentID
 	inspector ui.Component
@@ -44,65 +43,64 @@ func (m *Model) Mode() env.Mode     { return env.NormalMode }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
-func saveXray(l *layout.Layout, cfg *config.XrayConfig) tea.Cmd {
-	if err := config.SaveXrayConfig(cfg); err != nil {
-		return notice.NewNoticeCmd(l, "Failed to save Xray settings", err.Error(), notice.NOTICE_ERROR)
+func saveXray(state *ui.AppState) tea.Cmd {
+	if err := state.Store.SaveXray(state.Config.Xray); err != nil {
+		return notice.NewNoticeCmd(state.Layout, "Failed to save Xray settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
-func intInput(l *layout.Layout, title string, value int, val func(string) error, set func(int), save func() tea.Cmd) input.Input[string] {
+func intInput(state *ui.AppState, title string, value int, val func(string) error, set func(int)) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(strconv.Itoa(value)),
 		textinput.WithValidation(val),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(l, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(n)
-			return save()
+			return saveXray(state)
 		}),
 	)
 }
 
-func durationMSInput(l *layout.Layout, title string, value time.Duration, val func(string) error, set func(time.Duration), save func() tea.Cmd) input.Input[string] {
+func durationMSInput(state *ui.AppState, title string, value time.Duration, val func(string) error, set func(time.Duration)) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
 		textinput.WithValidation(val),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(l, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(time.Duration(n) * time.Millisecond)
-			return save()
+			return saveXray(state)
 		}),
 	)
 }
 
-func stringInput(l *layout.Layout, title, value string, val func(string) error, set func(string), save func() tea.Cmd) input.Input[string] {
+func stringInput(state *ui.AppState, title, value string, val func(string) error, set func(string)) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(value),
 		textinput.WithValidation(val),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			set(v)
-			return save()
+			return saveXray(state)
 		}),
 	)
 }
 
-func New(l *layout.Layout, name string) *Model {
-	cfg := config.GetXray()
-	save := func() tea.Cmd { return saveXray(l, cfg) }
+func New(state *ui.AppState, name string) *Model {
+	cfg := &state.Config.Xray
 
-	workers := intInput(l, "Enter number of workers", cfg.Workers,
+	workers := intInput(state, "Enter number of workers", cfg.Workers,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -110,12 +108,12 @@ func New(l *layout.Layout, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Workers = n
-			return fieldErr(validate.ValidateXray(&tmp), "Workers")
+			return fieldErr(validate.ValidateXray(tmp), "Workers")
 		},
-		func(n int) { cfg.Workers = n }, save)
+		func(n int) { cfg.Workers = n })
 
 	connectivityTestType := selectinput.New(
-		l, "Select connectivity test type",
+		state.Layout, "Select connectivity test type",
 		selectinput.WithValue(cfg.ConnectivityTestType),
 		selectinput.WithFocus[config.ConnectivityTest](),
 		selectinput.WithOptions(
@@ -126,7 +124,7 @@ func New(l *layout.Layout, name string) *Model {
 		),
 		selectinput.WithOnSubmit(func(v config.ConnectivityTest) tea.Cmd {
 			cfg.ConnectivityTestType = v
-			return save()
+			return saveXray(state)
 		}),
 	)
 
@@ -137,7 +135,7 @@ func New(l *layout.Layout, name string) *Model {
 		return cfg.ConnectivityTestType == config.UploadSpeedOnly || cfg.ConnectivityTestType == config.Both
 	}
 
-	downloadSpeed := intInput(l, "Enter download speed (kbps)", cfg.DownloadSpeed,
+	downloadSpeed := intInput(state, "Enter download speed (kbps)", cfg.DownloadSpeed,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -145,11 +143,11 @@ func New(l *layout.Layout, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.DownloadSpeed = n
-			return fieldErr(validate.ValidateXray(&tmp), "DownloadSpeed")
+			return fieldErr(validate.ValidateXray(tmp), "DownloadSpeed")
 		},
-		func(n int) { cfg.DownloadSpeed = n }, save)
+		func(n int) { cfg.DownloadSpeed = n })
 
-	uploadSpeed := intInput(l, "Enter upload speed (kbps)", cfg.UploadSpeed,
+	uploadSpeed := intInput(state, "Enter upload speed (kbps)", cfg.UploadSpeed,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -157,11 +155,11 @@ func New(l *layout.Layout, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.UploadSpeed = n
-			return fieldErr(validate.ValidateXray(&tmp), "UploadSpeed")
+			return fieldErr(validate.ValidateXray(tmp), "UploadSpeed")
 		},
-		func(n int) { cfg.UploadSpeed = n }, save)
+		func(n int) { cfg.UploadSpeed = n })
 
-	timeout := durationMSInput(l, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
+	timeout := durationMSInput(state, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -169,12 +167,12 @@ func New(l *layout.Layout, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateXray(&tmp), "Timeout")
+			return fieldErr(validate.ValidateXray(tmp), "Timeout")
 		},
-		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) }, save)
+		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) })
 
 	preScanType := selectinput.New(
-		l, "Select pre-scan type",
+		state.Layout, "Select pre-scan type",
 		selectinput.WithValue(cfg.PreScanType),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -185,17 +183,17 @@ func New(l *layout.Layout, name string) *Model {
 		),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.PreScanType = v
-			return save()
+			return saveXray(state)
 		}),
 	)
 
-	prefixOutput := stringInput(l, "Enter output file prefix", cfg.PrefixOutput,
+	prefixOutput := stringInput(state, "Enter output file prefix", cfg.OutputPrefix,
 		func(v string) error {
 			tmp := *cfg
-			tmp.PrefixOutput = v
-			return fieldErr(validate.ValidateXray(&tmp), "PrefixOutput")
+			tmp.OutputPrefix = v
+			return fieldErr(validate.ValidateXray(tmp), "PrefixOutput")
 		},
-		func(v string) { cfg.PrefixOutput = v }, save)
+		func(v string) { cfg.OutputPrefix = v })
 
 	fields := []inspector.Field{
 		{Name: "Workers", Description: descWorkers, Group: groupXray, Input: inspector.Adapt(workers), Visible: alwaysVisible, Format: inspector.FormatInt},
@@ -208,10 +206,10 @@ func New(l *layout.Layout, name string) *Model {
 	}
 
 	return &Model{
-		layout:    l,
+		state:     state,
 		name:      name,
 		id:        ui.NewComponentID(),
-		inspector: inspector.New(l, "xray settings", fields),
+		inspector: inspector.New(state.Layout, "xray settings", fields),
 	}
 }
 

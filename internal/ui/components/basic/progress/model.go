@@ -19,11 +19,8 @@ const (
 	maxWidth = 90
 )
 
-// Model represents a reusable progress bar UI component.
-//
-// It wraps the BubbleTea progress model and integrates it with the
-// application's component system. The component automatically adapts
-// its width to the available layout space.
+// Model is a reusable progress bar. It wraps the BubbleTea progress model,
+// adapts its width to the layout, and tracks the current percentage.
 type Model struct {
 	id   ui.ComponentID
 	name string
@@ -35,10 +32,6 @@ type Model struct {
 	percent float64
 }
 
-// New creates a new progress bar component.
-//
-// The progress bar uses the default BubbleTea gradient style and
-// automatically adapts its width based on the available layout body width.
 func New(layout *layout.Layout) *Model {
 	p := progress.New(
 		progress.WithScaled(true),

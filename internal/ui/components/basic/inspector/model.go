@@ -58,8 +58,6 @@ func (f Field) visible() bool {
 	return f.Visible()
 }
 
-// --- list item / delegate ---------------------------------------------------
-
 // FieldItem adapts a Field to list.Item.
 type FieldItem struct {
 	Field Field
@@ -105,8 +103,6 @@ func (d fieldDelegate) Render(w io.Writer, m list.Model, index int, listItem lis
 		logger.UIError("Error while rendering inspector: %v", err)
 	}
 }
-
-// --- Model -----------------------------------------------------------------
 
 // Model is the inspector component: a tabbed list of fields grouped by
 // Field.Group, where each row shows the field's name, current value, and
@@ -232,8 +228,6 @@ func visibleItems(fields []Field) []list.Item {
 	return items
 }
 
-// --- ui.Component ------------------------------------------------------------
-
 func (m *Model) Init() tea.Cmd      { return nil }
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
@@ -275,8 +269,6 @@ func (m *Model) CloseCmd() tea.Cmd {
 		return ui.CloseComponentMsg{ID: m.ID()}
 	}
 }
-
-// --- accessors ---------------------------------------------------------------
 
 // SelectedField returns the field currently highlighted in the list.
 func (m *Model) SelectedField() (Field, bool) {

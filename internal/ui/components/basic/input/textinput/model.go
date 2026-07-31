@@ -12,32 +12,28 @@ import (
 
 type Option func(*Model)
 
+// Model is the single-line text implementation of [input.Input].
 type Model struct {
-	// Component identity
 	id   ui.ComponentID
 	name string
 
-	// Layout reference
 	layout *layout.Layout
 
-	// UI content
 	title       string
 	placeholder string
 	errorMsg    string
 
-	// Input field
 	textinput textinput.Model
 	readOnly  bool
 
-	// Validation
 	validationFunc    func(value string) error
 	dynamicValidation bool
 
-	// Callbacks
 	onChange func(string) tea.Cmd
 	onSubmit func(string) tea.Cmd
 }
 
+// New creates a single-line text input component.
 func New(
 	layout *layout.Layout,
 	title string,
@@ -60,8 +56,6 @@ func New(
 
 	return m
 }
-
-// --- Options ---------------------------------------------------------------
 
 // WithPlaceholder sets the placeholder text shown when the input is empty.
 func WithPlaceholder(p string) Option {
@@ -120,9 +114,6 @@ func WithOnSubmit(fn func(string) tea.Cmd) Option {
 	}
 }
 
-// --- ui.Component ------------------------------------------------------------
-
-// Init initializes the component.
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
@@ -162,9 +153,6 @@ func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-// --- input.Input[string] ----------------------------------------------------
-
-// Value implements [input.Input].
 func (m *Model) Value() string {
 	return m.textinput.Value()
 }
@@ -209,8 +197,6 @@ func (m *Model) AppendOnSubmit(fn func() tea.Cmd) {
 		return tea.Sequence(prev(value), fn())
 	}
 }
-
-// --- internal helpers --------------------------------------------------------
 
 func (m *Model) setReadOnly(ro bool) {
 	m.readOnly = ro

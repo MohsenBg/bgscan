@@ -6,19 +6,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Update processes incoming Bubble Tea messages and updates the state
-// of the input component.
-//
-// The method delegates message handling to the underlying textinput
-// component first, then processes higher-level input dialog behavior
-// such as submission and validation.
-//
-// Behavior:
-//   - tea.WindowSizeMsg: adjusts the input width based on the layout.
-//   - tea.KeyEnter: attempts to submit the input value.
-//   - Other keys: may trigger dynamic validation if enabled.
-//
-// It returns the updated component and an optional command to execute.
+// Update handles Bubble Tea messages. It updates the underlying text input
+// first, then on Enter submits the value (validating it), and optionally runs
+// dynamic validation on other keys.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmd tea.Cmd
 

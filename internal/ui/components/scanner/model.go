@@ -1,3 +1,5 @@
+// Package scanner hosts the active scan screen, including progress, tabbed
+// stage views, and live result tables.
 package scanner
 
 import (
@@ -5,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"bgscan/internal/core/config"
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/scanner"
 	"bgscan/internal/core/scanner/engine"
@@ -21,6 +22,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// StageStatus tracks the lifecycle of a single scan stage.
 type StageStatus int
 
 const (
@@ -31,29 +33,26 @@ const (
 	StatusError
 )
 
+// Model is the scanner screen. It owns the stage lifecycle, progress UI,
+// tabbed stage navigation, and aggregated results.
 type Model struct {
-	// UI
-	id     ui.ComponentID
-	name   string
-	layout *layout.Layout
-	tabs   ui.Component
+	id    ui.ComponentID
+	name  string
+	state *ui.AppState
+	tabs  ui.Component
 
-	// Scanner
-	scn        *scanner.Scanner
+	scn        scanner.Scanner
 	stages     []scanner.StageConfig
 	stageCount int
 	maxIPs     int
 
-	// Per-stage UI
 	progress   []ui.Component
 	ipViewers  []ui.Component
 	currentTab int
 
-	// Results
 	results [][]result.Result
 	batch   [][]result.Result
 
-	// State
 	mu           sync.Mutex
 	status       []StageStatus
 	progressInfo []engine.Progress
@@ -61,14 +60,15 @@ type Model struct {
 	errorShown   bool
 }
 
-func New(layout *layout.Layout, maxIPs int, scn *scanner.Scanner) *Model {
+// New builds the scanner model and wires stage hooks for progress/result updates.
+func New(state *ui.AppState, maxIPs int, scn scanner.Scanner) *Model {
 	stages := scn.GetStages()
 	n := len(stages)
 
 	m := &Model{
 		id:           ui.NewComponentID(),
 		name:         "Scanner",
-		layout:       layout,
+		state:        state,
 		scn:          scn,
 		stages:       stages,
 		stageCount:   n,
@@ -84,15 +84,15 @@ func New(layout *layout.Layout, maxIPs int, scn *scanner.Scanner) *Model {
 	tabsList := make([]tabs.Tab[int], n)
 
 	for i, stage := range stages {
-		m.ipViewers[i] = createIPViewer(layout, stage.Probe.Schema())
-		m.progress[i] = progress.New(layout)
+		m.ipViewers[i] = createIPViewer(m.state.Layout, stage.Probe.Schema())
+		m.progress[i] = progress.New(m.state.Layout)
 		m.results[i] = make([]result.Result, 0, maxIPs)
 		m.batch[i] = make([]result.Result, 0, 128)
 		m.status[i] = StatusWaiting
 		tabsList[i] = tabs.NewTab(stage.Probe.Schema().Name, i)
 	}
 
-	m.tabs = tabs.New(layout, tabsList, func(idx int, _ tabs.Tab[int]) tea.Cmd {
+	m.tabs = tabs.New(m.state.Layout, tabsList, func(idx int, _ tabs.Tab[int]) tea.Cmd {
 		m.currentTab = idx
 		return m.immediateTick()
 	})
@@ -112,6 +112,7 @@ func (m *Model) Name() string       { return m.name }
 func (m *Model) Mode() env.Mode     { return env.ScanMode }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
+// Init registers scanner hooks and starts the scan run plus periodic UI ticks.
 func (m *Model) Init() tea.Cmd {
 	for i := range m.stages {
 		m.stages[i].AddHooks(engine.ScanHooks{
@@ -135,7 +136,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) tick() tea.Cmd {
-	interval := config.Get().General.StatusInterval.Duration()
+	interval := m.state.Config.General.StatusInterval.Duration()
 	return tea.Tick(interval, func(time.Time) tea.Msg { return tickMsg{} })
 }
 
@@ -180,8 +181,8 @@ func (m *Model) onScanEnd(i int) func() {
 	}
 }
 
-// mergeBatch merges staged results into the main result set.
-// Uses swap-slice pattern to minimize lock duration.
+// mergeBatch drains per-stage batches into the main result set, trims to
+// maxIPs, and refreshes the IP viewer table.
 func (m *Model) mergeBatch() {
 	for i, stage := range m.stages {
 		m.mu.Lock()
@@ -237,12 +238,6 @@ func (m *Model) currentProgress() float64 {
 	return m.progressInfo[m.currentTab].Percent / 100
 }
 
-func (m *Model) currentError() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.scanError
-}
-
 func createIPViewer(layout *layout.Layout, schema result.ResultSchema) ui.Component {
 	viewer := ipviewer.New(layout, "", nil, schema)
 
@@ -262,8 +257,8 @@ func (m *Model) immediateTick() tea.Cmd {
 func (m *Model) forceResize() tea.Cmd {
 	return func() tea.Msg {
 		return tea.WindowSizeMsg{
-			Width:  m.layout.Terminal.Width,
-			Height: m.layout.Terminal.Height,
+			Width:  m.state.Layout.Terminal.Width,
+			Height: m.state.Layout.Terminal.Height,
 		}
 	}
 }

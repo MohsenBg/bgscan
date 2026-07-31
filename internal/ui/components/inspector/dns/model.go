@@ -15,7 +15,6 @@ import (
 	"bgscan/internal/ui/components/basic/inspector"
 	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -66,7 +65,7 @@ const (
 )
 
 type Model struct {
-	layout    *layout.Layout
+	state     *ui.AppState
 	name      string
 	id        ui.ComponentID
 	inspector ui.Component
@@ -78,85 +77,80 @@ func (m *Model) Mode() env.Mode     { return env.NormalMode }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
-func saveDNS(l *layout.Layout, cfg *config.DNSConfig) tea.Cmd {
-	if err := config.SaveDNSConfig(cfg); err != nil {
-		return notice.NewNoticeCmd(l, "Failed to save DNS settings", err.Error(), notice.NOTICE_ERROR)
+func saveDNS(state *ui.AppState) tea.Cmd {
+	if err := state.Store.SaveDNS(state.Config.DNS); err != nil {
+		return notice.NewNoticeCmd(state.Layout, "Failed to save DNS settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
-func intInput(l *layout.Layout, title string, value int, val func(string) error, set func(int), save func() tea.Cmd) input.Input[string] {
+func intInput(state *ui.AppState, title string, value int, validate func(string) error, set func(int)) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(strconv.Itoa(value)),
-		textinput.WithValidation(val),
+		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(l, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(n)
-			return save()
+			return saveDNS(state)
 		}),
 	)
 }
 
-func durationMSInput(l *layout.Layout, title string, value time.Duration, val func(string) error, set func(time.Duration), save func() tea.Cmd) input.Input[string] {
+func durationMSInput(state *ui.AppState, title string, value time.Duration, validate func(string) error, set func(time.Duration)) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
-		textinput.WithValidation(val),
+		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(l, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(time.Duration(n) * time.Millisecond)
-			return save()
+			return saveDNS(state)
 		}),
 	)
 }
 
-func stringInput(l *layout.Layout, title, value string, val func(string) error, set func(string), save func() tea.Cmd) input.Input[string] {
+func stringInput(state *ui.AppState, title, value string, validate func(string) error, set func(string)) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(value),
 		textinput.WithFocus(),
-		textinput.WithValidation(val),
+		textinput.WithValidation(validate),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			set(v)
-			return save()
+			return saveDNS(state)
 		}),
 	)
 }
 
-func New(l *layout.Layout, name string) *Model {
-	cfg := config.GetDNS()
-	save := func() tea.Cmd { return saveDNS(l, cfg) }
+func New(state *ui.AppState, name string) *Model {
+	cfg := &state.Config.DNS
 
-	r := cfg.Resolver
-	d := cfg.DNSTT
-	s := cfg.SlipStream
+	// Resolver
 
-	// ── Resolver ─────────────────────────────────────────────────────────────
-
-	resolverWorkers := intInput(l, "Enter number of workers", r.Workers,
+	resolverWorkers := intInput(state, "Enter number of workers", cfg.Resolver.Workers,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *r
-			tmp.Workers = n
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{Resolver: &tmp}), "Resolver.Workers")
+			tmp := *cfg
+			tmp.Resolver.Workers = n
+			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Workers")
 		},
-		func(n int) { r.Workers = n }, save)
+		func(n int) { cfg.Resolver.Workers = n })
 
 	resolverProtocol := selectinput.New(
-		l, "Select protocol",
-		selectinput.WithValue(r.Protocol),
+		state.Layout, "Select protocol",
+		selectinput.WithValue(cfg.Resolver.Protocol),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
 			huh.NewOption("UDP", "udp"),
@@ -164,13 +158,13 @@ func New(l *layout.Layout, name string) *Model {
 			huh.NewOption("DoT", "dot"),
 		),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
-			r.Protocol = v
-			return save()
+			cfg.Resolver.Protocol = v
+			return saveDNS(state)
 		}),
 	)
 
 	resolverCheckType := multiselect.New(
-		l, "Select check types",
+		state.Layout, "Select check types",
 		multiselect.WithFocus[string](),
 		multiselect.WithOptions(
 			huh.NewOption("A", "A"),
@@ -180,93 +174,93 @@ func New(l *layout.Layout, name string) *Model {
 			huh.NewOption("MX", "MX"),
 			huh.NewOption("TXT", "TXT"),
 		),
-		multiselect.WithValue(toUpper(r.CheckTypes)),
+		multiselect.WithValue(toUpper(cfg.Resolver.CheckTypes)),
 		multiselect.WithRequired[string](),
 		multiselect.WithOnSubmit(func(v []string) tea.Cmd {
-			r.CheckTypes = v
-			return save()
+			cfg.Resolver.CheckTypes = v
+			return saveDNS(state)
 		}),
 	)
 
 	resolverDomain := stringInput(
-		l,
+		state,
 		"Enter target domain",
-		r.Domain,
+		cfg.Resolver.Domain,
 		func(v string) error {
 			tmp := *cfg
 			tmp.Resolver.Domain = v
-			return fieldErr(validate.ValidateDNS(&tmp), "Resolver.Domain")
-		}, func(v string) { r.Domain = v }, save,
+			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Domain")
+		}, func(v string) { cfg.Resolver.Domain = v },
 	)
 
 	resolverPort := intInput(
-		l,
+		state,
 		"Enter port number",
-		int(r.Port),
+		int(cfg.Resolver.Port),
 		func(v string) error {
 			n, err := strconv.ParseUint(v, 10, 16)
 			if err != nil {
 				return err
 			}
-			tmp := *r
-			tmp.Port = uint16(n)
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{Resolver: &tmp}), "Resolver.Port")
+			tmp := *cfg
+			tmp.Resolver.Port = uint16(n)
+			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Port")
 		},
-		func(n int) { r.Port = uint16(n) }, save,
+		func(n int) { cfg.Resolver.Port = uint16(n) },
 	)
 
-	resolverEDNSBufSize := intInput(l, "Enter EDNS buffer size", int(r.EDNSBufSize),
+	resolverEDNSBufSize := intInput(state, "Enter EDNS buffer size", int(cfg.Resolver.EDNSBufSize),
 		func(v string) error { return nil },
-		func(n int) { r.EDNSBufSize = uint16(n) }, save)
+		func(n int) { cfg.Resolver.EDNSBufSize = uint16(n) })
 
-	resolverTimeout := durationMSInput(l, "Enter timeout (milliseconds)", r.Timeout.Duration(),
+	resolverTimeout := durationMSInput(state, "Enter timeout (milliseconds)", cfg.Resolver.Timeout.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *r
-			tmp.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{Resolver: &tmp}), "Resolver.Timeout")
+			tmp := *cfg
+			tmp.Resolver.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
+			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Timeout")
 		},
-		func(d time.Duration) { r.Timeout = config.NewDurationMS(d) }, save)
+		func(d time.Duration) { cfg.Resolver.Timeout = config.NewDurationMS(d) })
 
-	resolverTries := intInput(l, "Enter maximum attempts", r.Tries,
+	resolverTries := intInput(state, "Enter maximum attempts", cfg.Resolver.Tries,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *r
-			tmp.Tries = n
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{Resolver: &tmp}), "Resolver.Tries")
+			tmp := *cfg
+			tmp.Resolver.Tries = n
+			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Tries")
 		},
-		func(n int) { r.Tries = n }, save)
+		func(n int) { cfg.Resolver.Tries = n })
 
 	resolverRandomSubdomain := toggleinput.New(
-		l, "Enable random subdomain",
-		toggleinput.WithValue(r.RandomSubdomain),
+		state.Layout, "Enable random subdomain",
+		toggleinput.WithValue(cfg.Resolver.RandomSubdomain),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
-			r.RandomSubdomain = v
-			return save()
+			cfg.Resolver.RandomSubdomain = v
+			return saveDNS(state)
 		}),
 	)
 
 	resolverCheckDPI := toggleinput.New(
-		l, "Enable DPI check",
-		toggleinput.WithValue(r.CheckDPI),
+		state.Layout, "Enable DPI check",
+		toggleinput.WithValue(cfg.Resolver.CheckDPI),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
-			r.CheckDPI = v
-			return save()
+			cfg.Resolver.CheckDPI = v
+			return saveDNS(state)
 		}),
 	)
 
 	resolverAcceptedRCodes := multiselect.New(
-		l, "Select accepted RCodes",
+		state.Layout, "Select accepted RCodes",
 		multiselect.WithFocus[string](),
 		multiselect.WithOptions(
 			huh.NewOption("NOERROR", "NOERROR"),
@@ -276,168 +270,168 @@ func New(l *layout.Layout, name string) *Model {
 			huh.NewOption("NOTIMP", "NOTIMP"),
 			huh.NewOption("REFUSED", "REFUSED"),
 		),
-		multiselect.WithValue(toUpper(r.AcceptedRCodes)),
+		multiselect.WithValue(toUpper(cfg.Resolver.AcceptedRCodes)),
 		multiselect.WithRequired[string](),
 		multiselect.WithOnSubmit(func(v []string) tea.Cmd {
-			r.AcceptedRCodes = v
-			return save()
+			cfg.Resolver.AcceptedRCodes = v
+			return saveDNS(state)
 		}),
 	)
 
-	resolverDPITimeout := durationMSInput(l, "Enter DPI timeout (milliseconds)", r.DPITimeout.Duration(),
+	resolverDPITimeout := durationMSInput(state, "Enter DPI timeout (milliseconds)", cfg.Resolver.DPITimeout.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *r
-			tmp.DPITimeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{Resolver: &tmp}), "Resolver.DPITimeout")
+			tmp := *cfg
+			tmp.Resolver.DPITimeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
+			return fieldErr(validate.ValidateDNS(tmp), "Resolver.DPITimeout")
 		},
-		func(dur time.Duration) { r.DPITimeout = config.NewDurationMS(dur) }, save)
+		func(dur time.Duration) { cfg.Resolver.DPITimeout = config.NewDurationMS(dur) })
 
-	resolverDPITries := intInput(l, "Enter maximum DPI attempts", r.DPITries,
+	resolverDPITries := intInput(state, "Enter maximum DPI attempts", cfg.Resolver.DPITries,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *r
-			tmp.DPITries = n
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{Resolver: &tmp}), "Resolver.DPITries")
+			tmp := *cfg
+			tmp.Resolver.DPITries = n
+			return fieldErr(validate.ValidateDNS(tmp), "Resolver.DPITries")
 		},
-		func(n int) { r.DPITries = n }, save)
+		func(n int) { cfg.Resolver.DPITries = n })
 
-	resolverPrefixOutput := stringInput(l,
+	resolverPrefixOutput := stringInput(state,
 		"Enter output file prefix",
-		r.PrefixOutput,
+		cfg.Resolver.PrefixOutput,
 		func(s string) error {
-			tmp := *r
-			tmp.PrefixOutput = s
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{Resolver: &tmp}), "Resolver.PrefixOutput")
+			tmp := *cfg
+			tmp.Resolver.PrefixOutput = s
+			return fieldErr(validate.ValidateDNS(tmp), "Resolver.PrefixOutput")
 		},
-		func(v string) { r.PrefixOutput = v }, save)
+		func(v string) { cfg.Resolver.PrefixOutput = v })
 
-	dpiEnabled := func() bool { return r.CheckDPI }
+	dpiEnabled := func() bool { return cfg.Resolver.CheckDPI }
 
 	// ── DNSTT ────────────────────────────────────────────────────────────────
 
 	dnsttEnabled := toggleinput.New(
-		l, "Enable DNSTT",
-		toggleinput.WithValue(d.Enabled),
+		state.Layout, "Enable DNSTT",
+		toggleinput.WithValue(cfg.DNSTT.Enabled),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
-			d.Enabled = v
-			return save()
+			cfg.DNSTT.Enabled = v
+			return saveDNS(state)
 		}),
 	)
 
-	dnsttWorkers := intInput(l, "Enter number of workers", d.Workers,
+	dnsttWorkers := intInput(state, "Enter number of workers", cfg.DNSTT.Workers,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *d
-			tmp.Workers = n
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{DNSTT: &tmp}), "DNSTT.Workers")
+			tmp := *cfg
+			tmp.DNSTT.Workers = n
+			return fieldErr(validate.ValidateDNS(tmp), "DNSTT.Workers")
 		},
-		func(n int) { d.Workers = n }, save)
+		func(n int) { cfg.DNSTT.Workers = n })
 
-	dnsttDomain := stringInput(l, "Enter target domain", d.Domain,
+	dnsttDomain := stringInput(state, "Enter target domain", cfg.DNSTT.Domain,
 		func(s string) error {
-			tmp := *d
-			tmp.Domain = s
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{DNSTT: &tmp}), "DNSTT.Domain")
+			tmp := *cfg
+			tmp.DNSTT.Domain = s
+			return fieldErr(validate.ValidateDNS(tmp), "DNSTT.Domain")
 		},
-		func(v string) { d.Domain = v }, save)
+		func(v string) { cfg.DNSTT.Domain = v })
 
-	dnsttPublicKey := stringInput(l, "Enter public key", d.PublicKey,
+	dnsttPublicKey := stringInput(state, "Enter public key", cfg.DNSTT.PublicKey,
 		func(s string) error {
-			tmp := *d
-			tmp.PublicKey = s
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{DNSTT: &tmp}), "DNSTT.PublicKey")
+			tmp := *cfg
+			tmp.DNSTT.PublicKey = s
+			return fieldErr(validate.ValidateDNS(tmp), "DNSTT.PublicKey")
 		},
-		func(v string) { d.PublicKey = v }, save)
+		func(v string) { cfg.DNSTT.PublicKey = v })
 
-	dnsttTimeout := durationMSInput(l, "Enter timeout (milliseconds)", d.Timeout.Duration(),
+	dnsttTimeout := durationMSInput(state, "Enter timeout (milliseconds)", cfg.DNSTT.Timeout.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *d
-			tmp.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{DNSTT: &tmp}), "DNSTT.Timeout")
+			tmp := *cfg
+			tmp.DNSTT.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
+			return fieldErr(validate.ValidateDNS(tmp), "DNSTT.Timeout")
 		},
-		func(dur time.Duration) { d.Timeout = config.NewDurationMS(dur) }, save)
+		func(dur time.Duration) { cfg.DNSTT.Timeout = config.NewDurationMS(dur) })
 
-	dnsttPrefixOutput := stringInput(l, "Enter output file prefix", d.PrefixOutput,
+	dnsttPrefixOutput := stringInput(state, "Enter output file prefix", cfg.DNSTT.OutputPrefix,
 		func(s string) error {
-			tmp := *d
-			tmp.PrefixOutput = s
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{DNSTT: &tmp}), "DNSTT.PrefixOutput")
-		}, func(v string) { d.PrefixOutput = v }, save)
+			tmp := *cfg
+			tmp.DNSTT.OutputPrefix = s
+			return fieldErr(validate.ValidateDNS(tmp), "DNSTT.PrefixOutput")
+		}, func(v string) { cfg.DNSTT.OutputPrefix = v })
 
-	dnsttActive := func() bool { return d.Enabled }
+	dnsttActive := func() bool { return cfg.DNSTT.Enabled }
 
 	// ── SlipStream ───────────────────────────────────────────────────────────
 
 	slipStreamEnabled := toggleinput.New(
-		l, "Enable SlipStream",
-		toggleinput.WithValue(s.Enabled),
+		state.Layout, "Enable SlipStream",
+		toggleinput.WithValue(cfg.SlipStream.Enabled),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
-			s.Enabled = v
-			return save()
+			cfg.SlipStream.Enabled = v
+			return saveDNS(state)
 		}),
 	)
 
-	slipStreamWorkers := intInput(l, "Enter number of workers", s.Workers,
+	slipStreamWorkers := intInput(state, "Enter number of workers", cfg.SlipStream.Workers,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *s
-			tmp.Workers = n
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{SlipStream: &tmp}), "SlipStream.Workers")
+			tmp := *cfg
+			tmp.SlipStream.Workers = n
+			return fieldErr(validate.ValidateDNS(tmp), "SlipStream.Workers")
 		},
-		func(n int) { s.Workers = n }, save)
+		func(n int) { cfg.SlipStream.Workers = n })
 
-	slipStreamDomain := stringInput(l, "Enter target domain", s.Domain,
+	slipStreamDomain := stringInput(state, "Enter target domain", cfg.SlipStream.Domain,
 		func(v string) error {
-			tmp := *s
-			tmp.Domain = v
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{SlipStream: &tmp}), "SlipStream.Domain")
-		}, func(v string) { s.Domain = v }, save)
+			tmp := *cfg
+			tmp.SlipStream.Domain = v
+			return fieldErr(validate.ValidateDNS(tmp), "SlipStream.Domain")
+		}, func(v string) { cfg.SlipStream.Domain = v })
 
-	slipStreamCertPath := stringInput(l, "Enter certificate path", s.CertPath,
-		func(_ string) error { return nil }, func(v string) { s.CertPath = v }, save)
+	slipStreamCertPath := stringInput(state, "Enter certificate path", cfg.SlipStream.CertPath,
+		func(_ string) error { return nil }, func(v string) { cfg.SlipStream.CertPath = v })
 
-	slipStreamTimeout := durationMSInput(l, "Enter timeout (milliseconds)", s.Timeout.Duration(),
+	slipStreamTimeout := durationMSInput(state, "Enter timeout (milliseconds)", cfg.SlipStream.Timeout.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *s
-			tmp.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{SlipStream: &tmp}), "SlipStream.Timeout")
+			tmp := *cfg
+			tmp.SlipStream.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
+			return fieldErr(validate.ValidateDNS(tmp), "SlipStream.Timeout")
 		},
-		func(dur time.Duration) { s.Timeout = config.NewDurationMS(dur) }, save)
+		func(dur time.Duration) { cfg.SlipStream.Timeout = config.NewDurationMS(dur) })
 
-	slipStreamPrefixOutput := stringInput(l, "Enter output file prefix", s.PrefixOutput,
+	slipStreamPrefixOutput := stringInput(state, "Enter output file prefix", cfg.SlipStream.OutputPrefix,
 		func(v string) error {
-			tmp := *s
-			tmp.PrefixOutput = v
-			return fieldErr(validate.ValidateDNS(&config.DNSConfig{SlipStream: &tmp}), "SlipStream.PrefixOutput")
+			tmp := *cfg
+			tmp.SlipStream.OutputPrefix = v
+			return fieldErr(validate.ValidateDNS(tmp), "SlipStream.PrefixOutput")
 		},
-		func(v string) { s.PrefixOutput = v }, save)
+		func(v string) { cfg.SlipStream.OutputPrefix = v })
 
-	slipStreamActive := func() bool { return s.Enabled }
+	slipStreamActive := func() bool { return cfg.SlipStream.Enabled }
 
 	fields := []inspector.Field{
 		// Resolver
@@ -476,10 +470,10 @@ func New(l *layout.Layout, name string) *Model {
 	}
 
 	return &Model{
-		layout:    l,
+		state:     state,
 		name:      name,
 		id:        ui.NewComponentID(),
-		inspector: inspector.New(l, "dns settings", fields),
+		inspector: inspector.New(state.Layout, "dns settings", fields),
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 	"bgscan/internal/ui/components/basic/notice"
 	ipviewer "bgscan/internal/ui/components/tables/ipviewer"
 	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -17,16 +16,16 @@ import (
 type Model struct {
 	id        ui.ComponentID
 	name      string
-	layout    *layout.Layout
+	state     *ui.AppState
 	maxIPs    uint32
 	crudTable *crud.Model[result.ResultFile]
 }
 
-func New(l *layout.Layout, title string, maxIPs uint32, onSelect func(*result.ResultFile) tea.Cmd) *Model {
+func New(state *ui.AppState, title string, maxIPs uint32, onSelect func(*result.ResultFile) tea.Cmd) *Model {
 	m := &Model{
 		id:     ui.NewComponentID(),
 		name:   "Result Files",
-		layout: l,
+		state:  state,
 		maxIPs: maxIPs,
 	}
 
@@ -34,7 +33,7 @@ func New(l *layout.Layout, title string, maxIPs uint32, onSelect func(*result.Re
 		onSelect = m.defaultSelectHandler
 	}
 
-	m.crudTable = crud.New(title, l, newProvider(l, title, onSelect), 100, false)
+	m.crudTable = crud.New(title, state.Layout, newProvider(state, title, onSelect), 100, false)
 
 	return m
 }
@@ -49,7 +48,7 @@ func (m *Model) Mode() env.Mode     { return m.crudTable.Mode() }
 func (m *Model) defaultSelectHandler(file *result.ResultFile) tea.Cmd {
 	ips, err := result.ReadResultFile(file.Path, file.Schema)
 	if err != nil {
-		return notice.NewNoticeCmd(m.layout, "Selection", err.Error(), notice.NOTICE_ERROR)
+		return notice.NewNoticeCmd(m.state.Layout, "Selection", err.Error(), notice.NOTICE_ERROR)
 	}
 	return m.OpenResultIP(ips)
 }
@@ -59,7 +58,7 @@ func (m *Model) OpenResultIP(file result.ResultFile) tea.Cmd {
 	ips, err := result.LoadAll(file.Path, file.Schema, m.maxIPs)
 	if err != nil {
 		return notice.NewNoticeCmd(
-			m.layout,
+			m.state.Layout,
 			"Result File Error",
 			fmt.Sprintf("Error while reading result file: %v", err),
 			notice.NOTICE_ERROR,
@@ -69,7 +68,7 @@ func (m *Model) OpenResultIP(file result.ResultFile) tea.Cmd {
 	return func() tea.Msg {
 		return ui.OpenComponentMsg{
 			Component: ipviewer.New(
-				m.layout,
+				m.state.Layout,
 				fmt.Sprintf("IP Scan [%s]", file.Schema.Name),
 				ips,
 				file.Schema,

@@ -1,3 +1,4 @@
+// Package outboundmenu selects how outbound configs are imported.
 package outboundmenu
 
 import (
@@ -9,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// ImportMethod defines how the user wants to add the outbound configurations.
+// ImportMethod defines how the user wants to add outbound configurations.
 type ImportMethod string
 
 const (
@@ -17,12 +18,12 @@ const (
 	MethodJSON ImportMethod = "json"
 )
 
-// MsgSelectImportMethod is fired when a selection is made, carrying the chosen method argument.
+// MsgSelectImportMethod is fired when a selection is made, carrying the chosen method.
 type MsgSelectImportMethod struct {
 	Method ImportMethod
 }
 
-// Model represents the outbound integration selection menu component.
+// Model is the outbound import method menu.
 type Model struct {
 	id     ui.ComponentID
 	name   string
@@ -30,7 +31,7 @@ type Model struct {
 	Layout *layout.Layout
 }
 
-// New instantiates an initialized outbound menu component layout.
+// New creates the outbound import menu.
 func New(layout *layout.Layout) *Model {
 	m := &Model{
 		id:     ui.NewComponentID(),
@@ -41,34 +42,26 @@ func New(layout *layout.Layout) *Model {
 	return m
 }
 
-// ID returns the component's unique structural registration identifier.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
-// Name returns the descriptive name of the menu component.
 func (m *Model) Name() string {
 	return m.name
 }
 
-// OnClose executes lifecycle cleanup operations when the component is popped from the view stack.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-// Mode establishes active keyboard mapping and state profile rules for the environment layout.
 func (m *Model) Mode() env.Mode {
 	return env.NormalMode
 }
 
-// Init initializes the component scope upon activation.
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-// ── Private Helpers ──────────────────────────────────────────────────────────
-
-// newMenu builds the basic structural component menu options along with their argument messages.
 func newMenu(layout *layout.Layout) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(

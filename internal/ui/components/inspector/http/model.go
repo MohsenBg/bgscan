@@ -16,7 +16,6 @@ import (
 	"bgscan/internal/ui/components/basic/inspector"
 	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -72,7 +71,7 @@ const (
 
 // Model represents the HTTP settings inspector component.
 type Model struct {
-	layout    *layout.Layout
+	state     *ui.AppState
 	name      string
 	id        ui.ComponentID
 	inspector ui.Component
@@ -85,17 +84,17 @@ func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
 // saveHTTP saves the current HTTP configuration and returns a notification command on error.
-func saveHTTP(l *layout.Layout, cfg *config.HTTPConfig) tea.Cmd {
-	if err := config.SaveHTTPConfig(cfg); err != nil {
-		return notice.NewNoticeCmd(l, "Failed to save HTTP settings", err.Error(), notice.NOTICE_ERROR)
+func saveHTTP(state *ui.AppState) tea.Cmd {
+	if err := state.Store.SaveHTTP(state.Config.HTTP); err != nil {
+		return notice.NewNoticeCmd(state.Layout, "Failed to save HTTP settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
 // newIntInput creates a text input for integer values with validation and auto-save.
-func newIntInput(l *layout.Layout, title string, value int, validateFn func(int) error, setFn func(int), saveFn func() tea.Cmd) input.Input[string] {
+func newIntInput(state *ui.AppState, title string, value int, validateFn func(int) error, setFn func(int)) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(strconv.Itoa(value)),
 		textinput.WithValidation(func(v string) error {
 			n, err := strconv.Atoi(v)
@@ -108,18 +107,18 @@ func newIntInput(l *layout.Layout, title string, value int, validateFn func(int)
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(l, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			setFn(n)
-			return saveFn()
+			return saveHTTP(state)
 		}),
 	)
 }
 
 // newDurationInput creates a text input for duration values (in ms) with validation and auto-save.
-func newDurationInput(l *layout.Layout, title string, value time.Duration, validateFn func(time.Duration) error, setFn func(time.Duration), saveFn func() tea.Cmd) input.Input[string] {
+func newDurationInput(state *ui.AppState, title string, value time.Duration, validateFn func(time.Duration) error, setFn func(time.Duration)) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
 		textinput.WithValidation(func(v string) error {
 			n, err := strconv.Atoi(v)
@@ -132,24 +131,24 @@ func newDurationInput(l *layout.Layout, title string, value time.Duration, valid
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(l, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			setFn(time.Duration(n) * time.Millisecond)
-			return saveFn()
+			return saveHTTP(state)
 		}),
 	)
 }
 
 // newStringInput creates a text input for string values with validation and auto-save.
-func newStringInput(l *layout.Layout, title, value string, validateFn func(string) error, setFn func(string), saveFn func() tea.Cmd) input.Input[string] {
+func newStringInput(state *ui.AppState, title, value string, validateFn func(string) error, setFn func(string)) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(value),
 		textinput.WithValidation(validateFn),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			setFn(v)
-			return saveFn()
+			return saveHTTP(state)
 		}),
 	)
 }
@@ -283,55 +282,52 @@ func groupStatusCodes(codes []int) map[string][]int {
 // ── Model Construction ────────────────────────────────────────────────
 
 // New creates a new HTTP settings inspector model.
-func New(l *layout.Layout, name string) *Model {
-	cfg := config.GetHTTP()
-	save := func() tea.Cmd { return saveHTTP(l, cfg) }
+func New(state *ui.AppState, name string) *Model {
+	cfg := &state.Config.HTTP
 
 	m := &Model{
-		layout: l,
-		name:   name,
-		id:     ui.NewComponentID(),
+		state: state,
+		name:  name,
+		id:    ui.NewComponentID(),
 	}
 
 	// Validation helper closure
-	valField := func(tmp *config.HTTPConfig, field string) func(string) error {
-		return func(v string) error {
-			return fieldErr(validate.ValidateHTTP(tmp), field)
-		}
+	valField := func(tmp config.HTTPConfig, field string) error {
+		return fieldErr(validate.ValidateHTTP(tmp), field)
 	}
 
 	// ─── Easy settings ───
-	workers := newIntInput(l, "Enter number of workers", cfg.Workers,
+	workers := newIntInput(state, "Enter number of workers", cfg.Workers,
 		func(n int) error {
 			tmp := *cfg
 			tmp.Workers = n
-			return valField(&tmp, "Workers")("")
+			return valField(tmp, "Workers")
 		},
-		func(n int) { cfg.Workers = n }, save)
+		func(n int) { cfg.Workers = n })
 
-	host := newStringInput(l, "Enter target host", cfg.Host,
+	host := newStringInput(state, "Enter target host", cfg.Host,
 		func(v string) error {
 			tmp := *cfg
 			tmp.Host = v
-			return valField(&tmp, "Host")("")
-		}, func(v string) { cfg.Host = v }, save)
+			return valField(tmp, "Host")
+		}, func(v string) { cfg.Host = v })
 
-	serverName := newStringInput(l, "Enter server name (SNI)", cfg.ServerName,
+	serverName := newStringInput(state, "Enter server name (SNI)", cfg.ServerName,
 		func(v string) error {
 			tmp := *cfg
 			tmp.ServerName = v
-			return valField(&tmp, "ServerName")("")
-		}, func(v string) { cfg.ServerName = v }, save)
+			return valField(tmp, "ServerName")
+		}, func(v string) { cfg.ServerName = v })
 
-	port := newIntInput(l, "Enter HTTP port", cfg.Port,
+	port := newIntInput(state, "Enter HTTP port", cfg.Port,
 		func(n int) error {
 			tmp := *cfg
 			tmp.Port = n
-			return valField(&tmp, "Port")("")
-		}, func(n int) { cfg.Port = n }, save)
+			return valField(tmp, "Port")
+		}, func(n int) { cfg.Port = n })
 
 	protocol := selectinput.New(
-		l, "Protocol",
+		state.Layout, "Protocol",
 		selectinput.WithValue(cfg.Protocol),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -340,12 +336,12 @@ func New(l *layout.Layout, name string) *Model {
 		),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.Protocol = v
-			return save()
+			return saveHTTP(state)
 		}),
 	)
 
 	httpVersion := selectinput.New(
-		l, "HTTP Version",
+		state.Layout, "HTTP Version",
 		selectinput.WithValue(cfg.Version),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -356,39 +352,39 @@ func New(l *layout.Layout, name string) *Model {
 		),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.Version = v
-			return save()
+			return saveHTTP(state)
 		}),
 	)
 
 	tlsValidation := toggleinput.New(
-		l, "TLS Validation",
+		state.Layout, "TLS Validation",
 		toggleinput.WithValue(cfg.TLSValidation),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
 			cfg.TLSValidation = v
-			return save()
+			return saveHTTP(state)
 		}),
 	)
 
-	timeout := newDurationInput(l, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
+	timeout := newDurationInput(state, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
 		func(d time.Duration) error {
 			tmp := *cfg
 			tmp.Timeout = config.NewDurationMS(d)
-			return valField(&tmp, "Timeout")("")
+			return valField(tmp, "Timeout")
 		},
-		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) }, save)
+		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) })
 
-	prefixOutput := newStringInput(l, "Enter output file prefix", cfg.PrefixOutput,
+	prefixOutput := newStringInput(state, "Enter output file prefix", cfg.OutputPrefix,
 		func(v string) error {
 			tmp := *cfg
-			tmp.PrefixOutput = v
-			return valField(&tmp, "PrefixOutput")("")
-		}, func(v string) { cfg.PrefixOutput = v }, save)
+			tmp.OutputPrefix = v
+			return valField(tmp, "PrefixOutput")
+		}, func(v string) { cfg.OutputPrefix = v })
 
 	// ─── Advanced settings ───
 	minTLSVersion := selectinput.New(
-		l, "Min TLS Version",
+		state.Layout, "Min TLS Version",
 		selectinput.WithValue(cfg.MinTLSVersion),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -400,16 +396,16 @@ func New(l *layout.Layout, name string) *Model {
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			tmp.MinTLSVersion = v
-			return valField(&tmp, "MinTLSVersion")("")
+			return valField(tmp, "MinTLSVersion")
 		}),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.MinTLSVersion = v
-			return save()
+			return saveHTTP(state)
 		}),
 	)
 
 	maxTLSVersion := selectinput.New(
-		l, "Max TLS Version",
+		state.Layout, "Max TLS Version",
 		selectinput.WithValue(cfg.MaxTLSVersion),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -421,11 +417,11 @@ func New(l *layout.Layout, name string) *Model {
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			tmp.MaxTLSVersion = v
-			return valField(&tmp, "MaxTLSVersion")("")
+			return valField(tmp, "MaxTLSVersion")
 		}),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.MaxTLSVersion = v
-			return save()
+			return saveHTTP(state)
 		}),
 	)
 
@@ -442,7 +438,7 @@ func New(l *layout.Layout, name string) *Model {
 	}
 
 	statusCodeGroups := multiselect.New(
-		l, "Select accepted status code groups",
+		state.Layout, "Select accepted status code groups",
 		multiselect.WithFocus[string](),
 		multiselect.WithOptions(groupOpts...),
 		multiselect.WithValue(groupMultiselectValue),
@@ -454,7 +450,7 @@ func New(l *layout.Layout, name string) *Model {
 
 			cfg.AcceptedStatusCodes = codesFromGroups(selected)
 			groupMultiselectValue = selected
-			return save()
+			return saveHTTP(state)
 		}),
 	)
 
@@ -465,7 +461,7 @@ func New(l *layout.Layout, name string) *Model {
 		group := g
 
 		specific := multiselect.New(
-			l,
+			state.Layout,
 			fmt.Sprintf("Fine-tune %s codes", groupLabels[group]),
 			multiselect.WithFocus[int](),
 			multiselect.WithOptions(buildSpecificOptions(group)...),
@@ -474,7 +470,7 @@ func New(l *layout.Layout, name string) *Model {
 			multiselect.WithOnSubmit(func(selected []int) tea.Cmd {
 				otherGroups := filterCodesByActiveGroups(cfg.AcceptedStatusCodes, groupMultiselectValue)
 				cfg.AcceptedStatusCodes = append(otherGroups, selected...)
-				return save()
+				return saveHTTP(state)
 			}),
 		)
 
@@ -524,7 +520,7 @@ func New(l *layout.Layout, name string) *Model {
 
 	fields = append(fields, statusCodeSpecificFields...)
 
-	m.inspector = inspector.New(l, "http settings", fields)
+	m.inspector = inspector.New(state.Layout, "http settings", fields)
 	return m
 }
 

@@ -6,12 +6,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Update handles incoming BubbleTea messages and updates the notice state.
-//
-// Behavior:
-//   - Enter closes the notice dialog.
-//   - All messages are forwarded to the internal viewport to support
-//     scrolling for long messages.
+// Update closes the notice on Enter and forwards all messages to the internal
+// viewport so long messages remain scrollable.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:

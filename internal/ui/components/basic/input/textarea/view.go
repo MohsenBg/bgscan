@@ -6,16 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// View renders the textarea component.
-//
-// The view consists of:
-//   - An optional message displayed above the input field
-//   - The text area component
-//   - An optional validation error message
-//   - Key hints for user interaction
-//
-// The content is vertically stacked and wrapped inside a styled
-// container whose width is determined by the layout.
+// View renders the textarea component: title, field, validation error, and key hints.
 func (m *Model) View() string {
 	content := make([]string, 0, 4)
 	// Optional message

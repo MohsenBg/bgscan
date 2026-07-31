@@ -6,7 +6,7 @@ import (
 
 	"bgscan/internal/core/scanner/engine"
 
-	"charm.land/lipgloss/v2" // Kept as your custom fork/alias
+	"charm.land/lipgloss/v2"
 )
 
 // View renders the scanner UI.
@@ -22,7 +22,7 @@ func (m *Model) View() string {
 
 func (m *Model) renderProgress(idx int) string {
 	p := m.progressInfo[idx]
-	width := m.layout.Body.Width
+	width := m.state.Layout.Body.Width
 
 	stats := m.renderStatsRow(p)
 	status := m.renderStatusRow()

@@ -16,27 +16,21 @@ type Option[T comparable] func(*Model[T])
 
 // Model is the select-based implementation of [input.Input].
 type Model[T comparable] struct {
-	// Component identity
 	id   ui.ComponentID
 	name string
 
-	// Layout reference
 	layout *layout.Layout
 
-	// UI content
 	title    string
 	errorMsg string
 
-	// Input field
 	value    T
 	options  []huh.Option[T]
 	huhInput *huh.Select[T]
 	readOnly bool
 
-	// Validation
 	validationFunc func(value T) error
 
-	// Callbacks
 	onChange func(T) tea.Cmd
 	onSubmit func(T) tea.Cmd
 }
@@ -68,8 +62,6 @@ func New[T comparable](
 
 	return m
 }
-
-// --- Options -----------------------------------------------------------
 
 // WithOptions sets the selectable options.
 func WithOptions[T comparable](opts ...huh.Option[T]) Option[T] {
@@ -120,8 +112,6 @@ func WithOnSubmit[T comparable](fn func(T) tea.Cmd) Option[T] {
 	}
 }
 
-// --- ui.Component --------------------------------------------------------
-
 func (m *Model[T]) Init() tea.Cmd { return nil }
 
 func (m *Model[T]) ID() ui.ComponentID { return m.id }
@@ -144,8 +134,6 @@ func (m *Model[T]) CloseCmd() tea.Cmd {
 }
 
 func (m *Model[T]) OnClose() tea.Cmd { return nil }
-
-// --- input.Input[T] --------------------------------------------------------
 
 func (m *Model[T]) Value() T { return m.value }
 
@@ -175,8 +163,6 @@ func (m *Model[T]) AppendOnSubmit(fn func() tea.Cmd) {
 		return tea.Sequence(prev(value), fn())
 	}
 }
-
-// --- internal helpers --------------------------------------------------------
 
 func (m *Model[T]) setReadOnly(ro bool) {
 	m.readOnly = ro

@@ -1,13 +1,9 @@
 package layout
 
-// Layout describes the complete screen geometry of the TUI.
+// Layout represents the terminal screen geometry and component regions.
 //
-// It is recalculated whenever the terminal size changes and
-// provides precomputed regions for each major UI component
-// (header, body, footer).
-//
-// The Layout type is intentionally stateful to avoid
-// repeated layout calculations inside render paths.
+// It is recalculated on terminal resize so render paths can use precomputed
+// regions instead of recalculating layout repeatedly.
 type Layout struct {
 	Terminal TerminalSize
 	Content  ContentSize
@@ -23,16 +19,14 @@ type TerminalSize struct {
 	Height int
 }
 
-// ContentSize represents the drawable content area inside
-// the terminal, excluding outer margins and padding.
+// ContentSize is the drawable terminal content area, excluding margins.
 type ContentSize struct {
 	Width   int
 	Height  int
 	Padding int
 }
 
-// ComponentSize represents the position and size of a UI
-// component in terminal coordinates.
+// ComponentSize describes a UI component's position and size in terminal cells.
 type ComponentSize struct {
 	Width  int
 	Height int
@@ -40,9 +34,8 @@ type ComponentSize struct {
 	Y      int
 }
 
-// New creates a new Layout with sensible default dimensions.
-// The layout must be updated with the actual terminal size
-// using Update() before rendering.
+// New returns a Layout with fallback terminal dimensions. It should be
+// updated with the real terminal size via Update before use.
 func New() *Layout {
 	return &Layout{
 		Terminal: TerminalSize{
@@ -52,11 +45,8 @@ func New() *Layout {
 	}
 }
 
-// Update recalculates the entire layout based on the current
-// terminal dimensions.
-//
-// This method should be called whenever a tea.WindowSizeMsg
-// is received.
+// Update recalculates regions from the current terminal dimensions.
+// Call this on tea.WindowSizeMsg.
 func (l *Layout) Update(termWidth, termHeight int) {
 	l.Terminal.Width = termWidth
 	l.Terminal.Height = termHeight
@@ -67,7 +57,6 @@ func (l *Layout) Update(termWidth, termHeight int) {
 		Padding: 1,
 	}
 
-	// ─── Header ───────────────────────────
 	l.Header = ComponentSize{
 		Width:  l.Content.Width,
 		Height: 8,
@@ -75,7 +64,6 @@ func (l *Layout) Update(termWidth, termHeight int) {
 		Y:      0,
 	}
 
-	// ─── Body ─────────────────────────────
 	l.Body = ComponentSize{
 		Width:  l.Content.Width,
 		Height: l.Content.Height - (l.Header.Height + 2),
@@ -83,7 +71,6 @@ func (l *Layout) Update(termWidth, termHeight int) {
 		Y:      l.Header.Height,
 	}
 
-	// ─── Footer ───────────────────────────
 	l.Footer = ComponentSize{
 		Width:  l.Content.Width,
 		Height: 2,
@@ -92,12 +79,10 @@ func (l *Layout) Update(termWidth, termHeight int) {
 	}
 }
 
-// BodyContentWidth returns the drawable width of the body.
 func (l *Layout) BodyContentWidth() int {
 	return l.Body.Width
 }
 
-// BodyContentHeight returns the drawable height of the body.
 func (l *Layout) BodyContentHeight() int {
 	return l.Body.Height
 }

@@ -1,3 +1,4 @@
+// Package scantype presents scan type selection and builds the requested scanner.
 package scantype
 
 import (
@@ -7,7 +8,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"bgscan/internal/core/config"
 	"bgscan/internal/core/scanner"
 	"bgscan/internal/core/xray"
 	"bgscan/internal/ui/components/basic/menu"
@@ -15,10 +15,10 @@ import (
 	scannerUi "bgscan/internal/ui/components/scanner"
 	"bgscan/internal/ui/components/tables/outbounds"
 	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 )
 
+// ScanType selects the scan mode.
 type ScanType uint8
 
 const (
@@ -29,22 +29,24 @@ const (
 	XRAYScan
 )
 
+// Model is the scan type selection screen.
 type Model struct {
 	id           ui.ComponentID
 	name         string
-	layout       *layout.Layout
+	state        *ui.AppState
 	input        string
 	xrayTemplate string
 	menu         ui.Component
 	closeScanner bool
-	scanner      *scanner.Scanner
+	scanner      scanner.Scanner
 }
 
-func New(layout *layout.Layout, input string) *Model {
+// New creates the scan type selector.
+func New(state *ui.AppState, input string) *Model {
 	m := &Model{
 		id:           ui.NewComponentID(),
 		name:         "Scan Menu",
-		layout:       layout,
+		state:        state,
 		input:        input,
 		closeScanner: true,
 	}
@@ -55,7 +57,7 @@ func New(layout *layout.Layout, input string) *Model {
 		menu.NewMenuItem("▦", "HTTP Scan", "h", m.open(HTTPScan)),
 		menu.NewMenuItem("#", "DNS Scan", "d", m.open(DNSResolveScan)),
 		menu.NewMenuItem("▦", "Xray Scan", "x", m.openXrayTemplates()),
-	}, "Select Scan Type", layout)
+	}, "Select Scan Type", state.Layout)
 
 	return m
 }
@@ -65,16 +67,16 @@ func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) Mode() env.Mode     { return env.NormalMode }
 
+// OnClose closes the active scanner if this menu opened it.
 func (m *Model) OnClose() tea.Cmd {
 	if m.closeScanner && m.scanner != nil {
-		m.scanner.Close()
+		err := m.scanner.Close()
+		if err != nil {
+			return notice.NewNoticeCmd(m.state.Layout, "Failed to close scanner", err.Error(), notice.NOTICE_ERROR)
+		}
 	}
 	return nil
 }
-
-// ------------------------------------------------------------
-// Scanner entry
-// ------------------------------------------------------------
 
 func (m *Model) open(mode ScanType) tea.Cmd {
 	return func() tea.Msg {
@@ -84,26 +86,25 @@ func (m *Model) open(mode ScanType) tea.Cmd {
 		}
 
 		m.closeScanner = false
-		return ui.OpenComponentCmd(scannerUi.New(m.layout, 10_000, scn))()
+		return ui.OpenComponentCmd(scannerUi.New(m.state, 10_000, scn))()
 	}
 }
 
 func (m *Model) openXrayTemplates() tea.Cmd {
 	return ui.OpenComponentCmd(
-		outbounds.New(m.layout, "select outbound", func(xof *xray.XrayOutboundsFile) tea.Cmd {
+		outbounds.New(m.state.Layout, "select outbound", func(xof *xray.XrayOutboundsFile) tea.Cmd {
 			m.xrayTemplate = xof.Name
 			return m.open(XRAYScan)
 		}),
 	)
 }
 
-// ------------------------------------------------------------
-// Scanner builder
-// ------------------------------------------------------------
-
-func (m *Model) createScanner(mode ScanType, input string) (*scanner.Scanner, error) {
+func (m *Model) createScanner(mode ScanType, input string) (scanner.Scanner, error) {
 	ctx := context.Background()
-	scn := scanner.NewScanner(ctx, input)
+	scn, err := scanner.NewScanner(ctx, input)
+	if err != nil {
+		return nil, err
+	}
 
 	if mode == XRAYScan {
 		return m.buildXrayScanner(ctx, scn)
@@ -122,7 +123,7 @@ func (m *Model) createScanner(mode ScanType, input string) (*scanner.Scanner, er
 	return scn, nil
 }
 
-func (m *Model) buildStage(ctx context.Context, scn *scanner.Scanner, mode ScanType) (scanner.StageConfig, error) {
+func (m *Model) buildStage(ctx context.Context, scn scanner.Scanner, mode ScanType) (scanner.StageConfig, error) {
 	switch mode {
 	case TCPScan:
 		return scn.BuildTCPStage(ctx)
@@ -135,18 +136,15 @@ func (m *Model) buildStage(ctx context.Context, scn *scanner.Scanner, mode ScanT
 	}
 }
 
-// ------------------------------------------------------------
-// Special scanners
-// ------------------------------------------------------------
-
-func (m *Model) buildResolveScanner(ctx context.Context, scn *scanner.Scanner) (*scanner.Scanner, error) {
+func (m *Model) buildResolveScanner(ctx context.Context, scn scanner.Scanner) (scanner.Scanner, error) {
 	if stage, err := scn.BuildResolveStage(ctx); err != nil {
 		return nil, err
 	} else {
 		scn.AddStage(stage)
 	}
 
-	if config.GetDNS().DNSTT.Enabled {
+	cfg := m.state.Config.DNS
+	if cfg.DNSTT.Enabled {
 		if stage, err := scn.BuildDNSTTStage(ctx); err == nil {
 			scn.AddStage(stage)
 		} else {
@@ -154,7 +152,7 @@ func (m *Model) buildResolveScanner(ctx context.Context, scn *scanner.Scanner) (
 		}
 	}
 
-	if config.GetDNS().SlipStream.Enabled {
+	if cfg.SlipStream.Enabled {
 		if stage, err := scn.BuildSlipStreamStage(ctx); err == nil {
 			scn.AddStage(stage)
 		} else {
@@ -165,8 +163,8 @@ func (m *Model) buildResolveScanner(ctx context.Context, scn *scanner.Scanner) (
 	return scn, nil
 }
 
-func (m *Model) buildXrayScanner(ctx context.Context, scn *scanner.Scanner) (*scanner.Scanner, error) {
-	cfg := config.GetXray()
+func (m *Model) buildXrayScanner(ctx context.Context, scn scanner.Scanner) (scanner.Scanner, error) {
+	cfg := m.state.Config.Xray
 
 	pre := map[string]func() error{
 		"tcp": func() error {
@@ -211,10 +209,6 @@ func (m *Model) buildXrayScanner(ctx context.Context, scn *scanner.Scanner) (*sc
 	return scn, nil
 }
 
-// ------------------------------------------------------------
-// UI helpers
-// ------------------------------------------------------------
-
 func (m *Model) errorCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(m.layout, title, message, notice.NOTICE_ERROR)
+	return notice.NewNoticeCmd(m.state.Layout, title, message, notice.NOTICE_ERROR)
 }

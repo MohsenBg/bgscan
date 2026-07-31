@@ -6,13 +6,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Update handles incoming BubbleTea messages for the file picker overlay.
-//
-// Responsibilities:
-//   - Adjust picker height on terminal resize
-//   - Forward messages to the underlying Bubble filepicker
-//   - Detect file selection and trigger the OnSelect callback
-//   - Close the overlay after a successful selection
+// Update handles terminal resize, forwards messages to the file picker,
+// and closes the overlay after a successful selection.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmds []tea.Cmd
 

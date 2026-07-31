@@ -15,11 +15,7 @@ func NewComponentID() ComponentID {
 	return ComponentID(uuid.NewString())
 }
 
-// Component represents a UI module that can be mounted
-// and managed by the application.
-//
-// Components encapsulate their own state, update logic,
-// and rendering behavior.
+// Component is a self-contained UI module managed by the application.
 type Component interface {
 	// ID returns the unique identifier of the component instance.
 	ID() ComponentID
@@ -58,8 +54,8 @@ type OpenComponentMsg struct {
 // ResetComponentStacksMsg clears all component stacks.
 type ResetComponentStacksMsg struct{}
 
-// OpenComponentCmd creates a BubbleTea command that
-// emits an OpenComponentMsg for mounting a new component.
+// OpenComponentCmd returns a command that emits an OpenComponentMsg to mount
+// the given component.
 func OpenComponentCmd(component Component) tea.Cmd {
 	return func() tea.Msg {
 		return OpenComponentMsg{

@@ -6,16 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// View renders the select component.
-//
-// The view consists of:
-//   - An optional title displayed above the select field
-//   - The select component (list of options with cursor)
-//   - An optional validation error message
-//   - Key hints for user interaction
-//
-// The content is vertically stacked and wrapped inside a styled
-// container whose width is determined by the layout.
+// View renders the select component: title, options, validation error, and key hints.
 func (m *Model[T]) View() string {
 	content := make([]string, 0, 4)
 

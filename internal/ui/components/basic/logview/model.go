@@ -5,10 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"bgscan/internal/core/config"
 	"bgscan/internal/logger"
 	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	"charm.land/bubbles/v2/viewport"
@@ -16,19 +14,15 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// Model implements a scrollable log viewer component.
-//
-// It subscribes to the application's logger and streams log
-// messages into a BubbleTea viewport. Messages are buffered
-// and updated periodically to avoid excessive UI refreshes.
+// Model is a scrollable log viewer. It subscribes to the application logger
+// and streams messages into a viewport, buffering them and refreshing
+// periodically to avoid excessive UI updates.
 type Model struct {
-	// Component identity
 	id    ui.ComponentID
 	name  string
 	title string
 
-	// Layout
-	layout *layout.Layout
+	state *ui.AppState
 
 	padding           int
 	containerMaxWidth int
@@ -43,33 +37,31 @@ type Model struct {
 	loggerChan chan string
 	maxMessage int
 
-	// Thread‑safe message buffer
+	// Thread-safe message buffer
 	mu         sync.Mutex
 	messages   []string
 	needUpdate bool
 
-	// Lifecycle management
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 // New creates a new log viewer component.
-func New(l *layout.Layout, log *logger.Logger, title string) *Model {
+func New(state *ui.AppState, log *logger.Logger, title string) *Model {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	m := &Model{
-		id:     ui.NewComponentID(),
-		name:   title,
-		title:  title,
-		layout: l,
-
+		id:         ui.NewComponentID(),
+		name:       title,
+		title:      title,
+		state:      state,
 		logger:     log,
 		maxMessage: 200,
 
 		viewport: viewport.New(),
 
 		padding:           5,
-		containerMaxWidth: l.Body.Width - 10,
+		containerMaxWidth: state.Layout.Body.Width - 10,
 		showBorder:        true,
 
 		ctx:    ctx,
@@ -132,7 +124,7 @@ func (m *Model) readLogs() {
 // tick schedules periodic UI refreshes.
 func (m *Model) tick() tea.Cmd {
 	return tea.Tick(
-		config.Get().General.StatusInterval.Duration(),
+		m.state.Config.General.StatusInterval.Duration(),
 		func(time.Time) tea.Msg {
 			return LogUpdateTickMsg{}
 		},
@@ -145,7 +137,7 @@ func (m *Model) setSize() {
 
 	m.containerWidth = min(
 		m.containerMaxWidth,
-		m.layout.Body.Width-10,
+		m.state.Layout.Body.Width-10,
 	)
 
 	width := min(maxViewportWidth, m.containerWidth-2)
@@ -155,7 +147,7 @@ func (m *Model) setSize() {
 		helpStyle(m.viewport.Width()).Render(helpView()),
 	)
 
-	height := m.layout.Body.Height -
+	height := m.state.Layout.Body.Height -
 		m.padding -
 		lipgloss.Height(m.title) -
 		helpHeight

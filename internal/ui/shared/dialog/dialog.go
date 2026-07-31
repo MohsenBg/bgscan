@@ -6,7 +6,7 @@ import (
 	bubbleTeaOverlay "github.com/rmhubbert/bubbletea-overlay"
 )
 
-// DialogPosition represents a positioning option for the dialog window.
+// DialogPosition specifies where a dialog is anchored on screen.
 type DialogPosition = bubbleTeaOverlay.Position
 
 const (
@@ -17,8 +17,7 @@ const (
 	Center = bubbleTeaOverlay.Center
 )
 
-// OpenDialogMsg requests the UI manager to open a component
-// as a popup window on top of the current interface.
+// OpenDialogMsg requests opening a dialog overlay containing the given component.
 type OpenDialogMsg struct {
 	Component ui.Component
 
@@ -29,8 +28,8 @@ type OpenDialogMsg struct {
 	YOffset int
 }
 
-// OpenDialog creates a message requesting a new dialog popup.
-// By default, it centers the popup on the screen.
+// OpenDialog builds an OpenDialogMsg. Position options override the default
+// centered placement.
 func OpenDialog(component ui.Component, opts ...DialogOption) OpenDialogMsg {
 	msg := OpenDialogMsg{
 		Component: component,
@@ -47,8 +46,10 @@ func OpenDialog(component ui.Component, opts ...DialogOption) OpenDialogMsg {
 	return msg
 }
 
+// DialogOption mutates an OpenDialogMsg.
 type DialogOption func(*OpenDialogMsg)
 
+// WithPosition sets the dialog anchor positions.
 func WithPosition(x, y DialogPosition) DialogOption {
 	return func(m *OpenDialogMsg) {
 		m.XPos = x
@@ -56,6 +57,7 @@ func WithPosition(x, y DialogPosition) DialogOption {
 	}
 }
 
+// WithOffset adds pixel/cell offsets to the dialog position.
 func WithOffset(x, y int) DialogOption {
 	return func(m *OpenDialogMsg) {
 		m.XOffset = x

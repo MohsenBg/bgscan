@@ -13,7 +13,6 @@ import (
 	"bgscan/internal/ui/components/basic/inspector"
 	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -48,7 +47,7 @@ const (
 )
 
 type Model struct {
-	layout    *layout.Layout
+	state     *ui.AppState
 	name      string
 	id        ui.ComponentID
 	inspector ui.Component
@@ -60,30 +59,30 @@ func (m *Model) Mode() env.Mode     { return env.NormalMode }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
-func saveGeneral(l *layout.Layout, cfg *config.GeneralConfig) tea.Cmd {
-	if err := config.SaveGeneralConfig(cfg); err != nil {
-		return notice.NewNoticeCmd(l, "Failed to save General settings", err.Error(), notice.NOTICE_ERROR)
+func saveGeneral(state *ui.AppState) tea.Cmd {
+	if err := state.Store.SaveGeneral(state.Config.General); err != nil {
+		return notice.NewNoticeCmd(state.Layout, "Failed to save General settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
-func saveWriter(l *layout.Layout, cfg *config.WriterConfig) tea.Cmd {
-	if err := config.SaveWriterConfig(cfg); err != nil {
-		return notice.NewNoticeCmd(l, "Failed to save Writer settings", err.Error(), notice.NOTICE_ERROR)
+func saveWriter(state *ui.AppState) tea.Cmd {
+	if err := state.Store.SaveWriter(state.Config.Writer); err != nil {
+		return notice.NewNoticeCmd(state.Layout, "Failed to save Writer settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
-func intInput(l *layout.Layout, title string, value int, val func(string) error, set func(int), save func() tea.Cmd) input.Input[string] {
+func intInput(state *ui.AppState, title string, value int, validate func(string) error, set func(int), save func() tea.Cmd) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(strconv.Itoa(value)),
-		textinput.WithValidation(val),
+		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(l, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(n)
 			return save()
@@ -91,16 +90,16 @@ func intInput(l *layout.Layout, title string, value int, val func(string) error,
 	)
 }
 
-func durationMSInput(l *layout.Layout, title string, value time.Duration, val func(string) error, set func(time.Duration), save func() tea.Cmd) input.Input[string] {
+func durationMSInput(state *ui.AppState, title string, value time.Duration, validate func(string) error, set func(time.Duration), save func() tea.Cmd) input.Input[string] {
 	return textinput.New(
-		l, title,
+		state.Layout, title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
-		textinput.WithValidation(val),
+		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(l, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(time.Duration(n) * time.Millisecond)
 			return save()
@@ -108,65 +107,64 @@ func durationMSInput(l *layout.Layout, title string, value time.Duration, val fu
 	)
 }
 
-func New(l *layout.Layout, name string) *Model {
-	cfgG := config.GetGeneral()
-	cfgW := config.GetWriter()
+func New(state *ui.AppState, name string) *Model {
+	cfg := state.Config
 
-	saveGen := func() tea.Cmd { return saveGeneral(l, cfgG) }
-	saveWri := func() tea.Cmd { return saveWriter(l, cfgW) }
+	saveGeneralCmd := func() tea.Cmd { return saveGeneral(state) }
+	saveWriterCmd := func() tea.Cmd { return saveWriter(state) }
 
 	// ── General ──────────────────────────────────────────────────────────────
 
-	statusInterval := durationMSInput(l, "Enter Status Interval", cfgG.StatusInterval.Duration(),
+	statusInterval := durationMSInput(state, "Enter Status Interval", cfg.General.StatusInterval.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *cfgG
+			tmp := cfg.General
 			tmp.StatusInterval = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateGeneral(&tmp), "StatusInterval")
+			return fieldErr(validate.ValidateGeneral(tmp), "StatusInterval")
 		},
-		func(d time.Duration) { cfgG.StatusInterval = config.NewDurationMS(d) }, saveGen)
+		func(d time.Duration) { cfg.General.StatusInterval = config.NewDurationMS(d) }, saveGeneralCmd)
 
-	stopAfterFound := intInput(l, "Enter Stop After Found (0 = unlimited)", cfgG.StopAfterFound,
+	stopAfterFound := intInput(state, "Enter Stop After Found (0 = unlimited)", cfg.General.StopAfterFound,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *cfgG
+			tmp := cfg.General
 			tmp.StopAfterFound = n
-			return fieldErr(validate.ValidateGeneral(&tmp), "StopAfterFound")
+			return fieldErr(validate.ValidateGeneral(tmp), "StopAfterFound")
 		},
-		func(n int) { cfgG.StopAfterFound = n }, saveGen)
+		func(n int) { cfg.General.StopAfterFound = n }, saveGeneralCmd)
 
-	maxIPsToTest := intInput(l, "Enter Max IPs To Test (0 = unlimited)", cfgG.MaxIPsToTest,
+	maxIPsToTest := intInput(state, "Enter Max IPs To Test (0 = unlimited)", cfg.General.MaxIPsToTest,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *cfgG
+			tmp := cfg.General
 			tmp.MaxIPsToTest = n
-			return fieldErr(validate.ValidateGeneral(&tmp), "MaxIPsToTest")
+			return fieldErr(validate.ValidateGeneral(tmp), "MaxIPsToTest")
 		},
-		func(n int) { cfgG.MaxIPsToTest = n }, saveGen)
+		func(n int) { cfg.General.MaxIPsToTest = n }, saveGeneralCmd)
 
 	shuffled := toggleinput.New(
-		l, "Shuffle",
-		toggleinput.WithValue(cfgG.Shuffled),
+		state.Layout, "Shuffle",
+		toggleinput.WithValue(cfg.General.Shuffled),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
-			cfgG.Shuffled = v
-			return saveGen()
+			cfg.General.Shuffled = v
+			return saveGeneralCmd()
 		}),
 	)
 
 	pipelineMode := selectinput.New(
-		l, "Select Pipeline Mode",
-		selectinput.WithValue(cfgG.PipelineMode),
+		state.Layout, "Select Pipeline Mode",
+		selectinput.WithValue(cfg.General.PipelineMode),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
 			huh.NewOption("Sequential", pipelineSequential),
@@ -174,85 +172,85 @@ func New(l *layout.Layout, name string) *Model {
 			huh.NewOption("Batch", pipelineBatch),
 		),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfgG.PipelineMode = v
-			return saveGen()
+			cfg.General.PipelineMode = v
+			return saveGeneralCmd()
 		}),
 	)
 
-	maxIPsPerStage := intInput(l, "Enter Max IPs Per Stage", cfgG.MaxIPsPerStage,
+	maxIPsPerStage := intInput(state, "Enter Max IPs Per Stage", cfg.General.MaxIPsPerStage,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *cfgG
+			tmp := cfg.General
 			tmp.MaxIPsPerStage = n
-			return fieldErr(validate.ValidateGeneral(&tmp), "MaxIPsPerStage")
+			return fieldErr(validate.ValidateGeneral(tmp), "MaxIPsPerStage")
 		},
-		func(n int) { cfgG.MaxIPsPerStage = n }, saveGen)
+		func(n int) { cfg.General.MaxIPsPerStage = n }, saveGeneralCmd)
 
-	batchSize := intInput(l, "Batch Size", cfgG.BatchSize,
+	batchSize := intInput(state, "Batch Size", cfg.General.BatchSize,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *cfgG
+			tmp := cfg.General
 			tmp.BatchSize = n
-			return fieldErr(validate.ValidateGeneral(&tmp), "BatchSize")
+			return fieldErr(validate.ValidateGeneral(tmp), "BatchSize")
 		},
-		func(n int) { cfgG.BatchSize = n }, saveGen)
+		func(n int) { cfg.General.BatchSize = n }, saveGeneralCmd)
 
 	// ── Writer ────────────────────────────────────────────────────────────────
 
-	mergeFlushInterval := durationMSInput(l, "Enter Merge Flush Interval", cfgW.MergeFlushInterval.Duration(),
+	mergeFlushInterval := durationMSInput(state, "Enter Merge Flush Interval", cfg.Writer.MergeFlushInterval.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *cfgW
+			tmp := cfg.Writer
 			tmp.MergeFlushInterval = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateWriter(&tmp), "MergeFlushInterval")
+			return fieldErr(validate.ValidateWriter(tmp), "MergeFlushInterval")
 		},
-		func(d time.Duration) { cfgW.MergeFlushInterval = config.NewDurationMS(d) }, saveWri)
+		func(d time.Duration) { cfg.Writer.MergeFlushInterval = config.NewDurationMS(d) }, saveWriterCmd)
 
-	chanSize := intInput(l, "Enter Channel Size", cfgW.ChanSize,
+	chanSize := intInput(state, "Enter Channel Size", cfg.Writer.ChanSize,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *cfgW
+			tmp := cfg.Writer
 			tmp.ChanSize = n
-			return fieldErr(validate.ValidateWriter(&tmp), "ChanSize")
+			return fieldErr(validate.ValidateWriter(tmp), "ChanSize")
 		},
-		func(n int) { cfgW.ChanSize = n }, saveWri)
+		func(n int) { cfg.Writer.ChanSize = n }, saveWriterCmd)
 
-	writerBatchSize := intInput(l, "Enter Batch Size", cfgW.BatchSize,
+	writerBatchSize := intInput(state, "Enter Batch Size", cfg.Writer.BatchSize,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
-			tmp := *cfgW
+			tmp := cfg.Writer
 			tmp.BatchSize = n
-			return fieldErr(validate.ValidateWriter(&tmp), "BatchSize")
+			return fieldErr(validate.ValidateWriter(tmp), "BatchSize")
 		},
-		func(n int) { cfgW.BatchSize = n }, saveWri)
+		func(n int) { cfg.Writer.BatchSize = n }, saveWriterCmd)
 
 	resultDirectory := textinput.New(
-		l, "Enter Result Directory",
-		textinput.WithValue(cfgW.ResultBaseDir),
+		state.Layout, "Enter Result Directory",
+		textinput.WithValue(cfg.Writer.ResultBaseDir),
 		textinput.WithValidation(func(v string) error {
-			tmp := *cfgW
+			tmp := cfg.Writer
 			tmp.ResultBaseDir = v
-			return fieldErr(validate.ValidateWriter(&tmp), "ResultDirectory")
+			return fieldErr(validate.ValidateWriter(tmp), "ResultDirectory")
 		}),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfgW.ResultBaseDir = v
-			return saveGen()
+			cfg.Writer.ResultBaseDir = v
+			return saveWriterCmd()
 		}),
 	)
 
@@ -262,8 +260,8 @@ func New(l *layout.Layout, name string) *Model {
 		{Name: "Max IPs To Test", Description: descMaxIPsToTest, Group: groupGeneral, Input: inspector.Adapt(maxIPsToTest), Visible: alwaysVisible, Format: inspector.FormatIntOrUnlimited},
 		{Name: "Shuffled", Description: descShuffled, Group: groupGeneral, Input: inspector.Adapt(shuffled), Visible: alwaysVisible, Format: inspector.FormatBool},
 		{Name: "Pipeline Mode", Description: descPipelineMode, Group: groupGeneral, Input: inspector.Adapt(pipelineMode), Visible: alwaysVisible},
-		{Name: "Max IPs Per Stage", Description: descMaxIPsPerStage, Group: groupGeneral, Input: inspector.Adapt(maxIPsPerStage), Visible: visibleWhenMode(cfgG, pipelineStreaming), Format: inspector.FormatInt},
-		{Name: "Batch Size", Description: descBatchSize, Group: groupGeneral, Input: inspector.Adapt(batchSize), Visible: visibleWhenMode(cfgG, pipelineBatch), Format: inspector.FormatInt},
+		{Name: "Max IPs Per Stage", Description: descMaxIPsPerStage, Group: groupGeneral, Input: inspector.Adapt(maxIPsPerStage), Visible: visibleWhenMode(&cfg.General, pipelineStreaming), Format: inspector.FormatInt},
+		{Name: "Batch Size", Description: descBatchSize, Group: groupGeneral, Input: inspector.Adapt(batchSize), Visible: visibleWhenMode(&cfg.General, pipelineBatch), Format: inspector.FormatInt},
 
 		{Name: "Result Directory", Description: descResultDirectory, Group: groupWriter, Input: inspector.Adapt(resultDirectory), Visible: alwaysVisible},
 		{Name: "Merge Flush Interval", Description: descMergeFlushInterval, Group: groupWriter, Input: inspector.Adapt(mergeFlushInterval), Visible: alwaysVisible, Format: inspector.FormatDurationMS},
@@ -272,10 +270,10 @@ func New(l *layout.Layout, name string) *Model {
 	}
 
 	return &Model{
-		layout:    l,
+		state:     state,
 		name:      name,
 		id:        ui.NewComponentID(),
-		inspector: inspector.New(l, "general settings", fields),
+		inspector: inspector.New(state.Layout, "general settings", fields),
 	}
 }
 

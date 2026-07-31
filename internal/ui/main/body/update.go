@@ -9,12 +9,16 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Update routes messages through the component stack.
+//
+// Key behavior:
+//   - back in a nested stack pops the top component
+//   - quit from the root opens the exit confirmation dialog
+//   - OpenComponentMsg pushes a new component
+//   - CloseComponentMsg removes the matching component
+//   - ResetComponentStacksMsg pops back to the root menu
+//   - all other messages are forwarded to the active top component
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	// Guard: Ensure we have at least one component to avoid panic
-	if len(m.components) == 0 {
-		return m, nil
-	}
-
 	lastIdx := len(m.components) - 1
 
 	switch msg := msg.(type) {
@@ -24,7 +28,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		}
 
 		if env.IsQuitKey(msg, m.components[lastIdx].Mode()) {
-			return m, confirm.ExitConfirmCmd(m.layout)
+			return m, confirm.ExitConfirmCmd(m.state.Layout)
 		}
 
 	case ui.OpenComponentMsg:
@@ -53,15 +57,13 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	}
 
-	// Only update the active (top) component
 	activeComp, cmd := m.components[lastIdx].Update(msg)
 	m.components[lastIdx] = activeComp
 
 	return m, cmd
 }
 
-// --- Helper methods to keep Update clean ---
-
+// pushComponent adds a component to the stack and initializes it.
 func (m *Model) pushComponent(c ui.Component) (ui.Component, tea.Cmd) {
 	m.components = append(m.components, c)
 
@@ -72,15 +74,15 @@ func (m *Model) pushComponent(c ui.Component) (ui.Component, tea.Cmd) {
 	)
 }
 
+// popComponent removes the top component and returns to the previous one.
 func (m *Model) popComponent() (ui.Component, tea.Cmd) {
 	lastIdx := len(m.components) - 1
 	c := m.components[lastIdx]
 
 	closeCmd := c.OnClose()
-	m.components[lastIdx] = nil // GC: Clear reference
+	m.components[lastIdx] = nil
 	m.components = m.components[:lastIdx]
 
-	// After popping, update status to the new top component
 	newTop := m.components[len(m.components)-1]
 
 	return m, tea.Batch(
@@ -89,17 +91,20 @@ func (m *Model) popComponent() (ui.Component, tea.Cmd) {
 	)
 }
 
+// updateStatusCmd returns a command that updates the footer status text.
 func (m *Model) updateStatusCmd(name string) tea.Cmd {
 	return func() tea.Msg {
 		return footer.UpdateStatus{Status: name}
 	}
 }
 
+// forceResize returns a command that re-emits the current terminal size so
+// newly pushed components receive a resize event.
 func (m *Model) forceResize() tea.Cmd {
 	return func() tea.Msg {
 		return tea.WindowSizeMsg{
-			Width:  m.layout.Terminal.Width,
-			Height: m.layout.Terminal.Height,
+			Width:  m.state.Layout.Terminal.Width,
+			Height: m.state.Layout.Terminal.Height,
 		}
 	}
 }

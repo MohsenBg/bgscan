@@ -6,16 +6,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Update handles incoming Bubble Tea messages and updates
-// the footer component state accordingly.
+// Update processes footer-specific messages and refreshes displayed state.
 //
-// Responsibilities:
-//   - Refresh runtime statistics on periodic tick messages.
-//   - Update application version when requested.
-//   - Update current application status.
-//
-// Returns the updated component and an optional command
-// to be executed by Bubble Tea.
+// Handled messages:
+//   - timesTickMsg: refresh runtime stats and schedule the next tick
+//   - UpdateAppVersion: change the displayed app version
+//   - UpdateStatus: change the status text
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
 

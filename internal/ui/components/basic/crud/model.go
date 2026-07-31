@@ -14,6 +14,9 @@ type (
 	MsgRefresh     struct{}
 )
 
+// Model is a generic CRUD controller backed by a sortable table. It loads
+// items through a Provider, keeps an index of them by Identity, and wires
+// select/delete/rename/add operations to the provider hooks.
 type Model[T any] struct {
 	id       ui.ComponentID
 	name     string

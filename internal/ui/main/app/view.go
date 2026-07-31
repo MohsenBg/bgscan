@@ -13,11 +13,12 @@ const (
 	minHeight = 35
 )
 
-// View renders the entire application UI including
-// base components and overlay layers.
+// View renders the application UI and any active dialog overlays.
+// When the terminal is smaller than the minimum supported size,
+// it renders a resize warning instead.
 func (m model) View() tea.View {
-	termWidth := m.layout.Terminal.Width
-	termHeight := m.layout.Terminal.Height
+	termWidth := m.state.Layout.Terminal.Width
+	termHeight := m.state.Layout.Terminal.Height
 
 	// Prevent rendering when terminal is too small
 	if termWidth < minWidth || termHeight < minHeight {
@@ -35,7 +36,7 @@ func (m model) View() tea.View {
 	// Render overlays on top of the base content
 	content = m.renderOverlays(content)
 	view := containerStyle(termWidth, termHeight).Render(
-		mainStyle(m.layout.Content.Width, m.layout.Content.Height).
+		mainStyle(m.state.Layout.Content.Width, m.state.Layout.Content.Height).
 			Render(content),
 	)
 
@@ -68,7 +69,7 @@ func (m *model) renderOverlays(baseView string) string {
 		placement := m.getDialogPlacement(layer.ID())
 
 		view = overlay.Composite(
-			WindowStyle(m.layout.Body.Width).Render(layer.View()),
+			WindowStyle(m.state.Layout.Body.Width).Render(layer.View()),
 			view,
 			placement.XPos,
 			placement.YPos,

@@ -7,10 +7,6 @@ import (
 )
 
 var (
-	// ----------------------------------------
-	// Container
-	// ----------------------------------------
-
 	containerStyle = func(width, height int) lipgloss.Style {
 		t := theme.Current()
 
@@ -20,10 +16,6 @@ var (
 			Foreground(t.Text)
 	}
 
-	// ----------------------------------------
-	// Separator
-	// ----------------------------------------
-
 	separatorStyle = func(width int) lipgloss.Style {
 		t := theme.Current()
 
@@ -31,10 +23,6 @@ var (
 			Width(width).
 			Foreground(t.Border)
 	}
-
-	// ----------------------------------------
-	// Sections
-	// ----------------------------------------
 
 	leftSectionStyle = func(width int) lipgloss.Style {
 		return lipgloss.NewStyle().
@@ -56,10 +44,6 @@ var (
 			Padding(0, 1).
 			Align(lipgloss.Right)
 	}
-
-	// ----------------------------------------
-	// Text styles
-	// ----------------------------------------
 
 	appNameStyle = func() lipgloss.Style {
 		t := theme.Current()

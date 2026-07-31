@@ -9,12 +9,8 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// Update handles BubbleTea messages for the log viewer.
-//
-// Responsibilities:
-//   - Resize the viewport when the terminal size changes
-//   - Refresh log content when new logs arrive (LogUpdateTickMsg)
-//   - Forward messages to the viewport for scrolling and navigation
+// Update resizes the viewport, refreshes content on LogUpdateTickMsg, and
+// forwards other messages to the viewport for scrolling.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmds []tea.Cmd
 

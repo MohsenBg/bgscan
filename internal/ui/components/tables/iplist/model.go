@@ -1,6 +1,8 @@
 package iplist
 
 import (
+	"context"
+
 	tea "charm.land/bubbletea/v2"
 
 	"bgscan/internal/core/iplist"
@@ -94,7 +96,7 @@ func (m *Model) saveIPFileCmd(srcPath, filename string) tea.Cmd {
 			return notice.NewNoticeCmd(m.layout, "Copy Failed", err.Error(), notice.NOTICE_ERROR)()
 		}
 
-		if err := iplist.CopyIPFile(srcPath, dstPath); err != nil {
+		if err := iplist.ImportIPList(context.Background(), srcPath, dstPath, iplist.DefaultImportOption()); err != nil {
 			logger.UIError("Failed to copy IP file: %v", err)
 			return notice.NewNoticeCmd(m.layout, "Copy Failed", err.Error(), notice.NOTICE_ERROR)()
 		}

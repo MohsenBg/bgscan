@@ -1,12 +1,3 @@
-package theme
-
-import (
-	"image/color"
-	"os"
-
-	"charm.land/lipgloss/v2"
-)
-
 // Package theme provides a centralized color palette and theme management
 // system for the terminal UI.
 //
@@ -28,6 +19,14 @@ import (
 //		Bold(true)
 //
 //	fmt.Println(title.Render("BGScan"))
+package theme
+
+import (
+	"image/color"
+	"os"
+
+	"charm.land/lipgloss/v2"
+)
 
 type ThemeMode int
 
@@ -42,11 +41,8 @@ const (
 	ModeLight
 )
 
-// Theme represents the complete color palette used by the UI.
-//
-// All UI components should retrieve colors through this struct instead
-// of defining colors directly. This keeps the UI visually consistent
-// and allows the palette to be swapped dynamically.
+// Theme is the app's active color palette. Components should use it rather
+// than hardcoding colors so the UI stays consistent across theme modes.
 type Theme struct {
 	Primary   color.Color
 	Secondary color.Color
@@ -109,6 +105,8 @@ var (
 )
 
 // Current returns the active theme palette.
+//
+// The returned Theme is a copy of internal state and is safe for concurrent reads.
 func Current() Theme {
 	return current
 }
@@ -118,8 +116,7 @@ func Mode() ThemeMode {
 	return mode
 }
 
-// SetMode changes the active theme mode and resolves
-// the appropriate palette.
+// SetMode updates the active theme mode and resolves the matching palette.
 func SetMode(m ThemeMode) {
 	mode = m
 	resolve()
@@ -144,8 +141,7 @@ func resolve() {
 	}
 }
 
-// terminalLooksDark attempts to detect whether the terminal
-// background is dark using the COLORFGBG environment variable.
+// terminalLooksDark detects terminal background darkness from COLORFGBG.
 func terminalLooksDark() bool {
 	bg := os.Getenv("COLORFGBG")
 
@@ -168,8 +164,7 @@ func terminalLooksDark() bool {
 	}
 }
 
-// Init initializes the theme system.
-// Call this once during application startup.
+// Init initializes the active theme from the configured mode.
 func Init() {
 	resolve()
 }

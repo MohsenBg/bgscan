@@ -11,18 +11,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Model implements a file picker overlay component.
-//
-// It wraps the BubbleTea `filepicker.Model` and integrates it with the
-// application's component system and overlay stack.
-//
-// Responsibilities:
-//   - Display a navigable file picker UI
-//   - Restrict selectable file types
-//   - Invoke a callback when a file is selected
-//   - Close itself through the component manager
+// Model is a file picker overlay wrapping BubbleTea's filepicker.Model and
+// integrating it with the component/overlay system.
 type Model struct {
-	// Component metadata
 	id   ui.ComponentID
 	name string
 
@@ -64,20 +55,9 @@ func (m *Model) CloseCmd() tea.Cmd {
 	}
 }
 
-// New creates a new file picker overlay.
-//
-// Parameters:
-//
-//	layout    — UI layout manager used to compute component sizing
-//	title     — overlay title displayed in the UI
-//	baseDir   — initial directory to open (defaults to user home)
-//	allowType — allowed file extensions (e.g. []string{".txt",".csv"})
-//	onSelect  — callback executed when a file is selected
-//
-// Behavior:
-//   - Defaults to the user's home directory if baseDir is empty
-//   - If allowType is provided, only those file types are selectable
-//   - A no‑op callback is used if onSelect is nil
+// New creates a file picker overlay. baseDir defaults to the user's home
+// directory when empty; allowType restricts selectable extensions; onSelect
+// runs after a file is selected (a no-op is used if nil).
 func New(layout *layout.Layout, title string, baseDir string, allowType []string, onSelect OnSelect) *Model {
 	p := filepicker.New()
 

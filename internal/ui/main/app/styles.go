@@ -33,6 +33,7 @@ func centerStyle() lipgloss.Style {
 		Align(lipgloss.Center, lipgloss.Center)
 }
 
+// WindowStyle returns a lipgloss style for overlay windows, bounded by maxWidth.
 func WindowStyle(maxWidth int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).MaxWidth(maxWidth).

@@ -4,9 +4,8 @@ import (
 	"charm.land/huh/v2"
 )
 
-// NewHuhTheme builds a huh.Theme backed by the app's centralized palette
-// (theme.Dark / theme.Light), so huh fields (select, confirm, text input,
-// etc.) match the rest of the UI instead of huh's built-in themes.
+// NewHuhTheme returns a huh theme derived from the app's active palette so
+// form fields visually match the rest of the TUI.
 func NewHuhTheme() huh.Theme {
 	return huh.ThemeFunc(func(_ bool) *huh.Styles {
 		t := Current()

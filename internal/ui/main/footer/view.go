@@ -8,8 +8,8 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
-// View renders the footer component, displaying application
-// information, current status, and runtime metrics.
+// View renders the footer: app name/version on the left, status in the center,
+// and runtime stats on the right.
 func (m *Model) View() string {
 	padding := 2
 	width := m.layout.Footer.Width - padding

@@ -51,8 +51,6 @@ type Model struct {
 	pendingRows []table.Row
 }
 
-// --- Functional Options Pattern ---
-
 // Option configures the table Model.
 type Option func(*Model)
 
@@ -128,15 +126,11 @@ func New(lay *layout.Layout, opts ...Option) *Model {
 	return m
 }
 
-// --- Component Interface ---
-
 func (m *Model) Init() tea.Cmd      { return nil }
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 func (m *Model) Mode() env.Mode     { return env.NormalMode }
-
-// --- Public Mutators (Thread-safe) ---
 
 func (m *Model) SetPaddingY(padding int) {
 	m.mu.Lock()
@@ -166,8 +160,6 @@ func (m *Model) SetRows(rows []table.Row) {
 	m.BubbleTable.SetRows(cloneRows(rows))
 	m.updateTableSizeLocked()
 }
-
-// --- Helper Functions ---
 
 func NewRowTime(t time.Time) string {
 	if t.IsZero() {
@@ -254,8 +246,6 @@ func (m *Model) tableWidthLocked() int {
 	}
 	return w
 }
-
-// --- Key Bindings ---
 
 type ActionKey struct {
 	Keys      []string

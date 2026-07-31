@@ -1,3 +1,4 @@
+// Package entry is the root main-menu component that opens app sections.
 package entry
 
 import (
@@ -9,78 +10,80 @@ import (
 	"bgscan/internal/ui/components/tables/outbounds"
 	"bgscan/internal/ui/components/tables/resultlist"
 	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
 
-// Model is the main app model with a menu stack
+// Model is the main entry menu component.
 type Model struct {
-	id     ui.ComponentID
-	name   string
-	menu   ui.Component
-	Layout *layout.Layout
+	id    ui.ComponentID
+	name  string
+	menu  ui.Component
+	state *ui.AppState
 }
 
-func (m *Model) ID() ui.ComponentID {
-	return m.id
-}
-
-func (m *Model) Name() string {
-	return m.name
-}
-
-func (m *Model) OnClose() tea.Cmd {
-	return nil
-}
-
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
-}
-
-// New creates a new entry model with main menu and subviews
-func New(layout *layout.Layout) *Model {
+// New creates the main entry menu with available sections.
+func New(state *ui.AppState) *Model {
 	entry := &Model{
-		id:     ui.NewComponentID(),
-		name:   "Main Menu",
-		Layout: layout,
-		menu:   newMainMenu(layout),
+		id:    ui.NewComponentID(),
+		name:  "Main Menu",
+		state: state,
+		menu:  newMainMenu(state),
 	}
 	return entry
 }
 
-// Init satisfies Bubble Tea interface
+// Init is a no-op for the entry menu.
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-// helpers
-func newMainMenu(layout *layout.Layout) *menu.Model {
+// ID returns the component identifier.
+func (m *Model) ID() ui.ComponentID {
+	return m.id
+}
+
+// Name returns the component name.
+func (m *Model) Name() string {
+	return m.name
+}
+
+// OnClose is a no-op for the entry menu.
+func (m *Model) OnClose() tea.Cmd {
+	return nil
+}
+
+// Mode returns the entry menu interaction mode.
+func (m *Model) Mode() env.Mode {
+	return env.NormalMode
+}
+
+func newMainMenu(state *ui.AppState) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
 			"▶", "Run Scan", "s",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
-					Component: targetsource.New(layout),
+					Component: targetsource.New(state),
 				}
 			},
 		),
 		menu.NewMenuItem("▤", "IP Files", "i", func() tea.Msg {
 			return ui.OpenComponentMsg{
-				Component: iplist.New(layout, "IP Files", nil),
+				Component: iplist.New(state.Layout, "IP Files", nil),
 			}
 		}),
 		menu.NewMenuItem("▤", "Result Files", "r", func() tea.Msg {
 			var maxRenderIP uint32 = 10_000
 			return ui.OpenComponentMsg{
-				Component: resultlist.New(layout, "Result Files", maxRenderIP, nil),
+				Component: resultlist.New(state, "Result Files", maxRenderIP, nil),
 			}
 		}),
 		menu.NewMenuItem("▸", "Xray Outbound", "x", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: outbounds.New(
-					layout,
+					state.Layout,
 					"Xray Outbound",
 					nil,
 				),
@@ -88,14 +91,14 @@ func newMainMenu(layout *layout.Layout) *menu.Model {
 		}),
 		menu.NewMenuItem("⚙", "Settings", "c", func() tea.Msg {
 			return ui.OpenComponentMsg{
-				Component: settings.New(layout),
+				Component: settings.New(state),
 			}
 		}),
 		menu.NewMenuItem("⌘", "Logs", "l", func() tea.Msg {
 			return ui.OpenComponentMsg{
-				Component: logs.New(layout),
+				Component: logs.New(state),
 			}
 		}),
 	}
-	return menu.New(items, "Main Menu", layout)
+	return menu.New(items, "Main Menu", state.Layout)
 }

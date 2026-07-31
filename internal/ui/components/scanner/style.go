@@ -6,6 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// scannedStyle emphasizes processed count.
 func scannedStyle() lipgloss.Style {
 	return lipgloss.NewStyle().Bold(true).Foreground(theme.Current().Yellow)
 }

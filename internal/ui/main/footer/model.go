@@ -1,3 +1,4 @@
+// Package footer displays app metadata, status, and runtime stats.
 package footer
 
 import (
@@ -11,14 +12,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Model represents the footer component responsible for
-// displaying runtime information and application status.
+// Model is the footer component responsible for displaying runtime
+// information and current application status.
 type Model struct {
 	layout *layout.Layout
 
-	id   ui.ComponentID
-	name string
-
+	id         ui.ComponentID
+	name       string
 	appVersion string
 	status     string
 
@@ -27,19 +27,17 @@ type Model struct {
 	sys         uint64
 }
 
-// RuntimeStats contains runtime metrics collected
-// from the Go runtime.
+// RuntimeStats contains Go runtime metrics collected for display.
 type RuntimeStats struct {
 	Goroutines  int
 	MemoryBytes uint64
 	Sys         uint64
 }
 
-// timesTickMsg is emitted every second to update
-// runtime metrics displayed in the footer.
+// timesTickMsg triggers periodic runtime stat refreshes.
 type timesTickMsg time.Time
 
-// New creates a new footer component.
+// New creates the footer model.
 func New(l *layout.Layout) *Model {
 	return &Model{
 		id:         ui.NewComponentID(),
@@ -50,7 +48,7 @@ func New(l *layout.Layout) *Model {
 	}
 }
 
-// ID returns the unique component identifier.
+// ID returns the component identifier.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
@@ -60,7 +58,7 @@ func (m *Model) Name() string {
 	return m.name
 }
 
-// Mode returns the interaction mode of the component.
+// Mode returns the footer interaction mode.
 func (m *Model) Mode() env.Mode {
 	return env.NormalMode
 }
@@ -70,7 +68,7 @@ func (m *Model) Init() tea.Cmd {
 	return tickCmd()
 }
 
-// OnClose runs cleanup logic when the component is removed.
+// OnClose is a no-op for the footer.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
@@ -82,8 +80,7 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-// getRuntimeStats collects runtime metrics such as
-// goroutine count and memory usage.
+// getRuntimeStats samples goroutine count and memory usage from the Go runtime.
 func getRuntimeStats() RuntimeStats {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)

@@ -12,6 +12,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Update handles scanner-specific messages and routing.
+//
+// Key behavior:
+//   - tick/force refresh messages drive UI updates and resizes
+//   - toggle/pause/log/exit key handling
+//   - errors from Run/Close are surfaced through notices or stack resets
+//   - all other messages are forwarded to the active tab components
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -54,18 +61,12 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-//
-// ────────────────────────────────────────────────────────────
-//   Key Handling
-// ────────────────────────────────────────────────────────────
-//
-
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch msg.String() {
 
 	case "q", "b":
 		return confirm.ConfirmCmd(
-			m.layout,
+			m.state.Layout,
 			"Do you want to exit the scan?",
 			func() tea.Msg {
 				return tea.BatchMsg{m.asyncClose()}
@@ -84,12 +85,6 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-//
-// ────────────────────────────────────────────────────────────
-//   Component Update Routing
-// ────────────────────────────────────────────────────────────
-//
-
 func (m *Model) updateComponents(msg tea.Msg) tea.Cmd {
 	idx := m.currentTab
 	var tCmd, pCmd, tabCmd tea.Cmd
@@ -101,12 +96,6 @@ func (m *Model) updateComponents(msg tea.Msg) tea.Cmd {
 	return tea.Batch(tCmd, pCmd, tabCmd)
 }
 
-//
-// ────────────────────────────────────────────────────────────
-//   Pause Toggle
-// ────────────────────────────────────────────────────────────
-//
-
 func (m *Model) togglePause() {
 	if m.scn.IsPaused() {
 		m.scn.Resume()
@@ -115,39 +104,21 @@ func (m *Model) togglePause() {
 	}
 }
 
-//
-// ────────────────────────────────────────────────────────────
-//   Log Viewer Overlay
-// ────────────────────────────────────────────────────────────
-//
-
 func (m *Model) openLogViewer() tea.Cmd {
 	return func() tea.Msg {
-		v := logview.New(m.layout, logger.Core(), "core logs")
-		v.SetContainerWidth(min(80, m.layout.Body.Width))
+		v := logview.New(m.state, logger.Core(), "core logs")
+		v.SetContainerWidth(min(80, m.state.Layout.Body.Width))
 		v.SetShowBorder(false)
 		return dialog.OpenDialog(v)
 	}
 }
 
-//
-// ────────────────────────────────────────────────────────────
-//   Notices
-// ────────────────────────────────────────────────────────────
-//
-
-func (m *Model) errorCmd(title, msg string) tea.Cmd {
-	return notice.NewNoticeCmd(m.layout, title, msg, notice.NOTICE_ERROR)
+func (m *Model) errorCmd(title, message string) tea.Cmd {
+	return notice.NewNoticeCmd(m.state.Layout, title, message, notice.NOTICE_ERROR)
 }
 
-//
-// ────────────────────────────────────────────────────────────
-//   Close (async)
-// ────────────────────────────────────────────────────────────
-//
-
-// asyncClose returns a tea.Cmd that runs Scanner.Close() on a
-// goroutine and delivers scanClosedMsg when it finishes.
+// asyncClose runs Scanner.Close() on a goroutine and delivers scanClosedMsg
+// when it finishes.
 func (m *Model) asyncClose() tea.Cmd {
 	return func() tea.Msg {
 		ch := make(chan error, 1)
@@ -155,12 +126,6 @@ func (m *Model) asyncClose() tea.Cmd {
 		return scanClosedMsg{err: <-ch}
 	}
 }
-
-//
-// ────────────────────────────────────────────────────────────
-//   Tick Update Handler
-// ────────────────────────────────────────────────────────────
-//
 
 func (m *Model) updateTick() tea.Cmd {
 	var cmds []tea.Cmd

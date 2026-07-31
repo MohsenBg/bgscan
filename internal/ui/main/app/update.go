@@ -13,9 +13,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Update is the central message router for the application.
-// It processes BubbleTea messages, manages overlay layers,
-// and dispatches updates to UI components.
+// Update routes messages to the active dialog overlay or the base UI layers.
+//
+// Overlay handling is first-class: open/close/back/quit are handled here,
+// and while any dialog is open its Update absorbs all key input.
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -23,7 +24,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle terminal resize
 	case tea.WindowSizeMsg:
-		m.layout.Update(msg.Width, msg.Height)
+		m.state.Layout.Update(msg.Width, msg.Height)
 
 	// Handle keyboard input
 	case tea.KeyPressMsg:
@@ -90,8 +91,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// --- Overlay Input Routing ---
-
 	// If overlays exist, the top overlay consumes all input.
 	if len(m.dialog) > 0 {
 		lastIdx := len(m.dialog) - 1
@@ -107,8 +106,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
-	// --- Background Component Updates ---
-
 	var hCmd, bCmd, fCmd tea.Cmd
 
 	m.header, hCmd = m.header.Update(msg)
@@ -120,16 +117,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// dumpGoroutines captures all goroutines in suspicious wait states and returns
-// the full formatted dump as a string so callers can log, send, or write it.
-//
-// Each entry in the returned string is a complete goroutine block, e.g.:
-//
-//	goroutine 42 [chan receive, 3 minutes]:
-//	net/http.(*persistConn).readLoop(...)
-//	    /usr/local/go/src/net/http/transport.go:2205
-//
-// Call this before and after a probe run and diff the output to find leaks.
+// dumpGoroutines returns a summary of goroutines in suspicious wait states.
 func dumpGoroutines() string {
 	buf := make([]byte, 1<<20)
 	for {

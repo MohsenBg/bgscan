@@ -1,6 +1,8 @@
+// Package app implements the root BubbleTea application model and view.
 package app
 
 import (
+	"bgscan/internal/core/config"
 	"bgscan/internal/ui/main/body"
 	"bgscan/internal/ui/main/footer"
 	"bgscan/internal/ui/main/header"
@@ -11,8 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// dialogPosition defines how an overlay component
-// should be positioned relative to the terminal layout.
+// dialogPosition stores overlay placement metadata for a component.
 type dialogPosition struct {
 	XPos    dialog.DialogPosition
 	YPos    dialog.DialogPosition
@@ -20,39 +21,36 @@ type dialogPosition struct {
 	YOffset int
 }
 
-// model is the root BubbleTea application model.
-// It coordinates layout updates, base UI components,
-// and overlay layers.
+// model is the root BubbleTea model.
 type model struct {
-	layout *layout.Layout
-
-	// dialog contains active overlay components.
-	dialog []ui.Component
-
-	// dialogPlacements stores the position metadata
-	// for each overlay component.
+	state            *ui.AppState
+	dialog           []ui.Component
 	dialogPlacements map[ui.ComponentID]*dialogPosition
-
-	header ui.Component
-	body   ui.Component
-	footer ui.Component
+	header           ui.Component
+	body             ui.Component
+	footer           ui.Component
 }
 
-// New creates and initializes the root application model.
-func New() tea.Model {
+// New initializes the root application model.
+func New(cfg *config.ScannerConfig, store *config.Store) tea.Model {
 	l := layout.New()
+	state := &ui.AppState{
+		Layout: l,
+		Config: cfg,
+		Store:  store,
+	}
 
 	return &model{
-		layout:           l,
+		state:            state,
 		dialog:           make([]ui.Component, 0, 5),
 		dialogPlacements: make(map[ui.ComponentID]*dialogPosition),
 		header:           header.New(l),
-		body:             body.New(l),
+		body:             body.New(state),
 		footer:           footer.New(l),
 	}
 }
 
-// Init initializes all base UI components.
+// Init initializes the base components.
 func (m *model) Init() tea.Cmd {
 	return tea.Batch(
 		m.header.Init(),
@@ -61,9 +59,8 @@ func (m *model) Init() tea.Cmd {
 	)
 }
 
-// getDialogPlacement returns the placement configuration
-// for an overlay component. If no placement exists,
-// a default centered placement is created and stored.
+// getDialogPlacement returns placement for an overlay, creating a centered
+// default if needed.
 func (m *model) getDialogPlacement(id ui.ComponentID) *dialogPosition {
 	if p, ok := m.dialogPlacements[id]; ok {
 		return p

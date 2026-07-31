@@ -11,7 +11,6 @@ import (
 	"bgscan/internal/ui/components/basic/inspector"
 	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -27,7 +26,7 @@ const (
 )
 
 type Model struct {
-	layout    *layout.Layout
+	state     *ui.AppState
 	name      string
 	id        ui.ComponentID
 	inspector ui.Component
@@ -39,65 +38,18 @@ func (m *Model) Mode() env.Mode     { return env.NormalMode }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
-func saveICMP(l *layout.Layout, cfg *config.ICMPConfig) tea.Cmd {
-	if err := config.SaveICMPConfig(cfg); err != nil {
-		return notice.NewNoticeCmd(l, "Failed to save ICMP settings", err.Error(), notice.NOTICE_ERROR)
+func saveICMP(state *ui.AppState) tea.Cmd {
+	if err := state.Store.SaveICMP(state.Config.ICMP); err != nil {
+		return notice.NewNoticeCmd(state.Layout, "Failed to save ICMP settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
-func intInput(l *layout.Layout, title string, value int, validate func(string) error, set func(int), save func() tea.Cmd) input.Input[string] {
-	return textinput.New(
-		l, title,
-		textinput.WithValue(strconv.Itoa(value)),
-		textinput.WithValidation(validate),
-		textinput.WithFocus(),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, err := strconv.Atoi(v)
-			if err != nil {
-				return notice.NewNoticeCmd(l, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
-			}
-			set(n)
-			return save()
-		}),
-	)
-}
+func New(state *ui.AppState, name string) *Model {
+	cfg := &state.Config.ICMP
 
-func durationMSInput(l *layout.Layout, title string, value time.Duration, validate func(string) error, set func(time.Duration), save func() tea.Cmd) input.Input[string] {
-	return textinput.New(
-		l, title,
-		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
-		textinput.WithValidation(validate),
-		textinput.WithFocus(),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, err := strconv.Atoi(v)
-			if err != nil {
-				return notice.NewNoticeCmd(l, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
-			}
-			set(time.Duration(n) * time.Millisecond)
-			return save()
-		}),
-	)
-}
-
-func stringInput(l *layout.Layout, title, value string, validate func(string) error, set func(string), save func() tea.Cmd) input.Input[string] {
-	return textinput.New(
-		l, title,
-		textinput.WithValue(value),
-		textinput.WithValidation(validate),
-		textinput.WithFocus(),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			set(v)
-			return save()
-		}),
-	)
-}
-
-func New(l *layout.Layout, name string) *Model {
-	cfg := config.GetICMP()
-	save := func() tea.Cmd { return saveICMP(l, cfg) }
-
-	workers := intInput(l, "Enter number of workers", cfg.Workers,
+	workers := intInput(
+		state, "Enter number of workers", cfg.Workers,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -105,11 +57,13 @@ func New(l *layout.Layout, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Workers = n
-			return fieldErr(validate.ValidateICMP(&tmp), "Workers")
+			return fieldErr(validate.ValidateICMP(tmp), "Workers")
 		},
-		func(n int) { cfg.Workers = n }, save)
+		func(n int) { cfg.Workers = n },
+	)
 
-	timeout := durationMSInput(l, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
+	timeout := durationMSInput(
+		state, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -117,11 +71,13 @@ func New(l *layout.Layout, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateICMP(&tmp), "Timeout")
+			return fieldErr(validate.ValidateICMP(tmp), "Timeout")
 		},
-		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) }, save)
+		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) },
+	)
 
-	tries := intInput(l, "Enter maximum attempts", int(cfg.Tries),
+	tries := intInput(
+		state, "Enter maximum attempts", int(cfg.Tries),
 		func(v string) error {
 			n, err := strconv.ParseUint(v, 10, 16)
 			if err != nil {
@@ -129,17 +85,20 @@ func New(l *layout.Layout, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Tries = uint16(n)
-			return fieldErr(validate.ValidateICMP(&tmp), "Tries")
+			return fieldErr(validate.ValidateICMP(tmp), "Tries")
 		},
-		func(n int) { cfg.Tries = uint16(n) }, save)
+		func(n int) { cfg.Tries = uint16(n) },
+	)
 
-	prefixOutput := stringInput(l, "Enter output file prefix", cfg.PrefixOutput,
+	prefixOutput := stringInput(
+		state, "Enter output file prefix", cfg.OutputPrefix,
 		func(v string) error {
 			tmp := *cfg
-			tmp.PrefixOutput = v
-			return fieldErr(validate.ValidateICMP(&tmp), "PrefixOutput")
+			tmp.OutputPrefix = v
+			return fieldErr(validate.ValidateICMP(tmp), "PrefixOutput")
 		},
-		func(v string) { cfg.PrefixOutput = v }, save)
+		func(v string) { cfg.OutputPrefix = v },
+	)
 
 	fields := []inspector.Field{
 		{Name: "Workers", Description: descWorkers, Group: groupICMP, Input: inspector.Adapt(workers), Visible: alwaysVisible, Format: inspector.FormatInt},
@@ -148,18 +107,38 @@ func New(l *layout.Layout, name string) *Model {
 		{Name: "Prefix Output", Description: descPrefixOutput, Group: groupICMP, Input: inspector.Adapt(prefixOutput), Visible: alwaysVisible},
 	}
 
-	return &Model{
-		layout:    l,
-		name:      name,
-		id:        ui.NewComponentID(),
-		inspector: inspector.New(l, "icmp settings", fields),
-	}
+	return &Model{state: state, name: name, id: ui.NewComponentID(), inspector: inspector.New(state.Layout, "icmp settings", fields)}
 }
 
 func alwaysVisible() bool { return true }
 
-// fieldErr extracts a single field error from a validation result map.
-// Returns nil if the field is valid.
-func fieldErr(errs map[string]error, field string) error {
-	return errs[field]
+func fieldErr(errs map[string]error, field string) error { return errs[field] }
+
+func intInput(state *ui.AppState, title string, value int, validate func(string) error, set func(int)) input.Input[string] {
+	return textinput.New(state.Layout, title, textinput.WithValue(strconv.Itoa(value)), textinput.WithValidation(validate), textinput.WithFocus(), textinput.WithOnSubmit(func(v string) tea.Cmd {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+		}
+		set(n)
+		return saveICMP(state)
+	}))
+}
+
+func durationMSInput(state *ui.AppState, title string, value time.Duration, validate func(string) error, set func(time.Duration)) input.Input[string] {
+	return textinput.New(state.Layout, title, textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)), textinput.WithValidation(validate), textinput.WithFocus(), textinput.WithOnSubmit(func(v string) tea.Cmd {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+		}
+		set(time.Duration(n) * time.Millisecond)
+		return saveICMP(state)
+	}))
+}
+
+func stringInput(state *ui.AppState, title, value string, validate func(string) error, set func(string)) input.Input[string] {
+	return textinput.New(state.Layout, title, textinput.WithValue(value), textinput.WithValidation(validate), textinput.WithFocus(), textinput.WithOnSubmit(func(v string) tea.Cmd {
+		set(v)
+		return saveICMP(state)
+	}))
 }

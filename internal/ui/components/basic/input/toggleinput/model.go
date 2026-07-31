@@ -16,28 +16,22 @@ type Option func(*Model)
 
 // Model is the boolean toggle implementation of [input.Input].
 type Model struct {
-	// Component identity
 	id   ui.ComponentID
 	name string
 
-	// Layout reference
 	layout *layout.Layout
 
-	// UI content
 	title    string
 	errorMsg string
 
-	// Input field
 	value    bool
 	affirm   string
 	negate   string
 	huhInput *huh.Confirm
 	readOnly bool
 
-	// Validation
 	validationFunc func(value bool) error
 
-	// Callbacks
 	onChange func(bool) tea.Cmd
 	onSubmit func(bool) tea.Cmd
 }
@@ -75,8 +69,6 @@ func New(
 
 	return m
 }
-
-// --- Options -----------------------------------------------------------
 
 // WithValue sets the initial toggle state.
 func WithValue(value bool) Option {
@@ -128,8 +120,6 @@ func WithOnSubmit(fn func(bool) tea.Cmd) Option {
 	}
 }
 
-// --- ui.Component --------------------------------------------------------
-
 func (m *Model) Init() tea.Cmd { return nil }
 
 func (m *Model) ID() ui.ComponentID { return m.id }
@@ -152,8 +142,6 @@ func (m *Model) CloseCmd() tea.Cmd {
 }
 
 func (m *Model) OnClose() tea.Cmd { return nil }
-
-// --- input.Input[bool] --------------------------------------------------------
 
 func (m *Model) Value() bool { return m.value }
 
@@ -183,8 +171,6 @@ func (m *Model) AppendOnSubmit(fn func() tea.Cmd) {
 		return tea.Sequence(prev(value), fn())
 	}
 }
-
-// --- internal helpers --------------------------------------------------------
 
 func (m *Model) setReadOnly(ro bool) {
 	m.readOnly = ro

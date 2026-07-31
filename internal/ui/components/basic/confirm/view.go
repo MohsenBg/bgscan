@@ -10,15 +10,8 @@ import (
 
 const maxButtonGap = 20
 
-// View renders the confirmation dialog.
-//
-// The view consists of:
-//   - The confirmation message
-//   - Two action buttons: "No" and "Yes"
-//
-// The currently selected option is highlighted. Buttons are spaced
-// dynamically based on the available terminal width to keep the dialog
-// visually balanced.
+// View renders the confirmation dialog: the message and the "No"/"Yes" buttons,
+// with the focused button highlighted. Buttons are spaced by available width.
 func (m *Model) View() string {
 	noBtn, yesBtn := m.renderButtons()
 	buttons := m.layoutButtons(noBtn, yesBtn)

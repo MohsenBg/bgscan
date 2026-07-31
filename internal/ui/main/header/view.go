@@ -2,6 +2,7 @@ package header
 
 import "strings"
 
+// getBanner returns the ASCII banner string.
 func getBanner() string {
 	banner := `
 ██████╗  ██████╗      ███████╗ ██████╗ █████╗ ███╗   ██╗
@@ -15,6 +16,7 @@ func getBanner() string {
 	return banner
 }
 
+// View renders the banner within the header region.
 func (m Model) View() string {
 	banner := bannerStyle(
 		m.layout.Header.Width,

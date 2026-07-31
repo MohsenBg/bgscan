@@ -30,14 +30,11 @@ const (
 // to the user. The message content is rendered inside a scrollable
 // viewport to support long text.
 type Model struct {
-	// Component identity
 	id   ui.ComponentID
 	name string
 
-	// Layout reference
 	layout *layout.Layout
 
-	// Notice configuration
 	noticeType LEVEL
 	message    string
 	title      string

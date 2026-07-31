@@ -1,3 +1,4 @@
+// Package settings exposes grouped configuration inspectors for scanner settings.
 package settings
 
 import (
@@ -9,57 +10,58 @@ import (
 	"bgscan/internal/ui/components/inspector/tcp"
 	"bgscan/internal/ui/components/inspector/xray"
 	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
 
+// Model is the settings menu component.
 type Model struct {
-	id     ui.ComponentID
-	name   string
-	Layout *layout.Layout
-	menu   ui.Component
+	id    ui.ComponentID
+	name  string
+	state *ui.AppState
+	menu  ui.Component
 }
 
-func New(layout *layout.Layout) *Model {
+// New creates the settings menu with configuration sections.
+func New(state *ui.AppState) *Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem("▤", "General Settings", "g", func() tea.Msg {
 			return ui.OpenComponentMsg{
-				Component: general.New(layout, "General Settings"),
+				Component: general.New(state, "General Settings"),
 			}
 		}),
 		menu.NewMenuItem("◈", "ICMP Settings", "i", func() tea.Msg {
 			return ui.OpenComponentMsg{
-				Component: icmp.New(layout, "ICMP Settings"),
+				Component: icmp.New(state, "ICMP Settings"),
 			}
 		}),
 		menu.NewMenuItem("⇄", "TCP Settings", "t", func() tea.Msg {
 			return ui.OpenComponentMsg{
-				Component: tcp.New(layout, "TCP Settings"),
+				Component: tcp.New(state, "TCP Settings"),
 			}
 		}),
 		menu.NewMenuItem("◎", "HTTP Settings", "h", func() tea.Msg {
 			return ui.OpenComponentMsg{
-				Component: http.New(layout, "HTTP Settings"),
+				Component: http.New(state, "HTTP Settings"),
 			}
 		}),
 		menu.NewMenuItem("◇", "XRay Settings", "x", func() tea.Msg {
 			return ui.OpenComponentMsg{
-				Component: xray.New(layout, "XRay Settings"),
+				Component: xray.New(state, "XRay Settings"),
 			}
 		}),
 		menu.NewMenuItem("⌘", "DNS Settings", "d", func() tea.Msg {
 			return ui.OpenComponentMsg{
-				Component: dns.New(layout, "DNS Settings"),
+				Component: dns.New(state, "DNS Settings"),
 			}
 		}),
 	}
 	return &Model{
-		menu:   menu.New(items, "Settings", layout),
-		id:     ui.NewComponentID(),
-		name:   "settings",
-		Layout: layout,
+		menu:  menu.New(items, "Settings", state.Layout),
+		id:    ui.NewComponentID(),
+		name:  "settings",
+		state: state,
 	}
 }
 

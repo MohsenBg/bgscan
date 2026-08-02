@@ -77,7 +77,7 @@ The scanner is built for developers and researchers who need speed, flexibility,
 ## Supported Protocols
 
 | Protocol | Layer | Description |
-|:--------:|:-----:|-------------|
+| :--------: | :-----: | ------------- |
 | **ICMP** | 3 | Host discovery and reachability via Ping |
 | **TCP** | 4 | Connection scanning and TCP handshake validation |
 | **HTTP** | 7 | HTTP/1.1, HTTP/2, and HTTP/3 (QUIC) via ALPN |
@@ -170,7 +170,7 @@ For release builds targeting a specific platform:
 6. Open **Result Files** from the main menu to review, rename, or delete saved results.
 
 | Key | Navigation |
-|:---:|-------------|
+| :---: | ------------- |
 | `↑` `↓` | Move between items |
 | `Enter` | Select / start |
 | `b` or `Esc` | Go back |
@@ -182,8 +182,8 @@ For release builds targeting a specific platform:
 
 Full documentation is available at:
 
-- **Homepage:** https://mohsenbg.github.io/bgscan
-- **Full docs:** https://mohsenbg.github.io/bgscan/docs
+- **Homepage:** <https://mohsenbg.github.io/bgscan>
+- **Full docs:** <https://mohsenbg.github.io/bgscan/docs>
 
 The documentation covers:
 
@@ -200,7 +200,7 @@ The documentation covers:
 All configuration lives in plain TOML files in the `settings/` directory next to the binary:
 
 | File | Purpose |
-|------|---------|
+| ------ | --------- |
 | `general_settings.toml` | Pipeline mode, max IPs, batch size, shuffle, status interval |
 | `writer_settings.toml` | Result buffering, flush interval, channel and batch size |
 | `icmp_settings.toml` | ICMP timeout, retries, workers |
@@ -236,7 +236,7 @@ From the main menu, open **Xray → Outbounds**, press `a` to add a template fro
 ## Supported Platforms
 
 | Platform | Architectures |
-|----------|--------------|
+| ---------- | -------------- |
 | Linux | amd64, arm64, arm32, 386 |
 | Windows | amd64. arm64 (10+) |
 | macOS | amd64, arm64 |
@@ -288,6 +288,8 @@ Contributions are welcome — bug fixes, documentation improvements, and new fea
 
 See the full [Contributing Guide](https://mohsenbg.github.io/bgscan/docs/developer/contributing/) in the documentation.
 
+By submitting a contribution to bgscan, you grant permission for your contribution to be distributed as part of the project under the project's license. You confirm that you have the right to submit this contribution and that it does not violate any third-party rights.
+
 ---
 
 ## License
@@ -301,7 +303,7 @@ See the full [Contributing Guide](https://mohsenbg.github.io/bgscan/docs/develop
 If bgscan has been useful to you, consider supporting its development:
 
 | Network | Currency | Address |
-|:-------:|:--------:|---------|
+| :-------: | :--------: | --------- |
 | Bitcoin | `BTC` | `bc1qdwh57dm97nmx5jzdr7lrc9cxe5xh3zc59er7z9` |
 | Ethereum | `ETH` | `0x40Fd22Fff4E059e906A10747Fd0a45A1DB39c985` |
 | BNB Smart Chain | `BNB / BEP20` | `0x40Fd22Fff4E059e906A10747Fd0a45A1DB39c985` |

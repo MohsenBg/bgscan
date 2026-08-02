@@ -21,6 +21,7 @@ docs/resources/
 /out/
 /coverage/
 /tmp/
+internal/core/result/tmp/
 
 # Compiled binaries
 *.exe

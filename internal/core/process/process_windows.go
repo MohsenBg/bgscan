@@ -1,26 +1,22 @@
-//go:build !windows
+//go:build windows
 
 package process
 
 import (
 	"os/exec"
-	"syscall"
 )
 
-// setSysProcAttr starts each command in its own process group so cleanup can
-// signal the command and any children together.
-func setSysProcAttr(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-}
+// setSysProcAttr is a no-op on Windows; process groups and Setpgid are not
+// supported.
+func setSysProcAttr(cmd *exec.Cmd) {}
 
-// signalTerminate sends SIGTERM to the command's process group.
+// signalTerminate falls back to Kill on Windows because SIGTERM is not
+// supported.
 func signalTerminate(cmd *exec.Cmd) {
-	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+	_ = cmd.Process.Kill()
 }
 
-// killProcess sends SIGKILL to the command's process group.
+// killProcess forcefully terminates the process on Windows.
 func killProcess(cmd *exec.Cmd) {
-	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	_ = cmd.Process.Kill()
 }

@@ -60,7 +60,6 @@ func (t *fakeProcessTracker) Unregister(_ context.Context, id string) error {
 type fakeDNSTTClient struct {
 	process process.Process
 	runErr  error
-	stopErr error
 
 	runCalled bool
 	runIP     string

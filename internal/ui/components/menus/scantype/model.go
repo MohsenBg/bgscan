@@ -101,7 +101,7 @@ func (m *Model) openXrayTemplates() tea.Cmd {
 
 func (m *Model) createScanner(mode ScanType, input string) (scanner.Scanner, error) {
 	ctx := context.Background()
-	scn, err := scanner.NewScanner(ctx, input)
+	scn, err := scanner.NewScanner(ctx, input, scanner.WithConfig(*m.state.Config))
 	if err != nil {
 		return nil, err
 	}

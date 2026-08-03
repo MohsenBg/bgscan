@@ -407,7 +407,7 @@ body.dark .lp,
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-badge">v2.7.0 · Now available</div>
+  <div class="hero-badge">v2.9.0 · Now available</div>
   <h1>Scan everything.<br>At full speed.</h1>
   <p>bgscan is a blazing-fast, multi-protocol network scanner built in Go — with a modular chain engine and an interactive terminal UI.</p>
   <div class="hero-actions">
@@ -566,19 +566,19 @@ body.dark .lp,
   }
 
   var path = window.location.pathname;
-  
+
   // Get the base prefix by finding where /fa or the end of known segments is
   // e.g. /bgscaner/fa/  -> base=/bgscaner, lang=/fa
   // e.g. /bgscaner/     -> base=/bgscaner, lang=
   // e.g. /              -> base=, lang=
-  
+
   var isFa = /\/fa(\/|$)/.test(path);
   var base = path
     .replace(/\/fa(\/.*)?$/, '')
     .replace(/\/$/, '');
-  
+
   var docsUrl = base + (isFa ? '/fa' : '') + '/docs/';
-  
+
   document.querySelectorAll('.lp-docs-link').forEach(function(a) {
     a.setAttribute('href', docsUrl);
   });

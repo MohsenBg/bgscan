@@ -6,7 +6,7 @@ bookFlatSection: false
 
 # Getting Started with bgscan
 
-Welcome to **bgscan**! This guide gives you a quick overview of what you'll see after installation and how to run your first scan.
+What you see after installation, and how to run a first scan.
 
 ## Launching bgscan
 
@@ -39,9 +39,7 @@ Use these keyboard shortcuts to navigate:
 
 > 💡 **Tip:** Press `q` at any time to exit bgscan safely.
 
-## Running Your First Scan (Quick Start)
-
-Here's how to run a basic scan in under 2 minutes:
+## Running Your First Scan
 
 1. **Launch bgscan** from your installation folder
 2. Select **Run Scan** and press Enter
@@ -53,11 +51,7 @@ Here's how to run a basic scan in under 2 minutes:
 
 ## What's Next?
 
-Now that you know the basics:
-
-- Explore **Settings** to customize scan behavior
-- Try different scan types in **Run Scan**
-- Learn how to import your own IP lists in **IP Files**
-- Check out the full [User Guide](../scanner/) for advanced features
-
-Happy scanning! 🚀
+- [Scan Types](../scanner/scan-types/) — what each probe measures
+- [Scan Pipeline](../scanner/scan-pipeline/) — chaining stages so each one filters the next
+- [IP Lists](../scanner/ip-files/) — importing your own targets
+- [Settings](../settings/overview/) — tuning workers, timeouts, and output

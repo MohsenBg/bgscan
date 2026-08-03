@@ -33,7 +33,7 @@ Two keyboard actions are available:
 
 #### Opening a result file
 
-Press Enter on any file to open the IP viewer, which displays the IPs found in that file along with their measured latency, download, and upload values. Xray results show full download and upload measurements; all other scan types show a short view with latency only.
+Press Enter on any file to open the IP viewer, which displays the targets found in that file along with the columns defined by that scan type's result schema. ICMP, TCP, HTTP, DNS, DNSTT, and SlipStream show latency plus their type-specific columns; Xray results additionally show download and upload measurements.
 
 ---
 
@@ -48,7 +48,7 @@ Result files are stored under the `result/` directory next to the bgscan binary,
     ├── tcp/
     ├── http/
     ├── xray/
-    ├── resolve/
+    ├── dns_resolver/
     ├── dnstt/
     └── slipstream/
 ```
@@ -77,51 +77,65 @@ Each scan type has a default prefix set in its configuration:
 | DNSTT | `dns_dnstt_` | `dns_dnstt_20240711_143022.csv` |
 | SlipStream | `dns_slipstream_` | `dns_slipstream_20240711_143022.csv` |
 
-You can change the prefix for any scan type in its settings file under `settings/`. See [Configuration](../configuration.md) for details.
+The prefix for each scan type is set in its own settings file. See [Settings Overview](../settings/overview.md).
 
 ---
 
 ## File Format
 
-Result files are plain CSV with no header row. Each row represents one responsive IP:
+Result files are plain CSV with no header row. Each row is one responsive target, serialized according to that scan type's result schema. Every scan type records at least the target IP and latency; additional columns depend on what the probe measures.
 
-```
-<ip>,<latency>,<download>,<upload>
-```
-
-| Field | Description |
+| Scan Type | CSV Columns |
 |---|---|
-| `ip` | The IPv4 address that responded |
-| `latency` | Round-trip or connection latency (e.g. `123ms`) |
-| `download` | Download measurement — `0s` when not measured |
-| `upload` | Upload measurement — `0s` when not measured |
+| ICMP | `ip, latency, tries, mode` |
+| TCP | `ip, latency, port, tries` |
+| HTTP | `ip, latency, status, version, tls` |
+| Xray | `ip, latency, download, upload` |
+| DNS Resolver | `ip, latency, record_type, tries, rcode, dpi_check` |
+| DNSTT | `ip, latency, transport, port` |
+| SlipStream | `ip, latency, port` |
 
-#### Example
+- `ip` — the IPv4 or IPv6 address that responded.
+- `latency` — round-trip or connection latency (e.g. `123ms`).
+- `download` / `upload` — bandwidth measurements for Xray in bits per second (bps); 0 bps when the corresponding test is not enabled.
+- `status` / `version` / `tls` — HTTP response status code, negotiated HTTP version, and whether TLS was used.
+- `tries` — number of attempts before success.
+- `mode` — ICMP socket mode (`raw` or `udp`).
+- `rcode` / `dpi_check` — DNS response code and whether the anti-hijacking DPI check passed.
+- `transport` / `port` — DNS transport used and the local SOCKS5 port allocated for tunnel probes.
+
+#### Example (HTTP)
 
 ```csv
-1.2.3.4,45ms,0s,0s
-5.6.7.8,120ms,320ms,80ms
+1.2.3.4,45ms,200,HTTP/2.0,true
+2606:4700::6810:85e5,120ms,403,HTTP/1.1,true
 ```
 
-For scan types that do not measure speed (ICMP, TCP, HTTP, DNS), the download and upload columns are present but set to `0s`.
+#### Example (Xray)
+
+```csv
+1.2.3.4,45ms,0 bps,0 bps
+5.6.7.8,120ms,10.00 Mbps,5.00 Mbps
+```
+
+For scan types that do not measure speed, the download and upload columns are absent.
 
 ---
 
 ## Result Ordering
 
-IPs within a result file are sorted by a quality score — higher is better. The score is calculated from all three measurements:
+IPs within a result file are sorted by a per-schema quality score — higher is better. Each scan type defines its own `Score()`:
 
-- **60%** download speed
-- **20%** upload speed  
-- **20%** latency
+- **ICMP, TCP, HTTP, DNS, DNSTT, SlipStream** — inverse latency (`1000 / latency_ms`), so the lowest-latency targets sort first.
+- **Xray** — weighted blend of latency (10%), download throughput (60%), and upload throughput (30%). When a speed test is disabled, its component is zero, so a connectivity-only Xray scan sorts purely by latency.
 
-This means the best IPs (fastest download, lowest latency) appear at the top of the file. When two IPs have the same score, they are sorted alphabetically by IP address as a tie-breaker.
+The writer merge-sorts new results against the existing file by score and replaces duplicate IPs with the newer record. Equal scores retain their relative order.
 
 ---
 
 ## Related Topics
 
-- [Scanner Overview](../scanner.md)
 - [Scan Types](./scan-types.md)
+- [Scan Source](./scan-source.md)
 - [IP Lists](./ip-files.md)
 - [Scan Pipeline](./scan-pipeline.md)

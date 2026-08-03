@@ -5,64 +5,58 @@ weight: 2
 
 # Scan Types
 
-bgscan supports five primary scan types, each accessible from the main menu via keyboard shortcuts:
+The scan type menu offers five entries, each bound to a key:
 
-| Key | Scan Type | Description | Primary Use Case | Configuration File |
-|-----|-----------|-------------|------------------|-------------------|
-| `i` | **ICMP Scan** | Sends ICMP echo requests (ping) to check host availability | Host discovery, network mapping | [`icmp_settings.toml`](../settings/icmp.md) |
-| `t` | **TCP Scan** | Attempts TCP connections to specified ports | Port scanning, service discovery | [`tcp_settings.toml`](../settings/tcp.md) |
-| `h` | **HTTP Scan** | Sends HTTP/HTTPS requests to web servers | Web service testing, API endpoint discovery | [`http_settings.toml`](../settings/http.md) |
-| `d` | **DNS Scan** | Queries DNS servers for resolution and tunneling capabilities | DNS resolver testing, tunneling detection | [`dns_settings.toml`](../settings/dns.md) |
-| `x` | **Xray Scan** | Tests outbound connectivity and bandwidth to remote servers | Network egress testing, bandwidth measurement | [`xray_settings.toml`](../settings/xray.md) |
+| Key | Scan Type | What it does | Configuration File |
+|-----|-----------|--------------|--------------------|
+| `i` | ICMP Scan | Sends echo requests and measures round-trip time | [`icmp_settings.toml`](../settings/icmp.md) |
+| `t` | TCP Scan | Opens a connection to one port and measures handshake latency | [`tcp_settings.toml`](../settings/tcp.md) |
+| `h` | HTTP Scan | Sends one HTTP request and records status, version, and TLS | [`http_settings.toml`](../settings/http.md) |
+| `d` | DNS Scan | Queries each target as a resolver, optionally tests tunnels | [`dns_settings.toml`](../settings/dns.md) |
+| `x` | Xray Scan | Routes traffic through an Xray outbound and measures it | [`xray_settings.toml`](../settings/xray.md) |
 
-> 💡 **Note**: The DNS Scan option (`d`) actually encompasses three sub-scan types when enabled in configuration:
->
-> - **DNS Resolve**: Standard DNS queries (A/AAAA/TXT records)
-> - **DNSTT**: DNS Tunnel Tool tests for tunneling capability
-> - **SlipStream**: Alternative DNS tunneling detection
->
-> These sub-scans are controlled individually in the DNS settings file.
+Two of these expand into more than one pipeline stage.
+
+**DNS Scan** always adds the resolver stage. It appends a DNSTT stage when `dnstt.enabled` is true, and a SlipStream stage when `slip_stream.enabled` is true. Each stage writes its own result file.
+
+**Xray Scan** first asks which outbound template to use. If `pre_scan_type` is `icmp`, `tcp`, or `http`, that stage runs ahead of the Xray stage and filters the targets. With `none`, Xray runs directly.
 
 {{< img "/bgscan-scan-type.webp" "bgscan scan type" >}}
 
-## Detailed Scan Type Information
+## ICMP
 
-#### ICMP Scan
+Echo request and reply. The probe shares one IPv4 socket and, when the system allows, one IPv6 socket across all workers, matching replies back to the worker that sent them.
 
-- **Protocol**: ICMP Echo Request/Reply (ping)
-- **What it does**: Sends echo requests to target IPs and measures round-trip time for replies
-- **Output**: Lists responsive hosts with response times
-- **Key settings**: Timeout, retry attempts, worker concurrency
-- **Best for**: Initial host discovery before running more intensive scans
+It records latency, the number of attempts, and whether the socket was raw or unprivileged UDP. Cheapest way to narrow a large range before a heavier scan.
 
-#### TCP Scan
+## TCP
 
-- **Protocol**: TCP SYN/connect scan
-- **What it does**: Attempts to establish TCP connections to specified ports on target IPs
-- **Output**: Lists hosts with open ports and connection times
-- **Key settings**: Target port, timeout, retry attempts, worker concurrency
-- **Best for**: Service discovery, port scanning, firewall testing
+A full connect scan, not a SYN scan. It completes the handshake to the configured port and records the latency of the first successful attempt. Timeouts are retried up to `tries`, while a refused connection fails immediately so dead ranges drain quickly.
 
-#### HTTP Scan
+Records latency, port, and attempt count.
 
-- **Protocol**: HTTP/HTTPS (supports HTTP/1.1, HTTP/2, HTTP/3 via ALPN)
-- **What it does**: Sends HTTP requests to target hosts and ports, evaluates responses
-- **Output**: Lists responsive web servers with status codes, response times, and optional headers/content
-- **Key settings**: Target host/port, protocol (HTTP/HTTPS), TLS validation, HTTP version, accepted status codes
-- **Best for**: Web service testing, API endpoint discovery, load balancer checking
+## HTTP
 
-#### DNS Scan
+One request per target over HTTP/1.1, HTTP/2, or HTTP/3. Version selection happens over ALPN for `h1,h2`; `h3` uses a separate QUIC probe. Responses outside `accepted_status_codes` are discarded, and an empty list accepts everything.
 
-- **Protocol**: DNS queries (UDP, TCP, or DNS-over-TLS)
-- **What it does**: Sends DNS queries to target resolvers and evaluates their responses
-- **Output**: Lists working DNS resolvers with response times and capabilities
-- **Key settings**: Resolver workers, protocol, domain, query types, timeout, retries, accepted response codes, anti-hijacking checks
-- **Best for**: Finding open/resolving DNS servers, testing DNS security configurations
+Records latency, status code, negotiated version, and whether TLS was used.
 
-#### Xray Scan
+## DNS
 
-- **Protocol**: Custom Xray protocol for connectivity and bandwidth testing
-- **What it does**: Tests outbound network connectivity and measures upload/download speeds to configured servers
-- **Output**: Lists reachable servers with connection times and measured bandwidth
-- **Key settings**: Timeout, worker count, test type (connect/download/upload/both), data sizes for transfer tests
-- **Best for**: Network egress testing, bandwidth measurement, proxy/chokepoint detection
+Each target IP is treated as a resolver. With `check_dpi` enabled, the probe first asks for a random `.invalid` name. A resolver that claims success for a name that cannot exist is fabricating answers and gets dropped. Surviving targets are then queried for the configured record types until one returns an accepted response code.
+
+Records latency, the record type that worked, attempt count, response code, and whether the DPI check ran.
+
+The DNSTT and SlipStream stages go further and check whether a resolver can actually carry a tunnel. Both need an external client binary and allocate a local SOCKS5 port per probe, so they are much slower than the resolver stage. Their latency measures the tunnel once it is up, not the time to bring it up.
+
+## Xray
+
+Starts a temporary Xray process per target using the selected outbound template, then measures latency through the local proxy. Depending on `connectivity_test_type`, it also runs a download test, an upload test, or both, and fails the target when the measured speed falls below the configured minimum.
+
+Records latency plus download and upload throughput. Both speeds are zero when only connectivity is tested.
+
+## Related Topics
+
+- [Scan Source](./scan-source.md)
+- [Scan Pipeline](./scan-pipeline.md)
+- [Result Files](./result-files.md)

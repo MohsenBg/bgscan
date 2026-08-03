@@ -43,7 +43,7 @@ The first run creates the default `settings/` folder with configuration files an
 
 ## Build from Source
 
-> **Note:** bgscan cannot be installed via `go install`. You must build it using the `bg-builder` tool included in the repository.
+> **Note:** bgscan cannot be installed via `go install`. You must build it using the `bgscan-builder` tool included in the repository.
 
 #### Prerequisites
 

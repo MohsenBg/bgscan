@@ -7,11 +7,11 @@ bookCollapseSection: true
 
 # Scanner
 
-The bgscan scanner is a modular, multi-stage scanning engine that orchestrates different probe types (ICMP, TCP, HTTP, DNS, Xray) to scan IP addresses for various services and vulnerabilities. Each scan type can be run independently or chained together in a pipeline for comprehensive network reconnaissance.
+The scanner runs probes against a list of IP addresses. Each probe type (ICMP, TCP, HTTP, DNS, Xray) can run on its own, or several can be chained so that each stage filters the targets for the next.
 
-For detailed information about specific aspects of the scanning system, see:
-
-- [Scan Types](./scan-types/)
-- [IP Lists (Input)](./ip-files/)
-- [Result Files (Output)](./result-files/)
-- [Scan Pipeline](./scan-pipeline/)
+- [Scan Source](./scan-source/) — where the target IPs come from
+- [Scan Types](./scan-types/) — what each probe does
+- [Scan Pipeline](./scan-pipeline/) — how stages are chained
+- [IP Lists](./ip-files/) — input files
+- [Result Files](./result-files/) — output files
+- [Xray Outbounds](./xray-outbound/) — outbound templates for Xray scans

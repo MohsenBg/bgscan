@@ -5,385 +5,352 @@ weight: 3
 
 # Core
 
-The `internal/core` package contains all non-UI logic: configuration, the scanner engine, probe implementations, IP list handling, results, DNS, Xray integration, and process management.
-
----
+`internal/core` holds everything that is not the TUI: configuration, the scanner engine, probes, IP lists, results, DNS, Xray, and process management.
 
 ## Package map
 
 | Package | Responsibility |
 |---|---|
-| `config` | Thread-safe singleton holding all TOML settings; load/save helpers; validation entry points. |
-| `config/validate` | Per-protocol validators (ICMP, TCP, HTTP, DNS, Xray, writer, general). |
-| `scanner` | `Scanner` orchestrator and stage builders. |
-| `scanner/engine` | Pipeline execution: single scan, sequential chain, streaming pipeline, batch pipeline. |
-| `scanner/probe` | `Probe` interface and all concrete probes (ICMP, TCP, HTTP, HTTP/3, DNS, DNSTT, SlipStream, Resolve, Xray). |
-| `scanner/portmgr` | Ephemeral port pool for probes that need local bind ports (Xray, DNSTT, SlipStream). |
-| `scanner/netutil` | Shared network utilities. |
-| `result` | `Writer` (async batch+merge), CSV format, loader, registry, ordering. |
-| `iplist` | CSV IP list loader, parser, registry, shuffle, streaming. |
-| `ip` | IPv4 parsing and CIDR expansion. |
-| `dns` | DNS query helpers, transport parsing, DNSTT/SlipStream SOCKS5 client. |
-| `xray` | Xray binary runner, inbound/outbound config, link parsing, speed test. |
-| `process` | Cross-platform process spawn/kill (Unix + Windows split). |
+| `config` | `ScannerConfig` types, compiled-in defaults, and the `Store` that reads and writes `settings/*.toml`. |
+| `config/validate` | Per-protocol validators and normalizers, aggregated by `aggregate.go`. |
+| `scanner` | `Scanner` interface, stage builders, and pipeline assembly. |
+| `scanner/engine` | Execution: single scan, sequential chain, streaming pipeline, batch pipeline. |
+| `scanner/probe` | `Probe` interface and one subpackage per probe. |
+| `scanner/portmgr` | Ephemeral local port pool for probes that spawn tunnel clients. |
+| `result` | `Writer`, CSV merge, schema registry, loader, counters. |
+| `iplist` | IP list CSV import, parsing, registry, shuffle, streaming. |
+| `dns` | DNS query helpers, transport parsing, DNSTT and SlipStream clients, SOCKS5. |
+| `xray` | Xray runner, inbound and outbound config, link parsing, speed test. |
+| `speedtest` | Latency, download, and upload measurement used by the Xray probe. |
+| `netutil` | Host normalization, TLS version parsing, and SNI extraction used by the HTTP probes. |
+| `process` | Cross-platform process spawn and kill. |
 | `fileutil` | CSV, JSON, TOML, text, temp-file, and path helpers. |
-| `logger` | Leveled logging (core, ui, debug) with lumberjack rotation. |
-
----
 
 ## Scanner
 
-`internal/core/scanner/scanner.go` defines the `Scanner` struct — the public API the UI calls to run a scan.
+`scanner.Scanner` is an interface, not a struct. The UI holds it, adds stages, and runs it.
 
 ```go
-type Scanner struct {
-    ctx    context.Context
-    cancel context.CancelFunc
-    pause  *engine.PauseController
-    input  string
-    pm     *portmgr.PortManager
-    stages []StageConfig
+type Scanner interface {
+    Run() error
+    Close() error
+
+    GetStages() []StageConfig
+    AddStage(StageConfig)
+
+    Pause()
+    Resume()
+    IsPaused() bool
+    PausedDuration() time.Duration
+
+    BuildICMPStage(context.Context) (StageConfig, error)
+    BuildTCPStage(context.Context) (StageConfig, error)
+    BuildHTTPStage(context.Context) (StageConfig, error)
+    BuildXrayStage(context.Context, string) (StageConfig, error)
+    BuildResolveStage(context.Context) (StageConfig, error)
+    BuildDNSTTStage(context.Context) (StageConfig, error)
+    BuildSlipStreamStage(context.Context) (StageConfig, error)
 }
 ```
 
-`StageConfig` bundles a `ScanMode`, worker count, `probe.Probe`, `result.Writer`, rate limit, and optional `ScanHooks`.
+`BuildXrayStage` takes the outbound template name chosen in the UI. The other builders take only a context.
 
-**Lifecycle:**
+A stage is:
+
+```go
+type StageConfig struct {
+    Workers int
+    Probe   probe.Probe
+    Writer  result.Writer
+    Rate    int
+    Hooks   engine.ScanHooks
+}
+```
+
+Each builder reads its protocol config, constructs the probe, creates a `result.Writer` bound to that probe's schema, and returns the stage. `AddHooks` attaches the UI callbacks afterwards.
 
 ```
-NewScanner(ctx, input)
+NewScanner(ctx, input, opts...)
   ├─ AddStage(BuildICMPStage(ctx))
   ├─ AddStage(BuildTCPStage(ctx))
   └─ Run()
-      ├─ single stage → engine.RunScan(ctx, input, maxIPs, cfg, shuffled, pause)
-      └─ multi stage  → engine.RunScanWithChain(ctx, input, maxIPs, chainCfg)
+      ├─ one stage   → engine.RunScan
+      └─ many stages → engine.RunScanWithChain
 ```
 
-`Scanner` also exposes `Pause()`, `Resume()`, `IsPaused()`, `PausedDuration()`, and `Close()` for UI control.
-
-**Stage builders** (`BuildICMPStage`, `BuildTCPStage`, `BuildHTTPStage`, `BuildXrayStage`, `BuildResolveStage`, `BuildDNSTTStage`, `BuildSlipStreamStage`) each:
-
-1. Read protocol config via `config.GetXxx()`.
-2. Build a result file path and create a `result.Writer`.
-3. Construct the appropriate `probe.Probe`.
-4. Return a `StageConfig` with workers, rate, and writer.
-
----
+The concrete `scanner` struct takes options: `WithConfig` injects a config instead of loading from disk, `WithPauseController` supplies a shared pause controller. Tests use a `scanRunner` seam to assemble a pipeline without starting workers.
 
 ## Engine
 
-`internal/core/scanner/engine` is the execution core. It does not know what probes do — it only moves IPs and results.
+`scanner/engine` moves IPs and results. It has no knowledge of what a probe does.
 
-#### Single scan: `RunScan`
-
-`engine/scan.go` orchestrates a standalone stage:
+### Single scan
 
 ```
-Reader (iplist.StreamActiveIPs)
+iplist.StreamActiveIPs
    │
    ▼
-  ips channel ──► Worker Pool (N goroutines)
-                      │
-                      ├─ rate limiter (rateCh)
-                      ├─ probe.Run(ctx, ip)
-                      ├─ on success: results channel + OnSuccess hook
-                      └─ on error: logger + OnError hook
-                      │
-                      ▼
-                 results channel ──► Writer goroutine ──► disk (CSV merge)
+ ips channel ──► worker pool (N goroutines)
+                    ├─ rate limiter
+                    ├─ probe.Run(ctx, addr)
+                    ├─ success → writer + OnSuccess
+                    └─ error   → log + OnError
+                    │
+                    ▼
+              result.Writer ──► CSV merge ──► disk
 
-Progress reporter goroutine → OnProgress hook (interval = status_interval)
+progress goroutine → OnProgress every status_interval
 ```
 
-`RunScan` blocks until the reader finishes, workers drain, writer flushes, and a final progress report fires.
+`RunScan` returns once the reader finishes, the workers drain, the writer flushes, and a final progress report fires.
 
-#### Chain scan: `RunScanWithChain`
+### Chain scan
 
-`engine/chain.go` dispatches based on `PipelineMode`:
+`RunScanWithChain` dispatches on `PipelineMode`:
 
-| Mode | Function | How stages connect |
+| Mode | Function | Connection between stages |
 |---|---|---|
-| `sequential` | `executeSequentialChain` | Stage N writes to disk; stage N+1 reads that file as input. |
-| `streaming` | `executeStreamingPipeline` | Buffered channels between stages. All stages run concurrently. |
-| `batch` | `executeBatchPipeline` | IPs chunked into batches; each batch traverses all stages before next. |
+| `sequential` | `executeSequentialChain` | Stage N writes its file, stage N+1 reads it. |
+| `streaming` | `executeStreamingPipeline` | Buffered `chan netip.Addr`, all stages concurrent. |
+| `batch` | `executeBatchPipeline` | Fixed-size chunks traverse every stage in turn. |
 
-**Sequential** — lowest memory, slowest. Each stage fully completes before the next starts. The writer's result path becomes the next stage's input.
+`createStageChannels` sizes each channel at `MaxBuffer`, falling back to 10,000 when unset, and raises it to the next stage's worker count when that is larger.
 
-**Streaming** — highest throughput. `createStageChannels` builds buffered `chan string` between stages. Channel size = `max(workers, MaxIPsPerStage)`. Successful IPs flow instantly to the next stage via `output <- ip`.
+`calculateBatchSize` returns `BatchSize` for a single stage, otherwise `max(BatchSize, highest worker count among stages after the first)`, falling back to 1,000 when `BatchSize` is unset.
 
-**Batch** — hybrid. `streamIPsFromFile` chunks IPs into `batchSize` slices. `processBatch` runs each slice through all `stageExecutor`s sequentially. The next batch doesn't start until the current one finishes all stages.
-
-#### Types
+### Types
 
 ```go
 type ChainConfig struct {
-    Mode      PipelineMode    // sequential | streaming | batch
-    MaxBuffer int             // channel buffer size between streaming stages
+    Mode      PipelineMode
+    MaxBuffer int
+    BatchSize int
     Stages    []ScanConfig
-    Pause     *PauseController
+    Pause     PauseController
     Shuffled  bool
 }
 
 type ScanConfig struct {
-    Workers int
-    Rate    int
-    Probe   probe.Probe
-    Writer  *result.Writer
-    Hooks   ScanHooks
+    Workers          int
+    Rate             int
+    ProgressInterval time.Duration
+    Probe            probe.Probe
+    Writer           result.Writer
+    Hooks            ScanHooks
 }
 
 type ScanHooks struct {
     OnProgress func(Progress)
-    OnSuccess  func(result.IPScanResult)
+    OnSuccess  func(result.Result)
     OnScanEnd  func()
     OnError    func(error)
 }
 ```
 
-All hooks are optional (nil = disabled). The engine calls `callOnSuccess`, `callOnError`, `callOnScanEnd` safely.
+Hooks are optional. The engine goes through `callOnSuccess`, `callOnError`, and `callOnScanEnd`, which no-op on nil.
 
-#### Pause control
+`ParsePipelineMode` accepts aliases: `simple` for sequential, `parallel` for streaming, `pipeline` for batch. Anything unrecognized returns `ModeSequential`.
 
-`engine/pause.go` provides `PauseController` — a non-blocking pause/resume mechanism. Workers check `pause.IsPaused()` and skip work while paused. `PausedDuration()` tracks total paused time so progress reporting stays accurate.
+### Pause control
 
----
+`PauseController` is an interface implemented by `NewPauseController()`. Workers hit a checkpoint before each probe and block there while paused. `PausedDuration()` accumulates paused time so progress rates stay honest.
 
 ## Probe interface
-
-`scanner/probe/probe.go` defines the single contract all probes implement:
 
 ```go
 type Probe interface {
     Init(ctx context.Context) error
-    Run(ctx context.Context, ip string) (*result.IPScanResult, error)
+    Run(ctx context.Context, ip netip.Addr) (result.Result, error)
+    Schema() result.ResultSchema
     Close() error
 }
 ```
 
-- **`Init`** — called once at startup. Allocate sockets, spawn goroutines, open caches.
-- **`Run`** — called per IP. Must honor `ctx` for cancellation. Returns `IPScanResult` on success, error on failure/timeout.
-- **`Close`** — called once at shutdown. Release sockets, goroutines, file descriptors.
+`Init` runs once before any `Run`, `Close` once at the end. `Run` takes a `netip.Addr`, not a string, which is what gives IPv4 and IPv6 a single code path. `Schema` is what ties a probe to its result layout and output directory.
 
-#### Available probes
+Each probe lives in its own subpackage under `scanner/probe`:
 
-| File | Probe | Constructor |
+| Package | Probe | Constructor |
 |---|---|---|
-| `icmp.go` | ICMP echo | `NewICMPProbe(timeout, tries)` |
-| `tcp.go` | TCP connect | `NewTCPProbe(port, timeout, tries)` |
-| `http.go` | HTTP/1.1 + HTTP/2 (ALPN) | `NewHTTPProbe(reqCfg, acceptedCodes)` |
-| `http3.go` | HTTP/3 over QUIC | `NewHTTP3Probe(reqCfg, acceptedCodes)` |
-| `httpshare.go` | Shared HTTP request config builder | `NewHTTPRequestFromConfig` / `NewHTTP3RequestFromConfig` |
-| `resolve.go` | DNS resolver (A/AAAA, DPI check) | `NewResolverProbe(DnsRequest)` |
-| `dnstt.go` | DNSTT tunnel validation | `NewDNSTTProbe(DNSTTConfig, portMgr)` |
-| `slipstream.go` | SlipStream SOCKS validation | `NewSlipstreamProbe(workers, SlipstreamConfig, portMgr)` |
-| `xray.go` | Xray outbound connectivity + bandwidth | `NewXrayProbe(cfg, template, portMgr)` |
-| `processes.go` | Xray/DNSTT/Slipstream process lifecycle | used by probes that spawn binaries |
+| `icmpprobe` | ICMP echo, IPv4 and IPv6 | `NewICMPProbe(Options)` |
+| `tcpprobe` | TCP connect | `NewTCPProbe(port, timeout, tries)` |
+| `httpprobe` | HTTP/1.1 and HTTP/2 over ALPN | `NewHTTPProbe(req, acceptedCodes)` |
+| `httpprobe` | HTTP/3 over QUIC | `NewHTTP3Probe(req, acceptedCodes)` |
+| `resolveprobe` | DNS resolver with DPI check | `NewResolverProbe(*DNSRequest)` |
+| `dnsttprobe` | DNSTT tunnel validation | `NewDNSTTProbe(config, portMgr)` |
+| `slipstreamprobe` | SlipStream tunnel validation | `NewSlipstreamProbe(workers, config, portMgr)` |
+| `xrayprobe` | Xray connectivity and bandwidth | `NewXrayProbe(cfg, template, portMgr)` |
 
-Probes that need local bind ports (Xray, DNSTT, SlipStream) receive a `*portmgr.PortManager` — an ephemeral port pool that allocates and recycles ports to avoid collisions.
+Probes that spawn a client binary take a `portmgr.Manager` and lease a local port per probe so concurrent workers do not collide.
 
----
+## Result system
+
+Every probe defines a result type implementing `result.Result` and a `result.ResultSchema` describing it.
+
+```go
+type Result interface {
+    Key() string
+    KeyType() KeyType
+    ToRecord() []string
+    Equal(other Result) bool
+    Score() float64
+}
+
+type ResultSchema struct {
+    Name      string
+    Directory string
+    Columns   []ColumnDef
+    Parser    ResultParser
+}
+```
+
+`ToRecord` order must match `Columns` order, and `Parser` is the inverse used when loading a file back. `Key` is what deduplication compares, `KeyType` distinguishes IP-keyed from domain-keyed results, and `Score` drives ordering.
+
+### Registration
+
+`core.Init()` in `internal/core/core.go` registers every built-in schema into `result.DefaultRegistry` before anything else runs:
+
+```go
+result.DefaultRegistry.Register(icmpprobe.Schema)
+result.DefaultRegistry.Register(tcpprobe.Schema)
+// http, resolve, dnstt, slipstream, xray
+```
+
+The registry maps a directory name back to its schema, which is how the result file browser knows how to parse and display a file it finds on disk.
+
+Adding a scan type means writing the result struct, the schema, the probe, and a stage builder, then registering the schema in `core.Init()`. Nothing in the writer, the registry, or the result table needs to change.
+
+### Writer
+
+```go
+type Writer interface {
+    Start() error
+    Stop() error
+    Write(r Result)
+    GetResultPath() string
+}
+
+type WriterOptions struct {
+    ResultPrefix string
+    Schema       ResultSchema
+    Config       config.WriterConfig
+}
+```
+
+`NewWriter` validates the writer config and the schema, then resolves the output path from `result_directory`, the schema directory, the prefix, and a timestamp. `Start` creates the directory and clears any stale file. `Write` enqueues onto a channel sized by `chan_size` and drops the result if the context is already canceled.
+
+A flush happens when the batch reaches `batch_size`, when `merge_flush_interval` ticks, or on shutdown. On cancellation the writer drains the channel first, so anything accepted before `Stop` reaches disk.
+
+### Merge
+
+`merger.go` sorts the batch by score, merge-sorts it against the existing file, writes to `<path>.tmp`, calls `Sync`, and renames over the original. Duplicates are replaced by key, and neither file is fully loaded into memory.
+
+### Registry and loader
+
+- `registry.go` holds `DefaultRegistry`, mapping a directory name to its schema. `FindResultFiles` and `GetResultFiles` walk the result directory and attach the right schema to each file.
+- `loader.go` streams results back through `LoadResult`, or reads a bounded slice with `LoadAll`, both driven by the schema's parser.
+- `count.go` counts records without loading the file.
 
 ## Config
 
-`internal/core/config/config.go` exposes a thread-safe singleton:
+There is no config singleton and no package-level accessors. `main` builds a `Store`, loads one `ScannerConfig` value, and passes a pointer to it down through the UI and into the scanner.
 
 ```go
-func Get() *ScannerConfig          // root singleton
-func GetGeneral() *GeneralConfig   // per-protocol accessors (RLock/Unlock)
-func GetTCP() *TCPConfig
-// ... ICMP, HTTP, Xray, DNS, Writer
+type ScannerConfig struct {
+    General GeneralConfig
+    Writer  WriterConfig
+    ICMP    ICMPConfig
+    TCP     TCPConfig
+    HTTP    HTTPConfig
+    Xray    XrayConfig
+    DNS     DNSConfig
+}
+
+store := config.NewStore()          // defaults to the "settings" directory
+cfg, err := store.Load()
 ```
 
-**File layout** — each protocol has its own TOML in `settings/`:
+`WithSettingsDir(dir)` points a `Store` somewhere else, which is how tests run against a temp directory instead of real settings.
 
-```
-settings/
-├── general_settings.toml
-├── writer_settings.toml
-├── icmp_settings.toml
-├── tcp_settings.toml
-├── http_settings.toml
-├── xray_settings.toml
-└── dns_settings.toml
-```
+`Load` reads one TOML file per section. A missing file is created from the compiled-in defaults. A file that exists but does not parse returns an error rather than silently falling back.
 
-**Load flow:**
+Saving is per section: `SaveGeneral`, `SaveWriter`, `SaveICMP`, `SaveTCP`, `SaveHTTP`, `SaveXray`, `SaveDNS`. The inspector edits the in-memory struct and calls the matching method.
 
-1. `config.Init()` calls all `LoadXxxConfig()` functions in sequence.
-2. Each loader reads the TOML file or falls back to defaults (`.default` copy).
-3. The loaded struct replaces the singleton field via a private setter (write-locked).
-4. Immediately after `Init()`, `startup.checkConfigHealth()` runs validators from `config/validate/` to normalize values.
-
-**Save flow:**
-
-1. UI inspector calls `SaveXxxConfig(cfg)`.
-2. `saveConfig` writes TOML to disk via `fileutil.WriteTOMLFile`.
-3. The in-memory singleton field is updated via the setter.
-
-#### Validators
-
-`config/validate/` contains one validator per protocol (`validate_icmp.go`, `validate_tcp.go`, etc.) — all called from `validate/all.go`. They clamp values to safe bounds and surface configuration errors at startup before a scan ever runs.
-
----
-
-## Result pipeline
-
-`internal/core/result/` handles writing scan output to disk.
-
-#### Writer
-
-`result.Writer` is an asynchronous batch-and-merge writer:
+The UI carries both through `ui.AppState`:
 
 ```go
-type Writer struct {
-    config    Config
-    ctx       context.Context
-    cancel    context.CancelFunc
-    wg        sync.WaitGroup
-    resultPath string
-    input     chan IPScanResult
-    batch     []IPScanResult
-    batchSize int
+type AppState struct {
+    Layout *layout.Layout
+    Config *config.ScannerConfig
+    Store  *config.Store
 }
 ```
 
-**Flush triggers:**
+### Validation
 
-- `BatchSize` results accumulated
-- `MergeFlushInterval` elapses
-- `Stop()` called (shutdown flush)
+`config/validate` has one file per section. `ValidateXxx` returns a map of field errors and changes nothing. `NormalizeXxx` clamps invalid fields to their defaults and returns a `Warning` for each correction. `aggregate.go` combines both into `ValidateAll` and `NormalizeAll`.
 
-The writer guarantees every result written to its channel before `Stop()` is flushed to disk.
-
-#### Merge
-
-`result/merger.go` implements a crash-safe streaming merge:
-
-- Sorts the batch, merge-sorts it against the existing file.
-- Writes to `resultPath.tmp`, `fsync`s, then atomically renames to the final path.
-- Duplicate IPs are replaced by the newer record.
-- Constant memory — never loads both files fully into RAM.
-
-#### Result format
-
-Each result file is a CSV with columns matching `IPScanResult`:
-
-```go
-type IPScanResult struct {
-    IP       string
-    Latency  time.Duration
-    Download time.Duration
-    Upload   time.Duration
-}
-```
-
-Files are organized by scan type:
-
-```
-results/
-├── icmp/
-├── tcp/
-├── http/
-├── xray/
-├── dnstt/
-├── slipstream/
-└── resolve/
-```
-
-#### Registry and loader
-
-- `registry.go` — discovers and classifies result files by type from the result directory.
-- `loader.go` — streams results back from CSV (used when re-scanning from a result list).
-- `count.go` — counts records without loading the full file into memory.
-
----
+Startup calls `NormalizeAll`, prints every correction, then writes the corrected sections back to disk, so the TOML on disk always matches what the scanner is actually using.
 
 ## IP lists
 
-`internal/core/iplist/` handles input file loading:
+- `parser.go` provides `StreamActiveIPs(ctx, path, limit, shuffled, out)`, the function the engine feeds workers from, and `StreamCIDR` for expanding a prefix.
+- `csv.go` and `parser.go` read the two-column format, `<ip_or_cidr>,<enabled>`.
+- `loader.go` handles importing external lists, plus `CountIPs` and `CountActiveIPs` for progress totals.
+- `registry.go` lists files under `ips/`, `shuffle.go` randomizes order.
 
-- `loader.go` — `StreamActiveIPs(ctx, path, maxIP, shuffled, out)` — the function the engine calls to feed the worker pool.
-- `parser.go` / `csv.go` — parses the internal 2-column CSV format (`<ip_or_cidr>,<enable>`).
-- `registry.go` — lists and manages IP files in `ips/`.
-- `shuffle.go` — randomizes target order.
-- `ip/expand.go` — expands CIDR ranges to individual IPs.
-
-Disabled entries (`enable=0`) are silently skipped during streaming.
-
----
+Disabled entries are skipped during streaming. Both IPv4 and IPv6 prefixes are supported, so counting a large IPv6 prefix returns a saturated value rather than an exact one.
 
 ## DNS subsystem
 
-`internal/core/dns/` provides shared DNS helpers used by the resolver, DNSTT, and SlipStream probes:
-
-- `query.go` — low-level DNS query construction and sending (UDP, TCP, DNS-over-TLS).
-- `type.go` — DNS type and rcode parsing helpers (`ParseDNSRcode`, `ParseTransport`).
-- `dnstt.go` / `slipstream.go` — tunnel client wrappers.
-- `socks5.go` — minimal SOCKS5 client for tunnel validation.
-
-The DNS resolver probe supports DPI checks, EDNS0 buffer sizes, random subdomains, and configurable query types.
-
----
+- `query.go` builds and sends queries over UDP, TCP, and DoT.
+- `type.go` parses transports and rcodes. `doh` parses successfully but resolves to DoT, since the scanner targets resolvers by IP.
+- `dnstt.go` and `slipstream.go` wrap the external client binaries and translate transport choice into client flags.
+- `socks5.go` is a minimal SOCKS5 client used to validate a tunnel once it is up.
 
 ## Xray integration
 
-`internal/core/xray/` manages Xray binary interaction:
+- `xray.go` and `command.go` spawn and control the process.
+- `inbound.go` and `outbound.go` generate the config JSON.
+- `link.go` parses share links.
+- `speedtest.go` measures throughput.
 
-- `xray.go` / `command.go` — spawns and controls the Xray process.
-- `inbound.go` / `outbound.go` — generates Xray config JSON for inbound/outbound.
-- `link.go` — parses Xray share links (vless://, vmess://, etc.).
-- `speedtest.go` — upload/download bandwidth measurement.
-
-The Xray probe (`probe/xray.go`) ties these together: it generates a config, spawns Xray, tests connectivity, optionally runs a speed test, then tears down.
-
----
+`xrayprobe` generates a config for the chosen outbound, leases a port, starts Xray, measures latency through the local proxy, optionally runs the speed tests, and tears everything down.
 
 ## Process management
 
-`internal/core/process/` abstracts cross-platform process lifecycle:
+`process.go` defines the interface, with `process_unix.go` and `process_windows.go` supplying platform behavior. Used by every probe that spawns a binary.
 
-- `process.go` — shared interface.
-- `process_unix.go` — Unix-specific spawn/kill (setsid, signal handling).
-- `process_windows.go` — Windows-specific (CREATE_NEW_PROCESS_GROUP, taskkill).
+## Logger
 
-Used by probes that spawn external binaries (Xray, DNSTT, SlipStream).
-
----
-
-## logger
-
-`internal/logger/` provides three leveled streams:
-
-| Logger | File | What it covers |
+| Logger | File | Covers |
 |---|---|---|
-| Core | `logs/core.log` | Scanner engine, probes, config, result I/O |
-| UI | `logs/ui.log` | Component lifecycle, file ops, UI-level errors |
-| Debug | `logs/debug.log` | Verbose state dumps, goroutine dumps, detailed traces |
+| Core | `logs/core.log` | Engine, probes, config, result I/O |
+| UI | `logs/ui.log` | Component lifecycle, file operations, UI errors |
+| Debug | `logs/debug.log` | State dumps and detailed traces |
 
-Log files rotate via lumberjack: 50 MB cap, 3 backups, 7-day retention, gzip-compressed.
-
----
+Each logger writes to file and fans out to any subscribed viewer channel. Rotation is lumberjack: 50 MB cap, 3 backups, 7 days, compressed.
 
 ## Startup
 
-`internal/startup/health.go` runs `RunHealthChecks()` before the TUI starts:
+`startup.RunHealthChecks(&cfg, &store)` runs after the config is loaded and before the TUI starts:
 
 ```
-1. checkLoggerHealth()    → open log files, init rotation
-2. theme.Init()           → resolve dark/light palette
-3. checkConfigHealth()    → config.Init() + validate/all.go
-4. checkXrayHealth()      → locate Xray binary + templates
-5. checkDNSTTHealth()     → locate DNSTT client binary
-6. checkSlipstreamHealth() → locate SlipStream client binary
+1. checkLoggerHealth()      open log files, start rotation
+2. theme.Init()             resolve the palette
+3. checkConfigHealth()      NormalizeAll, then save corrected sections
+4. checkXrayHealth()        locate the Xray binary and templates
+5. checkDNSTTHealth()       locate dnstt-client
+6. checkSlipstreamHealth()  locate slipstream-client
 ```
 
-Missing binaries (Xray/DNSTT/SlipStream) log a warning and disable the dependent scan type — the app still runs. Config validation issues are fatal.
+Checks are split across `checks_logger.go`, `checks_config.go`, `checks_xray.go`, and `checks_dns.go`. A missing optional binary prints a warning and disables only the scan type that needs it. The run ends with a prompt to press Enter.
 
-> 💡 Set `fastboot = true` in `health.go` to skip the 500 ms pauses between checks during debugging.
+Note that config failures surface earlier: `store.Load()` in `main` is fatal on malformed TOML, before health checks run at all.
 
----
+Set the `fastboot` constant in `health.go` to `true` to skip the 500 ms pauses between checks while debugging.
 
 ## Related pages
 
-- [Architecture](../architecture/) — high-level project layout
-- [UI](../ui/) — TUI architecture and component model
+- [Architecture](../architecture/) — project layout and layering
+- [UI](../ui/) — component model and theming

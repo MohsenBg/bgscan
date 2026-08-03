@@ -55,18 +55,32 @@ type Component interface {
 
 ## Root model (app)
 
-`ui/main/app` is the top-level BubbleTea model. It holds three base components and a dialog stack:
+`ui/main/app` is the top-level BubbleTea model. It holds the shared app state, three base components, and a dialog stack:
 
 ```go
 type model struct {
-    layout           *layout.Layout
+    state            *ui.AppState
     dialog           []ui.Component
     dialogPlacements map[ui.ComponentID]*dialogPosition
     header           ui.Component
     body             ui.Component
     footer           ui.Component
 }
+
+func New(cfg *config.ScannerConfig, store *config.Store) tea.Model
 ```
+
+`AppState` is what threads shared dependencies through the whole tree:
+
+```go
+type AppState struct {
+    Layout *layout.Layout
+    Config *config.ScannerConfig
+    Store  *config.Store
+}
+```
+
+Components read settings from `state.Config` and persist edits with `state.Store`. There is no config singleton to reach for.
 
 #### Message routing (`app/update.go`)
 
@@ -212,7 +226,9 @@ Each widget follows the standard `Component` interface and is designed to be com
 | `dns` | `dns_settings.toml` |
 | `xray` | `xray_settings.toml` |
 
-Each inspector reads the current config via `config.GetXxx()`, renders editable fields, and on save calls `config.SaveXxxConfig()`. Fields can be dynamic — for example, TLS options only appear when HTTPS is selected, and DNSTT/SlipStream fields only show when those probes are enabled.
+Each inspector reads its section from `state.Config`, renders editable fields, and on save calls the matching `state.Store.SaveXxx()` method. Fields can be dynamic — for example, TLS options only appear when HTTPS is selected, and DNSTT/SlipStream fields only show when those probes are enabled.
+
+Every field validates before it commits. The inspector applies the edit to a copy of the section, runs `validate.ValidateXxx` on it, and rejects the input if that field reports an error, so an invalid value never reaches the config or the disk.
 
 The generic `basic/inspector` widget handles the field rendering, formatting, and type adaptation; the per-protocol packages just define which fields to show and how to map them to the config struct.
 
@@ -236,11 +252,11 @@ The generic `basic/inspector` widget handles the field rendering, formatting, an
 | Table | Data source | Provider |
 |---|---|---|
 | `iplist` | `ips/` directory | `iplist.Registry` |
-| `resultlist` | `results/` directory | `result.Registry` |
+| `resultlist` | `result/` directory | `result.GetResultFiles` |
 | `outbounds` | Xray outbound configs | `xray` package |
 | `ipviewer` | In-memory result set | scanner component |
 
-Tables use the `basic/table` widget and a `Provider` interface that supplies rows and handles column sorting.
+Tables use the `basic/table` widget and a `Provider` interface that supplies rows and handles column sorting. `resultlist` renders its columns from the schema attached to each `result.ResultFile`, so a new probe's results display without touching the table code.
 
 ---
 

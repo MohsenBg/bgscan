@@ -7,69 +7,58 @@ weight: 4
 
 > 💡 **Tip:** You can change these settings directly in the bgscan application instead of editing the TOML file manually.
 >
-> Navigate to **Settings** → **General Settings**  tab 2 in the main menu to configure these options interactively using the TUI inspector.
+> Navigate to **Settings** → **General Settings** tab 2 in the main menu to configure these options interactively using the TUI inspector.
 
 Configuration file: `settings/writer_settings.toml`
 
-This file controls buffering and how often results are flushed to disk.
+Buffering and flush behavior of the result writer, plus where result files are stored.
+
+Each scan stage owns one writer. Workers push results into a channel, the writer accumulates them into a batch, and each flush merge-sorts that batch into the stage's CSV file.
 
 ## Quick Reference
 
 | Setting | Default | Description |
-|---------|---------|-------------|
-| `merge_flush_interval` | `2000` | Interval (in milliseconds) for merging delta results into the main result file. |
-| `chan_size` | `4096` | Capacity of the internal channel used by scanner workers to send IP scan results to the writer goroutine. |
-| `batch_size` | `4096` | Initial capacity of the in-memory batch used to accumulate IP scan results before flushing them to disk. |
-
----
+| --------- | --------- | ------------- |
+| `merge_flush_interval` | `2000` | Flush interval in milliseconds |
+| `chan_size` | `2048` | Capacity of the worker to writer channel |
+| `batch_size` | `4096` | Results buffered in memory before a flush |
+| `result_directory` | `"result"` | Base directory for result files |
 
 ## Merge Flush Interval
-
-Controls how frequently (in milliseconds) partial scan results are committed to disk. Lower values increase disk I/O but reduce memory usage. Higher values reduce disk I/O but increase memory usage.
 
 ```toml
 merge_flush_interval = 2000
 ```
 
-**Recommended values:**
+Time between periodic flushes, in milliseconds. Valid range is 100 ms to 5 minutes. A flush also happens as soon as `batch_size` results accumulate, and once more when the writer stops, so nothing accepted before shutdown is lost.
 
-- `1000-5000` for typical use
-- Lower values for systems with fast storage
-- Higher values for systems with limited I/O bandwidth
-
----
+Shorter intervals write results to disk sooner and rewrite the file more often. Longer intervals cut disk I/O and hold more results in memory.
 
 ## Channel Size
 
-The capacity of the internal channel used by scanner workers to send IP scan results to the writer goroutine.
-Higher values can help prevent worker bottlenecks during heavy disk I/O.
-
 ```toml
-chan_size = 4096
+chan_size = 1024
 ```
 
-**Recommended values:**
-
-- `1024-4096` for moderate throughput
-- `4096-16384` for high-throughput scanning
-
----
+Capacity of the channel workers use to hand results to the writer goroutine. When the channel fills, workers block until the writer catches up. Raise it if a stage produces results in bursts faster than the merge can absorb. Valid range is 1 to 1,000,000.
 
 ## Batch Size
-
-The initial capacity of the in-memory batch used to accumulate IP scan results before flushing them to disk.
-Higher values reduce the frequency of disk writes but increase memory usage.
 
 ```toml
 batch_size = 4096
 ```
 
-**Recommended values:**
+Number of results held in memory before a flush is forced. It also sets the initial batch slice capacity and the size of the buffered writer used during the merge. Valid range is 1 to 1,000,000.
 
-- `1024-4096` for memory-constrained systems
-- `4096-16384` for systems with ample memory
+## Result Directory
 
----
+```toml
+result_directory = "result"
+```
+
+Base directory, relative to the bgscan binary, holding one subdirectory per result schema: `result/icmp/`, `result/tcp/`, `result/http/`, `result/xray/`, `result/dns_resolver/`, `result/dnstt/`, and `result/slipstream/`. Directories are created on demand.
+
+The value must be a plain directory name, not a path.
 
 ## Related Files
 
@@ -79,4 +68,3 @@ batch_size = 4096
 - [`http_settings.toml`](./http.md) — HTTP/HTTPS/HTTP3 probe configuration
 - [`dns_settings.toml`](./dns.md) — DNS scan configuration
 - [`xray_settings.toml`](./xray.md) — Xray outbound validation
-

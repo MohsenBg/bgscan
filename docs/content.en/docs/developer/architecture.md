@@ -5,32 +5,45 @@ weight: 2
 
 # Architecture
 
-bgscan is a layered application. A lightweight entry point boots startup health checks, then hands control to a BubbleTea TUI. The TUI drives a multi-stage scanner engine whose probes and I/O are pluggable.
-
----
+bgscan is layered. `main` registers result schemas, loads config, runs startup checks, then hands control to a BubbleTea TUI. The TUI drives a multi-stage scanner engine whose probes and writers are pluggable.
 
 ## Directory layout
 
 ```text
 .
 ├── assets
+│   ├── dnstt-client
+│   ├── slipstream-client
 │   └── xray
+│       ├── configs
 │       └── outbounds
 ├── cmd
 │   └── bgscan
 │       └── main.go
 ├── docs
-├── go.mod
 ├── internal
 │   ├── core
+│   │   ├── core.go          schema registration
 │   │   ├── config
+│   │   │   └── validate
 │   │   ├── dns
 │   │   ├── fileutil
-│   │   ├── ip
 │   │   ├── iplist
+│   │   ├── netutil
 │   │   ├── process
 │   │   ├── result
 │   │   ├── scanner
+│   │   │   ├── engine
+│   │   │   ├── portmgr
+│   │   │   └── probe
+│   │   │       ├── dnsttprobe
+│   │   │       ├── httpprobe
+│   │   │       ├── icmpprobe
+│   │   │       ├── resolveprobe
+│   │   │       ├── slipstreamprobe
+│   │   │       ├── tcpprobe
+│   │   │       └── xrayprobe
+│   │   ├── speedtest
 │   │   └── xray
 │   ├── logger
 │   ├── startup
@@ -44,123 +57,126 @@ bgscan is a layered application. A lightweight entry point boots startup health 
 └── settings
 ```
 
----
-
 ## Layer overview
 
 ```
 ┌─────────────────────────────────────────────┐
-│                  cmd/bgscan                  │
-│                  (entry point)               │
+│                 cmd/bgscan                   │
+│   core.Init → config.Store.Load → startup    │
 ├─────────────────────────────────────────────┤
 │              internal/startup                │
-│          (health checks, config init)        │
+│    logger, theme, config, binary checks      │
 ├─────────────────────────────────────────────┤
-│               internal/ui                    │
-│  ┌─────────────────────────────────────┐     │
-│  │  main (root model, layout, dialogs)  │     │
-│  │  components (menus, tables, forms)   │     │
-│  │  shared (layout, env, dialog, ui)    │     │
-│  │  theme                               │     │
-│  └─────────────────────────────────────┘     │
+│                internal/ui                   │
+│   main (root model, layout, dialog stack)    │
+│   components (menus, tables, inspector)      │
+│   shared (layout, env, dialog, ui, valid.)   │
+│   theme                                      │
 ├─────────────────────────────────────────────┤
-│              internal/core                   │
-│  ┌──────────────┐ ┌──────────┐ ┌─────────┐  │
-│  │  scanner      │ │ config   │ │ result  │  │
-│  │  (engine,     │ │ (TOML)   │ │ (writer)│  │
-│  │   probe, port) │ │          │ │         │  │
-│  └──────────────┘ └──────────┘ └─────────┘  │
-│  ┌──────────┐ ┌─────────┐ ┌──────────────┐  │
-│  │  iplist  │ │   dns   │ │ xray/process │  │
-│  └──────────┘ └─────────┘ └──────────────┘  │
+│               internal/core                  │
+│  ┌──────────┐ ┌────────┐ ┌───────────────┐  │
+│  │ scanner  │ │ config │ │    result     │  │
+│  │ engine   │ │ Store  │ │ writer+schema │  │
+│  │ probe    │ │validate│ │   registry    │  │
+│  │ portmgr  │ └────────┘ └───────────────┘  │
+│  └──────────┘                                │
+│  ┌────────┐ ┌─────┐ ┌──────┐ ┌───────────┐  │
+│  │ iplist │ │ dns │ │ xray │ │ speedtest │  │
+│  └────────┘ └─────┘ └──────┘ └───────────┘  │
+│  ┌─────────┐ ┌──────────┐ ┌─────────────┐   │
+│  │ netutil │ │ process  │ │  fileutil   │   │
+│  └─────────┘ └──────────┘ └─────────────┘   │
 ├─────────────────────────────────────────────┤
 │              internal/logger                 │
 ├─────────────────────────────────────────────┤
-│            assets/  ips/  settings/         │
-│                 (data files)                 │
+│          assets/  ips/  settings/           │
 └─────────────────────────────────────────────┘
 ```
-
----
 
 ## Directory reference
 
 | Path | Description |
 |---|---|
-| `cmd/bgscan` | Application entry point (`main.go`). Creates the root TUI model and runs it. |
-| `internal/core` | Core logic: config, DNS, file utilities, IP handling, process management, results, scanner, and Xray integration. |
-| `internal/core/config` | TOML-based configuration singleton with thread-safe accessors. |
-| `internal/core/scanner` | Scanner orchestrator, engine (pipeline), probe interface, port manager, and net utilities. |
-| `internal/core/result` | Asynchronous result writer, CSV merge/sort, result file registry, and loader. |
-| `internal/core/iplist` | IP list CSV loader, parser, registry, and shuffle. |
-| `internal/core/dns` | DNS query, DNSTT, SlipStream, and SOCKS5 helpers. |
-| `internal/core/xray` | Xray command runner, inbound/outbound management, and speed test. |
-| `internal/core/process` | Cross-platform process lifecycle (spawn, kill, signal). |
-| `internal/core/fileutil` | CSV, JSON, TOML, text, temp-file, and path helpers. |
-| `internal/core/ip` | IP parsing and CIDR expansion. |
-| `internal/logger` | Leveled logging with lumberjack rotation. Three streams: core, ui, debug. |
-| `internal/startup` | Sequential startup health checks: logger, theme, config, Xray, DNSTT, Slipstream. |
-| `internal/ui/main` | Root BubbleTea model — header/body/footer layout, overlay dialog manager. |
-| `internal/ui/components` | Reusable UI: basic widgets, inspector forms, menus, tables, scanner view. |
-| `internal/ui/shared` | Shared UI infrastructure: layout geometry, dialog system, env/keys, component interface, validation. |
-| `internal/ui/theme` | Dark/light/auto color palettes (Catppuccin-based). |
-| `assets/xray/outbounds` | Bundled Xray outbound config assets. |
-| `assets/dnstt-client`, `assets/slipstream-client` | DNS tunneling binaries. |
-| `ips` | Default IP range lists per provider (Cloudflare, AWS, Azure, etc.) as CSV. |
-| `settings` | Default `.toml` settings files. `.default` copies are fallback templates. |
-| `scripts` | Install, build, and release helper scripts. |
-| `docs` | Hugo Book documentation site. |
-
----
+| `cmd/bgscan` | Entry point. Registers schemas, loads config, runs health checks, starts the TUI. |
+| `internal/core/core.go` | `core.Init()` registers every built-in probe schema into `result.DefaultRegistry`. |
+| `internal/core/config` | `ScannerConfig` types, compiled-in defaults, and the `Store` that reads and writes `settings/*.toml`. |
+| `internal/core/config/validate` | Per-section validators and normalizers, combined by `aggregate.go`. |
+| `internal/core/scanner` | `Scanner` interface, `StageConfig`, and the stage builders. |
+| `internal/core/scanner/engine` | Pipeline execution: single scan, sequential, streaming, batch, pause control. |
+| `internal/core/scanner/probe` | `Probe` interface plus one subpackage per probe. |
+| `internal/core/scanner/portmgr` | Local port leasing for probes that spawn client binaries. |
+| `internal/core/result` | `Result` interface, schemas, registry, async writer, CSV merge, loader. |
+| `internal/core/iplist` | IP list import, parsing, registry, shuffle, streaming. |
+| `internal/core/netutil` | Host normalization, TLS version parsing, and SNI extraction for the HTTP probes. |
+| `internal/core/dns` | DNS queries, transports, DNSTT and SlipStream clients, SOCKS5. |
+| `internal/core/xray` | Xray process control, inbound and outbound config, share link parsing. |
+| `internal/core/speedtest` | Latency, download, and upload measurement used by the Xray probe. |
+| `internal/core/process` | Cross-platform process spawn and kill. |
+| `internal/core/fileutil` | CSV, JSON, TOML, text, temp-file, sorting, and path helpers. |
+| `internal/logger` | Three leveled log streams with lumberjack rotation and live subscribers. |
+| `internal/startup` | Health checks: logger, theme, config, Xray, DNSTT, SlipStream. |
+| `internal/ui/main` | Root model with header, body, footer, and the overlay dialog stack. |
+| `internal/ui/components` | Widgets, settings inspectors, menus, tables, and the live scanner view. |
+| `internal/ui/shared` | Layout geometry, dialog system, key modes, component interface, validation. |
+| `internal/ui/theme` | Dark and light palettes plus the huh form theme adapter. |
+| `assets/xray` | Bundled Xray binary location, configs, and outbound templates. |
+| `assets/dnstt-client`, `assets/slipstream-client` | Optional tunnel client binaries. |
+| `ips` | Bundled provider IP lists as CSV. |
+| `settings` | Live `.toml` settings. The `.toml.default` copies are reference snapshots and are not read at runtime. |
+| `scripts` | Install, build, and release helpers. |
 
 ## Application flow
 
 ```
 main()
   │
-  ├─ startup.RunHealthChecks()
-  │     ├─ logger init
-  │     ├─ theme init
-  │     ├─ config load + validate
-  │     ├─ xray binary check
-  │     ├─ dnstt binary check
-  │     └─ slipstream binary check
+  ├─ core.Init()                    register probe result schemas
   │
-  ├─ tea.NewProgram(app.New()).Run()
-  │     │
-  │     ├─ header  (title bar)
-  │     ├─ body    (component stack: main menu → scan/settings/logs/...)
-  │     └─ footer (status bar, key hints)
+  ├─ config.NewStore()              settings/ directory
+  ├─ store.Load()                   create missing files from defaults,
+  │                                 error on malformed TOML
   │
-  └─ when user selects Run Scan:
-        ├─ scanner.NewScanner(ctx, inputPath)
-        ├─ scanner.AddStage(BuildICMPStage)
-        ├─ scanner.AddStage(BuildTCPStage)
-        ├─ ...
-        ├─ scanner.Run()
-        │     ├─ single stage → engine.RunScan
-        │     └─ multi stage  → engine.RunScanWithChain
-        │           ├─ sequential
-        │           ├─ streaming
-        │           └─ batch
-        │
-        └─ results written via result.Writer → CSV merge → disk
+  ├─ startup.RunHealthChecks(&cfg, &store)
+  │     ├─ checkLoggerHealth()
+  │     ├─ theme.Init()
+  │     ├─ checkConfigHealth()      normalize, then write corrections back
+  │     ├─ checkXrayHealth()
+  │     ├─ checkDNSTTHealth()
+  │     └─ checkSlipstreamHealth()
+  │
+  ├─ tea.NewProgram(app.New(&cfg, &store)).Run()
+  │     ├─ header
+  │     ├─ body     component stack: main menu → scan / settings / logs
+  │     └─ footer
+  │
+  └─ on Run Scan:
+        ├─ scanner.NewScanner(ctx, input)
+        ├─ AddStage(BuildICMPStage) ...
+        ├─ Run()
+        │     ├─ one stage   → engine.RunScan
+        │     └─ many stages → engine.RunScanWithChain
+        │                        sequential | streaming | batch
+        └─ result.Writer → CSV merge → disk
 ```
-
----
 
 ## Key design principles
 
-- **No external runtime deps for core scans.** ICMP, TCP, and HTTP probes use Go stdlib. Xray, DNSTT, and Slipstream are optional binaries validated at startup.
-- **Configuration is file-first.** All settings live in `settings/*.toml`. The in-app inspector reads and writes the same files.
-- **Probes are pluggable.** The `probe.Probe` interface is the only contract. Adding a new scan type means implementing `Init/Run/Close` and registering a stage builder.
-- **Engine is pipeline-agnostic.** The engine does not know what the probes do — it just feeds IPs, collects results, and flushes to disk. The pipeline mode (sequential/streaming/batch) is a config choice.
-- **UI is a component tree.** Every screen is a `ui.Component` with `Init/Update/View/OnClose/Mode`. Overlays (dialogs, pickers) stack on top; the top overlay consumes all input.
+**Config is passed, not global.** There is no config singleton. `config.Store` loads a `ScannerConfig` value in `main`, and that pointer travels through `ui.AppState` to every component and into the scanner. Tests construct a `Store` with `WithSettingsDir` against a temp directory, so nothing touches real settings.
 
----
+**Invalid config self-heals.** `validate.NormalizeAll` clamps out-of-range fields to defaults, reports each correction, and startup writes the corrected sections back to disk. A bad hand edit degrades to a working default instead of failing the run.
+
+**Probes are pluggable.** `probe.Probe` is the only contract: `Init`, `Run`, `Schema`, `Close`. `Run` takes a `netip.Addr`, which is what gives IPv4 and IPv6 one code path.
+
+**Results are self-describing.** Each probe ships a `result.ResultSchema` naming its output directory, columns, and parser. Registering it in `core.Init()` is what makes the writer, the file browser, and the result table understand a new probe. No shared result struct to extend.
+
+**The engine is protocol-agnostic.** It moves addresses and results, and never inspects what a probe measured. Pipeline mode is a config choice, not an engine rewrite.
+
+**External binaries are optional.** ICMP, TCP, HTTP, and DNS resolver probes need only the Go standard library and `golang.org/x/net`. Xray, DNSTT, and SlipStream are checked at startup, and a missing binary disables just that scan type.
+
+**The UI is a component tree.** Every screen implements `ui.Component`. Overlays stack, and the top one consumes all input.
 
 ## Related pages
 
-- [Core](../core/) — scanner engine, probe interface, config, and result pipeline in detail
-- [UI](../ui/) — TUI architecture, component model, layout, and theming
-- [Getting Started](../getting-started/) — build and run instructions
+- [Core](../core/) — engine, probes, config, and the result pipeline in detail
+- [UI](../ui/) — component model, layout, and theming
+- [Getting Started](../getting-started/) — build and run

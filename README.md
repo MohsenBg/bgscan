@@ -24,11 +24,11 @@ Blazing-fast multi-protocol IP scanner with modular chain architecture
 
 ## Overview
 
-**bgscan** is a terminal-based multi-protocol network scanner written in Go. It probes IP addresses across ICMP, TCP, HTTP, DNS, and Xray protocols and chains scan stages into pipelines — all through an interactive keyboard-driven TUI.
+**bgscan** is a terminal-based, multi-protocol network scanner written in Go. It probes IP addresses across ICMP, TCP, HTTP, DNS, and Xray protocols, and chains scan stages into pipelines, all through a keyboard-driven TUI.
 
-Use it for host discovery, port scanning, web service testing, DNS resolver analysis, tunneling detection, and Xray proxy validation. Results are saved to disk and can be re-scanned, so you can run a broad ICMP sweep and then drill down with TCP or HTTP on whatever responded.
+Use it for host discovery, web service testing, DNS resolver analysis, tunneling detection, and Xray proxy validation. Results land on disk and can feed the next scan, so you can run a broad ICMP sweep, then drill into survivors with TCP or HTTP.
 
-The scanner is built for developers and researchers who need speed, flexibility, and a modern terminal experience without leaving the keyboard.
+It is built for developers and researchers who want speed and a modern terminal experience without leaving the keyboard.
 
 <img width="1258" height="690" alt="bgscan" src="https://github.com/user-attachments/assets/998c2c7c-f960-4a71-a022-72d86b13c6fb" />
 
@@ -38,54 +38,55 @@ The scanner is built for developers and researchers who need speed, flexibility,
 
 **Scanning engine**
 
-- **Multi-protocol probes** — ICMP, TCP, HTTP/1.1, HTTP/2, HTTP/3 (QUIC), TLS, DNS, DNSTT, Slipstream, and Xray
-- **Pipeline chaining** — chain stages (e.g. ICMP → TCP → HTTP) with Stream, Sequential, or Batch execution modes
-- **Concurrent workers** — configurable per-probe worker pools for parallel scanning
-- **Shuffle & sample** — randomize target order and cap the number of IPs to scan
+- Multi-protocol probes: ICMP, TCP, HTTP/1.1, HTTP/2, HTTP/3 (QUIC), TLS, DNS, DNSTT, Slipstream, and Xray
+- Pipeline chaining between stages (for example ICMP → TCP → HTTP) in Streaming or Batch mode
+- Per-probe worker pools for concurrent scanning
+- Shuffle and sample: randomize target order and cap the number of IPs to scan
+- Dual-stack aware: IPv4 and IPv6 targets and lists are supported end to end
 
 **Terminal UI**
 
-- **BubbleTea TUI** — fully keyboard-driven; scan, monitor, and manage results without a browser
-- **Live scan dashboard** — tabbed progress bars and result tables per pipeline stage
-- **In-app settings inspector** — edit every configuration field interactively; changes save to disk immediately
-- **Theme support** — dark/light/auto palettes (Catppuccin-based)
+- BubbleTea TUI, fully keyboard-driven; scan, monitor, and manage results without a browser
+- Live scan dashboard with tabbed progress bars and per-stage result tables
+- In-app settings inspector that edits every config field interactively and saves to disk immediately
+- Theme support: dark, light, and auto palettes built on Catppuccin
 
-**Data & I/O**
+**Data and I/O**
 
-- **Save & replay** — results are written to CSV and can be used as input for new scans
-- **Bundled IP lists** — ships with Cloudflare, AWS, Azure, Google, Akamai, Fastly, Bunny, G-Core, and Iran ranges
-- **Xray outbound manager** — add outbounds from share links or JSON files, then validate and speed-test them
+- Results written to CSV and reusable as input for new scans
+- Bundled IP lists for Cloudflare (IPv4 and IPv6), AWS, Azure, Google, Akamai, Fastly, Bunny, G-Core, and Iran
+- Xray outbound manager: add outbounds from share links or JSON files, then validate and speed-test them
 
 **Reliability**
 
-- **Crash-safe result writer** — atomic merge with `fsync` and temp-file rename; constant memory
-- **Log rotation** — three log streams (core, UI, debug) with 50 MB rotation, 3 backups, 7-day retention
-- **Startup health checks** — validates config, locates optional binaries, and warns instead of crashing when something is missing
+- Crash-safe result writer with atomic merge, `fsync`, temp-file rename, and constant memory
+- Log rotation across three streams (core, UI, debug) with 50 MB rotation, 3 backups, and 7-day retention
+- Startup health checks validate config and locate optional binaries, warning instead of crashing when something is missing
 
 ---
 
 ## Why bgscan?
 
-- **One tool, full chain.** Most scanners do one protocol well. bgscan chains them: ping a range, connect to survivors, HTTP-probe the open ports — in a single run.
-- **Pipeline-agnostic engine.** The engine doesn't know what probes do. It feeds IPs, collects results, and flushes to disk. Adding a new scan type means implementing a three-method `Probe` interface and registering a stage builder.
-- **No runtime clutter.** ICMP, TCP, and HTTP probes use the Go standard library. Xray, DNSTT, and Slipstream are optional external binaries validated at startup — missing ones log a warning and disable only their scan type.
-- **File-first configuration.** All settings live in plain TOML. The in-app inspector reads and writes the same files, so what you see in the TUI is what's on disk.
-- **Built for the terminal.** Keyboard navigation, overlay dialogs, live progress, streaming logs — no browser, no Electron, no web server.
+- Most scanners do one protocol well. bgscan chains them: ping a range, connect to survivors, HTTP-probe the open ports, in a single run.
+- The engine is pipeline-agnostic. It feeds IPs, collects results, and flushes to disk. Adding a new scan type means implementing a four-method `Probe` interface (Init, Run, Schema, Close) and registering a stage builder.
+- No runtime clutter. ICMP, TCP, HTTP, and DNS probes use the Go standard library. Xray, DNSTT, and Slipstream are optional external binaries validated at startup. Missing ones log a warning and disable only their scan type.
+- All settings live in plain TOML. The in-app inspector reads and writes the same files, so what you see in the TUI is what is on disk.
+- Built for the terminal: keyboard navigation, overlay dialogs, live progress, streaming logs. No browser, no Electron, no web server.
 
 ---
 
 ## Supported Protocols
 
 | Protocol | Layer | Description |
-| :--------: | :-----: | ------------- |
-| **ICMP** | 3 | Host discovery and reachability via Ping |
-| **TCP** | 4 | Connection scanning and TCP handshake validation |
-| **HTTP** | 7 | HTTP/1.1, HTTP/2, and HTTP/3 (QUIC) via ALPN |
-| **TLS** | 7 | TLS 1.0 through TLS 1.3 |
-| **DNS** | 7 | Advanced DNS queries (UDP, TCP, DNS-over-TLS) with fallback and anti-hijacking checks |
-| **DNSTT** | 7 | DNS Tunnel validation (SOCKS, no auth) |
-| **Slipstream** | 7 | Slipstream tunnel validation (SOCKS, no auth) |
-| **Xray** | 7 | Xray outbound validation and bandwidth speed testing |
+| :---: | :---: | :--- |
+| ICMP | 3 | Host discovery and reachability via Ping (IPv4 and IPv6) |
+| TCP | 4 | Connection scanning and TCP handshake validation |
+| HTTP | 7 | HTTP/1.1, HTTP/2, and HTTP/3 over QUIC via ALPN |
+| TLS | 7 | TLS 1.0 through TLS 1.3 |
+| DNS | 7 | Advanced DNS queries (UDP, TCP, DNS-over-TLS) with fallback and anti-hijacking checks |
+| DNSTT | 7 | DNS Tunnel validation (SOCKS, no auth) |
+| Slipstream | 7 | Slipstream tunnel validation (SOCKS, no auth) |
+| Xray | 7 | Xray outbound validation and bandwidth speed testing |
 
 ---
 
@@ -93,19 +94,19 @@ The scanner is built for developers and researchers who need speed, flexibility,
 
 ### Quick install
 
-**Linux / macOS / Termux**
+Linux / macOS / Termux:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | bash
 ```
 
-**Windows (PowerShell)**
+Windows (PowerShell):
 
 ```powershell
 irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.ps1 | iex
 ```
 
-**Android (Termux)**
+Android (Termux):
 
 ```bash
 pkg update -y && pkg install bash curl unzip -y
@@ -119,8 +120,8 @@ The installer detects your platform, downloads the latest release, extracts it t
 1. Download the ZIP for your platform from the [Releases page](https://github.com/MohsenBg/bgscan/releases/latest).
 2. Extract the archive.
 3. Run the binary:
-   - **Linux / macOS / Termux:** `./bgscan`
-   - **Windows:** `bgscan.exe`
+   - Linux / macOS / Termux: `./bgscan`
+   - Windows: `bgscan.exe`
 
 The first run creates a `settings/` directory with default TOML config and an `ips/` directory with bundled IP lists.
 
@@ -156,7 +157,7 @@ For release builds targeting a specific platform:
 ./bgscan-builder release -os darwin -arch arm64
 ```
 
-> **Note:** bgscan cannot be installed via `go install` because it requires platform-specific external binaries (Xray, DNSTT, Slipstream). Use the builder tool or the quick install script.
+> bgscan cannot be installed via `go install` because it needs platform-specific external binaries (Xray, DNSTT, Slipstream). Use the builder tool or the quick install script.
 
 ---
 
@@ -164,13 +165,13 @@ For release builds targeting a specific platform:
 
 1. Launch bgscan from your installation folder (`./bgscan` on Unix, `bgscan.exe` on Windows).
 2. Select **Run Scan** and press `Enter`.
-3. Choose a target source — **IP List** (from your imported files) or **Result List** (from a previous scan).
-4. Pick a scan type — ICMP, TCP, HTTP, DNS, or Xray.
+3. Choose a target source: **IP List** (from your imported files) or **Result List** (from a previous scan).
+4. Pick a scan type: ICMP, TCP, HTTP, DNS, or Xray.
 5. Press `Enter` to start. Progress and results stream live in the dashboard.
 6. Open **Result Files** from the main menu to review, rename, or delete saved results.
 
 | Key | Navigation |
-| :---: | ------------- |
+| :---: | :--- |
 | `↑` `↓` | Move between items |
 | `Enter` | Select / start |
 | `b` or `Esc` | Go back |
@@ -182,16 +183,16 @@ For release builds targeting a specific platform:
 
 Full documentation is available at:
 
-- **Homepage:** <https://mohsenbg.github.io/bgscan>
-- **Full docs:** <https://mohsenbg.github.io/bgscan/docs>
+- Homepage: <https://mohsenbg.github.io/bgscan>
+- Full docs: <https://mohsenbg.github.io/bgscan/docs>
 
 The documentation covers:
 
-- **Quick Start** — installation, launch, and first scan
-- **Scanner** — scan types, scan sources, IP lists, result files, scan pipeline, Xray outbounds
-- **Settings** — every TOML config file explained: general, writer, ICMP, TCP, HTTP, DNS, Xray, and the in-app inspector
-- **Logs** — three log streams, the log viewer, and rotation policy
-- **Developer** — architecture, core (engine, probes, config, results), UI (component model, layout, theming), contributing guide, and build instructions
+- Quick Start: installation, launch, and first scan
+- Scanner: scan types, scan sources, IP lists, result files, scan pipeline, Xray outbounds
+- Settings: every TOML config file explained (general, writer, ICMP, TCP, HTTP, DNS, Xray) and the in-app inspector
+- Logs: three log streams, the log viewer, and rotation policy
+- Developer: architecture, core (engine, probes, config, results), UI (component model, layout, theming), contributing guide, and build instructions
 
 ---
 
@@ -200,49 +201,41 @@ The documentation covers:
 All configuration lives in plain TOML files in the `settings/` directory next to the binary:
 
 | File | Purpose |
-| ------ | --------- |
-| `general_settings.toml` | Pipeline mode, max IPs, batch size, shuffle, status interval |
-| `writer_settings.toml` | Result buffering, flush interval, channel and batch size |
+| :--- | :--- |
+| `general_settings.toml` | Pipeline mode, batch size, max IPs per stage, stop-after-found, shuffle, status interval |
+| `writer_settings.toml` | Result buffering, flush interval, channel and batch size, result directory |
 | `icmp_settings.toml` | ICMP timeout, retries, workers |
 | `tcp_settings.toml` | TCP port, timeout, retries, workers |
 | `http_settings.toml` | HTTP/HTTPS/HTTP3 version, TLS range, accepted status codes |
 | `dns_settings.toml` | DNS resolver, DNSTT, and Slipstream tuning |
 | `xray_settings.toml` | Xray connectivity test type, speed test, pre-scan |
 
-Edit files manually or use the in-app inspector — both write to the same files. The inspector saves changes immediately to disk without restarting. See the [Settings documentation](https://mohsenbg.github.io/bgscan/docs/settings/) for every field.
+Edit files manually or use the in-app inspector. Both write to the same files, and the inspector saves changes immediately without restarting. See the [Settings documentation](https://mohsenbg.github.io/bgscan/docs/settings/) for every field.
 
 ---
 
 ## Example Usage
 
-**Scan a bundled IP list**
+Scan a bundled IP list: after launching, select **Run Scan → IP List → cloudflare_IPv4** (or `cloudflare_IPv6` for an IPv6 sweep), then choose a scan type such as `t` for TCP. bgscan scans the list with the configured workers and writes results to `result/tcp/` (or a custom `result_directory` if you set one).
 
-After launching, select **Run Scan → IP List → cloudflare_IPv4**, then choose a scan type (e.g. `t` for TCP). bgscan scans the list with the configured workers and writes results to `result/tcp/`.
+Chain ICMP → TCP → HTTP: in `general_settings.toml`, set `pipeline_mode = "streaming"`. If multiple scan types are enabled, their stages chain automatically, and only IPs that pass each stage's success criteria proceed to the next.
 
-**Chain ICMP → TCP → HTTP**
+Re-scan a previous result: select **Run Scan → Result List** and pick a saved result file. bgscan re-scans only the IPs in that file, useful for deeper analysis on hosts that already passed an earlier stage.
 
-In `general_settings.toml`, set `pipeline_mode = "streaming"`. If multiple scan types are enabled, their stages chain automatically — only IPs that pass each stage's success criteria proceed to the next.
-
-**Re-scan a previous result**
-
-Select **Run Scan → Result List** and pick a saved result file. bgscan re-scans only the IPs in that file, useful for deeper analysis on hosts that already passed an earlier stage.
-
-**Xray outbound validation**
-
-From the main menu, open **Xray → Outbounds**, press `a` to add a template from a share link (`vless://`, `vmess://`, `trojan://`, `ss://`, `hysteria2://`, `wireguard://`) or a JSON file. Then run an Xray scan to test connectivity and bandwidth.
+Xray outbound validation: from the main menu, open **Xray → Outbounds**, press `a` to add a template from a share link (`vless://`, `vmess://`, `trojan://`, `ss://`, `hysteria2://`, `wireguard://`) or a JSON file. Then run an Xray scan to test connectivity and bandwidth.
 
 ---
 
 ## Supported Platforms
 
 | Platform | Architectures |
-| ---------- | -------------- |
+| :--- | :--- |
 | Linux | amd64, arm64, arm32, 386 |
-| Windows | amd64. arm64 (10+) |
+| Windows | amd64, arm64 (10+) |
 | macOS | amd64, arm64 |
 | Android (Termux) | arm64, arm32, x86_64, x86 |
 
-> **Termux:** install from F-Droid (the Play Store version is outdated).
+> Termux: install from F-Droid. The Play Store version is outdated.
 
 ---
 
@@ -253,14 +246,20 @@ bgscan/
 ├── cmd/bgscan/              # Application entry point
 ├── internal/
 │   ├── core/
-│   │   ├── config/          # TOML configuration + validators
-│   │   ├── scanner/         # Scanner orchestrator, engine, probes, port manager
-│   │   ├── result/          # Async writer, CSV merge, registry, loader
-│   │   ├── iplist/          # IP list loader, parser, registry, shuffle
-│   │   ├── dns/             # DNS query helpers, DNSTT, Slipstream, SOCKS5
-│   │   ├── xray/            # Xray runner, outbound/link parsing, speed test
-│   │   ├── process/         # Cross-platform process lifecycle
-│   │   └── fileutil/        # CSV, JSON, TOML, text, temp-file helpers
+│   │   ├── config/          # TOML configuration, defaults, and validation
+│   │   │   └── validate/   # Per-section and aggregate validators
+│   │   ├── scanner/         # Scanner orchestrator and stage builders
+│   │   │   ├── engine/      # Streaming and batch pipeline execution
+│   │   │   ├── portmgr/      # Port selection for TCP/HTTP stages
+│   │   │   └── probe/        # Probe interface and per-protocol implementations
+│   │   ├── result/          # Result interface, schema, async writer, CSV merge, loader
+│   │   ├── iplist/           # IP list loader, parser, registry, shuffle
+│   │   ├── netutil/          # netip.Addr helpers and CIDR utilities (IPv4/IPv6)
+│   │   ├── dns/              # DNS query helpers, DNSTT, Slipstream, SOCKS5
+│   │   ├── speedtest/        # Xray bandwidth, latency, and transport tests
+│   │   ├── xray/             # Xray runner, outbound/link parsing
+│   │   ├── process/          # Cross-platform process lifecycle
+│   │   └── fileutil/         # CSV, JSON, TOML, text, temp-file helpers
 │   ├── logger/              # Leveled logging with lumberjack rotation
 │   ├── startup/             # Health checks (logger, config, xray, dnstt, slipstream)
 │   └── ui/                  # BubbleTea TUI (components, menus, tables, theme)
@@ -269,7 +268,7 @@ bgscan/
 ├── settings/                # Default TOML configuration files
 ├── result/                  # Scan output (CSV, per scan type)
 ├── logs/                    # core.log, ui.log, debug.log
-├── scripts/                 # Install, build, dependency, and release scripts
+├── scripts/                 # Install, build, dependency, publish, and release scripts
 ├── docs/                    # Hugo Book documentation site
 └── go.mod
 ```
@@ -278,13 +277,13 @@ bgscan/
 
 ## Contributing
 
-Contributions are welcome — bug fixes, documentation improvements, and new features.
+Contributions are welcome, whether bug fixes, documentation improvements, or new features.
 
-- **Branch from `main`** and use a descriptive branch name (`feature/`, `fix/`, `docs/`, `refactor/`).
-- **Follow existing conventions** — keep code simple and readable, prefer small focused commits.
-- **Commit messages** — use `feat:`, `fix:`, `docs:`, `refactor:`, `test:` prefixes.
-- **Before opening a PR** — ensure the project builds, existing tests pass, and documentation is updated for new features.
-- **For large changes** — open an Issue first to discuss the approach.
+- Branch from `main` and use a descriptive branch name (`feature/`, `fix/`, `docs/`, `refactor/`).
+- Follow existing conventions: keep code simple and readable, and prefer small focused commits.
+- Use commit prefixes: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`.
+- Before opening a PR, ensure the project builds and existing tests pass, and update documentation for new features.
+- For large changes, open an Issue first to discuss the approach.
 
 See the full [Contributing Guide](https://mohsenbg.github.io/bgscan/docs/developer/contributing/) in the documentation.
 
@@ -303,7 +302,7 @@ By submitting a contribution to bgscan, you grant permission for your contributi
 If bgscan has been useful to you, consider supporting its development:
 
 | Network | Currency | Address |
-| :-------: | :--------: | --------- |
+| :---: | :---: | :--- |
 | Bitcoin | `BTC` | `bc1qdwh57dm97nmx5jzdr7lrc9cxe5xh3zc59er7z9` |
 | Ethereum | `ETH` | `0x40Fd22Fff4E059e906A10747Fd0a45A1DB39c985` |
 | BNB Smart Chain | `BNB / BEP20` | `0x40Fd22Fff4E059e906A10747Fd0a45A1DB39c985` |

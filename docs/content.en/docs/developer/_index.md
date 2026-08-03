@@ -14,4 +14,3 @@ This section is for anyone who wants to understand how bgscan works internally, 
 - [Core](./core/) — scanner engine, probe interface, config system, and result pipeline
 - [UI](./ui/) — TUI architecture, component model, layout, and theming
 - [Contributing](./contributing/) — branching, commit style, and pull request workflow
-- [Changelog](./changelog/) — developer-facing release log

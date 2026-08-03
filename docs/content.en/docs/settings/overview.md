@@ -21,11 +21,15 @@ bgscan keeps all configuration in plain TOML files inside `settings/`. The app a
 
 ## Two ways to edit settings
 
-- **TOML files** — open any `settings/*.toml` file in any text editor, change values, save, and restart bgscan. This is the most explicit approach and works well for version control.
+- **TOML files** — open any `settings/*.toml` file in a text editor, change values, save, and restart bgscan. This works well under version control.
 - **In-app inspector** — open bgscan, navigate to **Settings** in the main menu, pick a category, press `Enter` on any field to edit it. Changes are saved immediately to disk.
 
 Some fields are dynamic. For example, TLS-related options only show when HTTPS is selected, and DNSTT/Slipstream fields only show when those probes are enabled.
 
-## Default values
+## Defaults and validation
 
-Defaults ship in bgscan.  They are copied into place by the installer or used as fallback values when a TOML file is missing or a field is absent.
+Defaults are compiled into bgscan. A missing settings file is created with its defaults on first run, and a field absent from an existing file falls back to its default. A file that exists but cannot be parsed is an error, not a fallback.
+
+On startup, every loaded config is validated. Out-of-range values are replaced with the default and the correction is logged, so a bad edit degrades to the default instead of failing the run.
+
+The `settings/*.toml.default` files in the repository are reference copies of the shipped defaults. bgscan does not read them at runtime.

@@ -10,4 +10,4 @@ bookComments: false
 
 Whether you're testing network connectivity, finding optimal endpoints, or scanning for Xray proxies, bgscan provides fast, reliable results with minimal resource usage.
 
-{{< img "/bgscan-demo-scan.webp" "bgscan-demo-image" >}}
+{{< img "/bgscan-demo-scan.gif" "bgscan-demo-image" >}}

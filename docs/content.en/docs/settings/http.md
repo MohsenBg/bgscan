@@ -11,7 +11,24 @@ weight: 7
 
 Configuration file: `settings/http_settings.toml`
 
-This file controls the HTTP/HTTPS/HTTP3 probe configuration, including target host, port, protocol, TLS settings, HTTP version, timeout, and accepted status codes.
+The HTTP probe sends one request per target and records status code, negotiated protocol version, and whether TLS was used. HTTP/1.1 and HTTP/2 go over TCP, HTTP/3 over QUIC.
+
+## Quick Reference
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `workers` | `50` | Concurrent requests (1-5000) |
+| `host` | `"example.com"` | Request host, optionally with a path |
+| `server_name` | `""` | SNI override; empty means derive from `host` |
+| `port` | `443` | Target port (1-65535) |
+| `protocol` | `"https"` | `http` or `https` |
+| `version` | `"h1,h2"` | Protocol version to negotiate |
+| `tls_validation` | `true` | Verify the server certificate |
+| `min_tls_version` | `"tls1.1"` | Lowest TLS version allowed |
+| `max_tls_version` | `"tls1.3"` | Highest TLS version allowed |
+| `timeout` | `4000` | Request timeout in milliseconds (100-60000) |
+| `accepted_status_codes` | `[]` | Status codes treated as success; empty accepts all |
+| `prefix_output` | `"http_"` | Result filename prefix |
 
 ## Workers
 
@@ -19,16 +36,11 @@ This file controls the HTTP/HTTPS/HTTP3 probe configuration, including target ho
 workers = 50
 ```
 
-The number of concurrent workers performing HTTP requests.
-Higher values increase scan speed at the cost of greater CPU and network utilization.
+Concurrent requests in flight. HTTP probes hold a connection and read a response, so they cost more per worker than TCP.
 
-**Recommended values:**
-
-- `10-50` for limited resources
+- `10-50` on limited resources
 - `50-100` for typical use
-- `100-200` for high-performance scanning
-
----
+- `100-200` for high-throughput scanning
 
 ## Host
 
@@ -36,12 +48,7 @@ Higher values increase scan speed at the cost of greater CPU and network utiliza
 host = "example.com"
 ```
 
-The target host or URL path used for the HTTP request.
-This value can be either a plain host (example.com) or include a path (example.com/path).
-If a path is provided, it will be used in the request URL.
-The Host header will always use only the domain part.
-
----
+Host used for the request. A path may be included (`example.com/path`) and is appended to the request URL. The `Host` header always carries only the domain part.
 
 ## Port
 
@@ -49,16 +56,7 @@ The Host header will always use only the domain part.
 port = 443
 ```
 
-The target port for the HTTP/HTTPS connection.
-Common values are 80 for HTTP and 443 for HTTPS.
-
-**Recommended values:**
-
-- `80` for HTTP
-- `443` for HTTPS
-- Other ports for non-standard services
-
----
+Target port. Use 80 for plain HTTP, 443 for HTTPS, or any port the service listens on.
 
 ## Protocol
 
@@ -66,10 +64,7 @@ Common values are 80 for HTTP and 443 for HTTPS.
 protocol = "https"
 ```
 
-The application protocol to use for the scan.
-Supported values are `"http"` or `"https"`.
-
----
+Either `"http"` or `"https"`. This decides whether the connection is wrapped in TLS.
 
 ## TLS Validation
 
@@ -77,16 +72,7 @@ Supported values are `"http"` or `"https"`.
 tls_validation = true
 ```
 
-Enables strict TLS certificate validation when using HTTPS.
-When `true`, certificates must be valid and trusted by the system.
-When `false`, invalid, expired, or self-signed certificates are accepted.
-
-**Recommended:**
-
-- `true` for production scans
-- `false` for testing or internal services with self-signed certs
-
----
+When `true`, the certificate must be valid and trusted by the system. When `false`, expired and self-signed certificates are accepted. Turn it off when scanning IPs directly, where the certificate rarely matches the address.
 
 ## HTTP Version
 
@@ -94,15 +80,14 @@ When `false`, invalid, expired, or self-signed certificates are accepted.
 version = "h1,h2"
 ```
 
-The HTTP version to use for the scan.
-Supported values:
+| Value | Meaning |
+|---|---|
+| `h1` | HTTP/1.1 only |
+| `h2` | HTTP/2 only |
+| `h1,h2` | Negotiated over ALPN |
+| `h3` | HTTP/3 over QUIC |
 
-- `"h1"` - HTTP/1.1 only
-- `"h2"` - HTTP/2 only
-- `"h1,h2"` - HTTP/1.1 and HTTP/2 negotiated via ALPN (default)
-- `"h3"` - HTTP/3 only (QUIC + TLS 1.3, ignores min/max_tls_version)
-
----
+Longer aliases are also accepted: `http1`, `http1.1`, `http2`, `http3`, `http1,http2`, `http2,http1`. HTTP/3 uses a separate QUIC probe and always runs over TLS 1.3, so `min_tls_version` and `max_tls_version` are ignored.
 
 ## Timeout
 
@@ -110,55 +95,27 @@ Supported values:
 timeout = 4000
 ```
 
-Maximum duration in milliseconds to wait for an HTTP response.
-Requests failing to complete within this window are considered failed.
-
-**Recommended values:**
+Time budget for a single request, in milliseconds.
 
 - `2000-5000` for reliable networks
-- `5000-10000` for unreliable or distant networks
+- `5000-10000` for distant or unreliable networks
 
----
-
-## Prefix Output
-
-```toml
-prefix_output = "http_"
-```
-
-The filename prefix applied to all output files generated by this module.
-Useful for distinguishing results when running multiple scans simultaneously.
-
----
-
-## TLS Floor/Ceiling
+## TLS Version Range
 
 ```toml
 min_tls_version = "tls1.1"
 max_tls_version = "tls1.3"
 ```
 
-The minimum and maximum TLS version allowed for HTTPS connections.
-Connections attempting to negotiate a lower version than `min_tls_version` will be rejected.
-Connections attempting to negotiate a higher version than `max_tls_version` will be limited to that version.
+Bounds passed to the TLS handshake. Accepted values are `tls1.0`, `tls1.1`, `tls1.2`, and `tls1.3`. The minimum must not exceed the maximum. Ignored when `version = "h3"`.
 
-**Supported values:** `tls1.0`, `tls1.1`, `tls1.2`, `tls1.3`
-
-**Note:** These settings are ignored when `version = "h3"` (HTTP/3) because HTTP/3 requires TLS 1.3.
-
----
-
-## Server Name Indication (SNI)
+## Server Name Indication
 
 ```toml
 server_name = ""
 ```
 
-Optional TLS Server Name Indication (SNI) override.
-If set, this value will be used as the TLS server name during the handshake.
-If empty, the domain extracted from the `host` field is used automatically.
-
----
+SNI sent during the TLS handshake. When empty, the domain from `host` is used. Set it to test domain fronting, or to probe an IP while presenting a specific hostname.
 
 ## Accepted Status Codes
 
@@ -166,28 +123,25 @@ If empty, the domain extracted from the `host` field is used automatically.
 accepted_status_codes = []
 ```
 
-List of HTTP status codes considered successful by the scanner.
-Responses with a status code in this list are treated as valid results.
-Any status code not listed is considered a failed result.
-
-**Note:** By default, all official HTTP status codes are accepted (empty list means no filtering).
-
-**Example:**
+Allow-list of status codes counted as a successful result. An empty list, or a list covering every code, disables filtering and accepts anything the server returns. Responses outside the list are discarded and do not reach the next pipeline stage.
 
 ```toml
 accepted_status_codes = [200, 204, 301, 302, 307, 308]
 ```
 
-This would consider only 200, 204, 301, 302, 307, and 308 as successful.
+## Prefix Output
 
----
+```toml
+prefix_output = "http_"
+```
+
+Filename prefix for result files written by this probe. Files land in `result/http/`.
 
 ## Related Files
 
 - [`general_settings.toml`](./general.md) — Global scan control and pipeline mode
-- [`icmp_settings.toml`](./icmp_settings.md) — ICMP scan configuration
-- [`tcp_settings.toml`](./tcp_settings.md) — TCP port scan configuration
-- [`dns_settings.toml`](./dns_settings.md) — DNS scan configuration
-- [`xray_settings.toml`](./xray_settings.md) — Xray outbound validation
-- [`writer_settings.toml`](./writer_settings.md) — Result output configuration
-
+- [`icmp_settings.toml`](./icmp.md) — ICMP scan configuration
+- [`tcp_settings.toml`](./tcp.md) — TCP port scan configuration
+- [`dns_settings.toml`](./dns.md) — DNS scan configuration
+- [`xray_settings.toml`](./xray.md) — Xray outbound validation
+- [`writer_settings.toml`](./writer.md) — Result output configuration

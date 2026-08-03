@@ -3,293 +3,186 @@ title: "تنظیمات DNS"
 weight: 8
 ---
 
-# تنظیمات DNS (DNS Settings)
+# تنظیمات DNS
 
-> 💡 **نکته:** شما می‌توانید این تنظیمات را به جای ویرایش دستی فایل TOML، مستقیماً درون خود برنامه bgscan تغییر دهید.
->
-> برای پیکربندی تعاملی این گزینه‌ها با استفاده از بخش مدیریت تنظیمات (TUI inspector)، از منوی اصلی به مسیر **Settings** ← **DNS Settings** بروید.
+> 💡 **نکته:** از **Settings → DNS Settings** هم می‌توانید این گزینه‌ها را تغییر دهید.
 
-فایل پیکربندی: `settings/dns_settings.toml`
+فایل تنظیمات: `settings/dns_settings.toml`
 
-این فایل ماژول‌های اسکن ریزالور DNS، ابزار DNSTT و SlipStream را کنترل می‌کند.
+این فایل سه بخش جدا دارد: Resolver برای DNS معمولی، و DNSTT و Slipstream برای بررسی Tunnel DNS. دو بخش Tunnel به Client خارجی نیاز دارند.
 
-## مرجع سریع (Quick Reference)
+## خلاصهٔ گزینه‌ها
 
-| تنظیمات | مقدار پیش‌فرض | توضیحات |
-|---------|---------|-------------|
-| `workers` (ریزالور) | `500` | تعداد ورکرهای هم‌زمان برای ارسال کوئری‌های DNS. |
-| `protocol` (ریزالور) | `"udp"` | پروتکل لایه انتقال مورد استفاده برای کوئری‌های DNS. |
-| `domain` (ریزالور) | `""` | نام دامنه هدف که به عنوان مقصد اصلی برای رزولوشن DNS استفاده می‌شود. |
-| `port` (ریزالور) | `53` | پورت هدف برای کوئری‌های DNS (معمولاً 53). |
-| `check_types` (ریزالور) | `["txt"]` | انواع رکورد DNS برای کوئری گرفتن (مانند A، AAAA، TXT، MX). |
-| `timeout` (ریزالور) | `2000` | حداکثر زمان انتظار (به میلی‌ثانیه) برای دریافت پاسخ DNS. |
-| `tries` (ریزالور) | `2` | حداکثر تعداد دفعات تلاش مجدد در شبکه برای هر هدف جهت کاهش اثر افت پکت. |
-| `accepted_rcodes` (ریزالور) | `["noerror", "nxdomain"]` | کدهای وضعیت پاسخ DNS که به عنوان نتایج موفق ("فعال") در نظر گرفته می‌شوند. |
-| `check_dpi` (ریزالور) | `false` | فعال‌سازی پیش‌بررسی ضد دستکاری و سانسور (Anti-hijacking). |
-| `dpi_timeout` (ریزالور) | `500` | حداکثر زمان انتظار (به میلی‌ثانیه) برای پاسخ پیش‌بررسی DPI. |
-| `dpi_tries` (ریزالور) | `2` | حداکثر تعداد دفعات تلاش مجدد در شبکه برای پیش‌بررسی DPI. |
-| `random_subdomain` (ریزالور) | `true` | تولید یک ساب‌دامین تصادفی برای هر کوئری جهت دور زدن کشِ ریزالورها. |
-| `prefix_output` (ریزالور) | `"dns_"` | پیشوند اعمال‌شده روی نام تمامی فایل‌های خروجی تولید شده توسط این ماژول. |
-| `enabled` (ابزار dnstt) | `false` | فعال یا غیرفعال کردن فاز پروب DNSTT. |
-| `workers` (ابزار dnstt) | `20` | تعداد ورکرهای هم‌زمان برای انجام دست‌تکانی‌های (Handshakes) ابزار DNSTT. |
-| `domain` (ابزار dnstt) | `""` | زون DNS مقتدر (Authoritative) که به سرور DNSTT شما واگذار (Delegate) شده است. |
-| `timeout` (ابزار dnstt) | `10000` | حداکثر زمان انتظار (به میلی‌ثانیه) برای تکمیل دست‌تکانی DNSTT. |
-| `prefix_output` (ابزار dnstt) | `"dnstt_"` | پیشوند اعمال‌شده روی نام تمامی فایل‌های خروجی تولید شده توسط ماژول DNSTT. |
-| `enabled` (ابزار slip_stream) | `true` | فعال یا غیرفعال کردن فاز پروب SlipStream. |
-| `workers` (ابزار slip_stream) | `20` | تعداد ورکرهای هم‌زمان برای انجام پروب‌های SlipStream. |
-| `domain` (ابزار slip_stream) | `""` | زون DNS مقتدر (Authoritative) مورد استفاده توسط سرور SlipStream. |
-| `timeout` (ابزار slip_stream) | `8000` | حداکثر زمان انتظار (به میلی‌ثانیه) برای تکمیل پروب SlipStream. |
-| `prefix_output` (ابزار slip_stream) | `"slipstream_"` | پیشوند اعمال‌شده روی نام تمامی فایل‌های خروجی تولید شده توسط ماژول SlipStream. |
+| گزینه | پیش‌فرض | توضیح |
+|---|---:|---|
+| `resolver.workers` | `100` | پرس‌وجوی DNS هم‌زمان، ۱ تا ۲۵۰۰ |
+| `resolver.protocol` | `"udp"` | `udp`، `tcp`، `dot` یا `doh` |
+| `resolver.domain` | `"google.com"` | Domain مورد پرس‌وجو |
+| `resolver.port` | `53` | پورت Resolver |
+| `resolver.check_types` | `["A"]` | Record typeها به‌ترتیب آزمایش |
+| `resolver.ends_buffer_size` | `1234` | EDNS0 UDP buffer |
+| `resolver.timeout` | `2000` | Timeout هر پرس‌وجو |
+| `resolver.tries` | `1` | تلاش برای هر Record type |
+| `resolver.random_subdomain` | `true` | Subdomain تصادفی برای دورزدن Cache |
+| `resolver.accepted_rcodes` | `["noerror", "nxdomain"]` | RCodeهای قابل قبول |
+| `resolver.check_dpi` | `true` | بررسی Hijacking قبل از اسکن |
+| `resolver.dpi_timeout` | `500` | Timeout بررسی DPI |
+| `resolver.dpi_tries` | `2` | تلاش بررسی DPI |
+| `resolver.prefix_output` | `"dns_resolver_"` | پیشوند فایل Resolver |
+| `dnstt.enabled` | `false` | فعال‌کردن مرحلهٔ DNSTT |
+| `dnstt.workers` | `20` | DNSTT هم‌زمان، ۱ تا ۵۰۰ |
+| `dnstt.domain` | `"ns.example.com"` | Zone سرور DNSTT |
+| `dnstt.public_key` | ۶۴ صفر | Public key سرور، ۶۴ کاراکتر hex |
+| `dnstt.timeout` | `8000` | Timeout Handshake |
+| `dnstt.prefix_output` | `"dns_dnstt_"` | پیشوند فایل DNSTT |
+| `slip_stream.enabled` | `false` | فعال‌کردن Slipstream |
+| `slip_stream.workers` | `20` | Slipstream هم‌زمان، ۱ تا ۵۰۰ |
+| `slip_stream.domain` | `"ns.example.com"` | Zone سرور Slipstream |
+| `slip_stream.cert_path` | `""` | Certificate TLS اختیاری Client |
+| `slip_stream.timeout` | `8000` | Timeout پروب |
+| `slip_stream.prefix_output` | `"dns_slipstream_"` | پیشوند فایل Slipstream |
 
----
+## Resolver
 
-## تنظیمات ریزالور (Resolver Settings)
+هر IP هدف به‌عنوان Resolver استفاده می‌شود. bgscan `domain` را از طریق آن می‌پرسد و فقط وقتی IP را نتیجهٔ موفق می‌داند که کد پاسخ داخل `accepted_rcodes` باشد.
 
-این بخش، اسکنر انبوه ریزالورهای DNS را پیکربندی می‌کند که وظیفه تست ریزالورهای DNS عمومی را بر عهده دارد.
-
-#### ورکرها (Workers)
+### Workers
 
 ```toml
-workers = 500
-
+workers = 100
 ```
 
-تعداد ورکرهای هم‌زمان که کوئری‌های DNS را ارسال می‌کنند. مقادیر بالاتر سرعت اسکن را افزایش می‌دهند، اما مصرف پردازنده (CPU) و شبکه را بالا می‌برند.
+تعداد پرس‌وجوهای هم‌زمان است. UDP سبک است، اما نرخ خیلی بالا روی یک شبکهٔ بالادستی قابل‌مشاهده خواهد بود.
 
-**مقادیر توصیه‌شده:** `100-1000` بسته به پهنای باند در دسترس و منابع سیستم.
-
-#### پروتکل (Protocol)
+### Protocol
 
 ```toml
 protocol = "udp"
-
 ```
 
-پروتکل لایه انتقال مورد استفاده برای کوئری‌های DNS. مقادیر پشتیبانی‌شده: `"udp"`، `"tcp"`، `"dot"` (پروتکل DNS-over-TLS).
+روش انتقال پرس‌وجو `udp`، `tcp`، `dot` یا `doh` است. DoH در تنظیمات پذیرفته می‌شود اما هنگام اجرا به DoT تبدیل می‌شود، چون DoH Endpoint مبتنی بر Domain می‌خواهد و هدف‌های اسکنر IP هستند.
 
-#### دامنه (Domain)
-
-```toml
-domain = ""
-
-```
-
-نام دامنه هدف که به عنوان مقصد اصلی کوئری برای رزولوشن DNS استفاده می‌شود. این فیلد را خالی بگذارید تا از آدرس آی‌پی به عنوان دامنه استفاده شود (DNS معکوس یا Reverse DNS).
-
-#### پورت (Port)
+### Domain و Port
 
 ```toml
+domain = "google.com"
 port = 53
-
 ```
 
-پورت هدف مورد استفاده برای کوئری‌های DNS (معمولاً پورت ۵۳).
+`domain` باید فقط Domain باشد؛ Scheme، پورت یا Path ندهید. نامی انتخاب کنید که همه‌جا قابل Resolve باشد. برای DoT از پورت 853 استفاده کنید.
 
-#### انواع رکوردها برای بررسی (Check Types)
+### Check Types
 
 ```toml
-check_types = ["txt"]
-
+check_types = ["A"]
 ```
 
-انواع رکوردهای DNS برای ارسال کوئری (مانند A، AAAA، TXT، MX). برای سازگاری کامل با فرآیند DNSTT، انتخاب گزینه `"TXT"` به شدت توصیه می‌شود.
+Record typeها به‌ترتیب آزمایش می‌شوند. با اولین نوعی که RCode قابل قبول بدهد، پروب متوقف می‌شود و همان نوع در نتیجه ثبت می‌شود.
 
-#### مهلت زمانی (Timeout)
+### EDNS Buffer Size
+
+```toml
+ends_buffer_size = 1234
+```
+
+اندازهٔ UDP payload اعلام‌شده در رکورد OPT است. `0`، EDNS0 را خاموش می‌کند. نام کلید در فایل دقیقاً `ends_buffer_size` است.
+
+### Timeout و Tries
 
 ```toml
 timeout = 2000
-
+tries = 1
 ```
 
-حداکثر زمان انتظار (به میلی‌ثانیه) برای دریافت پاسخ DNS. کوئری‌هایی که در این بازه پاسخ ندهند، ناموفق (Failed) در نظر گرفته می‌شوند.
+Timeout برای هر پرس‌وجو است. Retry فقط برای خطاهای شبکه انجام می‌شود. وقتی هر پاسخ DNS برسد، حتی با RCode ردشده، پروب بدون Retry سراغ Record type بعدی می‌رود.
 
-**مقادیر توصیه‌شده:** `1000-5000` بسته به پایداری شبکه.
-
-#### دفعات تلاش مجدد (Tries)
-
-```toml
-tries = 2
-
-```
-
-حداکثر تعداد دفعات تلاش مجدد در شبکه برای هر هدف جهت کاهش اثر افت پکت (Packet Loss). نکته: تلاش مجدد تنها در صورت بروز خطاهای شبکه رخ می‌دهد. اگر هرگونه پاسخ DNS (بدون توجه به کد وضعیت یا Rcode آن) دریافت شود، فرآیند تلاش مجدد بلافاصله متوقف خواهد شد.
-
-**مقادیر توصیه‌شده:** `1-3` برای اکثر شبکه‌ها.
-
-#### کدهای وضعیت مجاز (Accepted RCodes)
-
-```toml
-accepted_rcodes = ["noerror", "nxdomain"]
-
-```
-
-کدهای وضعیت پاسخ DNS که به عنوان نتایج موفق ("زنده" یا فعال) در نظر گرفته می‌شوند.
-
-**مقادیر پشتیبانی‌شده:**
-
-* `"noerror"` یا `"success"` : (کد وضعیت 0)
-* `"formerr"` یا `"formaterror"` : (کد وضعیت 1)
-* `"servfail"` یا `"serverfailure"` : (کد وضعیت 2)
-* `"nxdomain"` یا `"nameerror"` : (کد وضعیت 3)
-* `"notimp"` یا `"notimplemented"` : (کد وضعیت 4)
-* `"refused"` : (کد وضعیت 5)
-
-**تنظیم توصیه‌شده:** `["noerror", "nxdomain"]`
-
-#### بررسی فایروال و دستکاری (Check DPI)
-
-```toml
-check_dpi = false
-
-```
-
-منطق پیش‌بررسی ضد دستکاری و مسموم‌سازی (Anti-hijacking) را فعال می‌کند: یک کوئری برای یک دامنه ناموجود با پسوند `".invalid"` ارسال می‌شود. اگر ریزالور وضعیت Success (کد وضعیت Rcode 0) را برگرداند، به عنوان یک ریزالور دستکاری‌شده/آلوده علامت‌گذاری شده و بلافاصله کنار گذاشته می‌شود.
-
-#### مهلت زمانی DPI (DPI Timeout)
-
-```toml
-dpi_timeout = 500
-
-```
-
-حداکثر زمان انتظار (به میلی‌ثانیه) برای پاسخ پیش‌بررسی DPI. این مقدار معمولاً کوتاه‌تر از مهلت زمانی اصلی تنظیم می‌شود تا ریزالورهای معیوب و آلوده به سرعت رد شوند.
-
-#### دفعات تلاش مجدد DPI (DPI Tries)
-
-```toml
-dpi_tries = 2
-
-```
-
-حداکثر تعداد دفعات تلاش مجدد در شبکه برای انجام پیش‌بررسی DPI.
-
-#### ساب‌دامین تصادفی (Random Subdomain)
+### Random Subdomain
 
 ```toml
 random_subdomain = true
-
 ```
 
-یک ساب‌دامین تصادفی برای هر کوئری تولید می‌کند تا کشِ ریزالورها را دور بزند و آن‌ها را مجبور به انجام یک جستجوی بازگشتی (Recursive) جدید و تازه کند.
+برای هر پروب یک Label تصادفی ۱۰کاراکتری به اول Domain اضافه می‌کند. Cache Resolver دور زده می‌شود و Latency کار واقعی Resolver را نشان می‌دهد.
 
-#### پیشوند خروجی (Prefix Output)
+### Accepted RCodes
 
 ```toml
-prefix_output = "dns_"
-
+accepted_rcodes = ["noerror", "nxdomain"]
 ```
 
-پیشوند اعمال‌شده روی نام تمامی فایل‌های خروجی که توسط این ماژول تولید می‌شوند. این ویژگی برای جداسازی و تشخیص نتایج هنگامی که چندین اسکن را به صورت هم‌زمان اجرا می‌کنید، بسیار مفید است.
+| مقدار | نام دیگر | کد |
+|---|---|---:|
+| `noerror` | `success` | 0 |
+| `formerr` | `formaterror` | 1 |
+| `servfail` | `serverfailure` | 2 |
+| `nxdomain` | `nameerror` | 3 |
+| `notimp` | `notimplemented` | 4 |
+| `refused` | | 5 |
 
----
+وقتی Subdomain تصادفی فعال باشد، `nxdomain` برای نام ساختگی طبیعی است و به همین دلیل پیش‌فرض قبول می‌شود.
 
-## تنظیمات DNSTT (DNSTT Settings)
+### Check DPI
 
-بخش DNSTT تنظیمات مربوط به پروب ابزار تونل دی‌ان‌اس (DNSTT) را پیکربندی می‌کند؛ وظیفه این بخش بررسی این است که آیا ریزالورهای جان‌سالم‌به‌دربرده توانایی برقراری و حمل یک تونل کامل را دارند یا خیر.
+```toml
+check_dpi = true
+```
 
-#### وضعیت فعال بودن (Enabled)
+قبل از پرس‌وجوی واقعی اجرا می‌شود. bgscan یک نام تصادفی `.invalid` می‌پرسد که نمی‌تواند وجود داشته باشد. اگر Resolver پاسخ `NOERROR` بدهد، پاسخ ساختگی می‌دهد و IP کنار گذاشته می‌شود. هر RCode دیگر سالم حساب می‌شود. نتیجه با `passed` یا `skipped` ثبت می‌شود.
+
+### DPI Timeout و Tries
+
+```toml
+dpi_timeout = 500
+dpi_tries = 2
+```
+
+Timeout و تعداد تلاش بررسی Hijacking هستند. Timeout را خیلی کمتر از Timeout اصلی بگذارید تا هدف مرده سریع کنار برود.
+
+### Prefix Output
+
+```toml
+prefix_output = "dns_resolver_"
+```
+
+فایل‌ها در `result/dns_resolver/` ذخیره می‌شوند.
+
+## DNSTT
+
+بررسی می‌کند Resolver می‌تواند Tunnel DNSTT را عبور دهد یا نه. این بخش `dnstt-client` را اجرا می‌کند؛ باینری باید داخل `assets/` یا در `PATH` باشد. برای هر پروب یک پورت محلی SOCKS5 می‌گیرد. اگر باینری نباشد، در شروع برنامه هشدار ثبت و این اسکن غیرفعال می‌شود.
+
+Latency گزارش‌شده بعد از برقرارشدن Tunnel اندازه گرفته می‌شود و زمان راه‌اندازی را حساب نمی‌کند.
 
 ```toml
 enabled = false
-
-```
-
-فاز پروب یا بررسی DNSTT را فعال یا غیرفعال می‌کند.
-
-#### ورکرها (Workers)
-
-```toml
 workers = 20
-
-```
-
-تعداد ورکرهای هم‌زمان که دست‌تکانی‌های (Handshakes) ابزار DNSTT را انجام می‌دهند.
-
-#### دامنه (Domain)
-
-```toml
-domain = ""
-
-```
-
-زون DNS مقتدر (Authoritative) که به سرور DNSTT شما واگذار (Delegate) شده است.
-
-#### مهلت زمانی (Timeout)
-
-```toml
-timeout = 10000
-
-```
-
-حداکثر زمان انتظار (به میلی‌ثانیه) برای به پایان رسیدن کامل یک دست‌تکانی DNSTT.
-
-#### پیشوند خروجی (Prefix Output)
-
-```toml
-prefix_output = "dnstt_"
-
-```
-
-پیشوند اعمال‌شده روی نام تمامی فایل‌های خروجی که توسط این ماژول تولید می‌شوند.
-
----
-
-## تنظیمات SlipStream (SlipStream Settings)
-
-بخش SlipStream تنظیمات مربوط به پروب DNS ابزار SlipStream را پیکربندی می‌کند که یک تکنیک تونل‌زنی جایگزین با بهره‌برداری از رفتارهای خاص DNS است.
-
-#### وضعیت فعال بودن (Enabled)
-
-```toml
-enabled = true
-
-```
-
-فاز پروب یا بررسی SlipStream را فعال یا غیرفعال می‌کند.
-
-#### ورکرها (Workers)
-
-```toml
-workers = 20
-
-```
-
-تعداد ورکرهای هم‌زمان که پروب‌های SlipStream را انجام می‌دهند.
-
-#### دامنه (Domain)
-
-```toml
-domain = ""
-
-```
-
-زون DNS مقتدر (Authoritative) مورد استفاده توسط سرور SlipStream.
-
-#### مهلت زمانی (Timeout)
-
-```toml
+domain = "ns.example.com"
+public_key = "0000000000000000000000000000000000000000000000000000000000000000"
 timeout = 8000
-
+prefix_output = "dns_dnstt_"
 ```
 
-حداکثر زمان انتظار (به میلی‌ثانیه) برای به پایان رسیدن کامل یک پروب SlipStream.
+هر Worker Process Client خودش و یک پورت محلی دارد، پس از Resolver سنگین‌تر است. `domain` Zone واگذار‌شده به سرور DNSTT شماست. Public key با `-pubkey` به Client می‌رود و باید دقیقاً ۶۴ کاراکتر hexadecimal باشد؛ مقدار پیش‌فرض فقط نمونه است و وصل نمی‌شود. فایل‌ها در `result/dnstt/` می‌روند.
 
-#### پیشوند خروجی (Prefix Output)
+## Slipstream
+
+Slipstream یک روش دیگر Tunnel DNS است و شکل کارش مانند DNSTT است: `slipstream-client` خارجی، یک پورت محلی SOCKS5 برای هر پروب و اندازه‌گیری Latency پس از ایجاد Tunnel.
 
 ```toml
-prefix_output = "slipstream_"
-
+enabled = false
+workers = 20
+domain = "ns.example.com"
+cert_path = ""
+timeout = 8000
+prefix_output = "dns_slipstream_"
 ```
 
-پیشوند اعمال‌شده روی نام تمامی فایل‌های خروجی که توسط این ماژول تولید می‌شوند.
-
----
+`domain` Zone سرور Slipstream شماست. `cert_path` مسیر اختیاری Certificate TLS است که با `--cert` به Client داده می‌شود؛ اگر سرور Certificate نمی‌خواهد خالی بگذارید. فایل‌ها در `result/slipstream/` ذخیره می‌شوند.
 
 ## فایل‌های مرتبط
 
-* [`general_settings.toml`](./general.md) — مدیریت سراسری اسکن و حالت فرآیند چندمرحله‌ای
-* [`icmp_settings.toml`](./icmp.md) — تنظیمات اسکن ICMP
-* [`tcp_settings.toml`](./tcp.md) — تنظیمات اسکن پورت TCP
-* [`http_settings.toml`](./http.md) — تنظیمات پروب‌های HTTP/HTTPS/HTTP3
-* [`xray_settings.toml`](./xray.md) — اعتبارسنجی خروجی‌های Xray
-* [`writer_settings.toml`](./writer.md) — تنظیمات خروجی فایل نتایج
+- [`general_settings.toml`](./general.md)
+- [`icmp_settings.toml`](./icmp.md)
+- [`tcp_settings.toml`](./tcp.md)
+- [`http_settings.toml`](./http.md)
+- [`xray_settings.toml`](./xray.md)
+- [`writer_settings.toml`](./writer.md)

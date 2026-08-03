@@ -1,130 +1,88 @@
 ---
-title: "شروع به کار"
+title: "شروع کار"
 weight: 1
-bookFlatSection: true
-bookCollapseSection: true
 ---
 
-# شروع به کار - توسعه‌دهندگان (Getting Started)
+# شروع کار
 
-این راهنما نحوه آماده‌سازی محیط توسعه، کامپایل و اجرای محلی **bgscan** را برای مقاصد توسعه و برنامه‌نویسی توضیح می‌دهد.
+این راهنما برای زمانی است که می‌خواهید bgscan را روی سیستم خودتان اجرا و تغییر دهید.
 
-> **ابتدا بخوانید:** [راهنمای مشارکت](../contributing/) — سیستم برانچ‌بندی، قوانین ثبت کامیت و فرآیند ثبت درخواست‌های Pull Request (PR).
+> قبل از شروع، [راهنمای مشارکت](../contributing/) را ببینید. آن‌جا گفته‌ایم Branchها و PRها را چطور نگه می‌داریم.
 
----
+## چیزهایی که لازم دارید
 
-## پیش‌نیازها (Prerequisites)
+- [Go](https://go.dev/) نسخهٔ 1.26.3 یا جدیدتر
+- Git
+- اگر برای Android Build می‌گیرید: [Android NDK](https://developer.android.com/ndk)
 
-- زبان برنامه‌نویسی [Go](https://go.dev/) نسخه 1.26.3 به بالا (نسخه دقیق را در فایل `go.mod` بررسی کنید)
-- سیستم کنترل نسخه Git
-- برای کامپایل نسخه اندروید: ابزار [Android NDK](https://developer.android.com/ndk)
-
----
-
-## ۱. کلون کردن مخزن (Repository)
+## سورس را بگیرید
 
 ```bash
-git clone [https://github.com/MohsenBg/bgscan.git](https://github.com/MohsenBg/bgscan.git)
+git clone https://github.com/MohsenBg/bgscan.git
 cd bgscan
-
 ```
 
-## ۲. ایجاد یک شاخه یا برانچ (Branch)
+برای تغییر خودتان یک Branch بسازید:
 
 ```bash
 git checkout -b feature/my-change
-
 ```
 
-برای آشنایی با استانداردهای نام‌گذاری شاخه‌ها، بخش [راهنمای مشارکت](../contributing/) را مطالعه کنید.
+## وابستگی‌ها را آماده کنید
 
-## ۳. نصب وابستگی‌ها (Dependencies)
+bgscan برای گرفتن وابستگی‌های مخصوص هر سیستم، از `bgscan-builder` استفاده می‌کند.
 
-پروژه bgscan از یک ابزار کمکی به نام **`bgscan-builder`** برای دریافت و کامپایل وابستگی‌های پروژه استفاده می‌کند. اسکریپت‌های نصب، این ابزار را برای شما دانلود کرده، در ریشه پروژه قرار می‌دهند و از آن برای دریافت نسخه صحیح وابستگی‌های متناسب با سیستم‌عامل و معماری پردازنده شما استفاده می‌کنند.
-
-**لینوکس / مک (Linux / macOS)**
+**Linux / macOS**
 
 ```bash
 ./scripts/install-deps.sh
-
 ```
 
-**ویندوز (Windows)**
+**Windows**
 
 ```powershell
 ./scripts/install-deps.ps1
-
 ```
 
-این اسکریپت اقدامات زیر را انجام می‌دهد:
+این اسکریپت `bgscan-builder` را به ریشهٔ پروژه می‌آورد و وابستگی مناسب OS و معماری فعلی را دانلود می‌کند.
 
-1. ابزار `bgscan-builder` را در پوشه ریشه پروژه دانلود می‌کند.
-2. دستور `bgscan-builder setup-dev --project-dir <project-root>` را اجرا می‌کند تا وابستگی‌های صحیح سازگار با سیستم‌عامل/معماری شما را دانلود کرده و در دایرکتوری مناسب قرار دهد.
-
-## ۴. کامپایل و اجرا
-
-پس از نصب کامل وابستگی‌ها، دستورات زیر را اجرا کنید:
+## اجرا
 
 ```bash
 go mod tidy
 go run ./cmd/bgscan/
-
 ```
 
-در ابتدا [بررسی‌های سلامت راه‌اندازی (Startup Health Checks)](../core/%23startup) اجرا می‌شوند. پس از موفقیت‌آمیز بودن آن‌ها، کلید Enter را فشار دهید تا وارد محیط متنی برنامه (TUI) شوید.
+قبل از بازشدن TUI، برنامه چند بررسی اولیه انجام می‌دهد. اگر همه‌چیز درست بود، `Enter` بزنید.
 
----
+## ساخت Release
 
-## ساخت نسخه‌های ریلیز (Building Releases)
-
-برای کامپایل و ساخت آرتفکت‌های نهایی (Release Artifacts)، به ابزار `bgscan-builder` نیاز دارید. اگر در مرحله نصب وابستگی‌ها آن را دریافت نکرده‌اید، با دستورات زیر آن را نصب کنید:
-
-**لینوکس / مک (Linux / macOS)**
+اگر هنوز `bgscan-builder` را ندارید، آن را نصب کنید:
 
 ```bash
+# Linux / macOS
 ./scripts/install-builder.sh
 
-```
-
-**ویندوز (Windows)**
-
-```powershell
+# Windows
 ./scripts/install-builder.ps1
-
 ```
 
-#### دستورات کامپایل (Build Commands)
+بعد Release بسازید:
 
 ```bash
 bgscan-builder release -os linux -arch amd64
 bgscan-builder release -os android -arch arm64 -ndk-dir /opt/android-ndk
 bgscan-builder release -os all -arch all -dest ./dist
-
 ```
 
-#### کامپایل برای اندروید (Android)
+برای Android باید مسیر NDK را با `-ndk-dir` بدهید.
 
-کامپایل نسخه اندروید به ابزار Android NDK نیاز دارد. مسیر آن را با پرچم `-ndk-dir` به دستور پاس بدهید:
-
-```bash
-bgscan-builder release -os android -arch arm64 -ndk-dir /opt/android-ndk
-
-```
-
----
-
-## مرجع ابزار bgscan-builder
-
-این ابزار خروجی‌های نسخه ریلیز را برای یک یا چند ترکیب مختلف از سیستم‌عامل‌ها و معماری‌های پردازنده کامپایل می‌کند.
-
-**پرچم‌ها (Flags):**
-
-| پرچم | توضیحات |
+| Flag | کار |
 | --- | --- |
-| `-arch string` | معماری پردازنده هدف (`amd64` ،`arm64` ،`arm32` ،`amd32` ،`all`) |
-| `-dep-version string` | تگ نسخه وابستگی‌ها (مقدار پیش‌فرض: `"v1.0"`) |
-| `-dest string` | دایرکتوری خروجی نسخه ریلیز (مقدار پیش‌فرض: `"./dist"`) |
-| `-ndk-dir string` | دایرکتوری ریشه Android NDK |
-| `-os string` | سیستم‌عامل هدف (`linux` ،`windows` ،`macos` ،`android` ،`all`) |
-| `-project-dir string` | مسیر دایرکتوری پروژه bgscan |
-| `-xray-version string` | تگ نسخه Xray (مقدار پیش‌فرض: `"v26.3.27"`) |
+| `-arch` | معماری هدف: `amd64`، `arm64`، `arm32`، `amd32` یا `all` |
+| `-dep-version` | نسخهٔ وابستگی‌ها؛ پیش‌فرض `v1.0` |
+| `-dest` | پوشهٔ خروجی؛ پیش‌فرض `./dist` |
+| `-ndk-dir` | مسیر Android NDK |
+| `-os` | OS هدف: `linux`، `windows`، `macos`، `android` یا `all` |
+| `-project-dir` | مسیر پروژه |
+| `-xray-version` | نسخهٔ Xray؛ پیش‌فرض `v26.3.27` |

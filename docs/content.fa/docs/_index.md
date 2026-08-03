@@ -10,4 +10,4 @@ bookComments: false
 
 چه به دنبال تست اتصال شبکه و پیدا کردن بهترین اندپوینت‌ها باشید و چه بخواهید پروکسی‌های Xray را اسکن کنید، bgscan نتایجی سریع و قابل اعتماد را با کمترین میزان مصرف منابع سیستم در اختیارتان می‌گذارد.
 
-{{< img "/bgscan-demo-scan.webp" "bgscan-demo-image" >}}
+{{< img "/bgscan-demo-scan.gif" "bgscan-demo-image" >}}

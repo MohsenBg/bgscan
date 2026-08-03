@@ -402,11 +402,11 @@ body.dark .lp,
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-badge">v2.7.0 · هم‌اکنون در دسترس</div>
-  <h1>اسکن همه‌چیز.<br>با حداکثر سرعت.</h1>
-  <p>برنامه bgscan یک اسکنر شبکه فوق‌سریع و چندپروتکلی است که با زبان Go توسعه یافته و از یک موتور زنجیره‌ای ماژولار و رابط کاربری ترمینال تعاملی بهره می‌برد.</p>
+  <div class="hero-badge">v2.9.0 · حالا در دسترس است</div>
+  <h1>همه‌چیز را اسکن کن.<br>با بیشترین سرعت.</h1>
+  <p>bgscan یک اسکنر سریع شبکه است که با Go ساخته شده و چند پروتکل را در یک موتور زنجیره‌ای و یک رابط سادهٔ ترمینالی کنار هم می‌آورد.</p>
   <div class="hero-actions">
-    <a href="" class="btn-p lp-docs-link">شروع کار ←</a>
+    <a href="" class="btn-p lp-docs-link">شروع کنید ←</a>
     <a href="https://github.com/MohsenBg/bgscan" class="btn-o">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       مشاهده در GitHub
@@ -417,8 +417,8 @@ body.dark .lp,
 <!-- STAR NUDGE -->
 <div class="star-nudge">
   <svg class="star-nudge-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-  <p><strong>اگر bgscan ابزار مفیدی برای شما بوده، خوشحال می‌شوم با یک ستاره در گیت‌هاب از آن حمایت کنید.</strong> این کار به دیده‌شدنِ بیشتر پروژه کمک می‌کند و انگیزه من را برای توسعه و بهبودهای بعدی دوچندان می‌سازد.</p>
-  <a href="https://github.com/MohsenBg/bgscan" class="star-link">ستاره در GitHub</a>
+  <p><strong>اگر bgscan برایتان مفید بوده، خوشحال می‌شوم با یک ستاره در GitHub از پروژه حمایت کنید.</strong> همین کار باعث می‌شود افراد بیشتری پروژه را ببینند و به ادامهٔ توسعهٔ آن کمک می‌کند.</p>
+  <a href="https://github.com/MohsenBg/bgscan" class="star-link">ستاره‌دادن در GitHub</a>
 </div>
 
 <!-- STATS -->
@@ -431,41 +431,41 @@ body.dark .lp,
 
 <!-- FEATURES -->
 <div class="stitle reveal">
-  <h2>ساخته‌شده برای سرعت و کنترل</h2>
-  <p>هر آنچه برای شناسایی پیشرفته شبکه نیاز دارید در یک ابزار فراهم شده است.</p>
+  <h2>برای سرعت و کنترل ساخته شده</h2>
+  <p>هر چیزی که برای بررسی جدی شبکه لازم دارید، در یک ابزار جمع شده است.</p>
 </div>
 <div class="features reveal">
-  <div class="feature"><div class="fi">⚡</div><h3>اسکن همزمان</h3><p>اجرای چندین پروتکل به صورت موازی در میان هزاران هدف بدون کمترین افت کارایی.</p></div>
-  <div class="feature"><div class="fi">🔗</div><h3>موتور زنجیره‌ای</h3><p>مراحل اسکن را با حالت‌های Stream، Sequential یا Batch ترکیب کرده و خطوط لوله تشخیص کامل بسازید.</p></div>
-  <div class="feature"><div class="fi">🖥️</div><h3>رابط ترمینال (TUI) تعاملی</h3><p>یک رابط کاربری ترمینال مبتنی بر Bubble Tea؛ اسکن کنید، نظارت داشته باشید و نتایج را زنده بررسی کنید، بدون نیاز به مرورگر.</p></div>
-  <div class="feature"><div class="fi">💾</div><h3>ذخیره و بازپخش</h3><p>نتایج را پایدار کرده و اسکن‌های جدید را روی داده‌های ذخیره‌شده مجدداً اجرا کنید. همراه با مدیریت کامل خروجی‌های Xray.</p></div>
-  <div class="feature"><div class="fi">🌐</div><h3>DNS پیشرفته</h3><p>پشتیبانی از تونل DNS (DNS Tunnel) با مکانیزم داخلی جایگزین (Fallback) برای سناریوهای پیچیده تفکیک نام.</p></div>
-  <div class="feature"><div class="fi">🛰️</div><h3>ادغام با Xray</h3><p>خروجی‌های Xray را مستقیماً از درون اسکنر ذخیره، مدیریت و اعتبار‌سنجی کنید.</p></div>
+  <div class="feature"><div class="fi">⚡</div><h3>اسکن هم‌زمان</h3><p>چند پروتکل را هم‌زمان روی هزاران هدف اجرا کنید، بدون این‌که برنامه کند شود.</p></div>
+  <div class="feature"><div class="fi">🔗</div><h3>موتور زنجیره‌ای</h3><p>مراحل اسکن را با حالت‌های Stream، Sequential یا Batch به هم وصل کنید.</p></div>
+  <div class="feature"><div class="fi">🖥️</div><h3>رابط ترمینالی ساده</h3><p>با رابط Bubble Tea اسکن کنید، وضعیت را ببینید و نتیجه‌ها را همان لحظه بررسی کنید؛ بدون مرورگر.</p></div>
+  <div class="feature"><div class="fi">💾</div><h3>ذخیره و اجرای دوباره</h3><p>نتیجه‌ها را ذخیره کنید و بعداً اسکن‌های جدید را روی همان داده‌ها اجرا کنید. مدیریت Outboundهای Xray هم داخل برنامه هست.</p></div>
+  <div class="feature"><div class="fi">🌐</div><h3>DNS پیشرفته</h3><p>از DNS Tunnel و روش جایگزین داخلی آن برای شرایطی که DNS معمولی جواب نمی‌دهد استفاده کنید.</p></div>
+  <div class="feature"><div class="fi">🛰️</div><h3>اتصال به Xray</h3><p>Outboundهای Xray را مستقیم داخل اسکنر ذخیره کنید، مدیریت کنید و اتصالشان را بررسی کنید.</p></div>
 </div>
 
 <!-- PROTOCOLS -->
 <div class="proto-section">
   <div class="stitle reveal">
-    <h2>۸ پروتکل. یک ابزار.</h2>
-    <p>از لایه ۳ تا لایه ۷ — تمام پروتکل‌هایی که برای تحلیل عمیق شبکه نیاز دارید.</p>
+    <h2>۸ پروتکل، یک ابزار</h2>
+    <p>از لایهٔ ۳ تا لایهٔ ۷؛ پروتکل‌هایی که برای بررسی دقیق شبکه لازم دارید.</p>
   </div>
   <div class="proto-grid reveal">
-    <div class="proto-card"><span class="ptag">L3</span><div><p class="pname">ICMP</p><p class="pdesc">کشف میزبان و پینگ</p></div></div>
-    <div class="proto-card"><span class="ptag">L4</span><div><p class="pname">TCP</p><p class="pdesc">اتصال و دست‌تکانی</p></div></div>
+    <div class="proto-card"><span class="ptag">L3</span><div><p class="pname">ICMP</p><p class="pdesc">پیداکردن میزبان و Ping</p></div></div>
+    <div class="proto-card"><span class="ptag">L4</span><div><p class="pname">TCP</p><p class="pdesc">اتصال و Handshake</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">HTTP</p><p class="pdesc">HTTP/1.1 · HTTP/2 · QUIC</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">TLS</p><p class="pdesc">TLS 1.0 تا 1.3</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNS</p><p class="pdesc">پرس‌وجوهای پیشرفته + Fallback</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNSTT</p><p class="pdesc">اعتبارسنجی تونل DNS</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Slipstream</p><p class="pdesc">اعتبارسنجی مبتنی بر SOCKS</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Xray</p><p class="pdesc">تست خروجی‌ها (Outbound)</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNS</p><p class="pdesc">پرس‌وجوی پیشرفته + Fallback</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNSTT</p><p class="pdesc">بررسی DNS Tunnel</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Slipstream</p><p class="pdesc">بررسی با SOCKS</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Xray</p><p class="pdesc">تست Outboundها</p></div></div>
   </div>
 </div>
 
 <!-- INSTALL -->
 <div class="install-section">
   <div class="stitle reveal">
-    <h2>نصب تنها با یک دستور</h2>
-    <p>قابل اجرا روی لینوکس، مک، ویندوز و اندروید (ترموکس).</p>
+    <h2>نصب با یک دستور</h2>
+    <p>روی Linux، macOS، Windows و Android (Termux) اجرا می‌شود.</p>
   </div>
   <div class="install-block reveal">
     <div class="install-tabs">
@@ -491,16 +491,16 @@ body.dark .lp,
         <button class="copy-btn" onclick="cpCmd(this)">کپی</button>
       </div>
     </div>
-    <div class="install-note">فایل‌های اجرایی پیش‌ساخته در <a href="https://github.com/MohsenBg/bgscan/releases">صفحه انتشارها</a> موجود است.</div>
+    <div class="install-note">فایل‌های آمادهٔ اجرا را می‌توانید از <a href="https://github.com/MohsenBg/bgscan/releases">صفحهٔ Releases</a> بگیرید.</div>
   </div>
 </div>
 
 <!-- FOOTER CTA -->
 <div class="footer-cta reveal">
-  <h2>برای شروع اسکن آماده‌اید؟</h2>
-  <p>مستندات را بخوانید، آخرین نسخه را دریافت کنید یا اگر این پروژه به شما کمک کرده، در گیت‌هاب به آن ستاره بدهید.</p>
+  <h2>آماده‌اید اسکن را شروع کنید؟</h2>
+  <p>مستندات را بخوانید، آخرین نسخه را بگیرید و اگر پروژه به کارتان آمد، در GitHub یک ستاره بدهید.</p>
   <div class="btn-group">
-    <a href="" class="btn-p lp-docs-link">شروع کار ←</a>
+    <a href="" class="btn-p lp-docs-link">شروع کنید ←</a>
     <a href="https://github.com/MohsenBg/bgscan" class="btn-o">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       مشاهده در GitHub

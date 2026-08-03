@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -13,7 +14,15 @@ import (
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/scanner/engine"
 	"bgscan/internal/core/scanner/portmgr"
+	"bgscan/internal/logger"
 )
+
+func TestMain(m *testing.M) {
+	if err := logger.InitCore(); err != nil {
+		log.Fatalf("core logger initialization failed: %v", err)
+	}
+	m.Run()
+}
 
 // NewScanner
 
@@ -770,5 +779,171 @@ func TestIsHTTP3(t *testing.T) {
 		if got := isHTTP3(in); got != want {
 			t.Errorf("isHTTP3(%q) = %v, want %v", in, got, want)
 		}
+	}
+}
+
+// UpdateStageHooks
+
+func TestUpdateStageHooks_Success(t *testing.T) {
+	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	s.AddStage(StageConfig{Workers: 1})
+	s.AddStage(StageConfig{Workers: 2})
+
+	called := make([]bool, 2)
+	for i := range called {
+		idx := i
+		err := s.UpdateStageHooks(idx, engine.ScanHooks{
+			OnScanEnd: func() { called[idx] = true },
+		})
+		if err != nil {
+			t.Fatalf("UpdateStageHooks(%d) error = %v", idx, err)
+		}
+	}
+
+	// Verify hooks are stored on the actual internal stages, not copies.
+	sc := s.(*scanner)
+	for i, stage := range sc.stages {
+		if stage.Hooks.OnScanEnd == nil {
+			t.Errorf("stage %d: OnScanEnd hook not set", i)
+		}
+		stage.Hooks.OnScanEnd()
+		if !called[i] {
+			t.Errorf("stage %d: OnScanEnd hook did not fire", i)
+		}
+	}
+}
+
+func TestUpdateStageHooks_OutOfRange(t *testing.T) {
+	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	s.AddStage(StageConfig{Workers: 1})
+
+	cases := []int{-1, 1, 100}
+	for _, idx := range cases {
+		if err := s.UpdateStageHooks(idx, engine.ScanHooks{}); err == nil {
+			t.Errorf("UpdateStageHooks(%d): expected out-of-range error, got nil", idx)
+		}
+	}
+}
+
+func TestUpdateStageHooks_AfterClose(t *testing.T) {
+	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s.AddStage(StageConfig{Workers: 1})
+	_ = s.Close()
+
+	if err := s.UpdateStageHooks(0, engine.ScanHooks{}); err == nil {
+		t.Fatal("expected error when updating hooks after close, got nil")
+	}
+}
+
+func TestUpdateStageHooks_AfterStarted(t *testing.T) {
+	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	s.AddStage(StageConfig{Workers: 1})
+
+	sc := s.(*scanner)
+	sc.started = true
+
+	if err := s.UpdateStageHooks(0, engine.ScanHooks{}); err == nil {
+		t.Fatal("expected error when updating hooks after start, got nil")
+	}
+}
+
+func TestUpdateStageHooks_NoStages(t *testing.T) {
+	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if err := s.UpdateStageHooks(0, engine.ScanHooks{}); err == nil {
+		t.Fatal("expected error with no stages, got nil")
+	}
+}
+
+func TestUpdateStageHooks_OverwritesPreviousHooks(t *testing.T) {
+	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	s.AddStage(StageConfig{Workers: 1})
+
+	firstCalled := false
+	_ = s.UpdateStageHooks(0, engine.ScanHooks{
+		OnScanEnd: func() { firstCalled = true },
+	})
+
+	secondCalled := false
+	_ = s.UpdateStageHooks(0, engine.ScanHooks{
+		OnScanEnd: func() { secondCalled = true },
+	})
+
+	sc := s.(*scanner)
+	sc.stages[0].Hooks.OnScanEnd()
+
+	if firstCalled {
+		t.Fatal("first hook should have been overwritten")
+	}
+	if !secondCalled {
+		t.Fatal("second hook should have fired")
+	}
+}
+
+func TestUpdateStageHooks_HooksPassedToRunner(t *testing.T) {
+	runner := &fakeRunner{}
+	s, err := NewScanner(
+		context.Background(),
+		"127.0.0.1",
+		WithConfig(config.ScannerConfig{}),
+		withScanRunner(runner),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	s.AddStage(StageConfig{Workers: 1})
+
+	endFired := false
+	if err := s.UpdateStageHooks(0, engine.ScanHooks{
+		OnScanEnd: func() { endFired = true },
+	}); err != nil {
+		t.Fatalf("UpdateStageHooks() error = %v", err)
+	}
+
+	if err := s.Run(); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	// The hook reference must have reached the runner's ScanConfig.
+	runner.mu.Lock()
+	cfg := runner.singleCfg
+	runner.mu.Unlock()
+
+	if cfg.Hooks.OnScanEnd == nil {
+		t.Fatal("OnScanEnd hook not propagated to runner ScanConfig")
+	}
+	cfg.Hooks.OnScanEnd()
+	if !endFired {
+		t.Fatal("OnScanEnd hook did not fire when invoked via runner config")
 	}
 }

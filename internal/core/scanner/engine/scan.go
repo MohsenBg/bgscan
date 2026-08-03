@@ -170,10 +170,6 @@ func runProgressReporter(
 	succeed *atomic.Uint64,
 	onProgress func(Progress),
 ) {
-	if onProgress == nil {
-		return
-	}
-
 	if onProgress == nil || interval <= 0 {
 		return
 	}

@@ -115,7 +115,7 @@ func (m *Model) OnClose() tea.Cmd   { return nil }
 // Init registers scanner hooks and starts the scan run plus periodic UI ticks.
 func (m *Model) Init() tea.Cmd {
 	for i := range m.stages {
-		m.stages[i].AddHooks(engine.ScanHooks{
+		_ = m.scn.UpdateStageHooks(i, engine.ScanHooks{
 			OnError:    m.onError,
 			OnProgress: m.onProgress(i),
 			OnSuccess:  m.onSuccess(i),

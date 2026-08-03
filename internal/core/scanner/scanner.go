@@ -46,6 +46,7 @@ type Scanner interface {
 
 	GetStages() []StageConfig
 	AddStage(StageConfig)
+	UpdateStageHooks(index int, hooks engine.ScanHooks) error
 
 	Pause()
 	Resume()
@@ -224,6 +225,22 @@ func (s *scanner) AddStage(stage StageConfig) {
 	if !s.closed && !s.started {
 		s.stages = append(s.stages, stage)
 	}
+}
+
+// UpdateStageHooks sets hooks on an already-added stage by index.
+func (s *scanner) UpdateStageHooks(index int, hooks engine.ScanHooks) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.started || s.closed {
+		return errors.New("cannot update hooks: scanner already started or closed")
+	}
+	if index < 0 || index >= len(s.stages) {
+		return fmt.Errorf("stage index %d out of range", index)
+	}
+
+	s.stages[index].Hooks = hooks
+	return nil
 }
 
 // Run executes the configured scan stages.

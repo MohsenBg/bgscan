@@ -139,3 +139,14 @@ func FormatDataSpeed(v any) string {
 	speed := speedtest.BitsPerSec(kpbs * 1000)
 	return speed.String()
 }
+
+func FormatHex(v any) string {
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	m := min(len(s), 15)
+
+	return "0x" + s[:m] + "..."
+}

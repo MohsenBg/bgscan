@@ -108,7 +108,7 @@ workers = 20
 domain = ""
 
 # The public key of the DNSTT server (typically a Base64-encoded or hex string).
-public_key = ""
+public_key = "0000000000000000000000000000000000000000000000000000000000000000"
 
 # ── Timing ───────────────────────────────────────────────────
 # Maximum duration in milliseconds to wait for a complete DNSTT handshake to finish.

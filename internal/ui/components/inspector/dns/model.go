@@ -456,7 +456,7 @@ func New(state *ui.AppState, name string) *Model {
 		{Name: "Enabled", Description: descDNSTTEnabled, Group: groupDNSTT, Input: inspector.Adapt(dnsttEnabled), Visible: alwaysVisible, Format: inspector.FormatBool},
 		{Name: "Workers", Description: descDNSTTWorkers, Group: groupDNSTT, Input: inspector.Adapt(dnsttWorkers), Visible: dnsttActive, Format: inspector.FormatInt},
 		{Name: "Domain", Description: descDNSTTDomain, Group: groupDNSTT, Input: inspector.Adapt(dnsttDomain), Visible: dnsttActive},
-		{Name: "Public Key", Description: descDNSTTPublicKey, Group: groupDNSTT, Input: inspector.Adapt(dnsttPublicKey), Visible: dnsttActive},
+		{Name: "Public Key", Description: descDNSTTPublicKey, Group: groupDNSTT, Input: inspector.Adapt(dnsttPublicKey), Visible: dnsttActive, Format: inspector.FormatHex},
 		{Name: "Timeout", Description: descDNSTTTimeout, Group: groupDNSTT, Input: inspector.Adapt(dnsttTimeout), Visible: dnsttActive, Format: inspector.FormatDurationMS},
 		{Name: "Prefix Output", Description: descDNSTTPrefixOutput, Group: groupDNSTT, Input: inspector.Adapt(dnsttPrefixOutput), Visible: dnsttActive},
 

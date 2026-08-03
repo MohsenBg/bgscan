@@ -33,6 +33,8 @@ type HTTPProbe struct {
 func NewHTTPProbe(req HTTPRequest, acceptedCodes []int) probe.Probe {
 	p := &HTTPProbe{
 		req:    req,
+		dialer: &net.Dialer{Timeout: req.Timeout},
+		tls:    newTLSConfig(req),
 		filter: newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
 	}
 

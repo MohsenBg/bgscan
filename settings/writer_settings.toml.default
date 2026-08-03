@@ -16,7 +16,7 @@ merge_flush_interval = 2000
 # The capacity of the internal channel used by scanner workers to send 
 # IP scan results to the writer goroutine.
 # Higher values can help prevent worker bottlenecks during heavy disk I/O.
-chan_size = 4096
+chan_size = 2048
 
 # The initial capacity of the in-memory batch used to accumulate 
 # IP scan results before flushing them to disk.

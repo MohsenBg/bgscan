@@ -37,6 +37,9 @@ const (
 	descStopAfterFound     = "The maximum number of successful results before halting the scan. Set to 0 to scan all targets."
 	descMaxIPsToTest       = "The maximum number of IPs to read from the input source. Set to 0 to read all available IPs."
 	descShuffled           = "Randomizes the target IP order before scanning to prevent subnet slamming and reduce firewall alerts."
+	descMinProbeDuration   = "The minimum duration between probes to control scan speed and reduce target/network overload."
+	descProbePerSec        = "Maximum number of probes allowed per second globally. Controls scan rate to prevent device overload."
+	descProbeBurst         = "Maximum burst size allowed before rate limiting. Higher values allow short traffic spikes."
 	descPipelineMode       = "The execution mode for multi-stage scanning: 'sequential' (disk-based), 'streaming' (channel-based), or 'batch' (hybrid)."
 	descMaxIPsPerStage     = "The maximum number of IPs a pipeline stage can hold in memory. Exceeding this limit blocks the previous stage."
 	descBatchSize          = "The number of IPs processed per batch when using the 'batch' pipeline mode."
@@ -162,6 +165,69 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 	)
 
+	minProbeDuration := durationMSInput(
+		state,
+		"Enter Minimum Probe Duration",
+		cfg.General.MinProbeDuration.Duration(),
+		func(v string) error {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return err
+			}
+
+			tmp := cfg.General
+			tmp.MinProbeDuration = config.NewDurationMS(time.Duration(n) * time.Millisecond)
+
+			return fieldErr(validate.ValidateGeneral(tmp), "MinProbeDuration")
+		},
+		func(d time.Duration) {
+			cfg.General.MinProbeDuration = config.NewDurationMS(d)
+		},
+		saveGeneralCmd,
+	)
+
+	probePerSec := intInput(
+		state,
+		"Enter Probe Rate Per Second",
+		cfg.General.ProbePerSec,
+		func(v string) error {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return err
+			}
+
+			tmp := cfg.General
+			tmp.ProbePerSec = n
+
+			return fieldErr(validate.ValidateGeneral(tmp), "ProbePerSec")
+		},
+		func(n int) {
+			cfg.General.ProbePerSec = n
+		},
+		saveGeneralCmd,
+	)
+
+	probeBurst := intInput(
+		state,
+		"Enter Probe Burst Size",
+		cfg.General.ProbeBurst,
+		func(v string) error {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return err
+			}
+
+			tmp := cfg.General
+			tmp.ProbeBurst = n
+
+			return fieldErr(validate.ValidateGeneral(tmp), "ProbeBurst")
+		},
+		func(n int) {
+			cfg.General.ProbeBurst = n
+		},
+		saveGeneralCmd,
+	)
+
 	pipelineMode := selectinput.New(
 		state.Layout, "Select Pipeline Mode",
 		selectinput.WithValue(cfg.General.PipelineMode),
@@ -259,6 +325,9 @@ func New(state *ui.AppState, name string) *Model {
 		{Name: "Stop After Found", Description: descStopAfterFound, Group: groupGeneral, Input: inspector.Adapt(stopAfterFound), Visible: alwaysVisible, Format: inspector.FormatIntOrUnlimited},
 		{Name: "Max IPs To Test", Description: descMaxIPsToTest, Group: groupGeneral, Input: inspector.Adapt(maxIPsToTest), Visible: alwaysVisible, Format: inspector.FormatIntOrUnlimited},
 		{Name: "Shuffled", Description: descShuffled, Group: groupGeneral, Input: inspector.Adapt(shuffled), Visible: alwaysVisible, Format: inspector.FormatBool},
+		{Name: "Minimum Probe Duration", Description: descMinProbeDuration, Group: groupGeneral, Input: inspector.Adapt(minProbeDuration), Visible: alwaysVisible, Format: inspector.FormatDurationMS},
+		{Name: "Probes Per Second", Description: descProbePerSec, Group: groupGeneral, Input: inspector.Adapt(probePerSec), Visible: alwaysVisible, Format: inspector.FormatInt},
+		{Name: "Probe Burst", Description: descProbeBurst, Group: groupGeneral, Input: inspector.Adapt(probeBurst), Visible: alwaysVisible, Format: inspector.FormatInt},
 		{Name: "Pipeline Mode", Description: descPipelineMode, Group: groupGeneral, Input: inspector.Adapt(pipelineMode), Visible: alwaysVisible},
 		{Name: "Max IPs Per Stage", Description: descMaxIPsPerStage, Group: groupGeneral, Input: inspector.Adapt(maxIPsPerStage), Visible: visibleWhenMode(&cfg.General, pipelineStreaming), Format: inspector.FormatInt},
 		{Name: "Batch Size", Description: descBatchSize, Group: groupGeneral, Input: inspector.Adapt(batchSize), Visible: visibleWhenMode(&cfg.General, pipelineBatch), Format: inspector.FormatInt},

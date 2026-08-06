@@ -7,7 +7,53 @@ import (
 	"bgscan/internal/core/config"
 )
 
-var allowedDNSProtocols = []string{"udp", "tcp", "dot", "doh"}
+var allowedDNSProtocols = []string{
+	"udp",
+	"tcp",
+	"dot",
+	"doh",
+}
+
+const (
+	// Resolver limits
+	MinDNSResolverWorkers = 1
+	MaxDNSResolverWorkers = 2500
+
+	MinDNSResolverPort = 1
+	MaxDNSResolverPort = math.MaxUint16
+
+	MinDNSResolverTries = 1
+	MaxDNSResolverTries = 10
+
+	MinDNSResolverDPITries = 1
+	MaxDNSResolverDPITries = 10
+)
+
+const (
+	MinDNSResolverTimeout = 100 * time.Millisecond
+	MaxDNSResolverTimeout = 30 * time.Second
+
+	MinDNSResolverDPITimeout = 100 * time.Millisecond
+	MaxDNSResolverDPITimeout = 10 * time.Second
+)
+
+const (
+	// DNSTT limits
+	MinDNSTTWorkers = 1
+	MaxDNSTTWorkers = 500
+
+	MinDNSTTTimeout = 100 * time.Millisecond
+	MaxDNSTTTimeout = 60 * time.Second
+)
+
+const (
+	// SlipStream limits
+	MinSlipStreamWorkers = 1
+	MaxSlipStreamWorkers = 500
+
+	MinSlipStreamTimeout = 100 * time.Millisecond
+	MaxSlipStreamTimeout = 60 * time.Second
+)
 
 // ValidateDNS strictly validates a DNSConfig and returns errors by field name.
 // Nested field names use dot notation, such as "Resolver.Workers".
@@ -32,7 +78,12 @@ func ValidateDNS(cfg config.DNSConfig) map[string]error {
 func validateResolver(r config.ResolverConfig) map[string]error {
 	errs := map[string]error{}
 
-	if err := checkInt("Workers", r.Workers, 1, 2500); err != nil {
+	if err := checkInt(
+		"Workers",
+		r.Workers,
+		MinDNSResolverWorkers,
+		MaxDNSResolverWorkers,
+	); err != nil {
 		errs["Workers"] = err
 	}
 
@@ -44,7 +95,12 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 		errs["Domain"] = err
 	}
 
-	if err := checkUint16("Port", r.Port, 1, math.MaxUint16); err != nil {
+	if err := checkUint16(
+		"Port",
+		r.Port,
+		MinDNSResolverPort,
+		MaxDNSResolverPort,
+	); err != nil {
 		errs["Port"] = err
 	}
 
@@ -52,21 +108,39 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 		errs["CheckTypes"] = err
 	}
 
-	if err := checkDuration("Timeout", r.Timeout.Duration(),
-		100*time.Millisecond, 30*time.Second); err != nil {
+	if err := checkDuration(
+		"Timeout",
+		r.Timeout.Duration(),
+		MinDNSResolverTimeout,
+		MaxDNSResolverTimeout,
+	); err != nil {
 		errs["Timeout"] = err
 	}
 
-	if err := checkInt("Tries", r.Tries, 1, 10); err != nil {
+	if err := checkInt(
+		"Tries",
+		r.Tries,
+		MinDNSResolverTries,
+		MaxDNSResolverTries,
+	); err != nil {
 		errs["Tries"] = err
 	}
 
-	if err := checkInt("DPITries", r.DPITries, 1, 10); err != nil {
+	if err := checkInt(
+		"DPITries",
+		r.DPITries,
+		MinDNSResolverDPITries,
+		MaxDNSResolverDPITries,
+	); err != nil {
 		errs["DPITries"] = err
 	}
 
-	if err := checkDuration("DPITimeout", r.DPITimeout.Duration(),
-		100*time.Millisecond, 10*time.Second); err != nil {
+	if err := checkDuration(
+		"DPITimeout",
+		r.DPITimeout.Duration(),
+		MinDNSResolverDPITimeout,
+		MaxDNSResolverDPITimeout,
+	); err != nil {
 		errs["DPITimeout"] = err
 	}
 
@@ -80,7 +154,12 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 func validateDNSTT(d config.DNSTTConfig) map[string]error {
 	errs := map[string]error{}
 
-	if err := checkInt("Workers", d.Workers, 1, 500); err != nil {
+	if err := checkInt(
+		"Workers",
+		d.Workers,
+		MinDNSTTWorkers,
+		MaxDNSTTWorkers,
+	); err != nil {
 		errs["Workers"] = err
 	}
 
@@ -92,8 +171,12 @@ func validateDNSTT(d config.DNSTTConfig) map[string]error {
 		errs["PublicKey"] = err
 	}
 
-	if err := checkDuration("Timeout", d.Timeout.Duration(),
-		100*time.Millisecond, 60*time.Second); err != nil {
+	if err := checkDuration(
+		"Timeout",
+		d.Timeout.Duration(),
+		MinDNSTTTimeout,
+		MaxDNSTTTimeout,
+	); err != nil {
 		errs["Timeout"] = err
 	}
 
@@ -107,7 +190,12 @@ func validateDNSTT(d config.DNSTTConfig) map[string]error {
 func validateSlipStream(s config.SlipStreamConfig) map[string]error {
 	errs := map[string]error{}
 
-	if err := checkInt("Workers", s.Workers, 1, 500); err != nil {
+	if err := checkInt(
+		"Workers",
+		s.Workers,
+		MinSlipStreamWorkers,
+		MaxSlipStreamWorkers,
+	); err != nil {
 		errs["Workers"] = err
 	}
 
@@ -115,8 +203,12 @@ func validateSlipStream(s config.SlipStreamConfig) map[string]error {
 		errs["Domain"] = err
 	}
 
-	if err := checkDuration("Timeout", s.Timeout.Duration(),
-		100*time.Millisecond, 60*time.Second); err != nil {
+	if err := checkDuration(
+		"Timeout",
+		s.Timeout.Duration(),
+		MinSlipStreamTimeout,
+		MaxSlipStreamTimeout,
+	); err != nil {
 		errs["Timeout"] = err
 	}
 
@@ -142,23 +234,88 @@ func normalizeResolver(r *config.ResolverConfig) []Warning {
 	def := config.DefaultDNSConfig().Resolver
 	var warns []Warning
 
-	fixInt("Resolver.Workers", &r.Workers, 1, 2500, def.Workers, &warns)
-	fixEnum("Resolver.Protocol", &r.Protocol, allowedDNSProtocols, def.Protocol, &warns)
-	fixDomain("Resolver.Domain", &r.Domain, def.Domain, &warns)
+	fixInt(
+		"Resolver.Workers",
+		&r.Workers,
+		MinDNSResolverWorkers,
+		MaxDNSResolverWorkers,
+		def.Workers,
+		&warns,
+	)
 
-	fixUint16("Resolver.Port", &r.Port, 1, math.MaxUint16, def.Port, &warns)
-	fixStringSlice("Resolver.CheckTypes", &r.CheckTypes, def.CheckTypes, &warns)
+	fixEnum(
+		"Resolver.Protocol",
+		&r.Protocol,
+		allowedDNSProtocols,
+		def.Protocol,
+		&warns,
+	)
 
-	fixDurationMS("Resolver.Timeout", &r.Timeout,
-		100*time.Millisecond, 30*time.Second, def.Timeout, &warns)
+	fixDomain(
+		"Resolver.Domain",
+		&r.Domain,
+		def.Domain,
+		&warns,
+	)
 
-	fixInt("Resolver.Tries", &r.Tries, 1, 10, def.Tries, &warns)
-	fixInt("Resolver.DPITries", &r.DPITries, 1, 10, def.DPITries, &warns)
+	fixUint16(
+		"Resolver.Port",
+		&r.Port,
+		MinDNSResolverPort,
+		MaxDNSResolverPort,
+		def.Port,
+		&warns,
+	)
 
-	fixDurationMS("Resolver.DPITimeout", &r.DPITimeout,
-		100*time.Millisecond, 10*time.Second, def.DPITimeout, &warns)
+	fixStringSlice(
+		"Resolver.CheckTypes",
+		&r.CheckTypes,
+		def.CheckTypes,
+		&warns,
+	)
 
-	fixPrefix("Resolver.PrefixOutput", &r.PrefixOutput, def.PrefixOutput, &warns)
+	fixDurationMS(
+		"Resolver.Timeout",
+		&r.Timeout,
+		MinDNSResolverTimeout,
+		MaxDNSResolverTimeout,
+		def.Timeout,
+		&warns,
+	)
+
+	fixInt(
+		"Resolver.Tries",
+		&r.Tries,
+		MinDNSResolverTries,
+		MaxDNSResolverTries,
+		def.Tries,
+		&warns,
+	)
+
+	fixInt(
+		"Resolver.DPITries",
+		&r.DPITries,
+		MinDNSResolverDPITries,
+		MaxDNSResolverDPITries,
+		def.DPITries,
+		&warns,
+	)
+
+	fixDurationMS(
+		"Resolver.DPITimeout",
+		&r.DPITimeout,
+		MinDNSResolverDPITimeout,
+		MaxDNSResolverDPITimeout,
+		def.DPITimeout,
+		&warns,
+	)
+
+	fixPrefix(
+		"Resolver.PrefixOutput",
+		&r.PrefixOutput,
+		def.PrefixOutput,
+		&warns,
+	)
 
 	return warns
 }
@@ -167,15 +324,44 @@ func normalizeDNSTT(d *config.DNSTTConfig) []Warning {
 	def := config.DefaultDNSConfig().DNSTT
 	var warns []Warning
 
-	fixInt("DNSTT.Workers", &d.Workers, 1, 500, def.Workers, &warns)
-	fixString("DNSTT.Domain", &d.Domain, def.Domain, &warns)
-	fixDomain("DNSTT.Domain", &d.Domain, def.Domain, &warns)
-	fixPubKey("DNSTT.PublicKey", &d.PublicKey, def.PublicKey, &warns)
+	fixInt(
+		"DNSTT.Workers",
+		&d.Workers,
+		MinDNSTTWorkers,
+		MaxDNSTTWorkers,
+		def.Workers,
+		&warns,
+	)
 
-	fixDurationMS("DNSTT.Timeout", &d.Timeout,
-		100*time.Millisecond, 60*time.Second, def.Timeout, &warns)
+	fixDomain(
+		"DNSTT.Domain",
+		&d.Domain,
+		def.Domain,
+		&warns,
+	)
 
-	fixPrefix("DNSTT.PrefixOutput", &d.OutputPrefix, def.OutputPrefix, &warns)
+	fixPubKey(
+		"DNSTT.PublicKey",
+		&d.PublicKey,
+		def.PublicKey,
+		&warns,
+	)
+
+	fixDurationMS(
+		"DNSTT.Timeout",
+		&d.Timeout,
+		MinDNSTTTimeout,
+		MaxDNSTTTimeout,
+		def.Timeout,
+		&warns,
+	)
+
+	fixPrefix(
+		"DNSTT.PrefixOutput",
+		&d.OutputPrefix,
+		def.OutputPrefix,
+		&warns,
+	)
 
 	return warns
 }
@@ -184,13 +370,37 @@ func normalizeSlipStream(s *config.SlipStreamConfig) []Warning {
 	def := config.DefaultDNSConfig().SlipStream
 	var warns []Warning
 
-	fixInt("SlipStream.Workers", &s.Workers, 1, 500, def.Workers, &warns)
-	fixDomain("SlipStream.Domain", &s.Domain, def.Domain, &warns)
+	fixInt(
+		"SlipStream.Workers",
+		&s.Workers,
+		MinSlipStreamWorkers,
+		MaxSlipStreamWorkers,
+		def.Workers,
+		&warns,
+	)
 
-	fixDurationMS("SlipStream.Timeout", &s.Timeout,
-		100*time.Millisecond, 60*time.Second, def.Timeout, &warns)
+	fixDomain(
+		"SlipStream.Domain",
+		&s.Domain,
+		def.Domain,
+		&warns,
+	)
 
-	fixPrefix("SlipStream.PrefixOutput", &s.OutputPrefix, def.OutputPrefix, &warns)
+	fixDurationMS(
+		"SlipStream.Timeout",
+		&s.Timeout,
+		MinSlipStreamTimeout,
+		MaxSlipStreamTimeout,
+		def.Timeout,
+		&warns,
+	)
+
+	fixPrefix(
+		"SlipStream.PrefixOutput",
+		&s.OutputPrefix,
+		def.OutputPrefix,
+		&warns,
+	)
 
 	return warns
 }

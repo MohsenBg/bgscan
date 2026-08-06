@@ -23,15 +23,15 @@ func TestDNSConfig(t *testing.T) {
 		{
 			name: "invalid resolver fields",
 			mutate: func(cfg *config.DNSConfig) {
-				cfg.Resolver.Workers = 0
+				cfg.Resolver.Workers = MinDNSResolverWorkers - 1
 				cfg.Resolver.Protocol = "invalid"
 				cfg.Resolver.Domain = ""
-				cfg.Resolver.Port = 0
+				cfg.Resolver.Port = MinDNSResolverPort - 1
 				cfg.Resolver.CheckTypes = []string{}
-				cfg.Resolver.Timeout = config.NewDurationMS(50 * time.Millisecond)
-				cfg.Resolver.Tries = 0
-				cfg.Resolver.DPITries = 0
-				cfg.Resolver.DPITimeout = config.NewDurationMS(50 * time.Millisecond)
+				cfg.Resolver.Timeout = config.NewDurationMS(MinDNSResolverTimeout - 2*time.Millisecond)
+				cfg.Resolver.Tries = MinDNSResolverTries - 1
+				cfg.Resolver.DPITries = MinDNSResolverDPITries - 1
+				cfg.Resolver.DPITimeout = config.NewDurationMS(MinDNSResolverDPITimeout - 2*time.Millisecond)
 				cfg.Resolver.PrefixOutput = ""
 			},
 			wantErrKeys: []string{
@@ -49,20 +49,35 @@ func TestDNSConfig(t *testing.T) {
 			wantWarnCount: 10,
 			checkFixed: func(t *testing.T, got, want config.DNSConfig) {
 				if got.Resolver.Workers != want.Resolver.Workers {
-					t.Errorf("Resolver.Workers = %d, want %d",
-						got.Resolver.Workers, want.Resolver.Workers)
+					t.Errorf(
+						"Resolver.Workers = %d, want %d",
+						got.Resolver.Workers,
+						want.Resolver.Workers,
+					)
 				}
+
 				if got.Resolver.Protocol != want.Resolver.Protocol {
-					t.Errorf("Resolver.Protocol = %q, want %q",
-						got.Resolver.Protocol, want.Resolver.Protocol)
+					t.Errorf(
+						"Resolver.Protocol = %q, want %q",
+						got.Resolver.Protocol,
+						want.Resolver.Protocol,
+					)
 				}
+
 				if got.Resolver.Domain != want.Resolver.Domain {
-					t.Errorf("Resolver.Domain = %q, want %q",
-						got.Resolver.Domain, want.Resolver.Domain)
+					t.Errorf(
+						"Resolver.Domain = %q, want %q",
+						got.Resolver.Domain,
+						want.Resolver.Domain,
+					)
 				}
+
 				if got.Resolver.Port != want.Resolver.Port {
-					t.Errorf("Resolver.Port = %d, want %d",
-						got.Resolver.Port, want.Resolver.Port)
+					t.Errorf(
+						"Resolver.Port = %d, want %d",
+						got.Resolver.Port,
+						want.Resolver.Port,
+					)
 				}
 			},
 		},
@@ -81,26 +96,37 @@ func TestDNSConfig(t *testing.T) {
 			wantWarnCount: 3,
 			checkFixed: func(t *testing.T, got, want config.DNSConfig) {
 				if got.Resolver.Domain != want.Resolver.Domain {
-					t.Errorf("Resolver.Domain = %q, want %q",
-						got.Resolver.Domain, want.Resolver.Domain)
+					t.Errorf(
+						"Resolver.Domain = %q, want %q",
+						got.Resolver.Domain,
+						want.Resolver.Domain,
+					)
 				}
+
 				if got.DNSTT.Domain != want.DNSTT.Domain {
-					t.Errorf("DNSTT.Domain = %q, want %q",
-						got.DNSTT.Domain, want.DNSTT.Domain)
+					t.Errorf(
+						"DNSTT.Domain = %q, want %q",
+						got.DNSTT.Domain,
+						want.DNSTT.Domain,
+					)
 				}
+
 				if got.SlipStream.Domain != want.SlipStream.Domain {
-					t.Errorf("SlipStream.Domain = %q, want %q",
-						got.SlipStream.Domain, want.SlipStream.Domain)
+					t.Errorf(
+						"SlipStream.Domain = %q, want %q",
+						got.SlipStream.Domain,
+						want.SlipStream.Domain,
+					)
 				}
 			},
 		},
 		{
 			name: "invalid DNSTT fields",
 			mutate: func(cfg *config.DNSConfig) {
-				cfg.DNSTT.Workers = 0
+				cfg.DNSTT.Workers = MinDNSTTWorkers - 1
 				cfg.DNSTT.Domain = "invalid domain!"
 				cfg.DNSTT.PublicKey = "short"
-				cfg.DNSTT.Timeout = config.NewDurationMS(50 * time.Millisecond)
+				cfg.DNSTT.Timeout = config.NewDurationMS(MinDNSTTTimeout - 2*time.Millisecond)
 				cfg.DNSTT.OutputPrefix = ""
 			},
 			wantErrKeys: []string{
@@ -115,9 +141,9 @@ func TestDNSConfig(t *testing.T) {
 		{
 			name: "invalid SlipStream fields",
 			mutate: func(cfg *config.DNSConfig) {
-				cfg.SlipStream.Workers = 0
+				cfg.SlipStream.Workers = MinSlipStreamWorkers - 1
 				cfg.SlipStream.Domain = "invalid domain!"
-				cfg.SlipStream.Timeout = config.NewDurationMS(50 * time.Millisecond)
+				cfg.SlipStream.Timeout = config.NewDurationMS(MinSlipStreamTimeout - 2*time.Millisecond)
 				cfg.SlipStream.OutputPrefix = ""
 			},
 			wantErrKeys: []string{
@@ -138,13 +164,20 @@ func TestDNSConfig(t *testing.T) {
 			errs := ValidateDNS(cfg)
 
 			if len(errs) != len(tt.wantErrKeys) {
-				t.Errorf("ValidateDNS() returned %d errors, want %d: %v",
-					len(errs), len(tt.wantErrKeys), errs)
+				t.Errorf(
+					"ValidateDNS() returned %d errors, want %d: %v",
+					len(errs),
+					len(tt.wantErrKeys),
+					errs,
+				)
 			}
 
 			for _, key := range tt.wantErrKeys {
 				if _, ok := errs[key]; !ok {
-					t.Errorf("ValidateDNS() missing error for %q", key)
+					t.Errorf(
+						"ValidateDNS() missing error for %q",
+						key,
+					)
 				}
 			}
 
@@ -154,16 +187,27 @@ func TestDNSConfig(t *testing.T) {
 			warnings := NormalizeDNS(&cfg)
 
 			if len(warnings) != tt.wantWarnCount {
-				t.Errorf("NormalizeDNS() returned %d warnings, want %d: %v",
-					len(warnings), tt.wantWarnCount, warnings)
+				t.Errorf(
+					"NormalizeDNS() returned %d warnings, want %d: %v",
+					len(warnings),
+					tt.wantWarnCount,
+					warnings,
+				)
 			}
 
 			if errs := ValidateDNS(cfg); len(errs) != 0 {
-				t.Errorf("normalized config is still invalid: %v", errs)
+				t.Errorf(
+					"normalized config is still invalid: %v",
+					errs,
+				)
 			}
 
 			if tt.checkFixed != nil {
-				tt.checkFixed(t, cfg, config.DefaultDNSConfig())
+				tt.checkFixed(
+					t,
+					cfg,
+					config.DefaultDNSConfig(),
+				)
 			}
 		})
 	}

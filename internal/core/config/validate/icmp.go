@@ -6,20 +6,33 @@ import (
 	"bgscan/internal/core/config"
 )
 
+const (
+	MinICMPWorkers = 1
+	MaxICMPWorkers = 5000
+
+	MinICMPTries = 1
+	MaxICMPTries = 10
+)
+
+const (
+	MinICMPTimeout = 100 * time.Millisecond
+	MaxICMPTimeout = 30 * time.Second
+)
+
 // ValidateICMP strictly validates an ICMPConfig and returns errors by field name.
 func ValidateICMP(cfg config.ICMPConfig) map[string]error {
 	errs := map[string]error{}
 
-	if err := checkInt("Workers", cfg.Workers, 1, 10000); err != nil {
+	if err := checkInt("Workers", cfg.Workers, MinICMPWorkers, MaxICMPWorkers); err != nil {
 		errs["Workers"] = err
 	}
 
 	if err := checkDuration("Timeout", cfg.Timeout.Duration(),
-		100*time.Millisecond, 30*time.Second); err != nil {
+		MinICMPTimeout, MaxICMPTimeout); err != nil {
 		errs["Timeout"] = err
 	}
 
-	if err := checkUint16("Tries", cfg.Tries, 1, 10); err != nil {
+	if err := checkUint16("Tries", cfg.Tries, MinICMPTries, MaxICMPTries); err != nil {
 		errs["Tries"] = err
 	}
 
@@ -35,14 +48,22 @@ func NormalizeICMP(cfg *config.ICMPConfig) []Warning {
 	def := config.DefaultICMPConfig()
 	var warns []Warning
 
-	fixInt("Workers", &cfg.Workers, 1, 10000, def.Workers, &warns)
+	fixInt("Workers", &cfg.Workers,
+		MinICMPWorkers, MaxICMPWorkers,
+		def.Workers, &warns)
 
 	fixDurationMS("Timeout", &cfg.Timeout,
-		100*time.Millisecond, 30*time.Second, def.Timeout, &warns)
+		MinICMPTimeout, MaxICMPTimeout,
+		def.Timeout, &warns)
 
-	fixUint16("Tries", &cfg.Tries, 1, 10, def.Tries, &warns)
+	fixUint16("Tries", &cfg.Tries,
+		MinICMPTries, MaxICMPTries,
+		def.Tries, &warns)
 
-	fixString("PrefixOutput", &cfg.OutputPrefix, def.OutputPrefix, &warns)
+	fixString("PrefixOutput",
+		&cfg.OutputPrefix,
+		def.OutputPrefix,
+		&warns)
 
 	return warns
 }

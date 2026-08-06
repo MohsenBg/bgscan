@@ -41,16 +41,41 @@ func TestHTTPConfig(t *testing.T) {
 			checkFixed:    func(t *testing.T, c *config.HTTPConfig) {},
 		},
 		{
-			name: "Workers and Port invalid",
+			name: "Workers too low",
 			mutateCfg: func(c *config.HTTPConfig) {
-				c.Workers = 0
-				c.Port = 70000
+				c.Workers = MinHTTPWorkers - 1
 			},
-			wantErrKeys:   []string{"Workers", "Port"},
-			wantWarnCount: 2,
+			wantErrKeys:   []string{"Workers"},
+			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
-				if c.Workers != def.Workers || c.Port != def.Port {
-					t.Errorf("Workers or Port not fixed correctly")
+				if c.Workers != def.Workers {
+					t.Errorf("Workers = %d, want %d", c.Workers, def.Workers)
+				}
+			},
+		},
+		{
+			name: "Workers too high",
+			mutateCfg: func(c *config.HTTPConfig) {
+				c.Workers = MaxHTTPWorkers + 1
+			},
+			wantErrKeys:   []string{"Workers"},
+			wantWarnCount: 1,
+			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
+				if c.Workers != def.Workers {
+					t.Errorf("Workers = %d, want %d", c.Workers, def.Workers)
+				}
+			},
+		},
+		{
+			name: "Port invalid",
+			mutateCfg: func(c *config.HTTPConfig) {
+				c.Port = MaxHTTPPort + 1
+			},
+			wantErrKeys:   []string{"Port"},
+			wantWarnCount: 1,
+			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
+				if c.Port != def.Port {
+					t.Errorf("Port = %d, want %d", c.Port, def.Port)
 				}
 			},
 		},
@@ -63,8 +88,12 @@ func TestHTTPConfig(t *testing.T) {
 			wantErrKeys:   []string{"Host", "ServerName"},
 			wantWarnCount: 2,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
-				if c.Host != def.Host || c.ServerName != def.ServerName {
-					t.Errorf("Host or ServerName not fixed correctly")
+				if c.Host != def.Host {
+					t.Errorf("Host = %q, want %q", c.Host, def.Host)
+				}
+
+				if c.ServerName != def.ServerName {
+					t.Errorf("ServerName = %q, want %q", c.ServerName, def.ServerName)
 				}
 			},
 		},
@@ -77,26 +106,34 @@ func TestHTTPConfig(t *testing.T) {
 			wantErrKeys:   []string{"Protocol", "Version"},
 			wantWarnCount: 2,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
-				if c.Protocol != def.Protocol || c.Version != def.Version {
-					t.Errorf("Protocol or Version not fixed correctly")
+				if c.Protocol != def.Protocol {
+					t.Errorf("Protocol = %q, want %q", c.Protocol, def.Protocol)
+				}
+
+				if c.Version != def.Version {
+					t.Errorf("Version = %q, want %q", c.Version, def.Version)
 				}
 			},
 		},
 		{
-			name: "Timeout invalid",
+			name: "Timeout too high",
 			mutateCfg: func(c *config.HTTPConfig) {
-				c.Timeout = config.NewDurationMS(time.Hour)
+				c.Timeout = config.NewDurationMS(MaxHTTPTimeout + time.Second)
 			},
 			wantErrKeys:   []string{"Timeout"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
-				if c.Timeout != def.Timeout {
-					t.Errorf("Timeout not fixed correctly")
+				if c.Timeout.Duration() != def.Timeout.Duration() {
+					t.Errorf(
+						"Timeout = %v, want %v",
+						c.Timeout.Duration(),
+						def.Timeout.Duration(),
+					)
 				}
 			},
 		},
 		{
-			name: "TLS Max & Min Version invalid",
+			name: "TLS versions invalid",
 			mutateCfg: func(c *config.HTTPConfig) {
 				c.MinTLSVersion = "min-tls-invalid"
 				c.MaxTLSVersion = "max-tls-invalid"
@@ -105,14 +142,22 @@ func TestHTTPConfig(t *testing.T) {
 			wantWarnCount: 2,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.MinTLSVersion != def.MinTLSVersion {
-					t.Errorf("MinTLSVersion = %q, want %q", c.MinTLSVersion, def.MinTLSVersion)
+					t.Errorf(
+						"MinTLSVersion = %q, want %q",
+						c.MinTLSVersion,
+						def.MinTLSVersion,
+					)
 				}
+
 				if c.MaxTLSVersion != def.MaxTLSVersion {
-					t.Errorf("MaxTLSVersion = %q, want %q", c.MaxTLSVersion, def.MaxTLSVersion)
+					t.Errorf(
+						"MaxTLSVersion = %q, want %q",
+						c.MaxTLSVersion,
+						def.MaxTLSVersion,
+					)
 				}
 			},
 		},
-
 		{
 			name: "TLS Version order invalid",
 			mutateCfg: func(c *config.HTTPConfig) {
@@ -123,10 +168,19 @@ func TestHTTPConfig(t *testing.T) {
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.MinTLSVersion != def.MinTLSVersion {
-					t.Errorf("MinTLSVersion = %q, want %q", c.MinTLSVersion, def.MinTLSVersion)
+					t.Errorf(
+						"MinTLSVersion = %q, want %q",
+						c.MinTLSVersion,
+						def.MinTLSVersion,
+					)
 				}
+
 				if c.MaxTLSVersion != def.MaxTLSVersion {
-					t.Errorf("MaxTLSVersion = %q, want %q", c.MaxTLSVersion, def.MaxTLSVersion)
+					t.Errorf(
+						"MaxTLSVersion = %q, want %q",
+						c.MaxTLSVersion,
+						def.MaxTLSVersion,
+					)
 				}
 			},
 		},
@@ -140,7 +194,11 @@ func TestHTTPConfig(t *testing.T) {
 			wantWarnCount: 2,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.OutputPrefix != def.OutputPrefix {
-					t.Errorf("PrefixOutput not fixed")
+					t.Errorf(
+						"OutputPrefix = %q, want %q",
+						c.OutputPrefix,
+						def.OutputPrefix,
+					)
 				}
 			},
 		},
@@ -152,21 +210,39 @@ func TestHTTPConfig(t *testing.T) {
 			tt.mutateCfg(&cfg)
 
 			errs := ValidateHTTP(cfg)
+
 			if len(errs) != len(tt.wantErrKeys) {
-				t.Errorf("ValidateHTTP() returned %d errors, want %d. Errors: %v", len(errs), len(tt.wantErrKeys), errs)
+				t.Errorf(
+					"ValidateHTTP() returned %d errors, want %d. Errors: %v",
+					len(errs),
+					len(tt.wantErrKeys),
+					errs,
+				)
 			}
+
 			for _, key := range tt.wantErrKeys {
 				if _, ok := errs[key]; !ok {
-					t.Errorf("ValidateHTTP() missing expected error for key %q", key)
+					t.Errorf(
+						"ValidateHTTP() missing expected error for key %q",
+						key,
+					)
 				}
 			}
 
 			cfg = makeValidHTTP()
 			tt.mutateCfg(&cfg)
+
 			warns := NormalizeHTTP(&cfg)
+
 			if len(warns) != tt.wantWarnCount {
-				t.Errorf("NormalizeHTTP() returned %d warnings, want %d. Warnings: %v", len(warns), tt.wantWarnCount, warns)
+				t.Errorf(
+					"NormalizeHTTP() returned %d warnings, want %d. Warnings: %v",
+					len(warns),
+					tt.wantWarnCount,
+					warns,
+				)
 			}
+
 			tt.checkFixed(t, &cfg)
 		})
 	}

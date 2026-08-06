@@ -25,7 +25,20 @@ func TestTCPConfig(t *testing.T) {
 		},
 		{
 			name:          "Workers too low",
-			mutateCfg:     func(c *config.TCPConfig) { c.Workers = 0 },
+			mutateCfg:     func(c *config.TCPConfig) { c.Workers = MinTCPWorkers - 1 },
+			wantErrKeys:   []string{"Workers"},
+			wantWarnCount: 1,
+			checkFixed: func(t *testing.T, c *config.TCPConfig) {
+				if c.Workers != def.Workers {
+					t.Errorf("Workers = %d, want %d", c.Workers, def.Workers)
+				}
+			},
+		},
+		{
+			name: "Workers too high",
+			mutateCfg: func(c *config.TCPConfig) {
+				c.Workers = MaxTCPWorkers + 1
+			},
 			wantErrKeys:   []string{"Workers"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.TCPConfig) {
@@ -36,7 +49,7 @@ func TestTCPConfig(t *testing.T) {
 		},
 		{
 			name:          "Port too low",
-			mutateCfg:     func(c *config.TCPConfig) { c.Port = 0 },
+			mutateCfg:     func(c *config.TCPConfig) { c.Port = MinTCPPort - 1 },
 			wantErrKeys:   []string{"Port"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.TCPConfig) {
@@ -47,7 +60,7 @@ func TestTCPConfig(t *testing.T) {
 		},
 		{
 			name:          "Port too high",
-			mutateCfg:     func(c *config.TCPConfig) { c.Port = 65536 },
+			mutateCfg:     func(c *config.TCPConfig) { c.Port = MaxTCPPort + 1 },
 			wantErrKeys:   []string{"Port"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.TCPConfig) {
@@ -58,7 +71,7 @@ func TestTCPConfig(t *testing.T) {
 		},
 		{
 			name:          "Timeout too high",
-			mutateCfg:     func(c *config.TCPConfig) { c.Timeout = config.NewDurationMS(31 * time.Second) },
+			mutateCfg:     func(c *config.TCPConfig) { c.Timeout = config.NewDurationMS(MaxTCPTimeout + time.Second) },
 			wantErrKeys:   []string{"Timeout"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.TCPConfig) {
@@ -69,7 +82,7 @@ func TestTCPConfig(t *testing.T) {
 		},
 		{
 			name:          "Tries too low",
-			mutateCfg:     func(c *config.TCPConfig) { c.Tries = 0 },
+			mutateCfg:     func(c *config.TCPConfig) { c.Tries = MinTCPTries - 1 },
 			wantErrKeys:   []string{"Tries"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.TCPConfig) {

@@ -23,8 +23,8 @@ func TestDefaultGeneralConfig(t *testing.T) {
 	if cfg.BatchSize != 5_000 {
 		t.Errorf("BatchSize = %d, want 5000", cfg.BatchSize)
 	}
-	if cfg.Shuffled != false {
-		t.Errorf("Shuffled = %v, want false", cfg.Shuffled)
+	if cfg.Shuffled == false {
+		t.Errorf("Shuffled = %v, want true", cfg.Shuffled)
 	}
 	if cfg.PipelineMode != "streaming" {
 		t.Errorf("PipelineMode = %q, want %q", cfg.PipelineMode, "streaming")
@@ -68,14 +68,14 @@ func TestDefaultICMPConfig(t *testing.T) {
 func TestDefaultTCPConfig(t *testing.T) {
 	cfg := DefaultTCPConfig()
 
-	if cfg.Workers != 200 {
-		t.Errorf("Workers = %d, want 200", cfg.Workers)
+	if cfg.Workers != 400 {
+		t.Errorf("Workers = %d, want 400", cfg.Workers)
 	}
-	if cfg.Port != 80 {
-		t.Errorf("Port = %d, want 80", cfg.Port)
+	if cfg.Port != 443 {
+		t.Errorf("Port = %d, want 443", cfg.Port)
 	}
-	if cfg.Timeout != NewDurationMS(3*time.Second) {
-		t.Errorf("Timeout = %v, want 3s", cfg.Timeout)
+	if cfg.Timeout != NewDurationMS(2*time.Second) {
+		t.Errorf("Timeout = %v, want 2s", cfg.Timeout)
 	}
 	if cfg.Tries != 1 {
 		t.Errorf("Tries = %d, want 1", cfg.Tries)
@@ -129,7 +129,7 @@ func TestDefaultXrayConfig(t *testing.T) {
 	if cfg.Workers != 32 {
 		t.Errorf("Workers = %d, want 32", cfg.Workers)
 	}
-	if cfg.ConnectivityTestType != ConnectivityOnly {
+	if cfg.ConnectivityTestType != Both {
 		t.Errorf("ConnectivityTestType = %v, want ConnectivityOnly", cfg.ConnectivityTestType)
 	}
 	if cfg.DownloadSpeed != 100 {
@@ -138,11 +138,11 @@ func TestDefaultXrayConfig(t *testing.T) {
 	if cfg.UploadSpeed != 50 {
 		t.Errorf("UploadSpeed = %d, want 50", cfg.UploadSpeed)
 	}
-	if cfg.PreScanType != "none" {
+	if cfg.PreScanType != "tcp" {
 		t.Errorf("PreScanType = %q, want %q", cfg.PreScanType, "none")
 	}
-	if cfg.Timeout != NewDurationMS(6*time.Second) {
-		t.Errorf("Timeout = %v, want 6s", cfg.Timeout)
+	if cfg.Timeout != NewDurationMS(4*time.Second) {
+		t.Errorf("Timeout = %v, want 4s", cfg.Timeout)
 	}
 	if cfg.OutputPrefix != "xray_" {
 		t.Errorf("PrefixOutput = %q, want %q", cfg.OutputPrefix, "xray_")

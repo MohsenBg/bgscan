@@ -17,11 +17,11 @@ type XrayConfig struct {
 func DefaultXrayConfig() XrayConfig {
 	return XrayConfig{
 		Workers:              32,
-		ConnectivityTestType: ConnectivityOnly,
+		ConnectivityTestType: Both,
 		DownloadSpeed:        100,
 		UploadSpeed:          50,
-		PreScanType:          "none",
-		Timeout:              NewDurationMS(6 * time.Second),
+		PreScanType:          "tcp",
+		Timeout:              NewDurationMS(4 * time.Second),
 		OutputPrefix:         "xray_",
 	}
 }

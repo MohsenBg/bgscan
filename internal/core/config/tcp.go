@@ -14,9 +14,9 @@ type TCPConfig struct {
 // DefaultTCPConfig returns the default configuration for TCP scanning.
 func DefaultTCPConfig() TCPConfig {
 	return TCPConfig{
-		Workers:      200,
-		Port:         80,
-		Timeout:      NewDurationMS(3 * time.Second),
+		Workers:      400,
+		Port:         443,
+		Timeout:      NewDurationMS(2 * time.Second),
 		Tries:        1,
 		OutputPrefix: "tcp_",
 	}

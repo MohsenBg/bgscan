@@ -12,18 +12,16 @@ import (
 	"bgscan/internal/logger"
 )
 
-// RunScan orchestrates the full lifecycle of a standalone scan stage.
-// It counts active targets, feeds them into a worker pool, tracks metrics,
-// and flushes outputs to disk. It blocks until the scan completes or is cancelled.
-func RunScan(
-	ctx context.Context,
-	input string,
-	maxIP uint64,
-	cfg ScanConfig,
-	shuffled bool,
-	pause PauseController,
-) {
-	// Resolve and calculate workload size
+type scanProgress struct {
+	start     time.Time
+	total     uint64
+	processed *atomic.Uint64
+	success   *atomic.Uint64
+	pause     PauseController
+	callback  func(Progress)
+}
+
+func RunScan(ctx context.Context, input string, cfg ScanConfig) {
 	total, err := iplist.CountActiveIPs(input)
 	if err != nil {
 		cfg.Hooks.callOnError(err)
@@ -37,28 +35,20 @@ func RunScan(
 	}
 
 	workers := int(min(uint64(cfg.Workers), total))
-	if workers <= 0 {
+	if workers < 1 {
 		workers = 1
 	}
 
-	// Instantiate communication pipelines
 	ips := make(chan netip.Addr, workers*2)
 	results := make(chan result.Result, workers*4)
 
 	var (
 		processed atomic.Uint64
-		succeed   atomic.Uint64
+		success   atomic.Uint64
 		start     = time.Now()
 	)
 
-	// Set up synchronization boundaries
-	var writerDone sync.WaitGroup
-	progressDone := make(chan struct{})
-
-	// Initialize required system dependencies
-	err = cfg.Writer.Start()
-	if err != nil {
-		_ = cfg.Writer.Stop()
+	if err := cfg.Writer.Start(); err != nil {
 		cfg.Hooks.callOnError(err)
 		cfg.Hooks.callOnScanEnd()
 		return
@@ -71,106 +61,83 @@ func RunScan(
 		return
 	}
 
-	rateCh := makeRateCh(cfg.Rate)
-
-	// Ensure structural cleanup and shutdown operations run on exit
 	defer func() {
 		if err := cfg.Writer.Stop(); err != nil {
-			logger.CoreError("error stopping writer: %v", err)
+			logger.CoreError("stopping writer: %v", err)
 		}
 
 		if err := cfg.Probe.Close(); err != nil {
 			cfg.Hooks.callOnError(err)
 		}
 
-		// Send one final, exact progress update before signaling absolute termination
-		reportProgress(start, pausedDuration(pause), total, processed.Load(), succeed.Load(), cfg.Hooks.OnProgress)
+		reportProgress(
+			start,
+			pausedDuration(cfg.Pause),
+			total,
+			processed.Load(),
+			success.Load(),
+			cfg.Hooks.OnProgress,
+		)
+
 		cfg.Hooks.callOnScanEnd()
 	}()
 
-	// Spin up downstream consumer (File Writer)
-	writerDone.Go(func() {
+	var writerWG sync.WaitGroup
+	writerWG.Go(func() {
 		for res := range results {
 			cfg.Writer.Write(res)
 		}
 	})
 
-	// Spin up background progress telemetry metrics
-	go runProgressReporter(ctx, progressDone, pause, cfg.ProgressInterval, start, total, &processed, &succeed, cfg.Hooks.OnProgress)
+	progress := scanProgress{
+		start:     start,
+		total:     total,
+		processed: &processed,
+		success:   &success,
+		pause:     cfg.Pause,
+		callback:  cfg.Hooks.OnProgress,
+	}
 
-	// Spin up downstream compute engine (Worker Pool)
-	var workerWg sync.WaitGroup
-	workerWg.Add(workers)
+	go runProgressReporter(ctx, cfg.ProgressInterval, progress)
 
-	for i := 0; i < workers; i++ {
+	var workerWG sync.WaitGroup
+	workerWG.Add(workers)
+
+	for range workers {
 		go func() {
-			defer workerWg.Done()
-			runWorker(ctx, pause, ips, func(ip netip.Addr) {
-				// Enforce rate limiting boundaries
-				select {
-				case <-rateCh:
-				case <-ctx.Done():
-					return
-				}
+			defer workerWG.Done()
 
-				// Execute probe
-				res, err := cfg.Probe.Run(ctx, ip)
-				processed.Add(1)
-
-				if err != nil {
-					if ctx.Err() == nil {
-						logger.CoreError("probe failed for %s: %v", ip, err)
-					}
-					return
-				}
-
-				succeed.Add(1)
-				cfg.Hooks.callOnSuccess(res)
-
-				select {
-				case results <- res:
-				case <-ctx.Done():
-				}
+			runWorker(ctx, cfg.Pause, ips, func(ip netip.Addr) {
+				runProbe(ctx, ip, cfg, &processed, &success, results)
 			})
 		}()
 	}
 
-	// Execute upstream producer (File Reader/Streamer)
-	streamErr := iplist.StreamActiveIPs(ctx, input, maxIP, shuffled, ips)
-	if streamErr != nil {
-		cfg.Hooks.callOnError(streamErr)
+	if err := iplist.StreamActiveIPs(
+		ctx,
+		input,
+		cfg.MaxIPsToTest,
+		cfg.Shuffled,
+		ips,
+	); err != nil {
+		cfg.Hooks.callOnError(err)
 	}
-	close(ips) // Signal worker pools that production has finished
 
-	workerWg.Wait()     // Wait for workers to drain current in-flight channel elements
-	close(results)      // Signal writer thread to flush and terminate
-	writerDone.Wait()   // Wait for writer thread disk flush to resolve cleanly
-	close(progressDone) // Halt telemetry tracking routines
+	close(ips)
+
+	workerWG.Wait()
+	close(results)
+
+	writerWG.Wait()
 }
 
-// makeRateCh builds an unbuffered channel emitting ticks to enforce throughput caps.
-func makeRateCh(rate int) <-chan time.Time {
-	if rate > 0 {
-		return time.NewTicker(time.Second / time.Duration(rate)).C
-	}
-	ch := make(chan time.Time)
-	close(ch)
-	return ch
-}
-
-// runProgressReporter monitors telemetry updates at configurable heartbeat intervals.
+// runProgressReporter periodically publishes scan statistics.
 func runProgressReporter(
 	ctx context.Context,
-	progressDone <-chan struct{},
-	pause PauseController,
 	interval time.Duration,
-	start time.Time,
-	total uint64,
-	processed *atomic.Uint64,
-	succeed *atomic.Uint64,
-	onProgress func(Progress),
+	p scanProgress,
 ) {
-	if onProgress == nil || interval <= 0 {
+	if p.callback == nil || interval <= 0 {
 		return
 	}
 
@@ -179,30 +146,71 @@ func runProgressReporter(
 
 	for {
 		select {
-		case <-progressDone:
-			return
 		case <-ctx.Done():
 			return
+
 		case <-ticker.C:
-			if pause != nil && pause.IsPaused() {
+			if p.pause != nil && p.pause.IsPaused() {
 				continue
 			}
+
 			reportProgress(
-				start,
-				pausedDuration(pause),
-				total,
-				processed.Load(),
-				succeed.Load(),
-				onProgress,
+				p.start,
+				pausedDuration(p.pause),
+				p.total,
+				p.processed.Load(),
+				p.success.Load(),
+				p.callback,
 			)
 		}
 	}
 }
 
-// pausedDuration returns the pause duration when pause control is enabled.
+// pausedDuration returns the cumulative paused duration, or zero if pause is disabled.
 func pausedDuration(pause PauseController) time.Duration {
 	if pause == nil {
 		return 0
 	}
 	return pause.PausedDuration()
+}
+
+// runProbe acquires a rate-limit token, executes the probe, then enforces
+// the minimum probe duration to prevent socket burst on slow-kernel devices.
+func runProbe(
+	ctx context.Context,
+	ip netip.Addr,
+	cfg ScanConfig,
+	processed *atomic.Uint64,
+	succeed *atomic.Uint64,
+	results chan<- result.Result,
+) {
+	if cfg.RateLimiter != nil {
+		if err := cfg.RateLimiter.Wait(ctx); err != nil {
+			return
+		}
+	}
+	probeStart := time.Now()
+
+	res, err := cfg.Probe.Run(ctx, ip)
+	processed.Add(1)
+
+	if err != nil {
+		logger.CoreError("probe failed for %s: %v", ip, err)
+	} else {
+		succeed.Add(1)
+		cfg.Hooks.callOnSuccess(res)
+		select {
+		case results <- res:
+		case <-ctx.Done():
+		}
+	}
+
+	if cfg.MinProbeDuration > 0 {
+		if remaining := cfg.MinProbeDuration - time.Since(probeStart); remaining > 0 {
+			select {
+			case <-time.After(remaining):
+			case <-ctx.Done():
+			}
+		}
+	}
 }

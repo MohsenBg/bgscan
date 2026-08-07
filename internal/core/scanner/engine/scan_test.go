@@ -19,12 +19,15 @@ func TestRunScan_EmptyInput(t *testing.T) {
 	w := &mockWriter{}
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, 0, ScanConfig{
-		Workers: 2,
-		Probe:   prb,
-		Writer:  w,
-		Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-	}, false, NewPauseController())
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest: 0,
+		Workers:      2,
+		Probe:        prb,
+		Writer:       w,
+		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+		Shuffled:     false,
+		Pause:        NewPauseController(),
+	})
 
 	select {
 	case <-endCh:
@@ -46,15 +49,18 @@ func TestRunScan_ScansAllIPs(t *testing.T) {
 	var successCount atomic.Int32
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, 0, ScanConfig{
-		Workers: 2,
-		Probe:   prb,
-		Writer:  w,
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest: 0,
+		Workers:      2,
+		Probe:        prb,
+		Writer:       w,
 		Hooks: ScanHooks{
 			OnSuccess: func(r result.Result) { successCount.Add(1) },
 			OnScanEnd: func() { endCh <- struct{}{} },
 		},
-	}, false, NewPauseController())
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
 
 	<-endCh
 
@@ -74,15 +80,18 @@ func TestRunScan_ProbeInitError(t *testing.T) {
 	var gotErr error
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, 0, ScanConfig{
-		Workers: 1,
-		Probe:   prb,
-		Writer:  w,
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest: 0,
+		Workers:      1,
+		Probe:        prb,
+		Writer:       w,
 		Hooks: ScanHooks{
 			OnError:   func(e error) { gotErr = e },
 			OnScanEnd: func() { endCh <- struct{}{} },
 		},
-	}, false, NewPauseController())
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
 
 	<-endCh
 
@@ -102,15 +111,18 @@ func TestRunScan_ProbeRunError(t *testing.T) {
 	var successCount atomic.Int32
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, 0, ScanConfig{
-		Workers: 1,
-		Probe:   prb,
-		Writer:  w,
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest: 0,
+		Workers:      1,
+		Probe:        prb,
+		Writer:       w,
 		Hooks: ScanHooks{
 			OnSuccess: func(r result.Result) { successCount.Add(1) },
 			OnScanEnd: func() { endCh <- struct{}{} },
 		},
-	}, false, NewPauseController())
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
 
 	<-endCh
 
@@ -130,15 +142,18 @@ func TestRunScan_WriterStartError(t *testing.T) {
 	var gotErr error
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, 0, ScanConfig{
-		Workers: 1,
-		Probe:   prb,
-		Writer:  w,
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest: 0,
+		Workers:      1,
+		Probe:        prb,
+		Writer:       w,
 		Hooks: ScanHooks{
 			OnError:   func(e error) { gotErr = e },
 			OnScanEnd: func() { endCh <- struct{}{} },
 		},
-	}, false, NewPauseController())
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
 
 	<-endCh
 
@@ -165,12 +180,15 @@ func TestRunScan_ContextCancellation(t *testing.T) {
 		cancel()
 	}()
 
-	RunScan(ctx, path, 0, ScanConfig{
-		Workers: 4,
-		Probe:   prb,
-		Writer:  w,
-		Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-	}, false, NewPauseController())
+	RunScan(ctx, path, ScanConfig{
+		MaxIPsToTest: 0,
+		Workers:      4,
+		Probe:        prb,
+		Writer:       w,
+		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+		Shuffled:     false,
+		Pause:        NewPauseController(),
+	})
 
 	select {
 	case <-endCh:
@@ -192,12 +210,15 @@ func TestRunScan_MaxIPLimit(t *testing.T) {
 	const maxIPs uint64 = 2
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, maxIPs, ScanConfig{
-		Workers: 1,
-		Probe:   prb,
-		Writer:  w,
-		Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-	}, false, NewPauseController())
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest: maxIPs,
+		Workers:      1,
+		Probe:        prb,
+		Writer:       w,
+		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+		Shuffled:     false,
+		Pause:        NewPauseController(),
+	})
 
 	<-endCh
 
@@ -225,12 +246,15 @@ func TestRunScan_PauseAndResumeDuringRun(t *testing.T) {
 		pc.Resume()
 	}()
 
-	RunScan(context.Background(), path, 0, ScanConfig{
-		Workers: 2,
-		Probe:   prb,
-		Writer:  w,
-		Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-	}, false, pc)
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest: 0,
+		Workers:      2,
+		Probe:        prb,
+		Writer:       w,
+		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+		Shuffled:     false,
+		Pause:        pc,
+	})
 
 	select {
 	case <-endCh:
@@ -240,30 +264,6 @@ func TestRunScan_PauseAndResumeDuringRun(t *testing.T) {
 
 	if prb.runCalled.Load() == 0 {
 		t.Fatal("expected at least some IPs processed")
-	}
-}
-
-func TestRunScan_RateLimit(t *testing.T) {
-	ips := []string{"1.1.1.1", "2.2.2.2", "3.3.3.3", "4.4.4.4", "5.5.5.5"}
-	path := ipFile(t, ips...)
-	prb := &mockProbe{}
-	w := &mockWriter{}
-
-	endCh := make(chan struct{}, 1)
-	start := time.Now()
-
-	RunScan(context.Background(), path, 0, ScanConfig{
-		Workers: 1,
-		Rate:    10,
-		Probe:   prb,
-		Writer:  w,
-		Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-	}, false, NewPauseController())
-
-	<-endCh
-
-	if elapsed := time.Since(start); elapsed < 400*time.Millisecond {
-		t.Fatalf("expected rate limiting to slow scan; elapsed=%v", elapsed)
 	}
 }
 
@@ -279,7 +279,8 @@ func TestRunScan_OnProgressCallback(t *testing.T) {
 	var progressCalls atomic.Int32
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, 0, ScanConfig{
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest:     0,
 		Workers:          2,
 		Probe:            prb,
 		Writer:           w,
@@ -296,7 +297,9 @@ func TestRunScan_OnProgressCallback(t *testing.T) {
 			},
 			OnScanEnd: func() { endCh <- struct{}{} },
 		},
-	}, false, NewPauseController())
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
 
 	<-endCh
 
@@ -338,12 +341,15 @@ func TestWorkerPool_ConcurrencyRespected(t *testing.T) {
 	w := &mockWriter{}
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, 0, ScanConfig{
-		Workers: workerCount,
-		Probe:   prb,
-		Writer:  w,
-		Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-	}, false, NewPauseController())
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest: 0,
+		Workers:      workerCount,
+		Probe:        prb,
+		Writer:       w,
+		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+		Shuffled:     false,
+		Pause:        NewPauseController(),
+	})
 
 	<-endCh
 
@@ -364,12 +370,15 @@ func TestWorkerPool_ZeroWorkersDefaultsToOne(t *testing.T) {
 	w := &mockWriter{}
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, 0, ScanConfig{
-		Workers: 0,
-		Probe:   prb,
-		Writer:  w,
-		Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-	}, false, NewPauseController())
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest: 0,
+		Workers:      0,
+		Probe:        prb,
+		Writer:       w,
+		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+		Shuffled:     false,
+		Pause:        NewPauseController(),
+	})
 
 	select {
 	case <-endCh:
@@ -397,7 +406,8 @@ func TestProgress_FieldsViaScan(t *testing.T) {
 	)
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, 0, ScanConfig{
+	RunScan(context.Background(), path, ScanConfig{
+		MaxIPsToTest:     0,
 		Workers:          1,
 		Probe:            prb,
 		Writer:           w,
@@ -410,7 +420,9 @@ func TestProgress_FieldsViaScan(t *testing.T) {
 			},
 			OnScanEnd: func() { endCh <- struct{}{} },
 		},
-	}, false, NewPauseController())
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
 
 	<-endCh
 

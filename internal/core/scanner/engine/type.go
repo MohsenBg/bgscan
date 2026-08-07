@@ -6,6 +6,8 @@ import (
 
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/scanner/probe"
+
+	"golang.org/x/time/rate"
 )
 
 // PipelineMode defines how data streams and flows across multi-stage scans.
@@ -27,29 +29,85 @@ const (
 
 // ChainConfig controls the execution strategy for a multi-stage scan sequence.
 type ChainConfig struct {
+	// Mode selects the pipeline execution strategy (sequential, streaming, or batch).
 	Mode PipelineMode
 
 	// MaxBuffer is the channel buffer size between streaming stages.
 	// Larger values reduce inter-stage blocking at the cost of memory.
 	MaxBuffer int
+
+	// BatchSize is the number of IPs grouped together when Mode is ModeBatch.
 	BatchSize int
 
-	Stages []ScanConfig
+	// MaxIPsToTest caps the total number of IPs processed across all stages.
+	MaxIPsToTest uint64
 
+	// Stages defines the ordered list of scan stages to execute.
+	Stages []StageConfig
+
+	// MinProbeDuration enforces a minimum duration for each probe, useful for
+	// normalizing timing-based side channels.
+	MinProbeDuration time.Duration
+
+	// Pause allows external control to pause/resume the scan chain.
 	Pause PauseController
 
+	// Shuffled randomizes IP order before scanning when true.
 	Shuffled bool
+
+	// RateLimiter throttles the rate of outgoing probes, if set.
+	RateLimiter *rate.Limiter
 }
 
-// ScanConfig defines settings and dependencies for a single scan stage.
+// ScanConfig controls the execution of a single, standalone scan.
 type ScanConfig struct {
-	Workers          int
-	Rate             int
+	// Workers is the number of concurrent probe workers.
+	Workers int
+
+	// MaxIPsToTest caps the total number of IPs processed.
+	MaxIPsToTest uint64
+
+	// MinProbeDuration enforces a minimum duration for each probe.
+	MinProbeDuration time.Duration
+
+	// ProgressInterval sets how often OnProgress hooks fire.
 	ProgressInterval time.Duration
 
-	Probe  probe.Probe
+	// Probe is the protocol-specific probe implementation to run against each IP.
+	Probe probe.Probe
+
+	// Writer persists successful scan results.
 	Writer result.Writer
-	Hooks  ScanHooks
+
+	// Hooks provides optional lifecycle callbacks.
+	Hooks ScanHooks
+
+	// Pause allows external control to pause/resume the scan.
+	Pause PauseController
+
+	// Shuffled randomizes IP order before scanning when true.
+	Shuffled bool
+
+	// RateLimiter throttles the rate of outgoing probes, if set.
+	RateLimiter *rate.Limiter
+}
+
+// StageConfig defines settings and dependencies for a single scan stage.
+type StageConfig struct {
+	// Workers is the number of concurrent probe workers for this stage.
+	Workers int
+
+	// ProgressInterval sets how often OnProgress hooks fire for this stage.
+	ProgressInterval time.Duration
+
+	// Probe is the protocol-specific probe implementation for this stage.
+	Probe probe.Probe
+
+	// Writer persists successful results for this stage.
+	Writer result.Writer
+
+	// Hooks provides optional lifecycle callbacks for this stage.
+	Hooks ScanHooks
 }
 
 // ScanHooks provides optional lifecycle callbacks for the scanning engine.

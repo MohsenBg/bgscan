@@ -8,12 +8,8 @@ import (
 	"time"
 )
 
-func TestRunScanWithChain_NilConfig(t *testing.T) {
-	RunScanWithChain(context.Background(), "", 0, nil)
-}
-
 func TestRunScanWithChain_EmptyStages(t *testing.T) {
-	RunScanWithChain(context.Background(), "", 0, &ChainConfig{})
+	RunScanWithChain(context.Background(), "", ChainConfig{})
 }
 
 func TestRunScanWithChain_Sequential_TwoStages(t *testing.T) {
@@ -32,10 +28,10 @@ func TestRunScanWithChain_Sequential_TwoStages(t *testing.T) {
 	pc := NewPauseController()
 	defer pc.Stop()
 
-	RunScanWithChain(context.Background(), stage1Path, 0, &ChainConfig{
+	RunScanWithChain(context.Background(), stage1Path, ChainConfig{
 		Mode:  ModeSequential,
 		Pause: pc,
-		Stages: []ScanConfig{
+		Stages: []StageConfig{
 			{Workers: 2, Probe: prb1, Writer: w1, Hooks: ScanHooks{OnScanEnd: func() { endCh1 <- struct{}{} }}},
 			{Workers: 2, Probe: prb2, Writer: w2, Hooks: ScanHooks{OnScanEnd: func() { endCh2 <- struct{}{} }}},
 		},
@@ -65,10 +61,10 @@ func TestRunScanWithChain_Sequential_SkipsOnEmptyIntermediate(t *testing.T) {
 	prb2 := &mockProbe{}
 	endCh1 := make(chan struct{}, 1)
 
-	RunScanWithChain(context.Background(), stage1Input, 0, &ChainConfig{
+	RunScanWithChain(context.Background(), stage1Input, ChainConfig{
 		Mode:  ModeSequential,
 		Pause: NewPauseController(),
-		Stages: []ScanConfig{
+		Stages: []StageConfig{
 			{Workers: 1, Probe: &mockProbe{}, Writer: w1, Hooks: ScanHooks{OnScanEnd: func() { endCh1 <- struct{}{} }}},
 			{Workers: 1, Probe: prb2, Writer: &mockWriter{}},
 		},
@@ -96,11 +92,11 @@ func TestRunScanWithChain_Streaming_TwoStages(t *testing.T) {
 	pc := NewPauseController()
 	defer pc.Stop()
 
-	RunScanWithChain(context.Background(), path, 0, &ChainConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		Mode:      ModeStreaming,
 		MaxBuffer: 100,
 		Pause:     pc,
-		Stages: []ScanConfig{
+		Stages: []StageConfig{
 			{Workers: 2, Probe: prb1, Writer: &mockWriter{}, Hooks: ScanHooks{OnScanEnd: func() { end1.Add(1) }}},
 			{Workers: 2, Probe: prb2, Writer: &mockWriter{}, Hooks: ScanHooks{OnScanEnd: func() { end2.Add(1) }}},
 		},
@@ -146,10 +142,10 @@ func TestRunScanWithChain_Streaming_ContextCancellation(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		RunScanWithChain(ctx, path, 0, &ChainConfig{
+		RunScanWithChain(ctx, path, ChainConfig{
 			Mode:  ModeStreaming,
 			Pause: NewPauseController(),
-			Stages: []ScanConfig{
+			Stages: []StageConfig{
 				{Workers: 2, Probe: prb, Writer: &mockWriter{}},
 			},
 		})
@@ -177,11 +173,11 @@ func TestRunScanWithChain_Batch_TwoStages(t *testing.T) {
 	pc := NewPauseController()
 	defer pc.Stop()
 
-	RunScanWithChain(context.Background(), path, 0, &ChainConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		Mode:      ModeBatch,
 		BatchSize: 5,
 		Pause:     pc,
-		Stages: []ScanConfig{
+		Stages: []StageConfig{
 			{Workers: 2, Probe: prb1, Writer: &mockWriter{}, Hooks: ScanHooks{OnScanEnd: func() { end1.Add(1) }}},
 			{Workers: 2, Probe: prb2, Writer: &mockWriter{}, Hooks: ScanHooks{OnScanEnd: func() { end2.Add(1) }}},
 		},
@@ -207,11 +203,11 @@ func TestRunScanWithChain_Batch_FiltersProperly(t *testing.T) {
 
 	prb2 := &mockProbe{}
 
-	RunScanWithChain(context.Background(), path, 0, &ChainConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		Mode:      ModeBatch,
 		BatchSize: 10,
 		Pause:     NewPauseController(),
-		Stages: []ScanConfig{
+		Stages: []StageConfig{
 			{
 				Workers: 1,
 				Probe:   &filteringProbe{failIPs: map[string]bool{"10.0.0.2": true, "10.0.0.4": true}},

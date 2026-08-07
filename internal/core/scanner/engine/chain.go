@@ -15,23 +15,23 @@ const (
 )
 
 // RunScanWithChain executes a scan pipeline based on the configured chain mode.
-func RunScanWithChain(ctx context.Context, input string, maxIP uint64, cfg *ChainConfig) {
-	if cfg == nil || len(cfg.Stages) == 0 {
+func RunScanWithChain(ctx context.Context, input string, cfg ChainConfig) {
+	if len(cfg.Stages) == 0 {
 		return
 	}
 
 	switch cfg.Mode {
 	case ModeSequential:
-		executeSequentialChain(ctx, input, maxIP, cfg)
+		executeSequentialChain(ctx, input, cfg)
 	case ModeStreaming:
-		executeStreamingPipeline(ctx, input, maxIP, cfg)
+		executeStreamingPipeline(ctx, input, cfg)
 	case ModeBatch:
-		executeBatchPipeline(ctx, input, maxIP, cfg)
+		executeBatchPipeline(ctx, input, cfg)
 	}
 }
 
 // executeSequentialChain runs stages one after another using file-based outputs.
-func executeSequentialChain(ctx context.Context, input string, maxIP uint64, cfg *ChainConfig) {
+func executeSequentialChain(ctx context.Context, input string, cfg ChainConfig) {
 	currentInput := input
 
 	for i, stage := range cfg.Stages {
@@ -47,14 +47,25 @@ func executeSequentialChain(ctx context.Context, input string, maxIP uint64, cfg
 		}
 
 		logger.CoreInfo("stage %d/%d starting", i+1, len(cfg.Stages))
-		RunScan(ctx, currentInput, maxIP, stage, cfg.Shuffled, cfg.Pause)
+		RunScan(ctx, currentInput, ScanConfig{
+			Workers:          stage.Workers,
+			MaxIPsToTest:     cfg.MaxIPsToTest,
+			Probe:            stage.Probe,
+			Writer:           stage.Writer,
+			MinProbeDuration: cfg.MinProbeDuration,
+			ProgressInterval: stage.ProgressInterval,
+			Hooks:            stage.Hooks,
+			Shuffled:         cfg.Shuffled,
+			Pause:            cfg.Pause,
+			RateLimiter:      cfg.RateLimiter,
+		})
 		currentInput = stage.Writer.GetResultPath()
 		logger.CoreInfo("stage %d/%d completed", i+1, len(cfg.Stages))
 	}
 }
 
 // executeStreamingPipeline runs all stages concurrently in a streaming pipeline.
-func executeStreamingPipeline(ctx context.Context, input string, maxIP uint64, cfg *ChainConfig) {
+func executeStreamingPipeline(ctx context.Context, input string, cfg ChainConfig) {
 	totalIPs, err := iplist.CountActiveIPs(input)
 	if err != nil {
 		logger.CoreError("failed to count IPs: %v", err)
@@ -72,7 +83,7 @@ func executeStreamingPipeline(ctx context.Context, input string, maxIP uint64, c
 			total = totalIPs
 		}
 
-		exec, err := newStageExecutor(ctx, stage, cfg.Pause, total)
+		exec, err := newStageExecutor(ctx, stage, cfg, total)
 		if err != nil {
 			stage.Hooks.callOnError(err)
 			return
@@ -100,12 +111,12 @@ func executeStreamingPipeline(ctx context.Context, input string, maxIP uint64, c
 			next = executors[i+1]
 		}
 
-		go func(idx int, s ScanConfig, in, out chan netip.Addr, exec, nextExec *stageExecutor) {
+		go func(idx int, s StageConfig, in, out chan netip.Addr, exec, nextExec *stageExecutor) {
 			defer wg.Done()
 			defer closeOutputChannel(out)
 
 			if in == nil {
-				streamStageFromFile(ctx, input, maxIP, s, cfg.Shuffled, out, exec, nextExec, cfg.Pause)
+				streamStageFromFile(ctx, input, cfg.MaxIPsToTest, s, cfg.Shuffled, out, exec, nextExec, cfg.Pause)
 			} else {
 				streamStageFromChannel(ctx, in, s, out, exec, nextExec, cfg.Pause)
 			}
@@ -116,7 +127,7 @@ func executeStreamingPipeline(ctx context.Context, input string, maxIP uint64, c
 }
 
 // createStageChannels creates buffered channels between pipeline stages.
-func createStageChannels(cfg *ChainConfig) []chan netip.Addr {
+func createStageChannels(cfg ChainConfig) []chan netip.Addr {
 	channels := make([]chan netip.Addr, len(cfg.Stages))
 
 	for i := range channels {
@@ -157,7 +168,7 @@ func closeOutputChannel(ch chan netip.Addr) {
 }
 
 // executeBatchPipeline runs the batch-based pipeline chain.
-func executeBatchPipeline(ctx context.Context, input string, maxIP uint64, cfg *ChainConfig) {
+func executeBatchPipeline(ctx context.Context, input string, cfg ChainConfig) {
 	totalIPs, err := iplist.CountActiveIPs(input)
 	if err != nil {
 		logger.CoreError("failed to count IPs: %v", err)
@@ -167,7 +178,7 @@ func executeBatchPipeline(ctx context.Context, input string, maxIP uint64, cfg *
 	batchSize := calculateBatchSize(cfg)
 	logger.CoreInfo("batch pipeline started: batch=%d ips=%d", batchSize, totalIPs)
 
-	stream := streamIPsFromFile(ctx, input, cfg.Shuffled, maxIP, batchSize)
+	stream := streamIPsFromFile(ctx, input, cfg.Shuffled, cfg.MaxIPsToTest, batchSize)
 
 	executors := make([]*stageExecutor, 0, len(cfg.Stages))
 
@@ -183,7 +194,7 @@ func executeBatchPipeline(ctx context.Context, input string, maxIP uint64, cfg *
 			total = totalIPs
 		}
 
-		exec, err := newStageExecutor(ctx, stage, cfg.Pause, total)
+		exec, err := newStageExecutor(ctx, stage, cfg, total)
 		if err != nil {
 			stage.Hooks.callOnError(err)
 			return
@@ -258,7 +269,7 @@ func executeBatch(ctx context.Context, batch []netip.Addr, exec *stageExecutor, 
 }
 
 // calculateBatchSize determines optimal batch size for pipeline mode.
-func calculateBatchSize(cfg *ChainConfig) int {
+func calculateBatchSize(cfg ChainConfig) int {
 	if cfg.BatchSize <= 0 {
 		return defaultBatchSize
 	}
@@ -326,7 +337,7 @@ func streamStageFromFile(
 	ctx context.Context,
 	input string,
 	maxIP uint64,
-	stage ScanConfig,
+	stage StageConfig,
 	shuffled bool,
 	output chan netip.Addr,
 	exec *stageExecutor,
@@ -364,7 +375,7 @@ func streamStageFromFile(
 func streamStageFromChannel(
 	ctx context.Context,
 	input chan netip.Addr,
-	stage ScanConfig,
+	stage StageConfig,
 	output chan netip.Addr,
 	exec *stageExecutor,
 	next *stageExecutor,

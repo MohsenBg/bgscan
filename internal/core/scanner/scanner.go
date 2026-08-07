@@ -22,6 +22,8 @@ import (
 	"bgscan/internal/core/scanner/probe/tcpprobe"
 	"bgscan/internal/core/scanner/probe/xrayprobe"
 	"bgscan/internal/logger"
+
+	"golang.org/x/time/rate"
 )
 
 // StageConfig describes one stage in a scan pipeline.
@@ -29,7 +31,6 @@ type StageConfig struct {
 	Workers int
 	Probe   probe.Probe
 	Writer  result.Writer
-	Rate    int
 	Hooks   engine.ScanHooks
 }
 
@@ -70,8 +71,8 @@ type WriterFactory func(context.Context, result.WriterOptions) (result.Writer, e
 // Keeping this dependency small lets scanner tests verify the assembled engine
 // configuration without starting workers or performing network operations.
 type scanRunner interface {
-	RunSingle(context.Context, string, uint64, engine.ScanConfig, bool, engine.PauseController)
-	RunChain(context.Context, string, uint64, *engine.ChainConfig)
+	RunSingle(context.Context, string, engine.ScanConfig)
+	RunChain(context.Context, string, engine.ChainConfig)
 }
 
 type engineRunner struct{}
@@ -79,16 +80,13 @@ type engineRunner struct{}
 func (engineRunner) RunSingle(
 	ctx context.Context,
 	input string,
-	maxIPs uint64,
 	cfg engine.ScanConfig,
-	shuffled bool,
-	pause engine.PauseController,
 ) {
-	engine.RunScan(ctx, input, maxIPs, cfg, shuffled, pause)
+	engine.RunScan(ctx, input, cfg)
 }
 
-func (engineRunner) RunChain(ctx context.Context, input string, maxIPs uint64, cfg *engine.ChainConfig) {
-	engine.RunScanWithChain(ctx, input, maxIPs, cfg)
+func (engineRunner) RunChain(ctx context.Context, input string, cfg engine.ChainConfig) {
+	engine.RunScanWithChain(ctx, input, cfg)
 }
 
 type scanner struct {
@@ -291,42 +289,45 @@ func (s *scanner) runSingle(stage StageConfig) {
 	s.runner.RunSingle(
 		s.ctx,
 		s.input,
-		uint64(maxIPs),
 		engine.ScanConfig{
 			Workers:          stage.Workers,
+			MaxIPsToTest:     uint64(maxIPs),
 			Probe:            stage.Probe,
 			Writer:           stage.Writer,
-			Rate:             stage.Rate,
+			MinProbeDuration: s.config.General.MinProbeDuration.Duration(),
 			ProgressInterval: s.config.General.StatusInterval.Duration(),
 			Hooks:            stage.Hooks,
+			Shuffled:         s.config.General.Shuffled,
+			Pause:            s.pause,
+			RateLimiter:      rate.NewLimiter(rate.Limit(s.config.General.ProbePerSec), s.config.General.ProbeBurst),
 		},
-		s.config.General.Shuffled,
-		s.pause,
 	)
 }
 
 func (s *scanner) runChain(stages []StageConfig) {
 	maxIPs := max(s.config.General.MaxIPsToTest, 0)
 
-	engineStages := make([]engine.ScanConfig, len(stages))
+	engineStages := make([]engine.StageConfig, len(stages))
 	for i, stage := range stages {
-		engineStages[i] = engine.ScanConfig{
+		engineStages[i] = engine.StageConfig{
 			Workers:          stage.Workers,
 			Probe:            stage.Probe,
 			Writer:           stage.Writer,
-			Rate:             stage.Rate,
 			ProgressInterval: s.config.General.StatusInterval.Duration(),
 			Hooks:            stage.Hooks,
 		}
 	}
 
-	s.runner.RunChain(s.ctx, s.input, uint64(maxIPs), &engine.ChainConfig{
-		Mode:      engine.ParsePipelineMode(s.config.General.PipelineMode),
-		Stages:    engineStages,
-		Pause:     s.pause,
-		Shuffled:  s.config.General.Shuffled,
-		MaxBuffer: s.config.General.MaxIPsPerStage,
-		BatchSize: s.config.General.BatchSize,
+	s.runner.RunChain(s.ctx, s.input, engine.ChainConfig{
+		MaxIPsToTest:     uint64(maxIPs),
+		Mode:             engine.ParsePipelineMode(s.config.General.PipelineMode),
+		Stages:           engineStages,
+		Pause:            s.pause,
+		Shuffled:         s.config.General.Shuffled,
+		MaxBuffer:        s.config.General.MaxIPsPerStage,
+		BatchSize:        s.config.General.BatchSize,
+		MinProbeDuration: s.config.General.MinProbeDuration.Duration(),
+		RateLimiter:      rate.NewLimiter(rate.Limit(s.config.General.ProbePerSec), s.config.General.ProbeBurst),
 	})
 }
 
@@ -561,14 +562,5 @@ func (s *scanner) newStage(workers int, prb probe.Probe, writer result.Writer, m
 		Workers: workers,
 		Probe:   prb,
 		Writer:  writer,
-		Rate:    calcRate(workers, minimumProbeTime),
 	}
-}
-
-func calcRate(workers int, minimumProbeTime time.Duration) int {
-	if workers <= 0 || minimumProbeTime <= 0 {
-		return 0
-	}
-
-	return int(time.Second/minimumProbeTime) * workers
 }

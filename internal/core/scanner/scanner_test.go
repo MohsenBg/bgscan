@@ -285,14 +285,14 @@ func TestAddStage_AfterStarted(t *testing.T) {
 // StageConfig.AddHooks
 
 func TestStageConfig_AddHooks(t *testing.T) {
-	s := StageConfig{Workers: 7, Rate: 100}
+	s := StageConfig{Workers: 7}
 	hooks := engine.ScanHooks{}
 	returned := s.AddHooks(hooks)
 
 	if returned != &s {
 		t.Fatal("AddHooks should return pointer to receiver")
 	}
-	if s.Workers != 7 || s.Rate != 100 {
+	if s.Workers != 7 {
 		t.Fatal("AddHooks should not modify other fields")
 	}
 }
@@ -490,7 +490,7 @@ func TestClose_MarksClosed(t *testing.T) {
 	}
 }
 
-// Fake writer + writer factory
+// Fake writer + fake runner
 
 type fakeWriter struct {
 	started int32
@@ -498,6 +498,11 @@ type fakeWriter struct {
 	writes  int32
 	path    string
 }
+
+func (w *fakeWriter) Start() error          { atomic.AddInt32(&w.started, 1); return nil }
+func (w *fakeWriter) Stop() error           { atomic.AddInt32(&w.stopped, 1); return nil }
+func (w *fakeWriter) Write(r result.Result) { atomic.AddInt32(&w.writes, 1) }
+func (w *fakeWriter) GetResultPath() string { return w.path }
 
 type fakeRunner struct {
 	mu sync.Mutex
@@ -516,10 +521,7 @@ type fakeRunner struct {
 func (r *fakeRunner) RunSingle(
 	ctx context.Context,
 	input string,
-	_ uint64,
 	cfg engine.ScanConfig,
-	_ bool,
-	_ engine.PauseController,
 ) {
 	r.mu.Lock()
 	r.singleCalls++
@@ -537,11 +539,11 @@ func (r *fakeRunner) RunSingle(
 	}
 }
 
-func (r *fakeRunner) RunChain(ctx context.Context, input string, _ uint64, cfg *engine.ChainConfig) {
+func (r *fakeRunner) RunChain(ctx context.Context, input string, cfg engine.ChainConfig) {
 	r.mu.Lock()
 	r.chainCalls++
 	r.chainInput = input
-	r.chainCfg = *cfg
+	r.chainCfg = cfg
 	started := r.started
 	wait := r.wait
 	r.mu.Unlock()
@@ -567,7 +569,7 @@ func TestRun_OneStageUsesSingleRunner(t *testing.T) {
 	}
 	defer func() { _ = s.Close() }()
 
-	s.AddStage(StageConfig{Workers: 3, Rate: 25})
+	s.AddStage(StageConfig{Workers: 3})
 	if err := s.Run(); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -580,7 +582,7 @@ func TestRun_OneStageUsesSingleRunner(t *testing.T) {
 	if runner.singleInput != "127.0.0.1" {
 		t.Fatalf("single input = %q", runner.singleInput)
 	}
-	if runner.singleCfg.Workers != 3 || runner.singleCfg.Rate != 25 {
+	if runner.singleCfg.Workers != 3 {
 		t.Fatalf("single config = %+v", runner.singleCfg)
 	}
 }
@@ -598,8 +600,8 @@ func TestRun_MultipleStagesUsesChainRunner(t *testing.T) {
 	}
 	defer func() { _ = s.Close() }()
 
-	s.AddStage(StageConfig{Workers: 1, Rate: 10})
-	s.AddStage(StageConfig{Workers: 2, Rate: 20})
+	s.AddStage(StageConfig{Workers: 1})
+	s.AddStage(StageConfig{Workers: 2})
 	if err := s.Run(); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -615,7 +617,7 @@ func TestRun_MultipleStagesUsesChainRunner(t *testing.T) {
 	if len(runner.chainCfg.Stages) != 2 {
 		t.Fatalf("chain stages = %d, want 2", len(runner.chainCfg.Stages))
 	}
-	if runner.chainCfg.Stages[1].Workers != 2 || runner.chainCfg.Stages[1].Rate != 20 {
+	if runner.chainCfg.Stages[1].Workers != 2 {
 		t.Fatalf("second chain stage = %+v", runner.chainCfg.Stages[1])
 	}
 }
@@ -649,11 +651,6 @@ func TestClose_WaitsForActiveRun(t *testing.T) {
 		t.Fatalf("Run() error = %v", err)
 	}
 }
-
-func (w *fakeWriter) Start() error          { atomic.AddInt32(&w.started, 1); return nil }
-func (w *fakeWriter) Stop() error           { atomic.AddInt32(&w.stopped, 1); return nil }
-func (w *fakeWriter) Write(r result.Result) { atomic.AddInt32(&w.writes, 1) }
-func (w *fakeWriter) GetResultPath() string { return w.path }
 
 func TestNewWriter_FactoryError(t *testing.T) {
 	factory := func(ctx context.Context, opts result.WriterOptions) (result.Writer, error) {
@@ -723,41 +720,11 @@ func TestNewStage(t *testing.T) {
 	if stage.Workers != 10 {
 		t.Fatalf("Workers = %d, want 10", stage.Workers)
 	}
-	// 1s / 100ms = 10 probes/worker/s; 10 workers -> 100
-	if stage.Rate != 100 {
-		t.Fatalf("Rate = %d, want 100", stage.Rate)
-	}
 	if stage.Writer != fw {
 		t.Fatal("Writer not set")
 	}
 	if stage.Probe != nil {
 		t.Fatal("Probe should be nil (passed as nil)")
-	}
-}
-
-// calcRate
-
-func TestCalcRate(t *testing.T) {
-	cases := []struct {
-		workers int
-		min     time.Duration
-		want    int
-	}{
-		{0, time.Millisecond, 0},
-		{5, 0, 0},
-		{-1, time.Millisecond, 0},
-		{5, -time.Second, 0},
-		{1, time.Second, 1},
-		{2, 500 * time.Millisecond, 4},
-		{4, 250 * time.Millisecond, 16},
-		{10, 100 * time.Millisecond, 100},
-		{1000, time.Microsecond, 1_000_000_000},
-	}
-	for _, c := range cases {
-		got := calcRate(c.workers, c.min)
-		if got != c.want {
-			t.Errorf("calcRate(%d, %v) = %d, want %d", c.workers, c.min, got, c.want)
-		}
 	}
 }
 

@@ -1,6 +1,6 @@
 module bgscan
 
-go 1.26.3
+go 1.26
 
 require (
 	charm.land/bubbles/v2 v2.1.1
@@ -9,10 +9,12 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/miekg/dns v1.1.72
 	github.com/pelletier/go-toml/v2 v2.4.3
+	golang.org/x/time v0.14.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
 require (
+	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/charmbracelet/bubbletea v1.3.10 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
@@ -22,8 +24,18 @@ require (
 	github.com/charmbracelet/x/exp/strings v0.1.0 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
+	github.com/flynn/noise v1.1.0 // indirect
+	github.com/klauspost/compress v1.18.3 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/klauspost/reedsolomon v1.13.0 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
+	github.com/refraction-networking/utls v1.8.2 // indirect
+	github.com/sirupsen/logrus v1.9.4 // indirect
+	github.com/tjfoc/gmsm v1.4.1 // indirect
+	github.com/xtaci/kcp-go/v5 v5.6.61 // indirect
+	github.com/xtaci/smux v1.5.50 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect

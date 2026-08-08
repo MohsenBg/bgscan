@@ -122,21 +122,28 @@ progress goroutine → OnProgress every status_interval
 
 ```go
 type ChainConfig struct {
-    Mode      PipelineMode
-    MaxBuffer int
-    BatchSize int
-    Stages    []ScanConfig
-    Pause     PauseController
-    Shuffled  bool
+    Mode             PipelineMode
+    MaxBuffer        int
+    BatchSize        int
+    MaxIPsToTest     uint64
+    Stages           []ScanConfig
+    MinProbeDuration time.Duration
+    Pause            PauseController
+    Shuffled         bool
+    RateLimiter      *rate.Limiter
 }
 
 type ScanConfig struct {
     Workers          int
-    Rate             int
+    MaxIPsToTest     uint64
+    MinProbeDuration time.Duration
     ProgressInterval time.Duration
     Probe            probe.Probe
     Writer           result.Writer
     Hooks            ScanHooks
+    Pause            PauseController
+    Shuffled         bool
+    RateLimiter      *rate.Limiter
 }
 
 type ScanHooks struct {
@@ -150,6 +157,10 @@ type ScanHooks struct {
 Hooks are optional. The engine goes through `callOnSuccess`, `callOnError`, and `callOnScanEnd`, which no-op on nil.
 
 `ParsePipelineMode` accepts aliases: `simple` for sequential, `parallel` for streaming, `pipeline` for batch. Anything unrecognized returns `ModeSequential`.
+
+### Rate limiting
+
+`GeneralConfig`'s `min_probe_duration`, `probe_per_sec`, and `probe_burst` are converted into a single `rate.Limiter` (token bucket) and a per-probe delay, applied uniformly across every stage in both single and chain scans — they are not per-stage settings. The limiter's `Wait` blocks each worker before `probe.Run`; when a probe returns faster than `MinProbeDuration`, the worker sleeps for the remainder. `probe_per_sec` is the token refill rate (sustained probe ceiling); `probe_burst` is the bucket capacity (max back-to-back probes). `Workers` governs concurrency, not rate — the limiter caps volume independently of worker count.
 
 ### Pause control
 

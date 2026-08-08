@@ -11,7 +11,7 @@ weight: 3
 
 Configuration file: `settings/general_settings.toml`
 
-Global scan limits, pipeline execution mode, and buffer sizing.
+Global scan limits, probe rate limiting, pipeline execution mode, and buffer sizing.
 
 ## Quick Reference
 
@@ -21,9 +21,12 @@ Global scan limits, pipeline execution mode, and buffer sizing.
 | `stop_after_found` | `0` | Reserved; not enforced by the current engine |
 | `max_ips_to_test` | `0` | Cap on IPs read from the input source |
 | `pipeline_mode` | `"streaming"` | Execution mode for multi-stage scans |
-| `max_ips_per_stage` | `100000` | Channel buffer size between streaming stages |
-| `batch_size` | `1000` | Batch size for batch mode |
+| `max_ips_per_stage` | platform-dependent | Channel buffer size between streaming stages |
+| `batch_size` | platform-dependent | Batch size for batch mode |
 | `shuffled` | `true` | Randomize target order |
+| `min_probe_duration` | platform-dependent | Minimum time spent per probe (ms) |
+| `probe_per_sec` | platform-dependent | Sustained probe rate ceiling (token-bucket refill) |
+| `probe_burst` | platform-dependent | Max probes in a burst (token-bucket capacity) |
 
 ## Status Interval
 
@@ -90,6 +93,27 @@ shuffled = false
 ```
 
 Randomizes target order before scanning. Useful to spread load across subnets, avoid hammering one range, and get a representative sample when combined with `max_ips_to_test`.
+
+## Probe Rate Limit
+
+```toml
+probe_per_sec = 1500
+probe_burst = 200
+```
+
+`probe_per_sec` and `probe_burst` form a token-bucket limiter applied to every probe across all stages. `probe_per_sec` is the sustained ceiling — tokens refilled per second. `probe_burst` is the bucket capacity — how many probes may fire back-to-back before the limiter blocks. Together they cap outgoing request volume regardless of `Workers`, which is how you avoid tripping upstream rate limits or DPI.
+
+Both are validated. `probe_per_sec` ranges 1 to 1,000,000; `probe_burst` ranges 1 to 10,000. Out-of-range values are rejected, the default is restored, and the correction is logged. The effective default is platform-dependent (see the Quick Reference table).
+
+## Minimum Probe Duration
+
+```toml
+min_probe_duration = 10
+```
+
+Enforces a floor on how long each probe takes, in milliseconds. After a probe finishes faster than this, the worker sleeps for the remainder before moving to the next target. Used to normalize timing-based side channels and to pace scans that would otherwise complete too fast.
+
+Valid range is 10 ms to 5 s. The effective default is platform-dependent (see the Quick Reference table).
 
 ## Related Files
 

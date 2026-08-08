@@ -407,7 +407,7 @@ body.dark .lp,
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-badge">v2.9.0 · Now available</div>
+  <div class="hero-badge">v2.9.1 · Now available</div>
   <h1>Scan everything.<br>At full speed.</h1>
   <p>bgscan is a blazing-fast, multi-protocol network scanner built in Go — with a modular chain engine and an interactive terminal UI.</p>
   <div class="hero-actions">

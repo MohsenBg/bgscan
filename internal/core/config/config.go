@@ -11,7 +11,7 @@ import (
 )
 
 // AppVersion is the current application version.
-const AppVersion = "2.9.0"
+const AppVersion = "2.9.1"
 
 const (
 	settingsDir = "settings"

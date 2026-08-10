@@ -3,19 +3,10 @@ package xray
 import (
 	"fmt"
 	"net"
+	"os"
 	"path/filepath"
 
 	"bgscan/internal/core/fileutil"
-)
-
-const (
-	// configPath is the directory where generated Xray configuration
-	// files are written. Each scan target produces a dedicated config.
-	configPath = "assets/xray/configs"
-
-	// templatePath is the directory containing outbound configuration
-	// templates used to construct Xray configs dynamically.
-	templatePath = "assets/xray/outbounds"
 )
 
 // GenerateConfig builds a complete Xray configuration from a template
@@ -77,5 +68,24 @@ func GenerateConfig(outboundName, ip string, port uint16) (string, error) {
 // inside the configPath directory.
 func getNewXrayConfigName(ip string) string {
 	filename := fmt.Sprintf("%s.json", ip)
-	return filepath.Join(configPath, filename)
+	return filepath.Join(configDir(), filename)
+}
+
+func getAssetsPath(parts ...string) string {
+	exe, err := os.Executable()
+	if err != nil {
+		return filepath.Join(parts...)
+	}
+
+	base := filepath.Dir(exe)
+
+	return filepath.Join(append([]string{base}, parts...)...)
+}
+
+func configDir() string {
+	return getAssetsPath("assets", "xray", "configs")
+}
+
+func templateDir() string {
+	return getAssetsPath("assets", "xray", "outbounds")
 }

@@ -83,7 +83,7 @@ func SaveOutboundFromFile(src, name string) (*XrayOutboundsFile, error) {
 	}
 
 	name = normalizeTemplateName(name)
-	dst := filepath.Join(templatePath, name)
+	dst := filepath.Join(templateDir(), name)
 
 	if _, err := os.Stat(dst); err == nil {
 		return nil, fmt.Errorf("outbound template %q already exists", name)
@@ -134,7 +134,7 @@ func SaveOutboundFromLink(link, name string) (*XrayOutboundsFile, error) {
 	}
 
 	name = normalizeTemplateName(name)
-	dst := filepath.Join(templatePath, name)
+	dst := filepath.Join(templateDir(), name)
 
 	if _, err := os.Stat(dst); err == nil {
 		return nil, fmt.Errorf("outbound template %q already exists", name)
@@ -170,7 +170,7 @@ func SaveOutboundFromLink(link, name string) (*XrayOutboundsFile, error) {
 func GetOutboundTemplateByName(name string) (*XrayOutboundsFile, error) {
 	name = normalizeTemplateName(name)
 
-	path := filepath.Join(templatePath, name)
+	path := filepath.Join(templateDir(), name)
 
 	return loadOutboundFileMetadata(path)
 }
@@ -181,7 +181,7 @@ func ListOutboundTemplates() ([]XrayOutboundsFile, error) {
 		return !info.IsDir() && strings.HasSuffix(name, ".json")
 	}
 
-	files, err := fileutil.ListFiles(templatePath, filter)
+	files, err := fileutil.ListFiles(templateDir(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func RenameOutboundTemplate(oldName, newName string) (*XrayOutboundsFile, error)
 
 	newName = normalizeTemplateName(newName)
 
-	dst := filepath.Join(templatePath, newName)
+	dst := filepath.Join(templateDir(), newName)
 
 	if _, err := os.Stat(dst); err == nil {
 		return nil, fmt.Errorf("cannot rename: destination template %q already exists", newName)

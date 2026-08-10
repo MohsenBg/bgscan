@@ -3,7 +3,9 @@ package xray
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -11,14 +13,9 @@ import (
 	"bgscan/internal/core/process"
 )
 
-var xrayPaths = []string{
-	"assets/xray",
-	"xray",
-}
-
 // FindXrayBinary attempts to locate the Xray executable.
 func FindXrayBinary() (string, error) {
-	return process.FindBinaryInPaths("xray", xrayPaths)
+	return process.FindBinaryInPaths("xray", getXrayPaths())
 }
 
 func XrayVersion() (string, error) {
@@ -88,4 +85,19 @@ func StartXray(ctx context.Context, configPath string) (process.Process, error) 
 	}
 
 	return process.Start(ctx, xrayBin, "-c", configPath)
+}
+
+func getXrayPaths() []string {
+	exe, err := os.Executable()
+	if err != nil {
+		return []string{"assets/xray", "xray", ""}
+	}
+
+	base := filepath.Dir(exe)
+
+	return []string{
+		filepath.Join(base, "assets", "xray"),
+		filepath.Join(base, "xray"),
+		base,
+	}
 }

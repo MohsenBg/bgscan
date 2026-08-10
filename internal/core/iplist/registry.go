@@ -23,10 +23,11 @@ type IPFileInfo struct {
 
 // getBaseDir resolves the absolute directory where IP lists are stored.
 func getBaseDir() (string, error) {
-	base, err := fileutil.GetCurrentPath()
+	exe, err := os.Executable()
 	if err != nil {
 		return "", err
 	}
+	base := filepath.Dir(exe)
 	return filepath.Join(base, IPListDir), nil
 }
 

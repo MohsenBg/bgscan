@@ -118,6 +118,11 @@ func FindResultFiles(cfg config.WriterConfig, schemas ...ResultSchema) ([]Result
 	}
 
 	baseDir := cfg.ResultBaseDir
+	exe, err := os.Executable()
+	if err == nil {
+		baseDir = filepath.Join(filepath.Dir(exe), cfg.ResultBaseDir)
+	}
+
 	var results []ResultFile
 
 	for _, schema := range schemas {
@@ -204,6 +209,12 @@ func prepareResultFilePath(cfg config.WriterConfig, schema ResultSchema, prefix 
 	}
 
 	dir := filepath.Join(cfg.ResultBaseDir, schema.Directory)
+	exe, err := os.Executable()
+	if err == nil {
+		base := filepath.Dir(exe)
+		dir = filepath.Join(base, cfg.ResultBaseDir, schema.Directory)
+	}
+
 	if err := os.MkdirAll(dir, resultDirPerm); err != nil {
 		return "", fmt.Errorf("create result directory %q: %w", dir, err)
 	}

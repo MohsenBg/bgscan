@@ -55,6 +55,11 @@ func WithSettingsDir(dir string) StoreOption {
 func NewStore(opts ...StoreOption) Store {
 	s := Store{dir: settingsDir}
 
+	exe, err := os.Executable()
+	if err == nil {
+		s = Store{dir: filepath.Join(filepath.Dir(exe), settingsDir)}
+	}
+
 	for _, opt := range opts {
 		opt(&s)
 	}

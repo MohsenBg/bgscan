@@ -87,10 +87,10 @@ pipeline_mode = "streaming"
 #
 #   Profile         | min_probe_duration | probe_per_sec | probe_burst
 #   ----------------|--------------------|---------------|------------
-#   Android low     | 50ms               | 300           | 30
-#   Android mid     | 30ms               | 700           | 50
-#   Android high    | 20ms               | 1000          | 100
-#   Desktop         | 10ms               | 1500          | 200
+#   Android low     | 100ms              | 120           | 30
+#   Android mid     | 80ms               | 150           | 50
+#   Android high    | 50ms               | 200           | 100
+#   Desktop         | 50ms               | 1000          | 200
 #
 # -----------------------------------------------------------------------
 

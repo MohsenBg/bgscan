@@ -2,6 +2,8 @@ package dns
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -55,5 +57,27 @@ func TestSlipstreamRunTunnel(t *testing.T) {
 
 	if !reflect.DeepEqual(gotArgs, wantArgs) {
 		t.Fatalf("args = %#v, want %#v", gotArgs, wantArgs)
+	}
+}
+
+func TestSlipstreamClientPaths(t *testing.T) {
+	t.Parallel()
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatalf("os.Executable() failed: %v", err)
+	}
+
+	base := filepath.Dir(exe)
+
+	want := []string{
+		filepath.Join(base, "assets", "slipstream-client"),
+		filepath.Join(base, "assets", "slipstream", "slipstream-client"),
+		filepath.Join(base, "slipstream-client"),
+		base,
+	}
+
+	if got := getSlipstreamPaths(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("getSlipstreamPaths() = %#v, want %#v", got, want)
 	}
 }

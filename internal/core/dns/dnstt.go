@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"time"
 
 	"bgscan/internal/core/process"
@@ -55,15 +57,6 @@ func WithDNSTTClientBinary(bin string) DNSTTClientOption {
 	}
 }
 
-// DNSTTClientPaths returns the locations searched for the dnstt-client binary.
-func DNSTTClientPaths() []string {
-	return []string{
-		"assets/dnstt-client",
-		"assets/dns/dnstt-client",
-		"dnstt-client",
-	}
-}
-
 // NewDNSTTClient creates a client for a DNS tunnel.
 //
 // Unless WithDNSTTClientBinary is provided, it locates dnstt-client before
@@ -101,7 +94,7 @@ func NewDNSTTClient(
 
 // FindDNSTTClient locates the dnstt-client binary in known locations or PATH.
 func FindDNSTTClient() (string, error) {
-	return process.FindBinaryInPaths("dnstt-client", DNSTTClientPaths())
+	return process.FindBinaryInPaths("dnstt-client", getDNSTTPaths())
 }
 
 // RunTunnel starts dnstt-client and connects the local port to ip:port through
@@ -178,4 +171,20 @@ func VerifyDNSTTClient() error {
 	}
 
 	return nil
+}
+
+func getDNSTTPaths() []string {
+	exe, err := os.Executable()
+	if err != nil {
+		return []string{"assets/dnstt-client", "assets/dns/dnstt-client", "dnstt-client", ""}
+	}
+
+	base := filepath.Dir(exe)
+
+	return []string{
+		filepath.Join(base, "assets", "dnstt-client"),
+		filepath.Join(base, "assets", "dns", "dnstt-client"),
+		filepath.Join(base, "dnstt-client"),
+		base,
+	}
 }

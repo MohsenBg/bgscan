@@ -3,6 +3,8 @@ package dns
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -203,13 +205,21 @@ func TestGetDNSTransportFlag(t *testing.T) {
 func TestDNSTTClientPaths(t *testing.T) {
 	t.Parallel()
 
-	want := []string{
-		"assets/dnstt-client",
-		"assets/dns/dnstt-client",
-		"dnstt-client",
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatalf("os.Executable() failed: %v", err)
 	}
 
-	if got := DNSTTClientPaths(); !reflect.DeepEqual(got, want) {
-		t.Fatalf("DNSTTClientPaths() = %#v, want %#v", got, want)
+	base := filepath.Dir(exe)
+
+	want := []string{
+		filepath.Join(base, "assets", "dnstt-client"),
+		filepath.Join(base, "assets", "dns", "dnstt-client"),
+		filepath.Join(base, "dnstt-client"),
+		base,
+	}
+
+	if got := getDNSTTPaths(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("getDNSTTPaths() = %#v, want %#v", got, want)
 	}
 }

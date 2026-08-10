@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
 
 	"bgscan/internal/core/process"
 )
@@ -50,12 +52,20 @@ func WithSlipstreamClientBinary(bin string) SlipstreamClientOption {
 	}
 }
 
-// SlipstreamClientPaths returns the locations searched for slipstream-client.
-func SlipstreamClientPaths() []string {
+// getSlipstreamPaths returns the locations searched for slipstream-client.
+func getSlipstreamPaths() []string {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil
+	}
+
+	base := filepath.Dir(exe)
+
 	return []string{
-		"assets/slipstream-client",
-		"assets/dns/slipstream-client",
-		"slipstream-client",
+		filepath.Join(base, "assets", "slipstream-client"),
+		filepath.Join(base, "assets", "slipstream", "slipstream-client"),
+		filepath.Join(base, "slipstream-client"),
+		base,
 	}
 }
 
@@ -94,7 +104,7 @@ func NewSlipstreamClient(
 
 // FindSlipstreamClient locates slipstream-client in known locations or PATH.
 func FindSlipstreamClient() (string, error) {
-	return process.FindBinaryInPaths("slipstream-client", SlipstreamClientPaths())
+	return process.FindBinaryInPaths("slipstream-client", getSlipstreamPaths())
 }
 
 // RunTunnel starts a Slipstream DNS tunnel and listens on listenPort.

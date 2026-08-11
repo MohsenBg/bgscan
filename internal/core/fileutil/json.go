@@ -11,7 +11,7 @@ import (
 // WriteJSONFile encodes value as JSON and writes it to path.
 // It creates the parent directory when needed.
 func WriteJSONFile(path string, value any) error {
-	if err := EnsureDir(path); err != nil {
+	if err := EnsureFileDir(path); err != nil {
 		return err
 	}
 

@@ -20,7 +20,7 @@ type TextStreamConfig struct {
 
 // WriteTextFile overwrites path with content, creating parent directories as needed.
 func WriteTextFile(path string, content string) error {
-	if err := EnsureDir(path); err != nil {
+	if err := EnsureFileDir(path); err != nil {
 		return err
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -48,7 +48,7 @@ func GetTextFile(path string) (string, error) {
 
 // AppendTextFile appends content to path, creating parent directories as needed.
 func AppendTextFile(path string, content string) error {
-	if err := EnsureDir(path); err != nil {
+	if err := EnsureFileDir(path); err != nil {
 		return err
 	}
 
@@ -127,7 +127,7 @@ func StreamTextToChan(ctx context.Context, path string, cfg TextStreamConfig, ou
 
 // CopyFile copies src to dst, creating parent directories as needed.
 func CopyFile(src, dst string) error {
-	if err := EnsureDir(dst); err != nil {
+	if err := EnsureFileDir(dst); err != nil {
 		return err
 	}
 

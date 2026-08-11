@@ -12,7 +12,7 @@ import (
 // WriteTOMLFile encodes value as TOML and writes it to path.
 // It creates the parent directory when needed.
 func WriteTOMLFile(path string, value any) error {
-	if err := EnsureDir(path); err != nil {
+	if err := EnsureFileDir(path); err != nil {
 		return err
 	}
 

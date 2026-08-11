@@ -35,15 +35,30 @@ func HasExt(name, ext string) bool {
 	return strings.EqualFold(filepath.Ext(name), ext)
 }
 
-// EnsureDir creates the parent directory for path when needed.
-func EnsureDir(path string) error {
+// EnsureFileDir creates the parent directory of path if it does not exist.
+func EnsureFileDir(path string) error {
 	dir := filepath.Dir(path)
 	if dir == "." || dir == "" {
 		return nil
 	}
+
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("ensure directory tree %q failed: %w", dir, err)
 	}
+
+	return nil
+}
+
+// EnsureDir creates path as a directory if it does not exist.
+func EnsureDir(path string) error {
+	if path == "" {
+		return nil
+	}
+
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		return fmt.Errorf("create directory %q: %w", path, err)
+	}
+
 	return nil
 }
 
@@ -71,4 +86,38 @@ func GetOrCreateBaseDir(path string) (string, error) {
 	}
 
 	return absPath, nil
+}
+
+func RenameFile(oldPath, newPath string) error {
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return fmt.Errorf("rename file %q to %q: %w", oldPath, newPath, err)
+	}
+
+	return nil
+}
+
+func BasePath() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+
+	resolved, err := filepath.EvalSymlinks(exe)
+	if err == nil {
+		exe = resolved
+	}
+
+	if isGoRunTempBinary(exe) {
+		return os.Getwd()
+	}
+
+	return filepath.Dir(exe), nil
+}
+
+func isGoRunTempBinary(path string) bool {
+	dir := filepath.Dir(path)
+	base := filepath.Base(dir)
+
+	return strings.Contains(path, "go-build") ||
+		strings.HasPrefix(base, "exe") && strings.Contains(dir, string(os.PathSeparator)+"b0")
 }

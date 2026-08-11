@@ -167,7 +167,7 @@ func TestEnsureDir_CreatesParentDirectories(t *testing.T) {
 		"file.txt",
 	)
 
-	err := EnsureDir(path)
+	err := EnsureFileDir(path)
 	if err != nil {
 		t.Fatalf(
 			"EnsureDir failed: %v",
@@ -190,7 +190,7 @@ func TestEnsureDir_CreatesParentDirectories(t *testing.T) {
 }
 
 func TestEnsureDir_NoParentDoesNothing(t *testing.T) {
-	err := EnsureDir("file.txt")
+	err := EnsureFileDir("file.txt")
 	if err != nil {
 		t.Fatalf(
 			"unexpected error: %v",
@@ -282,19 +282,7 @@ func TestGetOrCreateBaseDir_ReturnsErrorWhenPathIsFile(t *testing.T) {
 func TestGetOrCreateBaseDir_ConvertsRelativePath(t *testing.T) {
 	base := t.TempDir()
 
-	old, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer func() {
-		_ = os.Chdir(old)
-	}()
-
-	err = os.Chdir(base)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Chdir(base)
 
 	got, err := GetOrCreateBaseDir(
 		"relative-dir",

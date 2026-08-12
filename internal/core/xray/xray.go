@@ -3,7 +3,6 @@ package xray
 import (
 	"fmt"
 	"net"
-	"os"
 	"path/filepath"
 
 	"bgscan/internal/core/fileutil"
@@ -72,12 +71,10 @@ func getNewXrayConfigName(ip string) string {
 }
 
 func getAssetsPath(parts ...string) string {
-	exe, err := os.Executable()
+	base, err := fileutil.BasePath()
 	if err != nil {
 		return filepath.Join(parts...)
 	}
-
-	base := filepath.Dir(exe)
 
 	return filepath.Join(append([]string{base}, parts...)...)
 }

@@ -3,7 +3,6 @@ package xray
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -88,12 +87,10 @@ func StartXray(ctx context.Context, configPath string) (process.Process, error) 
 }
 
 func getXrayPaths() []string {
-	exe, err := os.Executable()
+	base, err := fileutil.BasePath()
 	if err != nil {
 		return []string{"assets/xray", "xray", ""}
 	}
-
-	base := filepath.Dir(exe)
 
 	return []string{
 		filepath.Join(base, "assets", "xray"),

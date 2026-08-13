@@ -17,6 +17,7 @@ type Manager interface {
 	Get(context.Context) (uint16, error)
 	Release(uint16)
 	Close()
+	WaitOpen(ctx context.Context, addr string, timeout time.Duration) error
 }
 
 // manager provides reusable TCP ports from a managed pool.
@@ -136,7 +137,7 @@ func RandomBase(size uint16) uint16 {
 }
 
 // WaitOpen waits until a TCP service accepts connections.
-func WaitOpen(ctx context.Context, addr string, timeout time.Duration) error {
+func (s *manager) WaitOpen(ctx context.Context, addr string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 

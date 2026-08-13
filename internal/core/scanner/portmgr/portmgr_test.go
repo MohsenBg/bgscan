@@ -222,7 +222,9 @@ func TestWaitOpenSuccess(t *testing.T) {
 		_ = ln.Close()
 	}()
 
-	err = WaitOpen(context.Background(), ln.Addr().String(), time.Second)
+	m := newTestManager(t, 30000, 2)
+	defer m.Close()
+	err = m.WaitOpen(context.Background(), ln.Addr().String(), time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +244,10 @@ func TestWaitOpenTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = WaitOpen(context.Background(), addr, 100*time.Millisecond)
+	m := newTestManager(t, 30000, 2)
+	defer m.Close()
+
+	err = m.WaitOpen(context.Background(), addr, 100*time.Millisecond)
 	if err == nil {
 		t.Fatal("expected timeout")
 	}

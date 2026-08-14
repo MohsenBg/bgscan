@@ -26,61 +26,13 @@ type XrayService interface {
 	Start(context.Context, string) (process.Process, error)
 }
 
-// SpeedTester measures latency and transfer speeds through a proxy.
-type SpeedTester interface {
-	MeasureLatency(context.Context, speedtest.LatencyConfig) (speedtest.LatencyResult, error)
-	MeasureDownloadSpeed(context.Context, speedtest.DownloadConfig) (speedtest.SpeedResult, error)
-	MeasureUploadSpeed(context.Context, speedtest.UploadConfig) (speedtest.SpeedResult, error)
-}
-
-type realXrayService struct{}
-
-func (realXrayService) GetOutboundTemplateByName(name string) (*xray.XrayOutboundsFile, error) {
-	return xray.GetOutboundTemplateByName(name)
-}
-
-func (realXrayService) GenerateConfig(outbound, ip string, port uint16) (string, error) {
-	return xray.GenerateConfig(outbound, ip, port)
-}
-
-func (realXrayService) ValidateConfig(ctx context.Context, path string) error {
-	return xray.ValidateConfig(ctx, path)
-}
-
-func (realXrayService) Start(ctx context.Context, path string) (process.Process, error) {
-	return xray.StartXray(ctx, path)
-}
-
-type realSpeedTester struct{}
-
-func (realSpeedTester) MeasureLatency(
-	ctx context.Context,
-	cfg speedtest.LatencyConfig,
-) (speedtest.LatencyResult, error) {
-	return speedtest.MeasureLatency(ctx, cfg)
-}
-
-func (realSpeedTester) MeasureDownloadSpeed(
-	ctx context.Context,
-	cfg speedtest.DownloadConfig,
-) (speedtest.SpeedResult, error) {
-	return speedtest.MeasureDownloadSpeed(ctx, cfg)
-}
-
-func (realSpeedTester) MeasureUploadSpeed(
-	ctx context.Context,
-	cfg speedtest.UploadConfig,
-) (speedtest.SpeedResult, error) {
-	return speedtest.MeasureUploadSpeed(ctx, cfg)
-}
-
 // XrayProbe validates connectivity and performance through a temporary local
 // Xray SOCKS proxy configured for a target IP.
 type XrayProbe struct {
 	pm             portmgr.Manager
 	processTracker probe.ProcessTracker
 	xray           XrayService
-	speed          SpeedTester
+	speed          speedtest.Service
 
 	outbound        string
 	latencyTimeout  time.Duration
@@ -92,8 +44,7 @@ type XrayProbe struct {
 	minUpload       speedtest.BitsPerSec
 	maxLatency      time.Duration
 
-	remove   func(string) error
-	waitOpen func(context.Context, string, time.Duration) error
+	remove func(string) error
 }
 
 // Option configures an XrayProbe.
@@ -118,7 +69,7 @@ func WithXrayService(service XrayService) Option {
 }
 
 // WithSpeedTester uses tester for proxy latency and speed measurements.
-func WithSpeedTester(tester SpeedTester) Option {
+func WithSpeedTester(tester speedtest.Service) Option {
 	return func(p *XrayProbe) {
 		if tester != nil {
 			p.speed = tester
@@ -155,8 +106,8 @@ func NewXrayProbe(
 	p := &XrayProbe{
 		pm:             pm,
 		processTracker: probe.NewProcessTracker(),
-		xray:           realXrayService{},
-		speed:          realSpeedTester{},
+		xray:           xray.NewXrayService(),
+		speed:          speedtest.NewService(),
 
 		outbound:        outboundName,
 		latencyTimeout:  timeout,
@@ -167,8 +118,7 @@ func NewXrayProbe(
 		minDownload:     speedtest.BitsPerSec(cfg.DownloadSpeed) * speedtest.Kbps,
 		minUpload:       speedtest.BitsPerSec(cfg.UploadSpeed) * speedtest.Kbps,
 
-		remove:   os.Remove,
-		waitOpen: portmgr.WaitOpen,
+		remove: os.Remove,
 	}
 
 	for _, opt := range opts {
@@ -249,7 +199,7 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 
 	addr := net.JoinHostPort("127.0.0.1", fmt.Sprint(port))
 
-	if err := p.waitOpen(ctx, addr, time.Second); err != nil {
+	if err := p.pm.WaitOpen(ctx, addr, time.Second); err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
 		}

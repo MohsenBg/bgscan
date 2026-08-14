@@ -15,9 +15,10 @@ import (
 )
 
 type fakePortManager struct {
-	port     uint16
-	getErr   error
-	released []uint16
+	port        uint16
+	getErr      error
+	waitOpenErr error
+	released    []uint16
 }
 
 func (m *fakePortManager) Get(context.Context) (uint16, error) {
@@ -29,6 +30,10 @@ func (m *fakePortManager) Release(port uint16) {
 }
 
 func (m *fakePortManager) Close() {}
+
+func (m *fakePortManager) WaitOpen(context.Context, string, time.Duration) error {
+	return m.waitOpenErr
+}
 
 type fakeProcess struct {
 	killed  bool
@@ -164,7 +169,6 @@ func newTestProbe(mode config.ConnectivityTest) (*XrayProbe, *fakePortManager, *
 		minDownload:     1000,
 		minUpload:       500,
 		remove:          func(string) error { return nil },
-		waitOpen:        func(context.Context, string, time.Duration) error { return nil },
 	}
 
 	return p, pm, tracker, service, speed
@@ -323,9 +327,7 @@ func TestRunKillsProcessWhenRegistrationFails(t *testing.T) {
 
 func TestRunCleansUpAfterWaitOpenFailure(t *testing.T) {
 	p, pm, tracker, service, _ := newTestProbe(config.ConnectivityOnly)
-	p.waitOpen = func(context.Context, string, time.Duration) error {
-		return errors.New("proxy did not open")
-	}
+	pm.waitOpenErr = errors.New("proxy did not open")
 
 	process := service.process.(*fakeProcess)
 

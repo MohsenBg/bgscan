@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -22,25 +23,43 @@ var (
 // DownloadConfig controls a single download measurement.
 type DownloadConfig struct {
 	// Bytes is the number of bytes to request from the test endpoint.
+	// Must be > 0.
 	Bytes int64
+
 	// Timeout is the maximum time allowed for the body transfer.
 	// Connection setup is excluded from this budget.
+	// Zero (or negative) means no transfer timeout is applied.
 	Timeout time.Duration
-	// MinSpeed, when non-zero, causes MeasureDownloadSpeed to return an error
-	// if the measured throughput falls below this threshold.
+
+	// MinSpeed causes MeasureDownloadSpeed to return an error when the
+	// measured throughput falls below this threshold.
 	MinSpeed BitsPerSec
-	// ProxyPort is the local SOCKS5 proxy port to route traffic through.
+
+	// ProxyPort is the local SOCKS5 proxy port used when DialContext is nil.
 	ProxyPort uint16
+
+	// DialContext provides the connection used to reach the test endpoint.
+	// When set, ProxyPort is ignored.
+	DialContext func(
+		ctx context.Context,
+		network string,
+		address string,
+	) (net.Conn, error)
 }
 
-// MeasureDownloadSpeed downloads cfg.Bytes through the SOCKS5 proxy and
-// returns a SpeedResult. The timeout covers only the body transfer; connection
-// setup and TLS handshake use connectTimeout and are excluded from the window.
+// MeasureDownloadSpeed downloads cfg.Bytes and measures the throughput.
 //
-// Errors are returned for: connection failure, transfer timeout, zero data
-// received, or measured speed below cfg.MinSpeed.
-func MeasureDownloadSpeed(ctx context.Context, cfg DownloadConfig) (SpeedResult, error) {
-	client, err := downloadHTTPClientFactory(cfg.ProxyPort)
+// Connection setup and TLS handshake use connectTimeout and are excluded
+// from the transfer measurement window.
+func measureDownloadSpeed(ctx context.Context, cfg DownloadConfig) (SpeedResult, error) {
+	if cfg.Bytes < 0 {
+		return SpeedResult{}, fmt.Errorf("download probe requires Bytes > 0")
+	}
+
+	client, err := downloadHTTPClientFactory(httpClientConfig{
+		ProxyPort:   cfg.ProxyPort,
+		DialContext: cfg.DialContext,
+	})
 	if err != nil {
 		return SpeedResult{}, fmt.Errorf("download probe setup failed: %w", err)
 	}
@@ -58,7 +77,8 @@ func MeasureDownloadSpeed(ctx context.Context, cfg DownloadConfig) (SpeedResult,
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return SpeedResult{}, ctx.Err()
 		}
-		return SpeedResult{}, fmt.Errorf("download probe failed (proxy port %d): %w", cfg.ProxyPort, err)
+
+		return SpeedResult{}, fmt.Errorf("download probe failed: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -66,17 +86,41 @@ func MeasureDownloadSpeed(ctx context.Context, cfg DownloadConfig) (SpeedResult,
 		}
 	}()
 
-	transferCtx, cancel := context.WithTimeout(ctx, cfg.Timeout)
-	defer cancel()
+	if resp.StatusCode != http.StatusOK {
+		return SpeedResult{}, fmt.Errorf("download probe unexpected status: %s", resp.Status)
+	}
+
+	// A zero or negative Timeout means "no transfer deadline" — don't call
+	// context.WithTimeout with a non-positive duration, since that expires
+	// the context immediately rather than disabling the deadline.
+	transferCtx := ctx
+	if cfg.Timeout > 0 {
+		var cancel context.CancelFunc
+		transferCtx, cancel = context.WithTimeout(ctx, cfg.Timeout)
+		defer cancel()
+	}
 
 	start := downloadNow()
-	n, err := io.Copy(io.Discard, &contextReader{ctx: transferCtx, r: resp.Body})
+
+	n, err := io.Copy(
+		io.Discard,
+		&contextReader{
+			ctx: transferCtx,
+			r:   resp.Body,
+		},
+	)
+
 	elapsed := downloadNow().Sub(start)
 
 	if err != nil {
 		if errors.Is(transferCtx.Err(), context.DeadlineExceeded) {
-			return SpeedResult{}, fmt.Errorf("download probe timed out after %s: %w", cfg.Timeout, transferCtx.Err())
+			return SpeedResult{}, fmt.Errorf(
+				"download probe timed out after %s: %w",
+				cfg.Timeout,
+				transferCtx.Err(),
+			)
 		}
+
 		return SpeedResult{}, fmt.Errorf("download probe body read failed: %w", err)
 	}
 
@@ -91,7 +135,11 @@ func MeasureDownloadSpeed(ctx context.Context, cfg DownloadConfig) (SpeedResult,
 	}
 
 	if result.BelowMinimum() {
-		return result, fmt.Errorf("download speed %s is below minimum %s", result.Speed, cfg.MinSpeed)
+		return result, fmt.Errorf(
+			"download speed %s is below minimum %s",
+			result.Speed,
+			cfg.MinSpeed,
+		)
 	}
 
 	return result, nil

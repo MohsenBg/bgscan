@@ -1,0 +1,32 @@
+# Slipstream server domain.
+# Replace this with the domain configured for your Slipstream server.
+Domain = 'example.com'
+
+# Port of the DNS resolver.
+# Standard DNS uses port 53.
+ResolverPort = 53
+
+# Path to the CA certificate used to verify the server certificate.
+# Leave empty to use the system certificate pool.
+CertPath = ''
+
+# Proxy protocol used for the tunnel connection.
+# 'socks' configures a SOCKS proxy.
+ProxyType = 'socks'
+
+# Local proxy server port.
+ProxyPort = 1080
+
+# Proxy authentication method.
+# Supported values: 'none' or 'password'.
+AuthMethod = 'password'
+
+# Username used when AuthMethod is 'password'.
+Username = 'your-username'
+
+# Password used when AuthMethod is 'password'.
+Password = 'your-password'
+
+# Client private key used for key-based authentication.
+# Leave empty when private-key authentication is not configured.
+PrivateKey = ''

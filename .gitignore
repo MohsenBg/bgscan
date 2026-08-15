@@ -49,22 +49,26 @@ pkg/
 .env
 *.local
 
-# ------------------------------------
-# Project Specific (Assets, Settings, IPs)
-# ------------------------------------
-
-# Ignore everything in the root assets folder (binaries like dnstt-client)
+# Ignore everything in assets
 assets/*
 
-# Allow xray directory and its contents, except the actual compiled binary and dat files
+# Allow the required parent directories
 !assets/xray/
+!assets/dns-tunneling/
+
+# Xray rules
 assets/xray/xray*
 assets/xray/*.dat
 assets/xray/configs/
 assets/xray/outbounds/*.json
-
-# Allow example files to be tracked
 !assets/xray/outbounds/*.example
+
+# DNS tunneling:
+# Ignore all files inside immediate subdirectories
+assets/dns-tunneling/*/*
+
+# Allow only .example files
+!assets/dns-tunneling/*/*.example
 
 # Ignore local user settings and generated IP lists (keeps .default files tracked)
 settings/*.toml

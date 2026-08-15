@@ -1,0 +1,70 @@
+# VayDNS tunnel server domain.
+# Replace this with the domain configured for your VayDNS server.
+Domain = 'example.com'
+
+# VayDNS server public key.
+# This key is provided by the VayDNS tunnel server and is required.
+PubKey = 'your-server-public-key'
+
+# Number of bytes used for the client ID.
+# Valid range: 0-8.
+ClientIDSize = 2
+
+# Maximum length of a DNS QNAME.
+# Set to 0 to use the VayDNS default.
+# Valid range: 0-253.
+MaxQnameLen = 0
+
+# Maximum number of labels allowed in a DNS name.
+# Set to 0 for unlimited labels.
+# Valid range: 0-4.
+MaxNumLabels = 0
+
+# Maximum transmission unit (MTU) used by the tunnel.
+# Set to 0 to use the VayDNS default.
+# Valid range: 0-1452.
+MTU = 0
+
+# Maximum DNS requests per second.
+# Set to 0.0 for unlimited requests.
+# Valid range: 0-500.
+RPS = 0.0
+
+# DNS record type used by the tunnel.
+# Common values include 'a', 'aaaa', 'txt', and 'cname'.
+RecordType = 'txt'
+
+# DNS resolver transport protocol.
+# Supported values: 'udp', 'tcp', or 'dot' (DNS over TLS).
+ResolverType = 'udp'
+
+
+# Port of the DNS resolver.
+# Standard DNS uses port 53; DNS over TLS commonly uses port 853.
+ResolverPort = 53
+
+# uTLS client fingerprint used for DNS-over-TLS connections.
+# The value must be a fingerprint supported by the uTLS implementation.
+# Examples include 'chrome', 'firefox', and 'safari'.
+Fingerprint = 'chrome'
+
+# Proxy protocol used by the tunnel.
+# 'ssh'  depending on the supported proxy configuration.
+ProxyType = 'ssh'
+
+# Local proxy server port.
+ProxyPort = ss
+
+# Proxy authentication method.
+# Supported values: 'password' or 'none'.
+AuthMethod = 'password'
+
+# Username used when AuthMethod is 'password'.
+Username = 'your-username'
+
+# Password used when AuthMethod is 'password'.
+Password = 'your-password'
+
+# Client private key used for key-based authentication.
+# Leave empty when private-key authentication is not configured.
+PrivateKey = ''

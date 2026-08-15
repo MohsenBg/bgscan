@@ -1,3 +1,6 @@
 [submodule "docs/themes/hugo-book"]
 	path = docs/themes/hugo-book
 	url = https://github.com/alex-shpak/hugo-book.git
+[submodule "third_party/vaydns"]
+	path = third_party/vaydns
+	url = git@github.com:MohsenBg/vaydns.git

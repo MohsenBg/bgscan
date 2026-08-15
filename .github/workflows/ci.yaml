@@ -1,4 +1,3 @@
-
 name: CI
 
 on:
@@ -17,6 +16,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -27,7 +28,7 @@ jobs:
       - name: Check formatting
         shell: bash
         run: |
-          files=$(gofmt -l .)
+          files=$(git ls-files '*.go' | xargs -r gofmt -l)
           if [ -n "$files" ]; then
             echo "The following Go files are not formatted:"
             echo "$files"

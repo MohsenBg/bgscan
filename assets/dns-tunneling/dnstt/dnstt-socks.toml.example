@@ -1,0 +1,43 @@
+# DNS tunnel server domain.
+# Replace this with the domain configured for your tunnel server.
+Domain = 'example.com'
+
+# Server public key used to authenticate the DNS tunnel server.
+PubKey = 'your-server-public-key'
+
+# DNS resolver transport protocol.
+# Supported values: 'udp', 'tcp', or 'dot' (DNS over TLS).
+ResolverType = 'udp'
+
+# Port of the DNS resolver.
+# Standard DNS uses port 53; DNS over TLS commonly uses port 853.
+ResolverPort = 53
+
+# uTLS client fingerprint used when establishing the connection.
+# This must be one of the fingerprints supported by the uTLS implementation.
+# Examples: 'chrome', 'firefox', 'safari'.
+Fingerprint = 'chrome'
+
+# Maximum requests per second.
+# Set to 0.0 to disable the RPS limit.
+RPS = 0.0
+
+# Proxy protocol used for the tunnel connection.
+ProxyType = 'socks'
+
+# Local proxy server port.
+ProxyPort = 1080
+
+# Proxy authentication method.
+# Supported values: 'none' or 'password'.
+AuthMethod = 'password'
+
+# Username used when AuthMethod is 'password'.
+Username = 'your-username'
+
+# Password used when AuthMethod is 'password'.
+Password = 'your-password'
+
+# Client ssh private key used for key-based authentication.
+# Leave empty when private-key authentication is not configured.
+PrivateKey = ''

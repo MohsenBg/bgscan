@@ -7,7 +7,7 @@ import (
 	"bgscan/internal/core/config"
 )
 
-var allowedDNSProtocols = []string{
+var allowedDNSTransport = []string{
 	"udp",
 	"tcp",
 	"dot",
@@ -38,21 +38,12 @@ const (
 )
 
 const (
-	// DNSTT limits
-	MinDNSTTWorkers = 1
-	MaxDNSTTWorkers = 500
+	// DNSTunneling limits
+	MinDNSTunnelingWorkers = 1
+	MaxDNSTunnelingWorkers = 500
 
-	MinDNSTTTimeout = 100 * time.Millisecond
-	MaxDNSTTTimeout = 60 * time.Second
-)
-
-const (
-	// SlipStream limits
-	MinSlipStreamWorkers = 1
-	MaxSlipStreamWorkers = 500
-
-	MinSlipStreamTimeout = 100 * time.Millisecond
-	MaxSlipStreamTimeout = 60 * time.Second
+	MinDNSTunnelingTimeout = 100 * time.Millisecond
+	MaxDNSTunnelingTimeout = 60 * time.Second
 )
 
 // ValidateDNS strictly validates a DNSConfig and returns errors by field name.
@@ -64,12 +55,8 @@ func ValidateDNS(cfg config.DNSConfig) map[string]error {
 		errs["Resolver."+k] = v
 	}
 
-	for k, v := range validateDNSTT(cfg.DNSTT) {
-		errs["DNSTT."+k] = v
-	}
-
-	for k, v := range validateSlipStream(cfg.SlipStream) {
-		errs["SlipStream."+k] = v
+	for k, v := range validateDNSTunneling(cfg.DNSTunneling) {
+		errs["DNSTunneling."+k] = v
 	}
 
 	return errs
@@ -87,8 +74,8 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 		errs["Workers"] = err
 	}
 
-	if err := checkEnum("Protocol", r.Protocol, allowedDNSProtocols); err != nil {
-		errs["Protocol"] = err
+	if err := checkEnum("Protocol", r.Transport, allowedDNSTransport); err != nil {
+		errs["Transport"] = err
 	}
 
 	if err := checkDomain("Domain", r.Domain); err != nil {
@@ -128,92 +115,61 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 
 	if err := checkInt(
 		"DPITries",
-		r.DPITries,
+		r.DPI.Tries,
 		MinDNSResolverDPITries,
 		MaxDNSResolverDPITries,
 	); err != nil {
-		errs["DPITries"] = err
+		errs["DPI.Tries"] = err
 	}
 
 	if err := checkDuration(
 		"DPITimeout",
-		r.DPITimeout.Duration(),
+		r.DPI.Timeout.Duration(),
 		MinDNSResolverDPITimeout,
 		MaxDNSResolverDPITimeout,
 	); err != nil {
-		errs["DPITimeout"] = err
+		errs["DPI.Timeout"] = err
 	}
 
-	if err := checkPrefix("PrefixOutput", r.PrefixOutput); err != nil {
-		errs["PrefixOutput"] = err
+	if err := checkPrefix("OutputPrefix", r.OutputPrefix); err != nil {
+		errs["OutputPrefix"] = err
 	}
 
 	return errs
 }
 
-func validateDNSTT(d config.DNSTTConfig) map[string]error {
+func validateDNSTunneling(d config.DNSTunneling) map[string]error {
 	errs := map[string]error{}
 
 	if err := checkInt(
 		"Workers",
 		d.Workers,
-		MinDNSTTWorkers,
-		MaxDNSTTWorkers,
+		MinDNSTunnelingWorkers,
+		MaxDNSTunnelingWorkers,
 	); err != nil {
 		errs["Workers"] = err
-	}
-
-	if err := checkDomain("Domain", d.Domain); err != nil {
-		errs["Domain"] = err
-	}
-
-	if err := checkPubKey("PublicKey", d.PublicKey); err != nil {
-		errs["PublicKey"] = err
 	}
 
 	if err := checkDuration(
 		"Timeout",
 		d.Timeout.Duration(),
-		MinDNSTTTimeout,
-		MaxDNSTTTimeout,
+		MinDNSTunnelingTimeout,
+		MaxDNSTunnelingTimeout,
 	); err != nil {
 		errs["Timeout"] = err
 	}
-
-	if err := checkPrefix("PrefixOutput", d.OutputPrefix); err != nil {
-		errs["PrefixOutput"] = err
-	}
-
-	return errs
-}
-
-func validateSlipStream(s config.SlipStreamConfig) map[string]error {
-	errs := map[string]error{}
 
 	if err := checkInt(
-		"Workers",
-		s.Workers,
-		MinSlipStreamWorkers,
-		MaxSlipStreamWorkers,
+		"Tries",
+		d.Tries,
+		MinDNSResolverTries,
+		MaxDNSResolverTries,
 	); err != nil {
-		errs["Workers"] = err
+		errs["Tries"] = err
 	}
 
-	if err := checkDomain("Domain", s.Domain); err != nil {
-		errs["Domain"] = err
-	}
-
-	if err := checkDuration(
-		"Timeout",
-		s.Timeout.Duration(),
-		MinSlipStreamTimeout,
-		MaxSlipStreamTimeout,
-	); err != nil {
-		errs["Timeout"] = err
-	}
-
-	if err := checkPrefix("PrefixOutput", s.OutputPrefix); err != nil {
-		errs["PrefixOutput"] = err
+	if err := checkPrefix("OutputPrefix", d.OutputPrefix); err != nil {
+		errs["OutputPrefix"] = err
 	}
 
 	return errs
@@ -224,8 +180,7 @@ func NormalizeDNS(cfg *config.DNSConfig) []Warning {
 	var warns []Warning
 
 	warns = append(warns, normalizeResolver(&cfg.Resolver)...)
-	warns = append(warns, normalizeDNSTT(&cfg.DNSTT)...)
-	warns = append(warns, normalizeSlipStream(&cfg.SlipStream)...)
+	warns = append(warns, normalizeDNSTunneling(&cfg.DNSTunneling)...)
 
 	return warns
 }
@@ -244,10 +199,10 @@ func normalizeResolver(r *config.ResolverConfig) []Warning {
 	)
 
 	fixEnum(
-		"Resolver.Protocol",
-		&r.Protocol,
-		allowedDNSProtocols,
-		def.Protocol,
+		"Resolver.Transport",
+		&r.Transport,
+		allowedDNSTransport,
+		def.Transport,
 		&warns,
 	)
 
@@ -293,72 +248,26 @@ func normalizeResolver(r *config.ResolverConfig) []Warning {
 	)
 
 	fixInt(
-		"Resolver.DPITries",
-		&r.DPITries,
+		"Resolver.DPI.Tries",
+		&r.DPI.Tries,
 		MinDNSResolverDPITries,
 		MaxDNSResolverDPITries,
-		def.DPITries,
+		def.DPI.Tries,
 		&warns,
 	)
 
 	fixDurationMS(
-		"Resolver.DPITimeout",
-		&r.DPITimeout,
+		"Resolver.DPI.Timeout",
+		&r.DPI.Timeout,
 		MinDNSResolverDPITimeout,
 		MaxDNSResolverDPITimeout,
-		def.DPITimeout,
+		def.DPI.Timeout,
 		&warns,
 	)
 
 	fixPrefix(
-		"Resolver.PrefixOutput",
-		&r.PrefixOutput,
-		def.PrefixOutput,
-		&warns,
-	)
-
-	return warns
-}
-
-func normalizeDNSTT(d *config.DNSTTConfig) []Warning {
-	def := config.DefaultDNSConfig().DNSTT
-	var warns []Warning
-
-	fixInt(
-		"DNSTT.Workers",
-		&d.Workers,
-		MinDNSTTWorkers,
-		MaxDNSTTWorkers,
-		def.Workers,
-		&warns,
-	)
-
-	fixDomain(
-		"DNSTT.Domain",
-		&d.Domain,
-		def.Domain,
-		&warns,
-	)
-
-	fixPubKey(
-		"DNSTT.PublicKey",
-		&d.PublicKey,
-		def.PublicKey,
-		&warns,
-	)
-
-	fixDurationMS(
-		"DNSTT.Timeout",
-		&d.Timeout,
-		MinDNSTTTimeout,
-		MaxDNSTTTimeout,
-		def.Timeout,
-		&warns,
-	)
-
-	fixPrefix(
-		"DNSTT.PrefixOutput",
-		&d.OutputPrefix,
+		"Resolver.OutputPrefix",
+		&r.OutputPrefix,
 		def.OutputPrefix,
 		&warns,
 	)
@@ -366,38 +275,40 @@ func normalizeDNSTT(d *config.DNSTTConfig) []Warning {
 	return warns
 }
 
-func normalizeSlipStream(s *config.SlipStreamConfig) []Warning {
-	def := config.DefaultDNSConfig().SlipStream
+func normalizeDNSTunneling(d *config.DNSTunneling) []Warning {
+	def := config.DefaultDNSConfig().DNSTunneling
 	var warns []Warning
 
 	fixInt(
-		"SlipStream.Workers",
-		&s.Workers,
-		MinSlipStreamWorkers,
-		MaxSlipStreamWorkers,
+		"DNSTunneling.Workers",
+		&d.Workers,
+		MinDNSTunnelingWorkers,
+		MaxDNSTunnelingWorkers,
 		def.Workers,
 		&warns,
 	)
 
-	fixDomain(
-		"SlipStream.Domain",
-		&s.Domain,
-		def.Domain,
+	fixInt(
+		"DNSTunneling.Tries",
+		&d.Tries,
+		MinDNSResolverTries,
+		MaxDNSResolverTries,
+		def.Tries,
 		&warns,
 	)
 
 	fixDurationMS(
-		"SlipStream.Timeout",
-		&s.Timeout,
-		MinSlipStreamTimeout,
-		MaxSlipStreamTimeout,
+		"DNSTunneling.Timeout",
+		&d.Timeout,
+		MinDNSTunnelingTimeout,
+		MaxDNSTunnelingTimeout,
 		def.Timeout,
 		&warns,
 	)
 
 	fixPrefix(
-		"SlipStream.PrefixOutput",
-		&s.OutputPrefix,
+		"DNSTunneling.OutputPrefix",
+		&d.OutputPrefix,
 		def.OutputPrefix,
 		&warns,
 	)

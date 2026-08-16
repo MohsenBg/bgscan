@@ -24,27 +24,27 @@ func TestDNSConfig(t *testing.T) {
 			name: "invalid resolver fields",
 			mutate: func(cfg *config.DNSConfig) {
 				cfg.Resolver.Workers = MinDNSResolverWorkers - 1
-				cfg.Resolver.Protocol = "invalid"
+				cfg.Resolver.Transport = "invalid"
 				cfg.Resolver.Domain = ""
 				cfg.Resolver.Port = MinDNSResolverPort - 1
 				cfg.Resolver.CheckTypes = []string{}
 				cfg.Resolver.Timeout = config.NewDurationMS(MinDNSResolverTimeout - 2*time.Millisecond)
 				cfg.Resolver.Tries = MinDNSResolverTries - 1
-				cfg.Resolver.DPITries = MinDNSResolverDPITries - 1
-				cfg.Resolver.DPITimeout = config.NewDurationMS(MinDNSResolverDPITimeout - 2*time.Millisecond)
-				cfg.Resolver.PrefixOutput = ""
+				cfg.Resolver.DPI.Tries = MinDNSResolverDPITries - 1
+				cfg.Resolver.DPI.Timeout = config.NewDurationMS(MinDNSResolverDPITimeout - 2*time.Millisecond)
+				cfg.Resolver.OutputPrefix = ""
 			},
 			wantErrKeys: []string{
 				"Resolver.Workers",
-				"Resolver.Protocol",
+				"Resolver.Transport",
 				"Resolver.Domain",
 				"Resolver.Port",
 				"Resolver.CheckTypes",
 				"Resolver.Timeout",
 				"Resolver.Tries",
-				"Resolver.DPITries",
-				"Resolver.DPITimeout",
-				"Resolver.PrefixOutput",
+				"Resolver.DPI.Tries",
+				"Resolver.DPI.Timeout",
+				"Resolver.OutputPrefix",
 			},
 			wantWarnCount: 10,
 			checkFixed: func(t *testing.T, got, want config.DNSConfig) {
@@ -56,11 +56,11 @@ func TestDNSConfig(t *testing.T) {
 					)
 				}
 
-				if got.Resolver.Protocol != want.Resolver.Protocol {
+				if got.Resolver.Transport != want.Resolver.Transport {
 					t.Errorf(
-						"Resolver.Protocol = %q, want %q",
-						got.Resolver.Protocol,
-						want.Resolver.Protocol,
+						"Resolver.Transport = %q, want %q",
+						got.Resolver.Transport,
+						want.Resolver.Transport,
 					)
 				}
 
@@ -85,15 +85,12 @@ func TestDNSConfig(t *testing.T) {
 			name: "invalid domains",
 			mutate: func(cfg *config.DNSConfig) {
 				cfg.Resolver.Domain = "invalid domain!"
-				cfg.DNSTT.Domain = "invalid domain!"
-				cfg.SlipStream.Domain = "-invalid.com"
+				// DNSTunneling doesn't have a Domain field
 			},
 			wantErrKeys: []string{
 				"Resolver.Domain",
-				"DNSTT.Domain",
-				"SlipStream.Domain",
 			},
-			wantWarnCount: 3,
+			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, got, want config.DNSConfig) {
 				if got.Resolver.Domain != want.Resolver.Domain {
 					t.Errorf(
@@ -102,57 +99,21 @@ func TestDNSConfig(t *testing.T) {
 						want.Resolver.Domain,
 					)
 				}
-
-				if got.DNSTT.Domain != want.DNSTT.Domain {
-					t.Errorf(
-						"DNSTT.Domain = %q, want %q",
-						got.DNSTT.Domain,
-						want.DNSTT.Domain,
-					)
-				}
-
-				if got.SlipStream.Domain != want.SlipStream.Domain {
-					t.Errorf(
-						"SlipStream.Domain = %q, want %q",
-						got.SlipStream.Domain,
-						want.SlipStream.Domain,
-					)
-				}
 			},
 		},
 		{
-			name: "invalid DNSTT fields",
+			name: "invalid DNSTunneling fields",
 			mutate: func(cfg *config.DNSConfig) {
-				cfg.DNSTT.Workers = MinDNSTTWorkers - 1
-				cfg.DNSTT.Domain = "invalid domain!"
-				cfg.DNSTT.PublicKey = "short"
-				cfg.DNSTT.Timeout = config.NewDurationMS(MinDNSTTTimeout - 2*time.Millisecond)
-				cfg.DNSTT.OutputPrefix = ""
+				cfg.DNSTunneling.Workers = MinDNSTunnelingWorkers - 1
+				cfg.DNSTunneling.Timeout = config.NewDurationMS(MinDNSTunnelingTimeout - 2*time.Millisecond)
+				cfg.DNSTunneling.Tries = MinDNSResolverTries - 1
 			},
 			wantErrKeys: []string{
-				"DNSTT.Workers",
-				"DNSTT.Domain",
-				"DNSTT.PublicKey",
-				"DNSTT.Timeout",
-				"DNSTT.PrefixOutput",
+				"DNSTunneling.Workers",
+				"DNSTunneling.Timeout",
+				"DNSTunneling.Tries",
 			},
-			wantWarnCount: 5,
-		},
-		{
-			name: "invalid SlipStream fields",
-			mutate: func(cfg *config.DNSConfig) {
-				cfg.SlipStream.Workers = MinSlipStreamWorkers - 1
-				cfg.SlipStream.Domain = "invalid domain!"
-				cfg.SlipStream.Timeout = config.NewDurationMS(MinSlipStreamTimeout - 2*time.Millisecond)
-				cfg.SlipStream.OutputPrefix = ""
-			},
-			wantErrKeys: []string{
-				"SlipStream.Workers",
-				"SlipStream.Domain",
-				"SlipStream.Timeout",
-				"SlipStream.PrefixOutput",
-			},
-			wantWarnCount: 4,
+			wantWarnCount: 3,
 		},
 	}
 

@@ -92,13 +92,13 @@ func TestTCPConfig(t *testing.T) {
 			},
 		},
 		{
-			name:          "PrefixOutput invalid",
+			name:          "OutputPrefix invalid",
 			mutateCfg:     func(c *config.TCPConfig) { c.OutputPrefix = "invalid/prefix" },
-			wantErrKeys:   []string{"PrefixOutput"},
+			wantErrKeys:   []string{"OutputPrefix"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.TCPConfig) {
 				if c.OutputPrefix != def.OutputPrefix {
-					t.Errorf("PrefixOutput = %q, want %q", c.OutputPrefix, def.OutputPrefix)
+					t.Errorf("OutputPrefix = %q, want %q", c.OutputPrefix, def.OutputPrefix)
 				}
 			},
 		},

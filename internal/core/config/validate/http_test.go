@@ -185,12 +185,12 @@ func TestHTTPConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "PrefixOutput and AcceptedStatusCodes invalid",
+			name: "OutputPrefix and AcceptedStatusCodes invalid",
 			mutateCfg: func(c *config.HTTPConfig) {
 				c.OutputPrefix = ""
 				c.AcceptedStatusCodes = []int{999}
 			},
-			wantErrKeys:   []string{"PrefixOutput", "AcceptedStatusCodes"},
+			wantErrKeys:   []string{"OutputPrefix", "AcceptedStatusCodes"},
 			wantWarnCount: 2,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.OutputPrefix != def.OutputPrefix {

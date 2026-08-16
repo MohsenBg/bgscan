@@ -171,16 +171,16 @@ func TestXrayConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "PrefixOutput empty",
+			name: "OutputPrefix empty",
 			mutateCfg: func(c *config.XrayConfig) {
 				c.OutputPrefix = ""
 			},
-			wantErrKeys:   []string{"PrefixOutput"},
+			wantErrKeys:   []string{"OutputPrefix"},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.OutputPrefix != def.OutputPrefix {
 					t.Errorf(
-						"PrefixOutput = %q, want %q",
+						"OutputPrefix = %q, want %q",
 						c.OutputPrefix,
 						def.OutputPrefix,
 					)

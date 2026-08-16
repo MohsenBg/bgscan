@@ -25,11 +25,19 @@ func defaultScannerConfig() ScannerConfig {
 	}
 }
 
+// TestNewStore_UsesBasePath verifies that under `go test` (BasePath falls
+// back to the working directory) the default store lives in ./settings.
 func TestNewStore_UsesDefaultDirectory(t *testing.T) {
-	store := NewStore()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
 
-	if store.dir != settingsDir {
-		t.Fatalf("expected directory %q, got %q", settingsDir, store.dir)
+	want := filepath.Join(wd, settingsDir)
+
+	store := NewStore()
+	if store.dir != want {
+		t.Fatalf("expected directory %q, got %q", want, store.dir)
 	}
 }
 

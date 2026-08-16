@@ -36,8 +36,8 @@ func ValidateICMP(cfg config.ICMPConfig) map[string]error {
 		errs["Tries"] = err
 	}
 
-	if err := checkPrefix("PrefixOutput", cfg.OutputPrefix); err != nil {
-		errs["PrefixOutput"] = err
+	if err := checkPrefix("OutputPrefix", cfg.OutputPrefix); err != nil {
+		errs["OutputPrefix"] = err
 	}
 
 	return errs
@@ -60,7 +60,7 @@ func NormalizeICMP(cfg *config.ICMPConfig) []Warning {
 		MinICMPTries, MaxICMPTries,
 		def.Tries, &warns)
 
-	fixString("PrefixOutput",
+	fixString("OutputPrefix",
 		&cfg.OutputPrefix,
 		def.OutputPrefix,
 		&warns)

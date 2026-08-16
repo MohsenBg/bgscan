@@ -1,4 +1,5 @@
-// Package config defines scanner settings, defaults, and persistent storage.
+// Package config defines scanner settings, defaults, persistent storage,
+// and platform/tier detection for automatic configuration tuning.
 package config
 
 import (
@@ -51,13 +52,13 @@ func WithSettingsDir(dir string) StoreOption {
 	}
 }
 
-// NewStore creates a Store using the relative "settings" directory by default.
+// NewStore creates a Store rooted at the application base directory's
+// "settings" subdirectory by default.
 func NewStore(opts ...StoreOption) Store {
 	s := Store{dir: settingsDir}
 
-	exe, err := os.Executable()
-	if err == nil {
-		s = Store{dir: filepath.Join(filepath.Dir(exe), settingsDir)}
+	if base, err := fileutil.BasePath(); err == nil {
+		s = Store{dir: filepath.Join(base, settingsDir)}
 	}
 
 	for _, opt := range opts {

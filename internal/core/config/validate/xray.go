@@ -83,10 +83,10 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 	}
 
 	if err := checkPrefix(
-		"PrefixOutput",
+		"OutputPrefix",
 		cfg.OutputPrefix,
 	); err != nil {
-		errs["PrefixOutput"] = err
+		errs["OutputPrefix"] = err
 	}
 
 	return errs
@@ -153,7 +153,7 @@ func NormalizeXray(cfg *config.XrayConfig) []Warning {
 	)
 
 	fixString(
-		"PrefixOutput",
+		"OutputPrefix",
 		&cfg.OutputPrefix,
 		def.OutputPrefix,
 		&warns,

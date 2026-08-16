@@ -43,8 +43,8 @@ func ValidateTCP(cfg config.TCPConfig) map[string]error {
 		errs["Tries"] = err
 	}
 
-	if err := checkPrefix("PrefixOutput", cfg.OutputPrefix); err != nil {
-		errs["PrefixOutput"] = err
+	if err := checkPrefix("OutputPrefix", cfg.OutputPrefix); err != nil {
+		errs["OutputPrefix"] = err
 	}
 
 	return errs
@@ -71,7 +71,7 @@ func NormalizeTCP(cfg *config.TCPConfig) []Warning {
 		MinTCPTries, MaxTCPTries,
 		def.Tries, &warns)
 
-	fixPrefix("PrefixOutput",
+	fixPrefix("OutputPrefix",
 		&cfg.OutputPrefix,
 		def.OutputPrefix,
 		&warns)

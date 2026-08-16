@@ -241,6 +241,14 @@ func checkPubKey(field, key string) error {
 	return nil
 }
 
+func ErrFieldRequired(field string) error {
+	return fmt.Errorf("%s is required: %w", field, ErrEmpty)
+}
+
+func ErrFieldOutOfRange(field string, min, max interface{}) error {
+	return fmt.Errorf("%s must be between %v and %v: %w", field, min, max, ErrOutOfRange)
+}
+
 func fixInt(field string, v *int, min, max, def int, warns *[]Warning) {
 	if err := checkInt(field, *v, min, max); err != nil {
 		old := *v

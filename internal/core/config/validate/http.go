@@ -107,8 +107,8 @@ func ValidateHTTP(cfg config.HTTPConfig) map[string]error {
 		}
 	}
 
-	if err := checkPrefix("PrefixOutput", cfg.OutputPrefix); err != nil {
-		errs["PrefixOutput"] = err
+	if err := checkPrefix("OutputPrefix", cfg.OutputPrefix); err != nil {
+		errs["OutputPrefix"] = err
 	}
 
 	if err := checkStatusCodes("AcceptedStatusCodes", cfg.AcceptedStatusCodes); err != nil {
@@ -215,7 +215,7 @@ func NormalizeHTTP(cfg *config.HTTPConfig) []Warning {
 	)
 
 	fixString(
-		"PrefixOutput",
+		"OutputPrefix",
 		&cfg.OutputPrefix,
 		def.OutputPrefix,
 		&warns,

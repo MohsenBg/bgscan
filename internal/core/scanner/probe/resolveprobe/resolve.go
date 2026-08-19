@@ -14,8 +14,9 @@ import (
 	"bgscan/internal/core/scanner/probe"
 )
 
-// queryRunner abstracts DNS query execution, primarily to allow mocking in tests.
-type queryRunner func(ctx context.Context, q dns.DNSQuery) (*dns.Msg, error)
+// queryExecutor abstracts DNS query execution, primarily to allow
+// mocking in tests.
+type queryExecutor func(ctx context.Context, q dns.Query) (*dns.Msg, error)
 
 // DNSRequest configures the parameters for testing a DNS resolver.
 type DNSRequest struct {
@@ -57,7 +58,7 @@ type DNSRequest struct {
 	Timeout time.Duration
 
 	// Transport is the underlying mechanism (UDP, TCP, DoT, DoH, etc.).
-	Transport dns.Transport
+	Transport dns.ResolverType
 
 	// Tries is the max number of retries per record type during normal probing.
 	// Defaults to 1 if zero or negative.
@@ -69,7 +70,8 @@ type DNSRequest struct {
 // standard record queries based on the DNSRequest configuration.
 type ResolverProbe struct {
 	request  *DNSRequest
-	runQuery queryRunner
+	query    queryExecutor
+	resolver dns.Resolver
 }
 
 // NewResolverProbe creates a new ResolverProbe.
@@ -78,14 +80,18 @@ func NewResolverProbe(req *DNSRequest) probe.Probe {
 	if req.Tries <= 0 {
 		req.Tries = 1
 	}
+
 	if req.DpiTries <= 0 {
 		req.DpiTries = 1
 	}
 
+	resolver := dns.NewResolver()
+
 	return &ResolverProbe{
-		request: req,
-		runQuery: func(ctx context.Context, q dns.DNSQuery) (*dns.Msg, error) {
-			return q.Run(ctx)
+		request:  req,
+		resolver: resolver,
+		query: func(ctx context.Context, q dns.Query) (*dns.Msg, error) {
+			return resolver.Query(ctx, q)
 		},
 	}
 }
@@ -132,7 +138,7 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip netip.Addr
 		timeout = 500 * time.Millisecond
 	}
 
-	query := dns.DNSQuery{
+	query := dns.Query{
 		Resolver:         ip.String(),
 		Port:             r.request.Port,
 		Domain:           fakeDomain,
@@ -150,7 +156,7 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip netip.Addr
 			return err
 		}
 
-		resp, err := r.runQuery(ctx, query)
+		resp, err := r.query(ctx, query)
 		if err != nil {
 			lastErr = err
 			continue
@@ -171,7 +177,7 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip netip.Addr
 // executeNormalProbe iterates through the configured CheckTypes,
 // returning the first query that yields an AcceptedRcode.
 func (r *ResolverProbe) executeNormalProbe(ctx context.Context, ip netip.Addr) (result.Result, error) {
-	query := dns.DNSQuery{
+	query := dns.Query{
 		Resolver:         ip.String(),
 		Port:             r.request.Port,
 		Transport:        r.request.Transport,
@@ -198,7 +204,7 @@ func (r *ResolverProbe) executeNormalProbe(ctx context.Context, ip netip.Addr) (
 
 			start := time.Now()
 
-			resp, err := r.runQuery(ctx, query)
+			resp, err := r.query(ctx, query)
 			if err != nil {
 				lastErr = err
 				continue
@@ -260,5 +266,6 @@ func generateRandomString(n int) string {
 	for i := range b {
 		b[i] = chars[rand.Intn(len(chars))]
 	}
+
 	return string(b)
 }

@@ -2,189 +2,504 @@ package dns
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"math"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
-	"bgscan/internal/core/process"
-	"bgscan/internal/core/scanner/portmgr"
+	"bgscan/internal/core/fileutil"
+
+	vaydns "github.com/net2share/vaydns/client"
 )
 
-var ErrTunnelNotRunning = errors.New("dnstt-client process is not running")
+const dnsttDir = "assets/dns-tunneling/dnstt/"
 
-// DNSTTClient manages a dnstt-client tunnel process.
-type DNSTTClient interface {
-	RunTunnel(context.Context, string, uint16) (process.Process, error)
-}
-
-// ProcessStarter starts an external process.
-type ProcessStarter func(context.Context, string, ...string) (process.Process, error)
-
-type dnsttClient struct {
-	bin       string
-	transport Transport
-	publicKey string
-	domain    string
-	dnsPort   uint16
-
-	start ProcessStarter
-}
-
-// DNSTTClientOption configures a dnstt-client instance.
-type DNSTTClientOption func(*dnsttClient)
-
-// WithProcessStarter replaces the process launcher.
+// DNSTTConfig contains the configuration required by the DNSTT client.
 //
-// It allows tests to verify RunTunnel without executing an external binary.
-func WithProcessStarter(start ProcessStarter) DNSTTClientOption {
-	return func(client *dnsttClient) {
-		if start != nil {
-			client.start = start
-		}
-	}
+// ResolverAddr is intentionally absent: the resolver address is provided
+// at runtime per target via NewTunnel, not stored in the config.
+type DNSTTConfig struct {
+	Domain       string
+	PubKey       string
+	ResolverType ResolverType
+	ResolverPort uint16
+	Fingerprint  string
+	RPS          float64
+
+	ProxyType  ResolverProxyType
+	ProxyPort  uint16
+	AuthMethod AuthMethod
+	Username   string
+	Password   string
+	PrivateKey string
 }
 
-// WithDNSTTClientBinary uses bin as the dnstt-client executable path instead
-// of searching the known locations.
-func WithDNSTTClientBinary(bin string) DNSTTClientOption {
-	return func(client *dnsttClient) {
-		if bin != "" {
-			client.bin = bin
-		}
-	}
+type DNSTTConfigFile struct {
+	Name      string
+	Path      string
+	CreatedAt time.Time
+	Config    DNSTTConfig
 }
 
-// NewDNSTTClient creates a client for a DNS tunnel.
+type dnsttConn struct {
+	net.Conn
+	tunnel *vaydns.Tunnel
+}
+
+func (c *dnsttConn) Close() error {
+	var err error
+
+	if c.tunnel != nil {
+		if tunnelErr := c.tunnel.Close(); tunnelErr != nil {
+			err = tunnelErr
+		}
+	}
+
+	return err
+}
+
+// DefaultDNSTTConfig returns a DNSTT configuration with recommended defaults.
 //
-// Unless WithDNSTTClientBinary is provided, it locates dnstt-client before
-// returning the client.
-func NewDNSTTClient(
-	domain,
-	publicKey string,
-	transport Transport,
-	dnsPort uint16,
-	opts ...DNSTTClientOption,
-) (DNSTTClient, error) {
-	client := &dnsttClient{
-		domain:    domain,
-		publicKey: publicKey,
-		transport: transport,
-		dnsPort:   dnsPort,
-		start:     process.Start,
+// Domain and PubKey are deployment-specific and must be provided by the user.
+func DefaultDNSTTConfig() DNSTTConfig {
+	return DNSTTConfig{
+		ResolverType: ResolverType(vaydns.ResolverTypeUDP),
+		ResolverPort: 53,
+		Fingerprint:  "chrome",
+		RPS:          0, // 0 = unlimited.
+	}
+}
+
+// Validate validates the DNSTT configuration.
+//
+// All validation errors are returned, keyed by the corresponding
+// configuration field.
+func (c DNSTTConfig) Validate() map[string]error {
+	errs := make(map[string]error)
+
+	domain := strings.TrimSpace(c.Domain)
+	if err := validateDomain(domain); err != nil {
+		errs["domain"] = err
 	}
 
-	for _, opt := range opts {
-		opt(client)
+	if strings.TrimSpace(c.PubKey) == "" {
+		errs["pub_key"] = fmt.Errorf("public key is required")
 	}
 
-	if client.bin == "" {
-		bin, err := FindDNSTTClient()
-		if err != nil {
-			return nil, err
+	if !c.ResolverType.IsValid() {
+		errs["resolver_type"] = fmt.Errorf("resolver type is invalid")
+	}
+
+	if c.ResolverPort == 0 {
+		errs["resolver_port"] = fmt.Errorf("resolver port must be greater than zero")
+	}
+
+	if math.IsNaN(c.RPS) ||
+		math.IsInf(c.RPS, 0) ||
+		c.RPS < 0 ||
+		c.RPS > 500 {
+		errs["rps"] = fmt.Errorf("RPS must be between 0 and 500")
+	}
+
+	fingerprint := strings.TrimSpace(c.Fingerprint)
+	if fingerprint == "" {
+		errs["fingerprint"] = fmt.Errorf("TLS fingerprint is required")
+	} else if _, err := parseClientHelloID(fingerprint); err != nil {
+		errs["fingerprint"] = fmt.Errorf("invalid TLS fingerprint: %w", err)
+	}
+
+	return errs
+}
+
+// DNSTTService manages DNSTT configurations and tunnels.
+type DNSTTService interface {
+	SaveConfig(config DNSTTConfig, name string) error
+	LoadConfig(name string) (DNSTTConfig, error)
+	GetAllConfigFiles() ([]DNSTTConfigFile, error)
+	ValidateAllConfigs() ([]ConfigValidationResult, error)
+	RenameConfig(oldName, newName string) error
+	NewTunnel(ctx context.Context, config DNSTTConfig, resolverAddr netip.Addr) (net.Conn, error)
+}
+
+// dnsttService is the default DNSTTService implementation.
+type dnsttService struct {
+	dir string
+}
+
+// DNSTTServiceOption configures a DNSTTService.
+type DNSTTServiceOption func(*dnsttService)
+
+// WithDNSTTDir sets the directory used to store DNSTT configurations.
+func WithDNSTTDir(dir string) DNSTTServiceOption {
+	return func(service *dnsttService) {
+		if dir != "" {
+			service.dir = dir
 		}
-
-		client.bin = bin
 	}
-
-	return client, nil
 }
 
-// FindDNSTTClient locates the dnstt-client binary in known locations or PATH.
-func FindDNSTTClient() (string, error) {
-	return process.FindBinaryInPaths("dnstt-client", getDNSTTPaths())
-}
-
-// RunTunnel starts dnstt-client and connects the local port to ip:port through
-// the configured DNS transport.
-func (d *dnsttClient) RunTunnel(
-	ctx context.Context,
-	ip string,
-	port uint16,
-) (process.Process, error) {
-	args := []string{
-		getDNSTransportFlag(d.transport),
-		net.JoinHostPort(ip, fmt.Sprint(d.dnsPort)),
-		"-pubkey", d.publicKey,
-		d.domain,
-		net.JoinHostPort("127.0.0.1", fmt.Sprint(port)),
+// NewDNSTTService creates a DNSTT service.
+func NewDNSTTService(options ...DNSTTServiceOption) DNSTTService {
+	service := &dnsttService{
+		dir: getDNSTTDir(),
 	}
 
-	proc, err := d.start(ctx, d.bin, args...)
+	for _, option := range options {
+		option(service)
+	}
+
+	return service
+}
+
+// getDNSTTDir returns the default directory used to store DNSTT configs.
+func getDNSTTDir() string {
+	base, err := fileutil.BasePath()
 	if err != nil {
-		return nil, err
+		return dnsttDir
 	}
 
-	return proc, nil
+	return filepath.Join(base, dnsttDir)
 }
 
-// getDNSTransportFlag maps a transport to its corresponding dnstt-client flag.
-func getDNSTransportFlag(transport Transport) string {
-	switch transport {
-	case UDP:
-		return "-udp"
-
-	case TCP, DOT:
-		return "-dot"
-
-	case DOH:
-		// dnstt-client does not currently support DoH directly.
-		return "-dot"
-
-	default:
-		return "-udp"
-	}
-}
-
-// VerifyDNSTTClient starts a temporary tunnel and waits for its local listener
-// to accept TCP connections.
-func VerifyDNSTTClient() error {
-	client, err := NewDNSTTClient(
-		"example.com",
-		"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-		UDP,
-		53,
-	)
-	if err != nil {
-		return err
+// SaveConfig saves a DNSTT configuration to disk.
+func (s *dnsttService) SaveConfig(
+	config DNSTTConfig,
+	name string,
+) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("config name is required")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	const testPort uint16 = 9999
-
-	proc, err := client.RunTunnel(ctx, "8.8.8.8", testPort)
-	if err != nil {
-		return fmt.Errorf("start tunnel: %w", err)
+	if errs := config.Validate(); len(errs) > 0 {
+		return fmt.Errorf("invalid DNSTT config: %v", errs)
 	}
-	defer func() {
-		_ = proc.Kill()
-	}()
 
-	addr := net.JoinHostPort("127.0.0.1", fmt.Sprint(testPort))
+	path := s.configPath(name)
 
-	if err := portmgr.WaitOpen(ctx, addr, 3*time.Second); err != nil {
-		return fmt.Errorf("wait for tunnel: %w", err)
+	if err := fileutil.WriteTOMLFile(path, config); err != nil {
+		return fmt.Errorf(
+			"save DNSTT config %q: %w",
+			name,
+			err,
+		)
 	}
 
 	return nil
 }
 
-func getDNSTTPaths() []string {
-	exe, err := os.Executable()
+// LoadConfig loads a DNSTT configuration from disk.
+func (s *dnsttService) LoadConfig(name string) (DNSTTConfig, error) {
+	path := s.configPath(name)
+
+	config, err := fileutil.ReadTOMLFile[DNSTTConfig](path)
 	if err != nil {
-		return []string{"assets/dnstt-client", "assets/dns/dnstt-client", "dnstt-client", ""}
+		return DNSTTConfig{}, fmt.Errorf(
+			"load DNSTT config %q: %w",
+			name,
+			err,
+		)
 	}
 
-	base := filepath.Dir(exe)
+	return config, nil
+}
 
-	return []string{
-		filepath.Join(base, "assets", "dnstt-client"),
-		filepath.Join(base, "assets", "dns", "dnstt-client"),
-		filepath.Join(base, "dnstt-client"),
-		base,
+// GetAllConfigFiles returns all valid DNSTT TOML configuration files.
+func (s *dnsttService) GetAllConfigFiles() ([]DNSTTConfigFile, error) {
+	if err := fileutil.EnsureDir(s.dir); err != nil {
+		return nil, err
 	}
+
+	files, err := fileutil.ListFiles(s.dir, func(name string, _ os.FileInfo) bool {
+		return strings.EqualFold(filepath.Ext(name), ".toml")
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	configs := make([]DNSTTConfigFile, 0, len(files))
+
+	for _, file := range files {
+		cfg, err := s.LoadConfig(file.Name)
+		if err != nil || len(cfg.Validate()) != 0 {
+			continue
+		}
+
+		configs = append(configs, DNSTTConfigFile{
+			Name:      strings.TrimSuffix(file.Name, filepath.Ext(file.Name)),
+			Path:      file.Path,
+			CreatedAt: file.Info.ModTime(),
+			Config:    cfg,
+		})
+	}
+
+	return configs, nil
+}
+
+func (s *dnsttService) ValidateAllConfigs() ([]ConfigValidationResult, error) {
+	if err := fileutil.EnsureDir(s.dir); err != nil {
+		return nil, err
+	}
+	files, err := fileutil.ListFiles(s.dir, func(name string, _ os.FileInfo) bool {
+		return strings.EqualFold(filepath.Ext(name), ".toml")
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]ConfigValidationResult, 0, len(files))
+
+	for _, file := range files {
+		cfg, err := s.LoadConfig(file.Name)
+		if err != nil {
+			results = append(results, ConfigValidationResult{
+				File:   file,
+				Errors: map[string]error{},
+			})
+			continue
+		}
+
+		validationErrors := cfg.Validate()
+		if len(validationErrors) == 0 {
+			continue
+		}
+
+		results = append(results, ConfigValidationResult{
+			File:   file,
+			Errors: validationErrors,
+		})
+	}
+
+	return results, nil
+}
+
+// NewTunnel creates and initializes a DNSTT tunnel to the given resolver address.
+func (s *dnsttService) NewTunnel(
+	ctx context.Context,
+	config DNSTTConfig,
+	resolverAddr netip.Addr,
+) (net.Conn, error) {
+	if errs := config.Validate(); len(errs) > 0 {
+		return nil, fmt.Errorf("invalid DNSTT config: %v", errs)
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf(
+			"context canceled before tunnel setup: %w",
+			err,
+		)
+	}
+
+	resolver, err := newDNSTTResolver(config, resolverAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	tunnelServer, err := newDNSTTTunnelServer(config)
+	if err != nil {
+		return nil, err
+	}
+
+	tunnel, err := vaydns.NewTunnel(*resolver, *tunnelServer)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"create tunnel: %w",
+			err,
+		)
+	}
+
+	// From this point, tunnel owns resources.
+	// Every failure path must close it.
+
+	if err := ctx.Err(); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"context canceled before resolver connection: %w",
+			err,
+		)
+	}
+
+	if err := tunnel.InitiateResolverConnection(ctx); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"initiate resolver connection: %w",
+			err,
+		)
+	}
+
+	if err := ctx.Err(); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"context canceled before DNS packet connection: %w",
+			err,
+		)
+	}
+
+	if err := tunnel.InitiateDNSPacketConn(
+		ctx,
+		tunnelServer.Addr,
+	); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"initiate DNS packet connection: %w",
+			err,
+		)
+	}
+
+	if err := ctx.Err(); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"context canceled before KCP connection: %w",
+			err,
+		)
+	}
+
+	if err := tunnel.InitiateKCPConn(
+		tunnelServer.MTU,
+	); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"initiate KCP connection: %w",
+			err,
+		)
+	}
+
+	if err := ctx.Err(); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"context canceled before Noise channel: %w",
+			err,
+		)
+	}
+
+	if err := tunnel.InitiateNoiseChannel(ctx); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"initiate Noise channel: %w",
+			err,
+		)
+	}
+
+	if err := ctx.Err(); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"context canceled before smux session: %w",
+			err,
+		)
+	}
+
+	if err := tunnel.InitiateSmuxSession(); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"initiate smux session: %w",
+			err,
+		)
+	}
+
+	if err := ctx.Err(); err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"context canceled before opening stream: %w",
+			err,
+		)
+	}
+
+	stream, err := tunnel.OpenStream()
+	if err != nil {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf(
+			"open tunnel stream: %w",
+			err,
+		)
+	}
+
+	return &dnsttConn{
+		Conn:   stream,
+		tunnel: tunnel,
+	}, nil
+}
+
+// newDNSTTResolver creates a DNSTT resolver from the configuration.
+func newDNSTTResolver(
+	config DNSTTConfig,
+	resolverAddr netip.Addr,
+) (*vaydns.Resolver, error) {
+	addr := netip.AddrPortFrom(
+		resolverAddr,
+		config.ResolverPort,
+	).String()
+
+	resolver, err := vaydns.NewResolver(
+		vaydns.ResolverType(config.ResolverType),
+		addr,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create resolver: %w", err)
+	}
+
+	clientHelloID, err := parseClientHelloID(config.Fingerprint)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"parse TLS fingerprint: %w",
+			err,
+		)
+	}
+
+	resolver.UTLSClientHelloID = &clientHelloID
+	resolver.UDPSharedSocket = true
+
+	return &resolver, nil
+}
+
+// newDNSTTTunnelServer creates a DNSTT-compatible tunnel server.
+func newDNSTTTunnelServer(
+	config DNSTTConfig,
+) (*vaydns.TunnelServer, error) {
+	server, err := vaydns.NewTunnelServer(
+		config.Domain,
+		normalizeConfigName(config.PubKey),
+	)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"create tunnel server: %w",
+			err,
+		)
+	}
+
+	server.RPS = config.RPS
+	server.DnsttCompat = true
+
+	return &server, nil
+}
+
+// configPath returns the path for a named DNSTT configuration.
+func (s *dnsttService) configPath(name string) string {
+	return filepath.Join(
+		s.dir,
+		normalizeConfigName(name)+".toml",
+	)
+}
+
+func (s *dnsttService) RenameConfig(oldName, newName string) error {
+	oldPath := s.configPath(oldName)
+	newPath := s.configPath(newName)
+
+	if _, err := os.Stat(oldPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("config %q does not exist", oldName)
+		}
+
+		return fmt.Errorf("check current config: %w", err)
+	}
+
+	if _, err := os.Stat(newPath); err == nil {
+		return fmt.Errorf("config %q already exists", newName)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("check destination config: %w", err)
+	}
+
+	return fileutil.RenameFile(oldPath, newPath)
 }

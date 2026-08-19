@@ -57,12 +57,8 @@ func portFromAddr(t *testing.T, addr string) uint16 {
 	return uint16(n)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// query.go — normalize
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestDNSQuery_Normalize_Defaults(t *testing.T) {
-	q := &DNSQuery{}
+func TestQuery_Normalize_Defaults(t *testing.T) {
+	q := Query{}
 	q.normalize()
 
 	if q.Timeout != DefaultTimeout {
@@ -82,8 +78,8 @@ func TestDNSQuery_Normalize_Defaults(t *testing.T) {
 	}
 }
 
-func TestDNSQuery_Normalize_ExplicitValuesUnchanged(t *testing.T) {
-	q := &DNSQuery{Timeout: 500 * time.Millisecond, Port: 5353, RecordType: TypeMX, Transport: TCP, EDNSBufSize: 4096}
+func TestQuery_Normalize_ExplicitValuesUnchanged(t *testing.T) {
+	q := Query{Timeout: 500 * time.Millisecond, Port: 5353, RecordType: TypeMX, Transport: ResolverTypeTCP, EDNSBufSize: 4096}
 	q.normalize()
 
 	if q.Timeout != 500*time.Millisecond {
@@ -95,7 +91,7 @@ func TestDNSQuery_Normalize_ExplicitValuesUnchanged(t *testing.T) {
 	if q.RecordType != TypeMX {
 		t.Errorf("RecordType should not be changed: got %q", q.RecordType)
 	}
-	if q.Transport != TCP {
+	if q.Transport != ResolverTypeTCP {
 		t.Errorf("Transport should not be changed: got %q", q.Transport)
 	}
 	if q.EDNSBufSize != 4096 {
@@ -103,8 +99,8 @@ func TestDNSQuery_Normalize_ExplicitValuesUnchanged(t *testing.T) {
 	}
 }
 
-func TestDNSQuery_Normalize_BUG_ShortTimeoutSilentlyReplaced(t *testing.T) {
-	q := &DNSQuery{Timeout: 10 * time.Millisecond}
+func TestQuery_Normalize_BUG_ShortTimeoutSilentlyReplaced(t *testing.T) {
+	q := Query{Timeout: 10 * time.Millisecond}
 	q.normalize()
 
 	if q.Timeout == 10*time.Millisecond {
@@ -116,30 +112,25 @@ func TestDNSQuery_Normalize_BUG_ShortTimeoutSilentlyReplaced(t *testing.T) {
 	}
 }
 
-func TestDNSQuery_Normalize_EDNSBufSizeTooSmall(t *testing.T) {
-	q := &DNSQuery{EDNSBufSize: 100}
+func TestQuery_Normalize_EDNSBufSizeTooSmall(t *testing.T) {
+	q := Query{EDNSBufSize: 100}
 	q.normalize()
 	if q.EDNSBufSize != DefaultEDNSBufSize {
 		t.Errorf("EDNSBufSize < 512 should be reset to DefaultEDNSBufSize (%d), got %d", DefaultEDNSBufSize, q.EDNSBufSize)
 	}
 }
 
-func TestDNSQuery_Normalize_EDNSBufSizeExactly512(t *testing.T) {
-	q := &DNSQuery{EDNSBufSize: 512}
+func TestQuery_Normalize_EDNSBufSizeExactly512(t *testing.T) {
+	q := Query{EDNSBufSize: 512}
 	q.normalize()
 	if q.EDNSBufSize != 512 {
 		t.Errorf("EDNSBufSize=512 should not be changed, got %d", q.EDNSBufSize)
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// query.go — buildQuery
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestDNSQuery_BuildQuery_BasicA(t *testing.T) {
-	q := &DNSQuery{Domain: "example.com", RecordType: TypeA, RecursionDesired: true}
+func TestQuery_BuildQuery_BasicA(t *testing.T) {
+	q := Query{Domain: "example.com", RecordType: TypeA, RecursionDesired: true}
 	msg := q.buildQuery()
-
 	if len(msg.Question) != 1 {
 		t.Fatalf("expected 1 question, got %d", len(msg.Question))
 	}
@@ -154,8 +145,8 @@ func TestDNSQuery_BuildQuery_BasicA(t *testing.T) {
 	}
 }
 
-func TestDNSQuery_BuildQuery_WithEDNS(t *testing.T) {
-	q := &DNSQuery{Domain: "example.com", RecordType: TypeA, EDNSBufSize: 1232}
+func TestQuery_BuildQuery_WithEDNS(t *testing.T) {
+	q := Query{Domain: "example.com", RecordType: TypeA, EDNSBufSize: 1232}
 	msg := q.buildQuery()
 
 	opt := msg.IsEdns0()
@@ -167,15 +158,15 @@ func TestDNSQuery_BuildQuery_WithEDNS(t *testing.T) {
 	}
 }
 
-func TestDNSQuery_BuildQuery_DomainFQDN(t *testing.T) {
-	q := &DNSQuery{Domain: "example.com", RecordType: TypeA}
+func TestQuery_BuildQuery_DomainFQDN(t *testing.T) {
+	q := Query{Domain: "example.com", RecordType: TypeA}
 	msg := q.buildQuery()
 	if msg.Question[0].Name != "example.com." {
 		t.Errorf("domain should be FQDN: got %q, want %q", msg.Question[0].Name, "example.com.")
 	}
 }
 
-func TestDNSQuery_BuildQuery_AllRecordTypes(t *testing.T) {
+func TestQuery_BuildQuery_AllRecordTypes(t *testing.T) {
 	tests := []struct {
 		rt   RecordType
 		want uint16
@@ -190,7 +181,7 @@ func TestDNSQuery_BuildQuery_AllRecordTypes(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(string(tc.rt), func(t *testing.T) {
-			q := &DNSQuery{Domain: "example.com", RecordType: tc.rt}
+			q := Query{Domain: "example.com", RecordType: tc.rt}
 			msg := q.buildQuery()
 			if msg.Question[0].Qtype != tc.want {
 				t.Errorf("RecordType %s: Qtype got %d, want %d", tc.rt, msg.Question[0].Qtype, tc.want)
@@ -199,29 +190,26 @@ func TestDNSQuery_BuildQuery_AllRecordTypes(t *testing.T) {
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// query.go — Run (end-to-end via loopback test server)
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestDNSQuery_Run_SuccessfulAQuery(t *testing.T) {
+func TestResolver_Query_SuccessfulAQuery(t *testing.T) {
 	addr, stop := testDNSServer(t)
 	defer stop()
 
 	host, _ := splitHostPort(t, addr)
 	port := portFromAddr(t, addr)
 
-	q := DNSQuery{Resolver: host, Port: port, Domain: "example.com", RecordType: TypeA, RecursionDesired: true, Transport: UDP, Timeout: 2 * time.Second}
+	q := Query{Resolver: host, Port: port, Domain: "example.com", RecordType: TypeA, RecursionDesired: true, Transport: ResolverTypeUDP, Timeout: 2 * time.Second}
 
-	ctx := context.Background()
-	resp, err := q.Run(ctx)
+	resolver := NewResolver()
+
+	resp, err := resolver.Query(context.Background(), q)
 	if err != nil {
-		t.Fatalf("Run() unexpected error: %v", err)
+		t.Fatalf("Query() unexpected error: %v", err)
 	}
 	if resp == nil {
-		t.Fatal("Run() returned nil response")
+		t.Fatal("Query() returned nil response")
 	}
 	if len(resp.Answer) == 0 {
-		t.Fatal("Run() returned response with no answers")
+		t.Fatal("Query() returned response with no answers")
 	}
 
 	a, ok := resp.Answer[0].(*dns.A)
@@ -233,7 +221,7 @@ func TestDNSQuery_Run_SuccessfulAQuery(t *testing.T) {
 	}
 }
 
-func TestDNSQuery_Run_CancelledContext(t *testing.T) {
+func TestResolver_Query_CancelledContext(t *testing.T) {
 	addr, stop := testDNSServer(t)
 	defer stop()
 
@@ -243,51 +231,46 @@ func TestDNSQuery_Run_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	q := DNSQuery{Resolver: host, Port: port, Domain: "example.com", RecordType: TypeA, Transport: UDP, Timeout: 2 * time.Second}
+	q := Query{Resolver: host, Port: port, Domain: "example.com", RecordType: TypeA, Transport: ResolverTypeUDP, Timeout: 2 * time.Second}
 
-	_, err := q.Run(ctx)
+	resolver := NewResolver()
+
+	_, err := resolver.Query(ctx, q)
 	if err == nil {
-		t.Error("Run() with cancelled context should return an error")
+		t.Error("Query() with cancelled context should return an error")
 	}
 }
 
-func TestDNSQuery_Run_UnreachableResolver(t *testing.T) {
-	q := DNSQuery{Resolver: "127.0.0.1", Port: 1, Domain: "example.com", RecordType: TypeA, Transport: UDP, Timeout: 200 * time.Millisecond}
-	_, err := q.Run(context.Background())
+func TestResolver_Query_UnreachableResolver(t *testing.T) {
+	q := Query{Resolver: "127.0.0.1", Port: 1, Domain: "example.com", RecordType: TypeA, Transport: ResolverTypeUDP, Timeout: 200 * time.Millisecond}
+	resolver := NewResolver()
+	_, err := resolver.Query(context.Background(), q)
 	if err == nil {
-		t.Error("Run() against unreachable resolver should return an error")
+		t.Error("Query() against unreachable resolver should return an error")
 	}
 }
 
-func TestDNSQuery_Run_DefaultsApplied(t *testing.T) {
+func TestResolver_Query_DefaultsApplied(t *testing.T) {
 	addr, stop := testDNSServer(t)
 	defer stop()
 
 	host, _ := splitHostPort(t, addr)
 	port := portFromAddr(t, addr)
 
-	q := DNSQuery{Resolver: host, Port: port, Domain: "test.local", Timeout: 2 * time.Second}
+	q := Query{Resolver: host, Port: port, Domain: "test.local", Timeout: 2 * time.Second}
 
-	ctx := context.Background()
-	resp, err := q.Run(ctx)
+	resolver := NewResolver()
+
+	resp, err := resolver.Query(context.Background(), q)
 	if err != nil {
-		t.Fatalf("Run() with default fields: %v", err)
+		t.Fatalf("Query() with default fields: %v", err)
 	}
 	if resp == nil {
-		t.Fatal("Run() with default fields returned nil")
+		t.Fatal("Query() with default fields returned nil")
 	}
 }
 
-func TestDNSQuery_Run_TCPFallback_ContextPropagation_Documentation(t *testing.T) {
-	t.Log("BUG 3 DOCUMENTED: exchangeTCP does not propagate the caller's context.")
-	t.Log("Fix: replace client.Exchange with client.ExchangeContext in exchangeTCP.")
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// query.go — address, hasEDNS, transportNetwork, Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestDNSQuery_Address(t *testing.T) {
+func TestQuery_Address(t *testing.T) {
 	tests := []struct {
 		resolver string
 		port     uint16
@@ -299,22 +282,22 @@ func TestDNSQuery_Address(t *testing.T) {
 		{"2001:db8::1", 5353, "[2001:db8::1]:5353"},
 	}
 	for _, tc := range tests {
-		q := &DNSQuery{Resolver: tc.resolver, Port: tc.port}
+		q := Query{Resolver: tc.resolver, Port: tc.port}
 		if got := q.address(); got != tc.want {
 			t.Errorf("address() for %q:%d = %q; want %q", tc.resolver, tc.port, got, tc.want)
 		}
 	}
 }
 
-func TestDNSQuery_HasEDNS_WithOPT(t *testing.T) {
-	q := &DNSQuery{Domain: "example.com", RecordType: TypeA, EDNSBufSize: 1232}
+func TestQuery_HasEDNS_WithOPT(t *testing.T) {
+	q := Query{Domain: "example.com", RecordType: TypeA, EDNSBufSize: 1232}
 	if !q.hasEDNS(q.buildQuery()) {
 		t.Error("hasEDNS should return true when OPT record is present")
 	}
 }
 
-func TestDNSQuery_HasEDNS_WithoutOPT(t *testing.T) {
-	q := &DNSQuery{Domain: "example.com", RecordType: TypeA}
+func TestQuery_HasEDNS_WithoutOPT(t *testing.T) {
+	q := Query{Domain: "example.com", RecordType: TypeA}
 	if q.hasEDNS(q.buildQuery()) {
 		t.Error("hasEDNS should return false when no OPT record")
 	}
@@ -322,10 +305,14 @@ func TestDNSQuery_HasEDNS_WithoutOPT(t *testing.T) {
 
 func TestTransportNetwork(t *testing.T) {
 	tests := []struct {
-		transport Transport
+		transport ResolverType
 		want      string
 	}{
-		{UDP, "udp"}, {TCP, "tcp"}, {DOT, "tcp-tls"}, {Transport("QUIC"), "udp"}, {Transport(""), "udp"},
+		{ResolverTypeUDP, "udp"},
+		{ResolverTypeTCP, "tcp"},
+		{ResolverTypeDOT, "tcp-tls"},
+		{ResolverType("QUIC"), "udp"},
+		{ResolverType(""), "udp"},
 	}
 	for _, tc := range tests {
 		if got := transportNetwork(tc.transport); got != tc.want {

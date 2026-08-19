@@ -1,138 +1,231 @@
-// Package dns provides helpers and abstractions for performing DNS queries
-// within scanning and network analysis tools.
-//
-// It defines supported DNS transports, common record types, and conversion
-// utilities for interacting with github.com/miekg/dns wire‑format constants.
+// Package dns provides types for DNS-based scanning and tunneling.
 package dns
 
 import (
 	"strings"
+	"time"
+
+	"bgscan/internal/core/fileutil"
 
 	"github.com/miekg/dns"
 )
 
-// Transport represents the protocol used to perform DNS queries.
-//
-// Each transport provides different characteristics in terms of speed,
-// compatibility, privacy, and firewall traversal.
-type Transport string
+type DNSTunProtocol string
 
-// Supported DNS transport modes.
 const (
-	// UDP performs classic DNS queries over UDP (port 53).
-	// Fast, lightweight, and universally supported.
-	UDP Transport = "UDP"
-
-	// TCP performs DNS queries over TCP (port 53).
-	// Used for large responses or when UDP is truncated or unreliable.
-	TCP Transport = "TCP"
-
-	// DOT performs DNS‑over‑TLS (RFC 7858) on port 853.
-	// Provides encryption between client and resolver.
-	DOT Transport = "DOT"
-
-	// DOH represents DNS‑over‑HTTPS (RFC 8484).
-	// Currently not implemented by this scanner because DoH requires
-	// domain‑based resolvers, while the scanner primarily targets resolvers by IP.
-	DOH Transport = "DOH"
+	DNSTunProtocolVayDNS     DNSTunProtocol = "vaydns"
+	DNSTunProtocolDNSTT      DNSTunProtocol = "dnstt"
+	DNSTunProtocolSlipstream DNSTunProtocol = "slipstream"
 )
 
-// RecordType represents a DNS record type used in queries.
-//
-// These record types are the core focus of scanning workflows, revealing
-// infrastructure layout, service configuration, and domain metadata.
-type RecordType string
+type DNSTunConfigFile struct {
+	Name      string
+	Path      string
+	CreatedAt time.Time
+	Protocol  DNSTunProtocol
+	Proxy     string
+	Config    any
+}
 
-// Common DNS record types.
+type ConfigValidationResult struct {
+	File   fileutil.FileEntry
+	Errors map[string]error
+}
+
+// ResolverType identifies the transport used to communicate with a DNS resolver.
+type ResolverType string
+
 const (
-	// TypeA resolves a domain to an IPv4 address.
-	TypeA RecordType = "A"
-
-	// TypeAAAA resolves a domain to an IPv6 address.
-	TypeAAAA RecordType = "AAAA"
-
-	// TypeCNAME defines a canonical alias to another domain.
-	TypeCNAME RecordType = "CNAME"
-
-	// TypeNS identifies authoritative nameservers for a domain.
-	TypeNS RecordType = "NS"
-
-	// TypeMX specifies mail exchangers for a domain.
-	TypeMX RecordType = "MX"
-
-	// TypeTXT stores free‑form text data (SPF, DKIM, verification, etc.).
-	TypeTXT RecordType = "TXT"
+	ResolverTypeUDP ResolverType = "udp"
+	ResolverTypeTCP ResolverType = "tcp"
+	ResolverTypeDOT ResolverType = "dot"
 )
 
-// ParseTransport converts a string into a Transport value.
-// Input is trimmed and case‑insensitive.
-//
-// Behavior:
-//   - Recognized values: UDP, TCP, DOT, DOH
-//   - DOH is mapped to DOT due to lack of direct support
-//   - Unknown or empty values fall back to UDP (fastest + widely supported)
-func ParseTransport(s string) Transport {
-	switch strings.ToUpper(strings.TrimSpace(s)) {
-	case "UDP":
-		return UDP
-	case "TCP":
-		return TCP
-	case "DOT":
-		return DOT
-	case "DOH":
-		return DOT
+// IsValid reports whether the resolver type is supported.
+func (t ResolverType) IsValid() bool {
+	switch strings.ToLower(strings.TrimSpace(string(t))) {
+	case string(ResolverTypeUDP), string(ResolverTypeTCP), string(ResolverTypeDOT):
+		return true
 	default:
-		return UDP
+		return false
 	}
 }
 
-// toMiekgDNS converts a RecordType into the corresponding
-// github.com/miekg/dns constant. Unknown record types return dns.TypeNone.
+// ParseResolverType parses a resolver type.
+// Parsing is case-insensitive and ignores surrounding whitespace.
+// Unknown values default to ResolverTypeUDP.
+func ParseResolverType(s string) ResolverType {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case string(ResolverTypeTCP):
+		return ResolverTypeTCP
+	case string(ResolverTypeDOT):
+		return ResolverTypeDOT
+	case string(ResolverTypeUDP):
+		return ResolverTypeUDP
+	default:
+		return ResolverTypeUDP
+	}
+}
+
+// RecordType identifies a DNS record type used in queries.
+type RecordType string
+
+const (
+	TypeA     RecordType = "A"
+	TypeAAAA  RecordType = "AAAA"
+	TypeCNAME RecordType = "CNAME"
+	TypeNS    RecordType = "NS"
+	TypeMX    RecordType = "MX"
+	TypeTXT   RecordType = "TXT"
+	TypeSRV   RecordType = "SRV"
+	TypeNULL  RecordType = "NULL"
+)
+
+// IsValid reports whether the record type is supported.
+func (r RecordType) IsValid() bool {
+	switch strings.ToUpper(strings.TrimSpace(string(r))) {
+	case string(TypeA),
+		string(TypeAAAA),
+		string(TypeCNAME),
+		string(TypeNS),
+		string(TypeMX),
+		string(TypeTXT),
+		string(TypeSRV),
+		string(TypeNULL):
+		return true
+	default:
+		return false
+	}
+}
+
+// ParseRecordType parses a DNS record type.
+// Parsing is case-insensitive and ignores surrounding whitespace.
+// Unknown values return an empty RecordType.
+func ParseRecordType(s string) RecordType {
+	switch strings.ToUpper(strings.TrimSpace(s)) {
+	case string(TypeA):
+		return TypeA
+	case string(TypeAAAA):
+		return TypeAAAA
+	case string(TypeCNAME):
+		return TypeCNAME
+	case string(TypeNS):
+		return TypeNS
+	case string(TypeMX):
+		return TypeMX
+	case string(TypeTXT):
+		return TypeTXT
+	case string(TypeSRV):
+		return TypeSRV
+	case string(TypeNULL):
+		return TypeNULL
+	default:
+		return ""
+	}
+}
+
 func toMiekgDNS(record RecordType) uint16 {
-	switch record {
-	case TypeA:
+	switch strings.ToUpper(strings.TrimSpace(string(record))) {
+	case string(TypeA):
 		return dns.TypeA
-	case TypeAAAA:
+	case string(TypeAAAA):
 		return dns.TypeAAAA
-	case TypeCNAME:
+	case string(TypeCNAME):
 		return dns.TypeCNAME
-	case TypeNS:
+	case string(TypeNS):
 		return dns.TypeNS
-	case TypeMX:
+	case string(TypeMX):
 		return dns.TypeMX
-	case TypeTXT:
+	case string(TypeTXT):
 		return dns.TypeTXT
+	case string(TypeSRV):
+		return dns.TypeSRV
+	case string(TypeNULL):
+		return dns.TypeNULL
 	default:
 		return dns.TypeNone
 	}
 }
 
-// ParseDNSRcode converts a textual DNS RCODE name into the corresponding
-// miekg/dns numeric constant. Input is case‑insensitive.
-//
-// Unknown codes map to dns.RcodeServerFailure.
+// ParseDNSRcode parses a textual DNS response code.
+// Unknown values return dns.RcodeServerFailure.
 func ParseDNSRcode(rCode string) int {
 	switch strings.ToLower(strings.TrimSpace(rCode)) {
-
 	case "noerror", "success":
 		return dns.RcodeSuccess
-
 	case "formerr", "formaterror":
 		return dns.RcodeFormatError
-
 	case "servfail", "serverfailure":
 		return dns.RcodeServerFailure
-
 	case "nxdomain", "nameerror":
 		return dns.RcodeNameError
-
 	case "notimp", "notimplemented":
 		return dns.RcodeNotImplemented
-
 	case "refused":
 		return dns.RcodeRefused
-
 	default:
 		return dns.RcodeServerFailure
+	}
+}
+
+// AuthMethod identifies how a connection authenticates.
+type AuthMethod string
+
+const (
+	AuthNone     AuthMethod = "none"
+	AuthPassword AuthMethod = "password"
+	AuthKey      AuthMethod = "key"
+)
+
+// IsValid reports whether the authentication method is supported.
+func (m AuthMethod) IsValid() bool {
+	switch strings.ToLower(strings.TrimSpace(string(m))) {
+	case string(AuthNone), string(AuthPassword), string(AuthKey):
+		return true
+	default:
+		return false
+	}
+}
+
+// ParseAuthMethod parses an authentication method.
+// Parsing is case-insensitive and ignores surrounding whitespace.
+// Unknown values return AuthNone.
+func ParseAuthMethod(s string) AuthMethod {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case string(AuthPassword):
+		return AuthPassword
+	case string(AuthKey):
+		return AuthKey
+	case string(AuthNone):
+		return AuthNone
+	default:
+		return AuthNone
+	}
+}
+
+type ResolverProxyType string
+
+const (
+	ResolverProxySOCKS ResolverProxyType = "socks"
+	ResolverProxySSH   ResolverProxyType = "ssh"
+)
+
+func (t ResolverProxyType) IsValid() bool {
+	switch strings.ToLower(strings.TrimSpace(string(t))) {
+	case string(ResolverProxySOCKS), string(ResolverProxySSH):
+		return true
+	default:
+		return false
+	}
+}
+
+func ParseResolverProxyType(s string) ResolverProxyType {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case string(ResolverProxySOCKS):
+		return ResolverProxySOCKS
+	case string(ResolverProxySSH):
+		return ResolverProxySSH
+	default:
+		return ""
 	}
 }

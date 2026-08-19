@@ -6,64 +6,160 @@ import (
 	"github.com/miekg/dns"
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// type.go — ParseTransport
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestParseTransport_KnownValues(t *testing.T) {
+func TestResolverTypeIsValid(t *testing.T) {
 	tests := []struct {
-		input string
-		want  Transport
+		input ResolverType
+		want  bool
 	}{
-		{"UDP", UDP},
-		{"TCP", TCP},
-		{"DOT", DOT},
-		{"DOH", DOT},
-		{"udp", UDP},
-		{"tcp", TCP},
-		{"dot", DOT},
-		{"doh", DOT},
-		{"Udp", UDP},
-		{"Tcp", TCP},
-		{"Dot", DOT},
-		{" UDP ", UDP},
-		{"\tTCP\t", TCP},
-		{"  DOT  ", DOT},
-		{"", UDP},
-		{"QUIC", UDP},
-		{"dns", UDP},
-		{"123", UDP},
+		{ResolverTypeUDP, true},
+		{ResolverTypeTCP, true},
+		{ResolverTypeDOT, true},
+		{"UDP", true},
+		{" TCP ", true},
+		{"dot", true},
+		{"doh", false},
+		{"quic", false},
+		{"", false},
 	}
 
 	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.input, func(t *testing.T) {
-			got := ParseTransport(tc.input)
-			if got != tc.want {
-				t.Errorf("ParseTransport(%q) = %q; want %q", tc.input, got, tc.want)
+		t.Run(string(tc.input), func(t *testing.T) {
+			if got := tc.input.IsValid(); got != tc.want {
+				t.Errorf("ResolverType(%q).IsValid() = %v; want %v", tc.input, got, tc.want)
 			}
 		})
 	}
 }
 
-func TestParseTransport_DOH_NeverReturned(t *testing.T) {
-	if DOH != "DOH" {
-		t.Errorf("DOH constant value changed: got %q, want %q", DOH, "DOH")
+func TestParseResolverType(t *testing.T) {
+	tests := []struct {
+		input string
+		want  ResolverType
+	}{
+		{"udp", ResolverTypeUDP},
+		{"UDP", ResolverTypeUDP},
+		{"Udp", ResolverTypeUDP},
+		{" udp ", ResolverTypeUDP},
+		{"tcp", ResolverTypeTCP},
+		{"TCP", ResolverTypeTCP},
+		{" tcp ", ResolverTypeTCP},
+		{"dot", ResolverTypeDOT},
+		{"DOT", ResolverTypeDOT},
+		{" Dot ", ResolverTypeDOT},
+		{"doh", ResolverTypeUDP},
+		{"quic", ResolverTypeUDP},
+		{"", ResolverTypeUDP},
+		{"unknown", ResolverTypeUDP},
 	}
-	got := ParseTransport("DOH")
-	if got == DOH {
-		t.Errorf("ParseTransport(\"DOH\") = DOH: the DOH transport is now returned, update this test if DOH support was intentionally added. got %q", got)
-	}
-	if got != DOT {
-		t.Errorf("ParseTransport(\"DOH\") = %q; want DOT (current documented fallback)", got)
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			if got := ParseResolverType(tc.input); got != tc.want {
+				t.Errorf("ParseResolverType(%q) = %q; want %q", tc.input, got, tc.want)
+			}
+		})
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// type.go — ParseDNSRcode
-// ─────────────────────────────────────────────────────────────────────────────
+func TestRecordTypeIsValid(t *testing.T) {
+	tests := []struct {
+		input RecordType
+		want  bool
+	}{
+		{TypeA, true},
+		{TypeAAAA, true},
+		{TypeCNAME, true},
+		{TypeNS, true},
+		{TypeMX, true},
+		{TypeTXT, true},
+		{TypeSRV, true},
+		{TypeNULL, true},
+		{"a", true},
+		{" a ", true},
+		{"aaaa", true},
+		{"txt", true},
+		{"", false},
+		{"SOA", false},
+		{"HTTPS", false},
+		{"unknown", false},
+	}
 
-func TestParseDNSRcode_KnownValues(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(string(tc.input), func(t *testing.T) {
+			if got := tc.input.IsValid(); got != tc.want {
+				t.Errorf("RecordType(%q).IsValid() = %v; want %v", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseRecordType(t *testing.T) {
+	tests := []struct {
+		input string
+		want  RecordType
+	}{
+		{"A", TypeA},
+		{"a", TypeA},
+		{" A ", TypeA},
+		{"AAAA", TypeAAAA},
+		{"aaaa", TypeAAAA},
+		{"CNAME", TypeCNAME},
+		{"cname", TypeCNAME},
+		{"NS", TypeNS},
+		{"ns", TypeNS},
+		{"MX", TypeMX},
+		{"mx", TypeMX},
+		{"TXT", TypeTXT},
+		{"txt", TypeTXT},
+		{"SRV", TypeSRV},
+		{"srv", TypeSRV},
+		{"NULL", TypeNULL},
+		{"null", TypeNULL},
+		{"", ""},
+		{"SOA", ""},
+		{"HTTPS", ""},
+		{"unknown", ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			if got := ParseRecordType(tc.input); got != tc.want {
+				t.Errorf("ParseRecordType(%q) = %q; want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestToMiekgDNS(t *testing.T) {
+	tests := []struct {
+		input RecordType
+		want  uint16
+	}{
+		{TypeA, dns.TypeA},
+		{TypeAAAA, dns.TypeAAAA},
+		{TypeCNAME, dns.TypeCNAME},
+		{TypeNS, dns.TypeNS},
+		{TypeMX, dns.TypeMX},
+		{TypeTXT, dns.TypeTXT},
+		{TypeSRV, dns.TypeSRV},
+		{TypeNULL, dns.TypeNULL},
+		{"a", dns.TypeA},
+		{" a ", dns.TypeA},
+		{"txt", dns.TypeTXT},
+		{"unknown", dns.TypeNone},
+		{"", dns.TypeNone},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.input), func(t *testing.T) {
+			if got := toMiekgDNS(tc.input); got != tc.want {
+				t.Errorf("toMiekgDNS(%q) = %d; want %d", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseDNSRcode(t *testing.T) {
 	tests := []struct {
 		input string
 		want  int
@@ -71,83 +167,94 @@ func TestParseDNSRcode_KnownValues(t *testing.T) {
 		{"noerror", dns.RcodeSuccess},
 		{"NOERROR", dns.RcodeSuccess},
 		{"success", dns.RcodeSuccess},
-		{"SUCCESS", dns.RcodeSuccess},
+		{" SUCCESS ", dns.RcodeSuccess},
+
 		{"formerr", dns.RcodeFormatError},
 		{"FORMERR", dns.RcodeFormatError},
 		{"formaterror", dns.RcodeFormatError},
 		{"FormatError", dns.RcodeFormatError},
+
 		{"servfail", dns.RcodeServerFailure},
 		{"SERVFAIL", dns.RcodeServerFailure},
 		{"serverfailure", dns.RcodeServerFailure},
 		{"ServerFailure", dns.RcodeServerFailure},
+
 		{"nxdomain", dns.RcodeNameError},
 		{"NXDOMAIN", dns.RcodeNameError},
 		{"nameerror", dns.RcodeNameError},
 		{"NameError", dns.RcodeNameError},
+
 		{"notimp", dns.RcodeNotImplemented},
 		{"NOTIMP", dns.RcodeNotImplemented},
 		{"notimplemented", dns.RcodeNotImplemented},
 		{"NotImplemented", dns.RcodeNotImplemented},
+
 		{"refused", dns.RcodeRefused},
 		{"REFUSED", dns.RcodeRefused},
-		{"Refused", dns.RcodeRefused},
+		{" Refused ", dns.RcodeRefused},
+
 		{"", dns.RcodeServerFailure},
-		{"badcode", dns.RcodeServerFailure},
+		{"unknown", dns.RcodeServerFailure},
 		{"1234", dns.RcodeServerFailure},
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
-			got := ParseDNSRcode(tc.input)
-			if got != tc.want {
+			if got := ParseDNSRcode(tc.input); got != tc.want {
 				t.Errorf("ParseDNSRcode(%q) = %d; want %d", tc.input, got, tc.want)
 			}
 		})
 	}
 }
 
-func TestParseDNSRcode_Trimming(t *testing.T) {
-	got := ParseDNSRcode("  noerror  ")
-	if got != dns.RcodeSuccess {
-		t.Errorf("ParseDNSRcode with leading/trailing spaces: got %d, want %d (RcodeSuccess)", got, dns.RcodeSuccess)
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// type.go — Transport / RecordType constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestTransport_ConstantValues(t *testing.T) {
-	tests := []struct{ name, want string }{
-		{"UDP", "UDP"}, {"TCP", "TCP"}, {"DOT", "DOT"}, {"DOH", "DOH"},
-	}
-	values := map[string]Transport{
-		"UDP": UDP, "TCP": TCP, "DOT": DOT, "DOH": DOH,
-	}
-	for _, tc := range tests {
-		if string(values[tc.name]) != tc.want {
-			t.Errorf("Transport %s = %q; want %q", tc.name, values[tc.name], tc.want)
-		}
-	}
-}
-
-func TestRecordType_ConstantValues(t *testing.T) {
+func TestAuthMethodIsValid(t *testing.T) {
 	tests := []struct {
-		name string
-		rt   RecordType
-		want string
+		input AuthMethod
+		want  bool
 	}{
-		{"TypeA", TypeA, "A"},
-		{"TypeAAAA", TypeAAAA, "AAAA"},
-		{"TypeCNAME", TypeCNAME, "CNAME"},
-		{"TypeNS", TypeNS, "NS"},
-		{"TypeMX", TypeMX, "MX"},
-		{"TypeTXT", TypeTXT, "TXT"},
+		{AuthNone, true},
+		{AuthPassword, true},
+		{AuthKey, true},
+		{"NONE", true},
+		{" password ", true},
+		{"KEY", true},
+		{"token", false},
+		{"", false},
 	}
+
 	for _, tc := range tests {
-		if string(tc.rt) != tc.want {
-			t.Errorf("RecordType %s = %q; want %q", tc.name, tc.rt, tc.want)
-		}
+		t.Run(string(tc.input), func(t *testing.T) {
+			if got := tc.input.IsValid(); got != tc.want {
+				t.Errorf("AuthMethod(%q).IsValid() = %v; want %v", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseAuthMethod(t *testing.T) {
+	tests := []struct {
+		input string
+		want  AuthMethod
+	}{
+		{"none", AuthNone},
+		{"NONE", AuthNone},
+		{" none ", AuthNone},
+		{"password", AuthPassword},
+		{"PASSWORD", AuthPassword},
+		{" Password ", AuthPassword},
+		{"key", AuthKey},
+		{"KEY", AuthKey},
+		{" Key ", AuthKey},
+		{"", AuthNone},
+		{"unknown", AuthNone},
+		{"token", AuthNone},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			if got := ParseAuthMethod(tc.input); got != tc.want {
+				t.Errorf("ParseAuthMethod(%q) = %q; want %q", tc.input, got, tc.want)
+			}
+		})
 	}
 }

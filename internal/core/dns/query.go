@@ -9,71 +9,42 @@ import (
 	"github.com/miekg/dns"
 )
 
-// Msg is an alias for dns.Msg from github.com/miekg/dns.
-// Provides a cleaner API surface for consumers of the dns package.
+// Msg is an alias for dns.Msg.
 type Msg = dns.Msg
 
-// DNSQuery defines the configuration for a single DNS query.
-//
-// A DNSQuery specifies the resolver address, domain, record type,
-// transport protocol, EDNS settings, and timeout rules.
-//
-// Example:
-//
-//	q := DNSQuery{
-//	    Resolver:   "1.1.1.1",
-//	    Domain:     "example.com",
-//	    RecordType: TypeA,
-//	}
-//	resp, err := q.Run()
-type DNSQuery struct {
-	// Resolver is the target DNS server (IP or hostname).
-	Resolver string
-
-	// Port is the resolver port (default: 53).
-	Port uint16
-
-	// Domain is the DNS name to query.
-	Domain string
-
-	// Transport specifies the network protocol (UDP, TCP, DOT).
-	Transport Transport
-
-	// RecordType specifies the DNS record type (A, AAAA, MX, etc.).
-	RecordType RecordType
-
-	// EDNSBufSize enables EDNS0 and announces the UDP payload size.
-	// Values < 512 are ignored and reset to a safe default.
-	EDNSBufSize uint16
-
-	// RecursionDesired toggles the RD bit.
+// Query contains the parameters for a DNS query.
+type Query struct {
+	Resolver         string
+	Port             uint16
+	Domain           string
+	Transport        ResolverType
+	RecordType       RecordType
+	EDNSBufSize      uint16
 	RecursionDesired bool
-
-	// Timeout is the maximum allowed network duration.
-	Timeout time.Duration
+	Timeout          time.Duration
 }
 
-// Default values used when fields are left unset.
 const (
 	DefaultEDNSBufSize uint16        = 1234
 	DefaultTimeout     time.Duration = 2 * time.Second
-	DefaultTransport   Transport     = UDP
+	DefaultTransport   ResolverType  = ResolverTypeUDP
 	DefaultPort        uint16        = 53
 	DefaultRecordType  RecordType    = TypeA
 )
 
-// Run executes the DNS query and returns the response.
-//
-// The algorithm:
-//
-//  1. Normalize configuration (timeouts, defaults, transport).
-//  2. Construct DNS query message.
-//  3. Execute query using chosen transport.
-//  4. If EDNS is present and RCODE != NOERROR → retry without EDNS.
-//  5. If UDP response is truncated → retry over TCP.
-//
-// Only UDP performs fallback to TCP.
-func (q *DNSQuery) Run(ctx context.Context) (*Msg, error) {
+// Resolver executes DNS queries.
+type Resolver interface {
+	Query(ctx context.Context, q Query) (*Msg, error)
+}
+
+type defaultResolver struct{}
+
+// NewResolver returns a DNS resolver using the configured query transport.
+func NewResolver() Resolver {
+	return &defaultResolver{}
+}
+
+func (r *defaultResolver) Query(ctx context.Context, q Query) (*Msg, error) {
 	q.normalize()
 
 	req := q.buildQuery()
@@ -83,23 +54,22 @@ func (q *DNSQuery) Run(ctx context.Context) (*Msg, error) {
 		return nil, err
 	}
 
-	// Retry without EDNS if server rejected the EDNS version.
+	// Some resolvers reject requests containing EDNS.
 	if q.hasEDNS(req) && resp.Rcode != dns.RcodeSuccess {
-		if alt, err := q.retryWithoutEDNS(ctx, req); err == nil && alt != nil {
-			resp = alt
+		if retry, err := q.retryWithoutEDNS(ctx, req); err == nil && retry != nil {
+			resp = retry
 		}
 	}
 
-	// Retry over TCP if UDP reply was truncated.
-	if q.Transport == UDP && resp != nil && resp.Truncated {
+	// Retry truncated UDP responses over TCP.
+	if q.Transport == ResolverTypeUDP && resp != nil && resp.Truncated {
 		return q.exchangeTCP(ctx, req)
 	}
 
 	return resp, nil
 }
 
-// buildQuery constructs a dns.Msg based on the query configuration.
-func (q *DNSQuery) buildQuery() *Msg {
+func (q Query) buildQuery() *Msg {
 	m := new(Msg)
 
 	m.SetQuestion(
@@ -116,8 +86,7 @@ func (q *DNSQuery) buildQuery() *Msg {
 	return m
 }
 
-// exchange performs a DNS query using the selected transport.
-func (q *DNSQuery) exchange(ctx context.Context, msg *Msg) (*Msg, error) {
+func (q Query) exchange(ctx context.Context, msg *Msg) (*Msg, error) {
 	client := &dns.Client{
 		Net:     transportNetwork(q.Transport),
 		Timeout: q.Timeout,
@@ -127,10 +96,7 @@ func (q *DNSQuery) exchange(ctx context.Context, msg *Msg) (*Msg, error) {
 	return resp, err
 }
 
-// exchangeTCP reruns the query specifically over TCP.
-//
-// Used when a UDP response is truncated (TC bit set).
-func (q *DNSQuery) exchangeTCP(ctx context.Context, msg *Msg) (*Msg, error) {
+func (q Query) exchangeTCP(ctx context.Context, msg *Msg) (*Msg, error) {
 	client := &dns.Client{
 		Net:     "tcp",
 		Timeout: q.Timeout,
@@ -140,59 +106,56 @@ func (q *DNSQuery) exchangeTCP(ctx context.Context, msg *Msg) (*Msg, error) {
 	return resp, err
 }
 
-// retryWithoutEDNS removes the EDNS OPT record and retries the query.
-// Some resolvers return FORMERR when EDNS is present.
-func (q *DNSQuery) retryWithoutEDNS(ctx context.Context, msg *Msg) (*Msg, error) {
+func (q Query) retryWithoutEDNS(ctx context.Context, msg *Msg) (*Msg, error) {
 	clone := msg.Copy()
 	clone.Extra = nil
+
 	return q.exchange(ctx, clone)
 }
 
-// hasEDNS reports whether the request message includes an EDNS OPT record.
-func (q *DNSQuery) hasEDNS(msg *Msg) bool {
+func (q Query) hasEDNS(msg *Msg) bool {
 	for _, rr := range msg.Extra {
 		if rr.Header().Rrtype == dns.TypeOPT {
 			return true
 		}
 	}
+
 	return false
 }
 
-// address returns "ip:port" for the resolver.
-func (q *DNSQuery) address() string {
+func (q Query) address() string {
 	return net.JoinHostPort(q.Resolver, fmt.Sprint(q.Port))
 }
 
-// normalize applies defaults to missing configuration values.
-func (q *DNSQuery) normalize() {
+func (q *Query) normalize() {
 	if q.Timeout < 50*time.Millisecond {
 		q.Timeout = DefaultTimeout
 	}
+
 	if q.EDNSBufSize > 0 && q.EDNSBufSize < 512 {
 		q.EDNSBufSize = DefaultEDNSBufSize
 	}
+
 	if q.Port == 0 {
 		q.Port = DefaultPort
 	}
+
 	if q.RecordType == "" {
 		q.RecordType = DefaultRecordType
 	}
+
 	if q.Transport == "" {
 		q.Transport = DefaultTransport
 	}
 }
 
-// transportNetwork converts a Transport into the network string
-// expected by github.com/miekg/dns.
-//
-// DOT uses "tcp-tls" as defined by the library.
-func transportNetwork(t Transport) string {
+func transportNetwork(t ResolverType) string {
 	switch t {
-	case TCP:
+	case ResolverTypeTCP:
 		return "tcp"
-	case DOT:
+	case ResolverTypeDOT:
 		return "tcp-tls"
-	case UDP:
+	case ResolverTypeUDP:
 		return "udp"
 	default:
 		return "udp"

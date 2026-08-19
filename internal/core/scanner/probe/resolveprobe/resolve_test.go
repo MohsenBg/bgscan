@@ -32,9 +32,9 @@ func msg(rcode int) *dns.Msg {
 	return m
 }
 
-// stubQuery returns a queryRunner that consistently yields the given rcode and error.
-func stubQuery(rcode int, err error) queryRunner {
-	return func(_ context.Context, _ dns.DNSQuery) (*dns.Msg, error) {
+// stubQuery returns a queryExecutor that consistently yields the given rcode and error.
+func stubQuery(rcode int, err error) queryExecutor {
+	return func(_ context.Context, _ dns.Query) (*dns.Msg, error) {
 		if err != nil {
 			return nil, err
 		}
@@ -42,11 +42,11 @@ func stubQuery(rcode int, err error) queryRunner {
 	}
 }
 
-// probeWith constructs a ResolverProbe with the provided request and queryRunner,
+// probeWith constructs a ResolverProbe with the provided request and queryExecutor,
 // allowing injection of mock behaviors for testing.
-func probeWith(req *DNSRequest, qr queryRunner) *ResolverProbe {
+func probeWith(req *DNSRequest, qr queryExecutor) *ResolverProbe {
 	p := NewResolverProbe(req).(*ResolverProbe)
-	p.runQuery = qr
+	p.query = qr
 	return p
 }
 
@@ -136,7 +136,7 @@ func TestRun_QueryError_RetriesExhausted(t *testing.T) {
 	req.Tries = 3
 
 	calls := 0
-	p := probeWith(req, func(_ context.Context, _ dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, _ dns.Query) (*dns.Msg, error) {
 		calls++
 		return nil, errors.New("network error")
 	})
@@ -157,7 +157,7 @@ func TestRun_SucceedsOnRetry(t *testing.T) {
 	req.Tries = 3
 
 	calls := 0
-	p := probeWith(req, func(_ context.Context, _ dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, _ dns.Query) (*dns.Msg, error) {
 		calls++
 		if calls < 3 {
 			return nil, errors.New("transient error")
@@ -182,7 +182,7 @@ func TestRun_UnacceptedRcodeStopsRetries(t *testing.T) {
 	req.AcceptedRcodes = []uint16{0}
 
 	calls := 0
-	p := probeWith(req, func(_ context.Context, _ dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, _ dns.Query) (*dns.Msg, error) {
 		calls++
 		return msg(3), nil // NXDOMAIN
 	})
@@ -201,7 +201,7 @@ func TestRun_FirstAcceptedCheckTypeWins(t *testing.T) {
 	req.AcceptedRcodes = []uint16{0}
 
 	var queriedTypes []dns.RecordType
-	p := probeWith(req, func(_ context.Context, q dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, q dns.Query) (*dns.Msg, error) {
 		queriedTypes = append(queriedTypes, q.RecordType)
 		return msg(0), nil
 	})
@@ -225,7 +225,7 @@ func TestRun_FallsBackToNextCheckType(t *testing.T) {
 	req.CheckTypes = []string{"AAAA", "A"}
 	req.AcceptedRcodes = []uint16{0}
 
-	p := probeWith(req, func(_ context.Context, q dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, q dns.Query) (*dns.Msg, error) {
 		if q.RecordType == dns.TypeAAAA {
 			return msg(3), nil // rejected
 		}
@@ -260,7 +260,7 @@ func TestRun_ContextCanceledDuringRetry(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	calls := 0
-	p := probeWith(req, func(_ context.Context, _ dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, _ dns.Query) (*dns.Msg, error) {
 		calls++
 		if calls == 2 {
 			cancel()
@@ -283,7 +283,7 @@ func TestRun_DpiCheck_HonestResolver(t *testing.T) {
 
 	// First call = DPI check (rcode 3 = honest), second = normal probe (rcode 0 = success).
 	calls := 0
-	p := probeWith(req, func(_ context.Context, _ dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, _ dns.Query) (*dns.Msg, error) {
 		calls++
 		if calls == 1 {
 			return msg(3), nil
@@ -323,7 +323,7 @@ func TestRun_DpiCheck_RetriesOnError(t *testing.T) {
 	req.DpiTries = 3
 
 	calls := 0
-	p := probeWith(req, func(_ context.Context, _ dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, _ dns.Query) (*dns.Msg, error) {
 		calls++
 		return nil, errors.New("timeout")
 	})
@@ -346,7 +346,7 @@ func TestRun_DpiCheck_SucceedsOnRetry(t *testing.T) {
 	req.DpiTries = 3
 
 	dpiCalls := 0
-	p := probeWith(req, func(_ context.Context, q dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, q dns.Query) (*dns.Msg, error) {
 		// Distinguish DPI queries by .invalid suffix.
 		if len(q.Domain) > 8 && q.Domain[len(q.Domain)-8:] == ".invalid" {
 			dpiCalls++
@@ -373,7 +373,7 @@ func TestRun_DpiCheck_DefaultTimeout(t *testing.T) {
 
 	var capturedTimeout time.Duration
 	calls := 0
-	p := probeWith(req, func(_ context.Context, q dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, q dns.Query) (*dns.Msg, error) {
 		calls++
 		if calls == 1 {
 			capturedTimeout = q.Timeout
@@ -397,7 +397,7 @@ func TestRun_DpiCheck_ContextCanceledDuringDpi(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	calls := 0
-	p := probeWith(req, func(_ context.Context, _ dns.DNSQuery) (*dns.Msg, error) {
+	p := probeWith(req, func(_ context.Context, _ dns.Query) (*dns.Msg, error) {
 		calls++
 		if calls == 2 {
 			cancel()
@@ -443,8 +443,8 @@ func TestRun_QueryReceivesCorrectResolver(t *testing.T) {
 	req := baseRequest()
 	req.Port = 5353
 
-	var capturedQuery dns.DNSQuery
-	p := probeWith(req, func(_ context.Context, q dns.DNSQuery) (*dns.Msg, error) {
+	var capturedQuery dns.Query
+	p := probeWith(req, func(_ context.Context, q dns.Query) (*dns.Msg, error) {
 		capturedQuery = q
 		return msg(0), nil
 	})

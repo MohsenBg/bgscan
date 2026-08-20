@@ -1,3 +1,4 @@
+// Package result defines the interfaces, schemas, and persistence layer for scan results.
 package result
 
 import (

@@ -70,3 +70,20 @@ func defaultTestWriterConfig(t *testing.T) config.WriterConfig {
 	cfg.ResultBaseDir = "tmp"
 	return cfg
 }
+
+// setBaseDir redirects the application base directory to a fresh temp dir
+// for the duration of the test.
+func setBaseDir(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	old := baseDirOverride
+	baseDirOverride = dir
+
+	t.Cleanup(func() {
+		baseDirOverride = old
+	})
+
+	return dir
+}

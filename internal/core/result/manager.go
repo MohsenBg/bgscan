@@ -79,7 +79,7 @@ func NewWriter(ctx context.Context, opts WriterOptions) (Writer, error) {
 func (w *writer) Start() error {
 	var err error
 	w.startOnce.Do(func() {
-		if err = fileutil.EnsureDir(w.resultPath); err != nil {
+		if err = fileutil.EnsureFileDir(w.resultPath); err != nil {
 			logger.DebugError("failed to ensure directory: %v", err)
 			return
 		}

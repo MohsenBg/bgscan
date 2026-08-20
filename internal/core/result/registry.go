@@ -24,6 +24,10 @@ const (
 // DefaultRegistry holds schemas used by GetResultFiles.
 var DefaultRegistry = NewResultRegistry()
 
+// baseDirOverride redirects the application base directory in tests.
+// It is always empty in production.
+var baseDirOverride string
+
 // ResultRegistry stores result schemas safely for concurrent use.
 type ResultRegistry struct {
 	mu      sync.RWMutex
@@ -117,16 +121,10 @@ func FindResultFiles(cfg config.WriterConfig, schemas ...ResultSchema) ([]Result
 		return nil, err
 	}
 
-	baseDir := cfg.ResultBaseDir
-	exe, err := os.Executable()
-	if err == nil {
-		baseDir = filepath.Join(filepath.Dir(exe), cfg.ResultBaseDir)
-	}
-
 	var results []ResultFile
 
 	for _, schema := range schemas {
-		dir := filepath.Join(baseDir, schema.Directory)
+		dir := getSchemaDir(cfg.ResultBaseDir, schema.Directory)
 
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -208,12 +206,7 @@ func prepareResultFilePath(cfg config.WriterConfig, schema ResultSchema, prefix 
 		return "", errors.New("result: prefix cannot be empty")
 	}
 
-	dir := filepath.Join(cfg.ResultBaseDir, schema.Directory)
-	exe, err := os.Executable()
-	if err == nil {
-		base := filepath.Dir(exe)
-		dir = filepath.Join(base, cfg.ResultBaseDir, schema.Directory)
-	}
+	dir := getSchemaDir(cfg.ResultBaseDir, schema.Directory)
 
 	if err := os.MkdirAll(dir, resultDirPerm); err != nil {
 		return "", fmt.Errorf("create result directory %q: %w", dir, err)
@@ -221,4 +214,16 @@ func prepareResultFilePath(cfg config.WriterConfig, schema ResultSchema, prefix 
 
 	filename := prefix + time.Now().Format(timestampFormat) + csvExtension
 	return filepath.Join(dir, filename), nil
+}
+
+func getSchemaDir(resultDir, schemaDir string) string {
+	base := baseDirOverride
+	if base == "" {
+		var err error
+		if base, err = fileutil.BasePath(); err != nil {
+			return filepath.Join(resultDir, schemaDir)
+		}
+	}
+
+	return filepath.Join(base, resultDir, schemaDir)
 }

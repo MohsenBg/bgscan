@@ -253,38 +253,40 @@ func TestFindResultFiles_NonexistentDir(t *testing.T) {
 }
 
 func TestFindResultFiles_FindsCSVFiles(t *testing.T) {
-	tmpDir := "tmp"
+	setBaseDir(t)
 	cfg := defaultTestWriterConfig(t)
-	cfg.ResultBaseDir = tmpDir
+	cfg.ResultBaseDir = "tmp"
 
-	// Create a directory that matches the schema's directory name.
-	schemaDir := filepath.Join(tmpDir, "myscan")
-	if err := os.MkdirAll(schemaDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll: %v", err)
-	}
-
-	// Write CSV files.
-	for _, name := range []string{"scan1.csv", "scan2.csv"} {
-		f, err := os.Create(filepath.Join(schemaDir, name))
-		if err != nil {
-			t.Fatalf("Create: %v", err)
-		}
-		_ = f.Close()
-	}
-
-	f, _ := os.Create(filepath.Join(schemaDir, "readme.txt"))
-	_ = f.Close()
-	_ = os.MkdirAll(filepath.Join(schemaDir, "subdir"), 0o755)
 	schema := ResultSchema{
 		Name:      "test",
 		Directory: "myscan",
 		Parser:    func([]string) (Result, error) { return nil, nil },
 	}
 
+	schemaDir := getSchemaDir(cfg.ResultBaseDir, schema.Directory)
+	if err := os.MkdirAll(schemaDir, resultDirPerm); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	for _, name := range []string{"scan1.csv", "scan2.csv"} {
+		if err := os.WriteFile(filepath.Join(schemaDir, name), nil, 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+	}
+
+	if err := os.WriteFile(filepath.Join(schemaDir, "readme.txt"), nil, 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	if err := os.Mkdir(filepath.Join(schemaDir, "subdir"), resultDirPerm); err != nil {
+		t.Fatalf("Mkdir: %v", err)
+	}
+
 	files, err := FindResultFiles(cfg, schema)
 	if err != nil {
 		t.Fatalf("FindResultFiles() error = %v", err)
 	}
+
 	if len(files) != 2 {
 		t.Fatalf("FindResultFiles() returned %d files, want 2", len(files))
 	}
@@ -328,6 +330,7 @@ func TestReadResultFile_Nonexistent(t *testing.T) {
 }
 
 func TestPrepareResultFilePath(t *testing.T) {
+	setBaseDir(t)
 	cfg := defaultTestWriterConfig(t)
 	schema := validSchema(t)
 
@@ -336,13 +339,18 @@ func TestPrepareResultFilePath(t *testing.T) {
 		t.Fatalf("prepareResultFilePath() error: %v", err)
 	}
 
-	if filepath.Dir(path) != filepath.Join(cfg.ResultBaseDir, schema.Directory) {
-		t.Errorf("unexpected result directory: %q", filepath.Dir(path))
+	wantDir := getSchemaDir(cfg.ResultBaseDir, schema.Directory)
+
+	if filepath.Dir(path) != wantDir {
+		t.Errorf("unexpected result directory: %q, want %q",
+			filepath.Dir(path), wantDir)
 	}
+
 	if filepath.Ext(path) != csvExtension {
 		t.Errorf("result path %q does not have a CSV extension", path)
 	}
-	if _, err := os.Stat(filepath.Dir(path)); err != nil {
+
+	if _, err := os.Stat(wantDir); err != nil {
 		t.Fatalf("result directory was not created: %v", err)
 	}
 }

@@ -1,3 +1,5 @@
+// Package core initializes bgscan internal components by registering
+// all built-in probe result schemas with the global result registry.
 package core
 
 import (
@@ -8,11 +10,11 @@ import (
 	"bgscan/internal/core/scanner/probe/resolveprobe"
 	"bgscan/internal/core/scanner/probe/slipstreamprobe"
 	"bgscan/internal/core/scanner/probe/tcpprobe"
+	"bgscan/internal/core/scanner/probe/vaydnsprobe"
 	"bgscan/internal/core/scanner/probe/xrayprobe"
 )
 
-// Init registers the result schemas of all built-in probe types
-// into the global result.DefaultRegistry.
+// Init registers all built-in probe result schemas with the global registry.
 func Init() error {
 	if err := result.DefaultRegistry.Register(icmpprobe.Schema); err != nil {
 		return err
@@ -34,6 +36,10 @@ func Init() error {
 		return err
 	}
 
+	if err := result.DefaultRegistry.Register(vaydnsprobe.Schema); err != nil {
+		return err
+	}
+
 	if err := result.DefaultRegistry.Register(slipstreamprobe.Schema); err != nil {
 		return err
 	}
@@ -41,5 +47,6 @@ func Init() error {
 	if err := result.DefaultRegistry.Register(xrayprobe.Schema); err != nil {
 		return err
 	}
+
 	return nil
 }

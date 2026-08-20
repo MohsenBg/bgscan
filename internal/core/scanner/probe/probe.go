@@ -1,3 +1,4 @@
+// Package probe defines the core interface for all active scanning primitives.
 package probe
 
 import (

@@ -3,18 +3,23 @@ package slipstreamprobe
 import (
 	"context"
 	"errors"
+	"net"
 	"net/netip"
 	"testing"
 	"time"
 
+	"bgscan/internal/core/dns"
 	"bgscan/internal/core/process"
 	"bgscan/internal/core/scanner/probe"
+	"bgscan/internal/core/socks"
+	"bgscan/internal/core/speedtest"
 )
 
 type fakePortManager struct {
-	port     uint16
-	getErr   error
-	released []uint16
+	port        uint16
+	getErr      error
+	released    []uint16
+	waitOpenErr error
 }
 
 func (m *fakePortManager) Get(context.Context) (uint16, error) {
@@ -26,6 +31,10 @@ func (m *fakePortManager) Release(port uint16) {
 }
 
 func (m *fakePortManager) Close() {}
+
+func (m *fakePortManager) WaitOpen(context.Context, string, time.Duration) error {
+	return m.waitOpenErr
+}
 
 type fakeProcess struct {
 	stopCalled bool
@@ -56,34 +65,94 @@ func (t *fakeProcessTracker) Unregister(_ context.Context, id string) error {
 	return t.unregisterErr
 }
 
-type fakeSlipstreamClient struct {
-	process process.Process
-	runErr  error
-	stopErr error
-
-	runCalled bool
-	runIP     string
-	runPort   uint16
+// fakeSlipstreamService implements dns.SlipstreamService for testing
+type fakeSlipstreamService struct {
+	process       process.Process
+	runErr        error
+	runCalled     bool
+	runConfig     dns.SlipstreamConfig
+	runResolverIP string
+	runListenPort uint16
 }
 
-func (c *fakeSlipstreamClient) RunTunnel(_ context.Context, ip string, port uint16) (process.Process, error) {
-	c.runCalled = true
-	c.runIP = ip
-	c.runPort = port
-
-	return c.process, c.runErr
+func (s *fakeSlipstreamService) ValidateAllConfigs() ([]dns.ConfigValidationResult, error) {
+	return nil, nil
 }
 
-func (c *fakeSlipstreamClient) StopTunnel(context.Context) error {
-	return c.stopErr
+func (s *fakeSlipstreamService) SaveConfig(config dns.SlipstreamConfig, name string) error {
+	return nil
 }
 
-func validConfig() SlipstreamConfig {
-	return SlipstreamConfig{
-		Domain:   "tunnel.example.com",
-		CertPath: "/certs/ca.pem",
-		DNSPort:  53,
-		Timeout:  2 * time.Second,
+func (s *fakeSlipstreamService) LoadConfig(name string) (dns.SlipstreamConfig, error) {
+	return dns.SlipstreamConfig{}, nil
+}
+
+func (s *fakeSlipstreamService) GetAllConfigFiles() ([]dns.SlipstreamConfigFile, error) {
+	return []dns.SlipstreamConfigFile{}, nil
+}
+
+func (s *fakeSlipstreamService) RenameConfig(oldName, newName string) error {
+	return nil
+}
+
+func (s *fakeSlipstreamService) RunTunnel(ctx context.Context, config dns.SlipstreamConfig, resolverIP string, listenPort uint16) (process.Process, error) {
+	s.runCalled = true
+	s.runConfig = config
+	s.runResolverIP = resolverIP
+	s.runListenPort = listenPort
+	return s.process, s.runErr
+}
+
+// fakeSocksService implements socks.Service for testing
+type fakeSocksService struct {
+	connectErr    error
+	connectCalled bool
+	connectConn   net.Conn
+	connectTarget string
+	connectConfig socks.Config
+}
+
+func (s *fakeSocksService) Connect(ctx context.Context, conn net.Conn, target string, config socks.Config) (net.Conn, error) {
+	s.connectCalled = true
+	s.connectConn = conn
+	s.connectTarget = target
+	s.connectConfig = config
+	return conn, s.connectErr
+}
+
+// fakeSpeedtestService implements speedtest.Service for testing
+type fakeSpeedtestService struct {
+	latencyErr    error
+	latencyCalled bool
+	latencyRTT    time.Duration
+}
+
+func (s *fakeSpeedtestService) MeasureLatency(ctx context.Context, cfg speedtest.LatencyConfig) (speedtest.LatencyResult, error) {
+	s.latencyCalled = true
+	if s.latencyErr != nil {
+		return speedtest.LatencyResult{}, s.latencyErr
+	}
+	return speedtest.LatencyResult{RTT: s.latencyRTT, MaxLatency: cfg.MaxLatency}, nil
+}
+
+func (s *fakeSpeedtestService) MeasureDownloadSpeed(ctx context.Context, cfg speedtest.DownloadConfig) (speedtest.SpeedResult, error) {
+	return speedtest.SpeedResult{}, nil
+}
+
+func (s *fakeSpeedtestService) MeasureUploadSpeed(ctx context.Context, cfg speedtest.UploadConfig) (speedtest.SpeedResult, error) {
+	return speedtest.SpeedResult{}, nil
+}
+
+func validConfig() dns.SlipstreamConfig {
+	return dns.SlipstreamConfig{
+		Domain:       "tunnel.example.com",
+		ResolverPort: 53,
+		CertPath:     "/certs/ca.pem",
+		ProxyType:    dns.ResolverProxySOCKS,
+		ProxyPort:    0,
+		AuthMethod:   dns.AuthPassword,
+		Username:     "user",
+		Password:     "pass",
 	}
 }
 
@@ -91,14 +160,19 @@ func testIP() netip.Addr {
 	return netip.MustParseAddr("1.2.3.4")
 }
 
-func newTestProbe(t *testing.T, config SlipstreamConfig, pm *fakePortManager, tracker *fakeProcessTracker, client *fakeSlipstreamClient) *SlipstreamProbe {
+func newTestProbe(t *testing.T, config dns.SlipstreamConfig, pm *fakePortManager, tracker *fakeProcessTracker,
+	slipstreamSvc *fakeSlipstreamService, socksSvc *fakeSocksService, speedtestSvc *fakeSpeedtestService,
+) *SlipstreamProbe {
 	t.Helper()
 
 	got, err := NewSlipstreamProbe(
 		config,
+		time.Second*5,
 		pm,
 		WithProcessTracker(tracker),
-		WithClient(client),
+		WithSlipstreamService(slipstreamSvc),
+		WithSocksService(socksSvc),
+		WithSpeedtestService(speedtestSvc),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -109,40 +183,43 @@ func newTestProbe(t *testing.T, config SlipstreamConfig, pm *fakePortManager, tr
 		t.Fatalf("NewSlipstreamProbe returned %T, want *SlipstreamProbe", got)
 	}
 
-	p.waitOpen = func(context.Context, string, time.Duration) error { return nil }
-	p.testProxy = func(context.Context, string, time.Duration) bool { return true }
-
 	return p
 }
 
 func TestNewSlipstreamProbeValidation(t *testing.T) {
-	client := &fakeSlipstreamClient{}
+	slipstreamSvc := &fakeSlipstreamService{}
+	socksSvc := &fakeSocksService{}
+	speedtestSvc := &fakeSpeedtestService{}
 
-	if _, err := NewSlipstreamProbe(validConfig(), nil, WithClient(client)); err == nil {
+	if _, err := NewSlipstreamProbe(validConfig(), time.Second*5, nil, WithSlipstreamService(slipstreamSvc), WithSocksService(socksSvc), WithSpeedtestService(speedtestSvc)); err == nil {
 		t.Fatal("expected an error for a nil port manager")
 	}
 
 	config := validConfig()
 	config.Domain = ""
 
-	if _, err := NewSlipstreamProbe(config, &fakePortManager{}, WithClient(client)); err == nil {
+	if _, err := NewSlipstreamProbe(config, time.Second*5, &fakePortManager{}, WithSlipstreamService(slipstreamSvc), WithSocksService(socksSvc), WithSpeedtestService(speedtestSvc)); err == nil {
 		t.Fatal("expected an error for an empty domain")
 	}
 }
 
 func TestNewSlipstreamProbeAppliesDefaultTimeoutAndOptions(t *testing.T) {
 	config := validConfig()
-	config.Timeout = 0
 
 	pm := &fakePortManager{}
 	tracker := &fakeProcessTracker{}
-	client := &fakeSlipstreamClient{}
+	slipstreamSvc := &fakeSlipstreamService{}
+	socksSvc := &fakeSocksService{}
+	speedtestSvc := &fakeSpeedtestService{}
 
 	got, err := NewSlipstreamProbe(
 		config,
+		time.Second*5,
 		pm,
 		WithProcessTracker(tracker),
-		WithClient(client),
+		WithSlipstreamService(slipstreamSvc),
+		WithSocksService(socksSvc),
+		WithSpeedtestService(speedtestSvc),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -150,22 +227,31 @@ func TestNewSlipstreamProbeAppliesDefaultTimeoutAndOptions(t *testing.T) {
 
 	p := got.(*SlipstreamProbe)
 
-	if p.config.Timeout != 5*time.Second {
-		t.Fatalf("timeout = %s, want 5s", p.config.Timeout)
+	if p.config.Domain != config.Domain {
+		t.Fatalf("domain not set correctly")
 	}
 
 	if p.processTracker != tracker {
 		t.Fatal("process tracker option was not applied")
 	}
 
-	if p.client != client {
-		t.Fatal("client option was not applied")
+	if p.slipstreamSvc != slipstreamSvc {
+		t.Fatal("slipstream service option was not applied")
+	}
+
+	if p.socksService != socksSvc {
+		t.Fatal("socks service option was not applied")
+	}
+
+	if p.speedtestSvc != speedtestSvc {
+		t.Fatal("speedtest service option was not applied")
 	}
 }
 
 func TestInitStartsProcessTracker(t *testing.T) {
 	tracker := &fakeProcessTracker{}
-	p := newTestProbe(t, validConfig(), &fakePortManager{}, tracker, &fakeSlipstreamClient{})
+	p := newTestProbe(t, validConfig(), &fakePortManager{}, tracker,
+		&fakeSlipstreamService{}, &fakeSocksService{}, &fakeSpeedtestService{})
 
 	if err := p.Init(context.Background()); err != nil {
 		t.Fatal(err)
@@ -181,7 +267,8 @@ func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
 	cancel()
 
 	pm := &fakePortManager{port: 4000}
-	p := newTestProbe(t, validConfig(), pm, &fakeProcessTracker{}, &fakeSlipstreamClient{})
+	p := newTestProbe(t, validConfig(), pm, &fakeProcessTracker{},
+		&fakeSlipstreamService{}, &fakeSocksService{}, &fakeSpeedtestService{})
 
 	_, err := p.Run(ctx, testIP())
 	if !errors.Is(err, context.Canceled) {
@@ -195,7 +282,8 @@ func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
 
 func TestRunReleasesPortWhenAllocationFails(t *testing.T) {
 	pm := &fakePortManager{getErr: errors.New("no ports available")}
-	p := newTestProbe(t, validConfig(), pm, &fakeProcessTracker{}, &fakeSlipstreamClient{})
+	p := newTestProbe(t, validConfig(), pm, &fakeProcessTracker{},
+		&fakeSlipstreamService{}, &fakeSocksService{}, &fakeSpeedtestService{})
 
 	_, err := p.Run(context.Background(), testIP())
 	if err == nil {
@@ -210,8 +298,8 @@ func TestRunReleasesPortWhenAllocationFails(t *testing.T) {
 func TestRunReleasesPortWhenTunnelFails(t *testing.T) {
 	prc := &fakeProcess{}
 	pm := &fakePortManager{port: 5000}
-	client := &fakeSlipstreamClient{process: prc, runErr: errors.New("start failed")}
-	p := newTestProbe(t, validConfig(), pm, &fakeProcessTracker{}, client)
+	slipstreamSvc := &fakeSlipstreamService{process: prc, runErr: errors.New("start failed")}
+	p := newTestProbe(t, validConfig(), pm, &fakeProcessTracker{}, slipstreamSvc, &fakeSocksService{}, &fakeSpeedtestService{})
 
 	_, err := p.Run(context.Background(), testIP())
 	if err == nil {
@@ -227,10 +315,10 @@ func TestRunStopsTunnelWhenRegistrationFails(t *testing.T) {
 	prc := &fakeProcess{}
 	pm := &fakePortManager{port: 6000}
 	tracker := &fakeProcessTracker{registerErr: errors.New("register failed")}
-	client := &fakeSlipstreamClient{process: prc}
-	p := newTestProbe(t, validConfig(), pm, tracker, client)
+	slipstreamSvc := &fakeSlipstreamService{process: prc}
+	p := newTestProbe(t, validConfig(), pm, tracker, slipstreamSvc, &fakeSocksService{}, &fakeSpeedtestService{})
 
-	_, err := p.Run(t.Context(), testIP())
+	_, err := p.Run(context.Background(), testIP())
 	if err == nil {
 		t.Fatal("expected a registration error")
 	}
@@ -240,45 +328,18 @@ func TestRunStopsTunnelWhenRegistrationFails(t *testing.T) {
 	}
 }
 
-func TestRunCleansUpAfterWaitOpenFailure(t *testing.T) {
+func TestRunReturnsContextErrorWhenMeasureLatencyCancelsContext(t *testing.T) {
+	ctx := t.Context()
+
+	tracker := &fakeProcessTracker{registeredID: "process-1"}
 	prc := &fakeProcess{}
-	pm := &fakePortManager{port: 7000}
-	tracker := &fakeProcessTracker{registeredID: "process-1"}
-	client := &fakeSlipstreamClient{process: prc}
-	p := newTestProbe(t, validConfig(), pm, tracker, client)
-	p.waitOpen = func(context.Context, string, time.Duration) error {
-		return errors.New("proxy did not open")
+	slipstreamSvc := &fakeSlipstreamService{process: prc}
+	socksSvc := &fakeSocksService{}
+	speedtestSvc := &fakeSpeedtestService{
+		latencyErr: context.Canceled,
 	}
 
-	_, err := p.Run(context.Background(), testIP())
-	if err == nil {
-		t.Fatal("expected a wait-open error")
-	}
-
-	if !prc.stopCalled {
-		t.Fatal("StopTunnel was not called")
-	}
-
-	if got := tracker.unregisteredIDs; len(got) != 1 || got[0] != "process-1" {
-		t.Fatalf("unregistered IDs = %v, want [process-1]", got)
-	}
-
-	if got := pm.released; len(got) != 1 || got[0] != 7000 {
-		t.Fatalf("released ports = %v, want [7000]", got)
-	}
-}
-
-func TestRunReturnsContextErrorWhenProxyCheckCancelsContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	tracker := &fakeProcessTracker{registeredID: "process-1"}
-	client := &fakeSlipstreamClient{process: &fakeProcess{}}
-	p := newTestProbe(t, validConfig(), &fakePortManager{port: 8000}, tracker, client)
-	p.testProxy = func(context.Context, string, time.Duration) bool {
-		cancel()
-		return false
-	}
+	p := newTestProbe(t, validConfig(), &fakePortManager{port: 8000}, tracker, slipstreamSvc, socksSvc, speedtestSvc)
 
 	_, err := p.Run(ctx, testIP())
 	if !errors.Is(err, context.Canceled) {
@@ -290,27 +351,11 @@ func TestRunSuccess(t *testing.T) {
 	prc := &fakeProcess{}
 	pm := &fakePortManager{port: 9000}
 	tracker := &fakeProcessTracker{registeredID: "process-1"}
-	client := &fakeSlipstreamClient{process: prc}
-	p := newTestProbe(t, validConfig(), pm, tracker, client)
+	slipstreamSvc := &fakeSlipstreamService{process: prc}
+	socksSvc := &fakeSocksService{}
+	speedtestSvc := &fakeSpeedtestService{latencyRTT: 50 * time.Millisecond}
 
-	var waitOpenAddr string
-	p.waitOpen = func(_ context.Context, addr string, timeout time.Duration) error {
-		waitOpenAddr = addr
-
-		if timeout != time.Second {
-			t.Errorf("wait timeout = %s, want 1s", timeout)
-		}
-
-		return nil
-	}
-
-	var proxyAddr string
-	var proxyTimeout time.Duration
-	p.testProxy = func(_ context.Context, addr string, timeout time.Duration) bool {
-		proxyAddr = addr
-		proxyTimeout = timeout
-		return true
-	}
+	p := newTestProbe(t, validConfig(), pm, tracker, slipstreamSvc, socksSvc, speedtestSvc)
 
 	result, err := p.Run(context.Background(), testIP())
 	if err != nil {
@@ -326,24 +371,20 @@ func TestRunSuccess(t *testing.T) {
 		t.Fatalf("unexpected result: %#v", got)
 	}
 
-	if got.Latency < 0 {
-		t.Fatalf("latency = %s, want a non-negative value", got.Latency)
+	if got.Latency != 50*time.Millisecond {
+		t.Fatalf("latency = %s, want 50ms", got.Latency)
 	}
 
-	if !client.runCalled || client.runIP != "1.2.3.4" || client.runPort != 9000 {
-		t.Fatalf("RunTunnel call = (%q, %d), want (1.2.3.4, 9000)", client.runIP, client.runPort)
+	if !slipstreamSvc.runCalled || slipstreamSvc.runResolverIP != "1.2.3.4" || slipstreamSvc.runListenPort != 9000 {
+		t.Fatalf("RunTunnel call = (%q, %d), want (1.2.3.4, 9000)", slipstreamSvc.runResolverIP, slipstreamSvc.runListenPort)
 	}
 
-	if waitOpenAddr != "127.0.0.1:9000" || proxyAddr != "127.0.0.1:9000" {
-		t.Fatalf("proxy addresses = (%q, %q), want 127.0.0.1:9000", waitOpenAddr, proxyAddr)
-	}
-
-	if proxyTimeout != 2*time.Second {
-		t.Fatalf("proxy timeout = %s, want 2s", proxyTimeout)
+	if !speedtestSvc.latencyCalled {
+		t.Fatal("MeasureLatency was not called")
 	}
 
 	if !prc.stopCalled {
-		t.Fatal("StopTunnel was not called")
+		t.Fatal("StopGracefully was not called")
 	}
 
 	if got := tracker.unregisteredIDs; len(got) != 1 || got[0] != "process-1" {

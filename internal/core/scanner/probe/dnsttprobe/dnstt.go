@@ -2,120 +2,100 @@ package dnsttprobe
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
+	"strconv"
 	"time"
 
 	"bgscan/internal/core/dns"
 	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/portmgr"
 	"bgscan/internal/core/scanner/probe"
+	"bgscan/internal/core/socks"
+	"bgscan/internal/core/speedtest"
+	"bgscan/internal/core/ssh"
 	"bgscan/internal/logger"
 )
 
-// DNSTTConfig configures a DNSTT tunnel probe.
-type DNSTTConfig struct {
-	// Domain is the DNSTT server domain.
-	Domain string
-
-	// PubKey is the server's public encryption key.
-	PubKey string
-
-	// Transport selects the DNS transport used by the tunnel.
-	Transport dns.Transport
-
-	// DNSPort is the DNS resolver port.
-	DNSPort uint16
-
-	// Timeout limits the end-to-end proxy connectivity check.
-	Timeout time.Duration
-}
-
 // DNSTTProbe verifies connectivity through a DNSTT tunnel.
 type DNSTTProbe struct {
-	pm             portmgr.Manager
-	processTracker probe.ProcessTracker
-	config         DNSTTConfig
-	client         dns.DNSTTClient
-
-	testProxy func(context.Context, string, time.Duration) bool
-	waitOpen  func(context.Context, string, time.Duration) error
-	now       func() time.Time
+	cfg              dns.DNSTTConfig
+	dnsttService     dns.DNSTTService
+	sshService       ssh.SSHService
+	socksService     socks.Service
+	speedtestService speedtest.Service
+	timeout          time.Duration
 }
 
-// Option configures a DNSTTProbe.
 type Option func(*DNSTTProbe)
 
-// WithProcessTracker uses tracker to register tunnel processes.
-//
-// It is useful when several probes must share the same shutdown lifecycle or
-// when tests need to inspect process registration.
-func WithProcessTracker(tracker probe.ProcessTracker) Option {
+func WithDNSTTService(service dns.DNSTTService) Option {
 	return func(p *DNSTTProbe) {
-		if tracker != nil {
-			p.processTracker = tracker
+		if service != nil {
+			p.dnsttService = service
 		}
 	}
 }
 
-// WithClient uses client to create and stop DNSTT tunnels.
-//
-// It is primarily useful in tests.
-func WithClient(client dns.DNSTTClient) Option {
+func WithSSHService(service ssh.SSHService) Option {
 	return func(p *DNSTTProbe) {
-		if client != nil {
-			p.client = client
+		if service != nil {
+			p.sshService = service
+		}
+	}
+}
+
+func WithSocksService(service socks.Service) Option {
+	return func(p *DNSTTProbe) {
+		if service != nil {
+			p.socksService = service
+		}
+	}
+}
+
+func WithSpeedtestService(service speedtest.Service) Option {
+	return func(p *DNSTTProbe) {
+		if service != nil {
+			p.speedtestService = service
 		}
 	}
 }
 
 // NewDNSTTProbe creates a DNSTT probe.
-//
-// The caller must invoke Init before Run so the process tracker can terminate
-// registered tunnel processes during shutdown.
 func NewDNSTTProbe(
-	config DNSTTConfig,
-	pm portmgr.Manager,
+	config dns.DNSTTConfig,
+	timeout time.Duration,
 	opts ...Option,
 ) (probe.Probe, error) {
-	if pm == nil {
-		return nil, fmt.Errorf("port manager is nil")
-	}
-
-	if config.Domain == "" {
-		return nil, fmt.Errorf("DNSTT domain is empty")
-	}
-
-	if config.Timeout <= 0 {
-		config.Timeout = 5 * time.Second
+	if errs := config.Validate(); len(errs) != 0 {
+		var joined error
+		for field, err := range errs {
+			joined = errors.Join(joined, fmt.Errorf("%s: %w", field, err))
+		}
+		return nil, joined
 	}
 
 	p := &DNSTTProbe{
-		pm:             pm,
-		processTracker: probe.NewProcessTracker(),
-		config:         config,
-		testProxy:      dns.TestProxy,
-		waitOpen:       portmgr.WaitOpen,
-		now:            time.Now,
+		cfg:     config,
+		timeout: timeout,
 	}
 
 	for _, opt := range opts {
 		opt(p)
 	}
 
-	if p.client == nil {
-		client, err := dns.NewDNSTTClient(
-			config.Domain,
-			config.PubKey,
-			config.Transport,
-			config.DNSPort,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("create DNSTT client: %w", err)
-		}
-
-		p.client = client
+	if p.dnsttService == nil {
+		p.dnsttService = dns.NewDNSTTService()
+	}
+	if p.sshService == nil {
+		p.sshService = ssh.NewSSHService()
+	}
+	if p.socksService == nil {
+		p.socksService = socks.NewService()
+	}
+	if p.speedtestService == nil {
+		p.speedtestService = speedtest.NewService()
 	}
 
 	return p, nil
@@ -126,71 +106,157 @@ func (d *DNSTTProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init starts process tracking for the probe.
-func (d *DNSTTProbe) Init(ctx context.Context) error {
-	d.processTracker.Start(ctx)
-
+// Init initializes the probe.
+func (d *DNSTTProbe) Init(context.Context) error {
 	return nil
 }
 
-// Run opens a DNSTT tunnel to ip and verifies connectivity through its local
-// SOCKS5 listener.
+// Run tests DNSTT connectivity for ip.
 func (d *DNSTTProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	localPort, err := d.pm.Get(ctx)
+	cfg := d.cfg
+	tunnel, err := d.dnsttService.NewTunnel(ctx, cfg, ip)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create DNSTT tunnel: %w", err)
 	}
-	defer d.pm.Release(localPort)
-
-	proc, err := d.client.RunTunnel(ctx, ip.String(), localPort)
-	if err != nil {
-		return nil, fmt.Errorf("start DNSTT tunnel: %w", err)
-	}
-
-	id, err := d.processTracker.Register(ctx, proc)
-	if err != nil {
-		return nil, fmt.Errorf("register DNSTT process: %w", err)
-	}
-
 	defer func() {
-		_ = proc.StopGracefully(time.Second)
-
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		if err := d.processTracker.Unregister(cleanupCtx, id); err != nil {
-			logger.CoreError("unregister DNSTT process %s: %s", id, err)
+		err := tunnel.Close()
+		if err != nil {
+			logger.CoreError("close DNSTT tunnel: %v", err)
 		}
 	}()
 
-	addr := net.JoinHostPort("127.0.0.1", fmt.Sprint(localPort))
+	var dialContext func(context.Context, string, string) (net.Conn, error)
 
-	if err := d.waitOpen(ctx, addr, time.Second); err != nil {
-		return nil, fmt.Errorf("wait for DNSTT proxy: %w", err)
+	switch d.cfg.ProxyType {
+	case dns.ResolverProxySSH:
+		dialContext, err = d.dialSSH(ctx, tunnel)
+	case dns.ResolverProxySOCKS:
+		dialContext, err = d.dialSOCKS(tunnel)
+	default:
+		err = fmt.Errorf("unsupported proxy type: %v", d.cfg.ProxyType)
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	start := d.now()
+	return d.measureLatency(ctx, ip, dialContext)
+}
 
-	if ok := d.testProxy(ctx, addr, d.config.Timeout); !ok {
+// dialSSH authenticates an SSH session over tunnel and returns a
+// DialContext that proxies connections through it.
+func (d *DNSTTProbe) dialSSH(ctx context.Context, tunnel net.Conn) (func(context.Context, string, string) (net.Conn, error), error) {
+	if d.cfg.AuthMethod == dns.AuthNone {
+		return nil, errors.New("SSH authentication is required")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	port := d.cfg.ProxyPort
+	if port == 0 {
+		port = 22
+	}
+	addr := net.JoinHostPort(d.cfg.Domain, strconv.Itoa(int(port)))
+
+	auth := ssh.SSHConfig{
+		Password: d.cfg.Password,
+		User:     d.cfg.Username,
+	}
+	if d.cfg.AuthMethod == dns.AuthKey {
+		auth = ssh.SSHConfig{PrivateKey: d.cfg.PrivateKey}
+	}
+
+	type sshResult struct {
+		client *ssh.Client
+		err    error
+	}
+	resultCh := make(chan sshResult, 1)
+	go func() {
+		client, err := d.sshService.Connect(ctx, tunnel, addr, auth)
+		resultCh <- sshResult{client: client, err: err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		_ = tunnel.Close()
+		return nil, fmt.Errorf("connect SSH proxy: %w", ctx.Err())
+	case res := <-resultCh:
+		if res.err != nil {
+			return nil, fmt.Errorf("connect SSH proxy: %w", res.err)
+		}
+		return d.sshService.SSHDialContext(res.client), nil
+	}
+}
+
+// dialSOCKS returns a DialContext that performs the SOCKS5 handshake over
+// tunnel using the real destination address requested by the caller.
+func (d *DNSTTProbe) dialSOCKS(tunnel net.Conn) (func(context.Context, string, string) (net.Conn, error), error) {
+	if d.cfg.AuthMethod == dns.AuthKey {
+		return nil, errors.New("SOCKS proxy does not support key authentication")
+	}
+
+	socksConfig := socks.Config{
+		Password: d.cfg.Password,
+		User:     d.cfg.Username,
+	}
+
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		return nil, fmt.Errorf("DNSTT tunnel connectivity failed for %s", ip)
+		type socksResult struct {
+			conn net.Conn
+			err  error
+		}
+		resultCh := make(chan socksResult, 1)
+		go func() {
+			conn, err := d.socksService.Connect(ctx, tunnel, address, socksConfig)
+			resultCh <- socksResult{conn: conn, err: err}
+		}()
+
+		select {
+		case <-ctx.Done():
+			_ = tunnel.Close()
+			return nil, fmt.Errorf("connect SOCKS proxy: %w", ctx.Err())
+		case res := <-resultCh:
+			if res.err != nil {
+				return nil, fmt.Errorf("connect SOCKS proxy: %w", res.err)
+			}
+			return res.conn, nil
+		}
+	}, nil
+}
+
+func (d *DNSTTProbe) measureLatency(
+	ctx context.Context,
+	ip netip.Addr,
+	dialContext func(context.Context, string, string) (net.Conn, error),
+) (result.Result, error) {
+	latency, err := d.speedtestService.MeasureLatency(ctx, speedtest.LatencyConfig{
+		ProxyPort:   0,
+		Timeout:     d.timeout,
+		MaxLatency:  d.timeout,
+		DialContext: dialContext,
+		URL:         speedtest.GoogleGenerate204HTTP,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("measure latency: %w", err)
 	}
 
 	return DNSTTResult{
 		IP:        ip,
-		Latency:   d.now().Sub(start),
-		Transport: d.config.Transport,
-		Port:      localPort,
+		Latency:   latency.RTT,
+		Transport: d.cfg.ResolverType,
+		Port:      d.cfg.ResolverPort,
 	}, nil
 }
 
-func (d *DNSTTProbe) Close() error {
+// Close releases resources owned by the probe.
+func (v *DNSTTProbe) Close() error {
 	return nil
 }

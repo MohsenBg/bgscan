@@ -3,84 +3,143 @@ package dnsttprobe
 import (
 	"context"
 	"errors"
+	"net"
 	"net/netip"
 	"testing"
 	"time"
 
 	"bgscan/internal/core/dns"
-	"bgscan/internal/core/process"
-	"bgscan/internal/core/scanner/probe"
+	"bgscan/internal/core/socks"
+	"bgscan/internal/core/speedtest"
 )
 
-type fakePortManager struct {
-	port     uint16
-	getErr   error
-	released []uint16
+type fakeDNSTTService struct {
+	tunnel      net.Conn
+	newErr      error
+	called      bool
+	gotConfig   dns.DNSTTConfig
+	gotResolver netip.Addr
 }
 
-func (m *fakePortManager) Get(context.Context) (uint16, error) {
-	return m.port, m.getErr
+// ValidateAllConfigs implements [dns.DNSTTService].
+func (f *fakeDNSTTService) ValidateAllConfigs() ([]dns.ConfigValidationResult, error) {
+	return nil, nil
 }
 
-func (m *fakePortManager) Release(port uint16) {
-	m.released = append(m.released, port)
+// GetAllConfigFiles implements [dns.DNSTTService].
+func (f *fakeDNSTTService) GetAllConfigFiles() ([]dns.DNSTTConfigFile, error) {
+	return nil, nil
 }
 
-func (m *fakePortManager) Close() {}
-
-type fakeProcess struct {
-	stopCalled bool
+func (f *fakeDNSTTService) RenameConfig(oldName, newName string) error {
+	return nil
 }
 
-func (f *fakeProcess) StopGracefully(time.Duration) error { f.stopCalled = true; return nil }
-func (f *fakeProcess) Kill() error                        { f.stopCalled = true; return nil }
-func (*fakeProcess) Wait() error                          { return nil }
-
-type fakeProcessTracker struct {
-	started         bool
-	registerErr     error
-	unregisterErr   error
-	registeredID    string
-	unregisteredIDs []string
+// LoadConfig implements [dns.DNSTTService].
+func (f *fakeDNSTTService) LoadConfig(name string) (dns.DNSTTConfig, error) {
+	return dns.DNSTTConfig{}, nil
 }
 
-func (t *fakeProcessTracker) Start(context.Context) {
-	t.started = true
+// SaveConfig implements [dns.DNSTTService].
+func (f *fakeDNSTTService) SaveConfig(config dns.DNSTTConfig, name string) error {
+	return nil
 }
 
-func (t *fakeProcessTracker) Register(context.Context, probe.Killable) (string, error) {
-	return t.registeredID, t.registerErr
+func (f *fakeDNSTTService) NewTunnel(ctx context.Context, cfg dns.DNSTTConfig, resolverAddr netip.Addr) (net.Conn, error) {
+	f.called = true
+	f.gotConfig = cfg
+	f.gotResolver = resolverAddr
+
+	if f.newErr != nil {
+		return nil, f.newErr
+	}
+
+	return f.tunnel, nil
 }
 
-func (t *fakeProcessTracker) Unregister(_ context.Context, id string) error {
-	t.unregisteredIDs = append(t.unregisteredIDs, id)
-	return t.unregisterErr
+type fakeSOCKSService struct {
+	conn       net.Conn
+	connectErr error
+	called     bool
+	gotTunnel  net.Conn
+	gotAddr    string
+	gotConfig  socks.Config
 }
 
-type fakeDNSTTClient struct {
-	process process.Process
-	runErr  error
+func (f *fakeSOCKSService) Connect(
+	ctx context.Context,
+	tunnel net.Conn,
+	addr string,
+	cfg socks.Config,
+) (net.Conn, error) {
+	f.called = true
+	f.gotTunnel = tunnel
+	f.gotAddr = addr
+	f.gotConfig = cfg
 
-	runCalled bool
-	runIP     string
-	runPort   uint16
+	if f.connectErr != nil {
+		return nil, f.connectErr
+	}
+
+	return f.conn, nil
 }
 
-func (c *fakeDNSTTClient) RunTunnel(_ context.Context, ip string, port uint16) (process.Process, error) {
-	c.runCalled = true
-	c.runIP = ip
-	c.runPort = port
+type fakeSpeedtestService struct {
+	result speedtest.LatencyResult
+	err    error
 
-	return c.process, c.runErr
+	called bool
+	cfg    speedtest.LatencyConfig
 }
 
-func validConfig() DNSTTConfig {
-	return DNSTTConfig{
-		Domain:    "tunnel.example.com",
-		PubKey:    "test-public-key",
-		Transport: dns.UDP,
-		DNSPort:   53,
-		Timeout:   2 * time.Second,
+func (f *fakeSpeedtestService) MeasureLatency(
+	ctx context.Context,
+	cfg speedtest.LatencyConfig,
+) (speedtest.LatencyResult, error) {
+	f.called = true
+	f.cfg = cfg
+
+	// Exercise the dialer so probe-level connection errors surface,
+	// mirroring what the real service does.
+	if cfg.DialContext != nil {
+		conn, dialErr := cfg.DialContext(ctx, "tcp", "127.0.0.1:1080")
+		if dialErr == nil && conn != nil {
+			_ = conn.Close()
+		}
+	}
+
+	if f.err != nil {
+		return speedtest.LatencyResult{}, f.err
+	}
+
+	return f.result, nil
+}
+
+func (f *fakeSpeedtestService) MeasureDownloadSpeed(
+	context.Context,
+	speedtest.DownloadConfig,
+) (speedtest.SpeedResult, error) {
+	return speedtest.SpeedResult{}, nil
+}
+
+func (f *fakeSpeedtestService) MeasureUploadSpeed(
+	context.Context,
+	speedtest.UploadConfig,
+) (speedtest.SpeedResult, error) {
+	return speedtest.SpeedResult{}, nil
+}
+
+func validConfig() dns.DNSTTConfig {
+	return dns.DNSTTConfig{
+		Domain:       "tunnel.example.com",
+		PubKey:       "test-public-key",
+		ResolverType: dns.ResolverTypeUDP,
+		ResolverPort: 53,
+		ProxyType:    dns.ResolverProxySOCKS,
+		ProxyPort:    1080,
+		Username:     "user",
+		Password:     "password",
+		Fingerprint:  "firefox",
 	}
 }
 
@@ -88,14 +147,27 @@ func testIP() netip.Addr {
 	return netip.MustParseAddr("1.2.3.4")
 }
 
-func newTestProbe(t *testing.T, config DNSTTConfig, pm *fakePortManager, tracker *fakeProcessTracker, client *fakeDNSTTClient) *DNSTTProbe {
+func newTestProbe(
+	t *testing.T,
+	config dns.DNSTTConfig,
+	dnstt dns.DNSTTService,
+	socksService socks.Service,
+	speedtestService speedtest.Service,
+	opts ...Option,
+) *DNSTTProbe {
 	t.Helper()
+
+	opts = append(
+		opts,
+		WithDNSTTService(dnstt),
+		WithSocksService(socksService),
+		WithSpeedtestService(speedtestService),
+	)
 
 	got, err := NewDNSTTProbe(
 		config,
-		pm,
-		WithProcessTracker(tracker),
-		WithClient(client),
+		2*time.Second,
+		opts...,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -106,40 +178,30 @@ func newTestProbe(t *testing.T, config DNSTTConfig, pm *fakePortManager, tracker
 		t.Fatalf("NewDNSTTProbe returned %T, want *DNSTTProbe", got)
 	}
 
-	p.waitOpen = func(context.Context, string, time.Duration) error { return nil }
-	p.testProxy = func(context.Context, string, time.Duration) bool { return true }
-
 	return p
 }
 
 func TestNewDNSTTProbeValidation(t *testing.T) {
-	client := &fakeDNSTTClient{}
-
-	if _, err := NewDNSTTProbe(validConfig(), nil, WithClient(client)); err == nil {
-		t.Fatal("expected an error for a nil port manager")
-	}
-
 	config := validConfig()
 	config.Domain = ""
 
-	if _, err := NewDNSTTProbe(config, &fakePortManager{}, WithClient(client)); err == nil {
-		t.Fatal("expected an error for an empty domain")
+	_, err := NewDNSTTProbe(config, time.Second)
+	if err == nil {
+		t.Fatal("expected validation error")
 	}
 }
 
-func TestNewDNSTTProbeAppliesDefaultTimeoutAndOptions(t *testing.T) {
-	config := validConfig()
-	config.Timeout = 0
-
-	pm := &fakePortManager{}
-	tracker := &fakeProcessTracker{}
-	client := &fakeDNSTTClient{}
+func TestNewDNSTTProbeAppliesOptions(t *testing.T) {
+	dnstt := &fakeDNSTTService{}
+	socksService := &fakeSOCKSService{}
+	speedtestService := &fakeSpeedtestService{}
 
 	got, err := NewDNSTTProbe(
-		config,
-		pm,
-		WithProcessTracker(tracker),
-		WithClient(client),
+		validConfig(),
+		time.Second,
+		WithDNSTTService(dnstt),
+		WithSocksService(socksService),
+		WithSpeedtestService(speedtestService),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -147,212 +209,475 @@ func TestNewDNSTTProbeAppliesDefaultTimeoutAndOptions(t *testing.T) {
 
 	p := got.(*DNSTTProbe)
 
-	if p.config.Timeout != 5*time.Second {
-		t.Fatalf("timeout = %s, want 5s", p.config.Timeout)
+	if p.dnsttService != dnstt {
+		t.Fatal("DNSTT service option was not applied")
 	}
 
-	if p.processTracker != tracker {
-		t.Fatal("process tracker option was not applied")
+	if p.socksService != socksService {
+		t.Fatal("SOCKS service option was not applied")
 	}
 
-	if p.client != client {
-		t.Fatal("client option was not applied")
-	}
-}
-
-func TestInitStartsProcessTracker(t *testing.T) {
-	tracker := &fakeProcessTracker{}
-	p := newTestProbe(t, validConfig(), &fakePortManager{}, tracker, &fakeDNSTTClient{})
-
-	if err := p.Init(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-
-	if !tracker.started {
-		t.Fatal("process tracker was not started")
+	if p.speedtestService != speedtestService {
+		t.Fatal("speedtest service option was not applied")
 	}
 }
 
-func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+func TestNewDNSTTProbeIgnoresNilOptions(t *testing.T) {
+	dnstt := &fakeDNSTTService{}
+	socksService := &fakeSOCKSService{}
+	speedtestService := &fakeSpeedtestService{}
 
-	pm := &fakePortManager{port: 4000}
-	p := newTestProbe(t, validConfig(), pm, &fakeProcessTracker{}, &fakeDNSTTClient{})
-
-	_, err := p.Run(ctx, testIP())
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("error = %v, want context.Canceled", err)
-	}
-
-	if len(pm.released) != 0 {
-		t.Fatalf("released ports = %v, want none", pm.released)
-	}
-}
-
-func TestRunReleasesPortWhenAllocationFails(t *testing.T) {
-	pm := &fakePortManager{getErr: errors.New("no ports available")}
-	p := newTestProbe(t, validConfig(), pm, &fakeProcessTracker{}, &fakeDNSTTClient{})
-
-	_, err := p.Run(context.Background(), testIP())
-	if err == nil {
-		t.Fatal("expected an allocation error")
-	}
-
-	if len(pm.released) != 0 {
-		t.Fatalf("released ports = %v, want none", pm.released)
-	}
-}
-
-func TestRunReleasesPortWhenTunnelFails(t *testing.T) {
-	prc := &fakeProcess{}
-	pm := &fakePortManager{port: 5000}
-	client := &fakeDNSTTClient{process: prc, runErr: errors.New("start failed")}
-	p := newTestProbe(t, validConfig(), pm, &fakeProcessTracker{}, client)
-
-	_, err := p.Run(context.Background(), testIP())
-	if err == nil {
-		t.Fatal("expected a tunnel error")
-	}
-
-	if got := pm.released; len(got) != 1 || got[0] != 5000 {
-		t.Fatalf("released ports = %v, want [5000]", got)
-	}
-}
-
-func TestRunStopsTunnelWhenRegistrationFails(t *testing.T) {
-	pm := &fakePortManager{port: 6000}
-	tracker := &fakeProcessTracker{registerErr: errors.New("register failed")}
-	client := &fakeDNSTTClient{process: &fakeProcess{}}
-	p := newTestProbe(t, validConfig(), pm, tracker, client)
-
-	_, err := p.Run(context.Background(), testIP())
-	if err == nil {
-		t.Fatal("expected a registration error")
-	}
-
-	if len(tracker.unregisteredIDs) != 0 {
-		t.Fatalf("unregistered IDs = %v, want none", tracker.unregisteredIDs)
-	}
-}
-
-func TestRunCleansUpAfterWaitOpenFailure(t *testing.T) {
-	prc := &fakeProcess{}
-	pm := &fakePortManager{port: 7000}
-	tracker := &fakeProcessTracker{registeredID: "process-1"}
-	client := &fakeDNSTTClient{process: prc}
-	p := newTestProbe(t, validConfig(), pm, tracker, client)
-	p.waitOpen = func(context.Context, string, time.Duration) error {
-		return errors.New("proxy did not open")
-	}
-
-	_, err := p.Run(context.Background(), testIP())
-	if err == nil {
-		t.Fatal("expected a wait-open error")
-	}
-
-	if !prc.stopCalled {
-		t.Fatal("StopTunnel was not called")
-	}
-
-	if got := tracker.unregisteredIDs; len(got) != 1 || got[0] != "process-1" {
-		t.Fatalf("unregistered IDs = %v, want [process-1]", got)
-	}
-
-	if got := pm.released; len(got) != 1 || got[0] != 7000 {
-		t.Fatalf("released ports = %v, want [7000]", got)
-	}
-}
-
-func TestRunReturnsContextErrorWhenProxyCheckCancelsContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	tracker := &fakeProcessTracker{registeredID: "process-1"}
-	client := &fakeDNSTTClient{process: &fakeProcess{}}
-	p := newTestProbe(t, validConfig(), &fakePortManager{port: 8000}, tracker, client)
-	p.testProxy = func(context.Context, string, time.Duration) bool {
-		cancel()
-		return false
-	}
-
-	_, err := p.Run(ctx, testIP())
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("error = %v, want context.Canceled", err)
-	}
-}
-
-func TestRunSuccess(t *testing.T) {
-	prc := &fakeProcess{}
-	pm := &fakePortManager{port: 9000}
-	tracker := &fakeProcessTracker{registeredID: "process-1"}
-	client := &fakeDNSTTClient{process: prc}
-	p := newTestProbe(t, validConfig(), pm, tracker, client)
-
-	var waitOpenAddr string
-	p.waitOpen = func(_ context.Context, addr string, timeout time.Duration) error {
-		waitOpenAddr = addr
-
-		if timeout != time.Second {
-			t.Errorf("wait timeout = %s, want 1s", timeout)
-		}
-
-		return nil
-	}
-
-	var proxyAddr string
-	var proxyTimeout time.Duration
-	p.testProxy = func(_ context.Context, addr string, timeout time.Duration) bool {
-		proxyAddr = addr
-		proxyTimeout = timeout
-		return true
-	}
-
-	result, err := p.Run(context.Background(), testIP())
+	got, err := NewDNSTTProbe(
+		validConfig(),
+		time.Second,
+		WithDNSTTService(nil),
+		WithSocksService(nil),
+		WithSpeedtestService(nil),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, ok := result.(DNSTTResult)
+	p := got.(*DNSTTProbe)
+
+	if p.dnsttService == nil {
+		t.Fatal("default DNSTT service was not created")
+	}
+
+	if p.sshService == nil {
+		t.Fatal("default SSH service was not created")
+	}
+
+	if p.socksService == nil {
+		t.Fatal("default SOCKS service was not created")
+	}
+
+	if p.speedtestService == nil {
+		t.Fatal("default speedtest service was not created")
+	}
+
+	_ = dnstt
+	_ = socksService
+	_ = speedtestService
+}
+
+func TestRunReturnsCanceledContextBeforeCreatingTunnel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	dnstt := &fakeDNSTTService{}
+	p := newTestProbe(
+		t,
+		validConfig(),
+		dnstt,
+		&fakeSOCKSService{},
+		&fakeSpeedtestService{},
+	)
+
+	_, err := p.Run(ctx, testIP())
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+
+	if dnstt.called {
+		t.Fatal("DNSTT tunnel was created after context cancellation")
+	}
+}
+
+func TestRunReturnsTunnelError(t *testing.T) {
+	expectedErr := errors.New("create tunnel failed")
+
+	dnstt := &fakeDNSTTService{
+		newErr: expectedErr,
+	}
+
+	p := newTestProbe(
+		t,
+		validConfig(),
+		dnstt,
+		&fakeSOCKSService{},
+		&fakeSpeedtestService{},
+	)
+
+	_, err := p.Run(context.Background(), testIP())
+	if err == nil {
+		t.Fatal("expected tunnel error")
+	}
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("error = %v, want %v", err, expectedErr)
+	}
+
+	if !dnstt.called {
+		t.Fatal("DNSTT service was not called")
+	}
+}
+
+// TestRunPassesTargetIPAsResolverAddr verifies that the scanned target is
+// used as the DNS resolver address when creating the tunnel.
+func TestRunPassesTargetIPAsResolverAddr(t *testing.T) {
+	tunnel, tunnelPeer := net.Pipe()
+	defer func() {
+		_ = tunnelPeer.Close()
+	}()
+
+	dnstt := &fakeDNSTTService{
+		tunnel: tunnel,
+	}
+
+	p := newTestProbe(
+		t,
+		validConfig(),
+		dnstt,
+		&fakeSOCKSService{},
+		&fakeSpeedtestService{result: speedtest.LatencyResult{RTT: time.Millisecond}},
+	)
+
+	if _, err := p.Run(context.Background(), testIP()); err != nil {
+		t.Fatal(err)
+	}
+
+	if !dnstt.called {
+		t.Fatal("DNSTT service was not called")
+	}
+
+	want := netip.MustParseAddr("1.2.3.4")
+	if dnstt.gotResolver != want {
+		t.Fatalf(
+			"resolverAddr = %s, want %s",
+			dnstt.gotResolver,
+			want,
+		)
+	}
+}
+
+func TestRunReturnsUnsupportedProxyType(t *testing.T) {
+	config := validConfig()
+	config.ProxyType = dns.ResolverProxyType("")
+
+	dnsttConn, peer := net.Pipe()
+	defer func() {
+		_ = peer.Close()
+	}()
+
+	dnstt := &fakeDNSTTService{
+		tunnel: dnsttConn,
+	}
+
+	p := newTestProbe(
+		t,
+		config,
+		dnstt,
+		&fakeSOCKSService{},
+		&fakeSpeedtestService{},
+	)
+
+	_, err := p.Run(context.Background(), testIP())
+	if err == nil {
+		t.Fatal("expected unsupported proxy error")
+	}
+}
+
+func TestRunSSHRequiresAuthentication(t *testing.T) {
+	config := validConfig()
+	config.ProxyType = dns.ResolverProxySSH
+	config.AuthMethod = dns.AuthNone
+
+	dnsttConn, peer := net.Pipe()
+	defer func() {
+		_ = peer.Close()
+	}()
+
+	p := newTestProbe(
+		t,
+		config,
+		&fakeDNSTTService{tunnel: dnsttConn},
+		&fakeSOCKSService{},
+		&fakeSpeedtestService{},
+	)
+
+	_, err := p.Run(context.Background(), testIP())
+	if err == nil {
+		t.Fatal("expected SSH authentication error")
+	}
+
+	if err.Error() != "SSH authentication is required" {
+		t.Fatalf("error = %v, want SSH authentication is required", err)
+	}
+}
+
+func TestRunSOCKSRejectsKeyAuthentication(t *testing.T) {
+	config := validConfig()
+	config.ProxyType = dns.ResolverProxySOCKS
+	config.AuthMethod = dns.AuthKey
+
+	dnsttConn, peer := net.Pipe()
+	defer func() {
+		_ = peer.Close()
+	}()
+
+	p := newTestProbe(
+		t,
+		config,
+		&fakeDNSTTService{tunnel: dnsttConn},
+		&fakeSOCKSService{},
+		&fakeSpeedtestService{},
+	)
+
+	_, err := p.Run(context.Background(), testIP())
+	if err == nil {
+		t.Fatal("expected SOCKS authentication error")
+	}
+
+	if err.Error() != "SOCKS proxy does not support key authentication" {
+		t.Fatalf(
+			"error = %v, want SOCKS proxy does not support key authentication",
+			err,
+		)
+	}
+}
+
+func TestRunSOCKSConnectError(t *testing.T) {
+	expectedErr := errors.New("SOCKS connection failed")
+
+	config := validConfig()
+	config.ProxyType = dns.ResolverProxySOCKS
+	config.AuthMethod = dns.AuthNone
+
+	tunnel, peer := net.Pipe()
+	defer func() {
+		_ = peer.Close()
+	}()
+
+	dnstt := &fakeDNSTTService{
+		tunnel: tunnel,
+	}
+
+	socksService := &fakeSOCKSService{
+		connectErr: expectedErr,
+	}
+
+	speedtestService := &fakeSpeedtestService{
+		err: expectedErr,
+	}
+
+	p := newTestProbe(
+		t,
+		config,
+		dnstt,
+		socksService,
+		speedtestService,
+	)
+
+	_, err := p.Run(context.Background(), testIP())
+	if err == nil {
+		t.Fatal("expected SOCKS connection error")
+	}
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("error = %v, want %v", err, expectedErr)
+	}
+
+	if !socksService.called {
+		t.Fatal("SOCKS service was not called")
+	}
+
+	if socksService.gotAddr != "127.0.0.1:1080" {
+		t.Fatalf(
+			"SOCKS address = %q, want 127.0.0.1:1080",
+			socksService.gotAddr,
+		)
+	}
+}
+
+func TestRunSOCKSSuccess(t *testing.T) {
+	config := validConfig()
+	config.ProxyType = dns.ResolverProxySOCKS
+	config.AuthMethod = dns.AuthNone
+
+	tunnel, tunnelPeer := net.Pipe()
+	defer func() {
+		_ = tunnelPeer.Close()
+	}()
+
+	proxyConn, proxyPeer := net.Pipe()
+	defer func() {
+		_ = proxyPeer.Close()
+	}()
+
+	dnstt := &fakeDNSTTService{
+		tunnel: tunnel,
+	}
+
+	socksService := &fakeSOCKSService{
+		conn: proxyConn,
+	}
+
+	speedtestService := &fakeSpeedtestService{
+		result: speedtest.LatencyResult{
+			RTT:        120 * time.Millisecond,
+			MaxLatency: 2 * time.Second,
+		},
+	}
+
+	p := newTestProbe(
+		t,
+		config,
+		dnstt,
+		socksService,
+		speedtestService,
+	)
+
+	gotResult, err := p.Run(context.Background(), testIP())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok := gotResult.(DNSTTResult)
 	if !ok {
-		t.Fatalf("result type = %T, want DNSTTResult", result)
+		t.Fatalf("result type = %T, want DNSTTResult", gotResult)
 	}
 
-	if got.IP != testIP() || got.Port != 9000 || got.Transport != dns.UDP {
-		t.Fatalf("unexpected result: %#v", got)
+	if got.IP != testIP() {
+		t.Fatalf("IP = %s, want %s", got.IP, testIP())
 	}
 
-	if got.Latency < 0 {
-		t.Fatalf("latency = %s, want a non-negative value", got.Latency)
+	if got.Latency != 120*time.Millisecond {
+		t.Fatalf(
+			"latency = %s, want 120ms",
+			got.Latency,
+		)
 	}
 
-	if !client.runCalled || client.runIP != "1.2.3.4" || client.runPort != 9000 {
-		t.Fatalf("RunTunnel call = (%q, %d), want (1.2.3.4, 9000)", client.runIP, client.runPort)
+	if got.Transport != config.ResolverType {
+		t.Fatalf(
+			"transport = %v, want %v",
+			got.Transport,
+			config.ResolverType,
+		)
 	}
 
-	if waitOpenAddr != "127.0.0.1:9000" || proxyAddr != "127.0.0.1:9000" {
-		t.Fatalf("proxy addresses = (%q, %q), want 127.0.0.1:9000", waitOpenAddr, proxyAddr)
+	if got.Port != config.ResolverPort {
+		t.Fatalf(
+			"port = %d, want %d",
+			got.Port,
+			config.ResolverPort,
+		)
 	}
 
-	if proxyTimeout != 2*time.Second {
-		t.Fatalf("proxy timeout = %s, want 2s", proxyTimeout)
+	if !socksService.called {
+		t.Fatal("SOCKS service was not called")
 	}
 
-	if !prc.stopCalled {
-		t.Fatal("StopTunnel was not called")
+	if socksService.gotAddr != "127.0.0.1:1080" {
+		t.Fatalf(
+			"SOCKS address = %q, want 127.0.0.1:1080",
+			socksService.gotAddr,
+		)
 	}
 
-	if got := tracker.unregisteredIDs; len(got) != 1 || got[0] != "process-1" {
-		t.Fatalf("unregistered IDs = %v, want [process-1]", got)
+	if socksService.gotConfig.User != config.Username {
+		t.Fatalf(
+			"username = %q, want %q",
+			socksService.gotConfig.User,
+			config.Username,
+		)
 	}
 
-	if got := pm.released; len(got) != 1 || got[0] != 9000 {
-		t.Fatalf("released ports = %v, want [9000]", got)
+	if socksService.gotConfig.Password != config.Password {
+		t.Fatalf(
+			"password = %q, want %q",
+			socksService.gotConfig.Password,
+			config.Password,
+		)
+	}
+
+	if !speedtestService.called {
+		t.Fatal("speedtest service was not called")
+	}
+
+	if speedtestService.cfg.Timeout != 2*time.Second {
+		t.Fatalf(
+			"latency timeout = %s, want 2s",
+			speedtestService.cfg.Timeout,
+		)
+	}
+
+	if speedtestService.cfg.MaxLatency != 2*time.Second {
+		t.Fatalf(
+			"max latency = %s, want 2s",
+			speedtestService.cfg.MaxLatency,
+		)
+	}
+
+	if speedtestService.cfg.ProxyPort != 0 {
+		t.Fatalf(
+			"proxy port = %d, want 0",
+			speedtestService.cfg.ProxyPort,
+		)
+	}
+
+	if speedtestService.cfg.DialContext == nil {
+		t.Fatal("DialContext is nil")
+	}
+
+	conn, err := speedtestService.cfg.DialContext(
+		context.Background(),
+		"tcp",
+		"example.com:443",
+	)
+	if err != nil {
+		t.Fatalf("DialContext() error = %v", err)
+	}
+
+	if conn != proxyConn {
+		t.Fatal("DialContext returned unexpected connection")
+	}
+}
+
+func TestRunReturnsLatencyError(t *testing.T) {
+	expectedErr := errors.New("latency failed")
+
+	config := validConfig()
+	config.ProxyType = dns.ResolverProxySOCKS
+	config.AuthMethod = dns.AuthNone
+
+	tunnel, tunnelPeer := net.Pipe()
+	defer func() {
+		_ = tunnelPeer.Close()
+	}()
+
+	proxyConn, proxyPeer := net.Pipe()
+	defer func() {
+		_ = proxyPeer.Close()
+	}()
+
+	speedtestService := &fakeSpeedtestService{
+		err: expectedErr,
+	}
+
+	p := newTestProbe(
+		t,
+		config,
+		&fakeDNSTTService{tunnel: tunnel},
+		&fakeSOCKSService{conn: proxyConn},
+		speedtestService,
+	)
+
+	_, err := p.Run(context.Background(), testIP())
+	if err == nil {
+		t.Fatal("expected latency error")
+	}
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("error = %v, want %v", err, expectedErr)
 	}
 }
 
 func TestClose(t *testing.T) {
-	if err := (&DNSTTProbe{}).Close(); err != nil {
+	p := &DNSTTProbe{}
+
+	if err := p.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}
 }

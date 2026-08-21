@@ -44,8 +44,8 @@ var Schema = result.ResultSchema{
 type DNSTTResult struct {
 	IP        netip.Addr
 	Latency   time.Duration
-	Transport dns.Transport // Underlying DNS transport used for the tunnel (e.g., UDP, DoH, DoT).
-	Port      uint16        // Local SOCKS5 port allocated for validation.
+	Transport dns.ResolverType // Underlying DNS transport used for the tunnel (e.g., UDP, DoH, DoT).
+	Port      uint16           // Local SOCKS5 port allocated for validation.
 }
 
 func (r DNSTTResult) Key() string {
@@ -98,10 +98,10 @@ func parseDNSTTResult(record []string) (result.Result, error) {
 	}
 
 	// Legacy records contain only IP and Latency.
-	var transport dns.Transport
+	var transport dns.ResolverType
 	var port uint16
 	if len(record) >= 4 {
-		transport = dns.ParseTransport(record[2])
+		transport = dns.ParseResolverType(record[2])
 		if _, err := fmt.Sscanf(record[3], "%d", &port); err != nil {
 			return nil, fmt.Errorf("parse port: %w", err)
 		}

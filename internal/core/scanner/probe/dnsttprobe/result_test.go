@@ -77,7 +77,7 @@ func TestDNSTTResult_Equal(t *testing.T) {
 			other: DNSTTResult{
 				IP:        mustAddr(t, "8.8.8.8"),
 				Latency:   250 * time.Millisecond,
-				Transport: dns.Transport("doh"),
+				Transport: dns.ResolverType("doh"),
 				Port:      1080,
 			},
 			want: true,
@@ -103,7 +103,7 @@ func TestDNSTTResult_ToRecord(t *testing.T) {
 	r := DNSTTResult{
 		IP:        mustAddr(t, "2001:db8::1"),
 		Latency:   1500 * time.Millisecond,
-		Transport: dns.Transport("udp"),
+		Transport: dns.ResolverType("udp"),
 		Port:      1080,
 	}
 
@@ -225,7 +225,7 @@ func TestParseDNSTTResult_NewFormat(t *testing.T) {
 	want := DNSTTResult{
 		IP:        mustAddr(t, "8.8.8.8"),
 		Latency:   150 * time.Millisecond,
-		Transport: dns.ParseTransport("udp"),
+		Transport: dns.ParseResolverType("udp"),
 		Port:      1080,
 	}
 
@@ -260,8 +260,8 @@ func TestParseDNSTTResult_IPv6(t *testing.T) {
 	if res.Latency != 2*time.Second {
 		t.Fatalf("Latency = %v, want %v", res.Latency, 2*time.Second)
 	}
-	if res.Transport != dns.ParseTransport("doh") {
-		t.Fatalf("Transport = %q, want %q", res.Transport, dns.ParseTransport("doh"))
+	if res.Transport != dns.ParseResolverType("doh") {
+		t.Fatalf("Transport = %q, want %q", res.Transport, dns.ParseResolverType("doh"))
 	}
 	if res.Port != 9050 {
 		t.Fatalf("Port = %d, want %d", res.Port, 9050)

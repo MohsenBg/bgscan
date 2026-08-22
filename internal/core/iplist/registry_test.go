@@ -3,7 +3,6 @@ package iplist
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -17,6 +16,11 @@ func chdirTempDir(t *testing.T) string {
 	}
 
 	tmpDir := t.TempDir()
+	resolved, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q): %v", tmpDir, err)
+	}
+	tmpDir = resolved
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Chdir(%q): %v", tmpDir, err)
 	}
@@ -48,25 +52,26 @@ func mustSetModTime(t *testing.T, path string, modTime time.Time) {
 	}
 }
 
+// TestGetIPFilePath verifies that application-relative paths resolve from
+// the working directory while running under `go test` (BasePath fallback).
 func TestGetIPFilePath(t *testing.T) {
-	chdirTempDir(t)
+	tmpDir := chdirTempDir(t)
 
 	got, err := GetIPFilePath("mylist")
 	if err != nil {
 		t.Fatalf("GetIPFilePath() error = %v", err)
 	}
 
-	want := filepath.Join("ips", "mylist.csv")
-	if !strings.HasSuffix(got, want) {
+	want := filepath.Join(tmpDir, "ips", "mylist.csv")
+	if got != want {
 		t.Fatalf("GetIPFilePath() = %q, want %q", got, want)
 	}
 }
 
 func TestFileExists(t *testing.T) {
-	chdirTempDir(t)
+	tmpDir := chdirTempDir(t)
 
-	// create ips/mylist.csv
-	p := filepath.Join("ips", "mylist.csv")
+	p := filepath.Join(tmpDir, "ips", "mylist.csv")
 	mustWriteFile(t, p, "1.1.1.1,1\n")
 
 	if !FileExists("mylist") {
@@ -81,9 +86,9 @@ func TestFileExists(t *testing.T) {
 }
 
 func TestGetIPFileInfo_ByName(t *testing.T) {
-	chdirTempDir(t)
+	tmpDir := chdirTempDir(t)
 
-	p := filepath.Join("ips", "alpha.csv")
+	p := filepath.Join(tmpDir, "ips", "alpha.csv")
 	mustWriteFile(t, p, "1.1.1.1,1\n")
 
 	info, err := GetIPFileInfo("alpha")
@@ -94,7 +99,7 @@ func TestGetIPFileInfo_ByName(t *testing.T) {
 	if info.Name != "alpha" {
 		t.Fatalf("Name = %q, want %q", info.Name, "alpha")
 	}
-	if !strings.HasSuffix(info.Path, p) {
+	if info.Path != p {
 		t.Fatalf("Path = %q, want %q", info.Path, p)
 	}
 	if info.Size == 0 {
@@ -103,9 +108,9 @@ func TestGetIPFileInfo_ByName(t *testing.T) {
 }
 
 func TestGetIPFileInfo_ByFilenameWithExt(t *testing.T) {
-	chdirTempDir(t)
+	tmpDir := chdirTempDir(t)
 
-	p := filepath.Join("ips", "beta.csv")
+	p := filepath.Join(tmpDir, "ips", "beta.csv")
 	mustWriteFile(t, p, "2.2.2.2,0\n")
 
 	info, err := GetIPFileInfo("beta.csv")
@@ -116,7 +121,7 @@ func TestGetIPFileInfo_ByFilenameWithExt(t *testing.T) {
 	if info.Name != "beta" {
 		t.Fatalf("Name = %q, want %q", info.Name, "beta")
 	}
-	if !strings.HasSuffix(info.Path, p) {
+	if info.Path != p {
 		t.Fatalf("Path = %q, want %q", info.Path, p)
 	}
 }
@@ -164,9 +169,8 @@ func TestGetIPFileInfo_NotRegularFile(t *testing.T) {
 }
 
 func TestListIPFiles_SortsNewestFirstAndFiltersCSV(t *testing.T) {
-	chdirTempDir(t)
+	base := setBaseDir(t)
 
-	base := filepath.Join("ips")
 	if err := os.MkdirAll(base, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -175,17 +179,14 @@ func TestListIPFiles_SortsNewestFirstAndFiltersCSV(t *testing.T) {
 	midTime := time.Now().Add(-1 * time.Hour)
 	newTime := time.Now()
 
-	// .csv files
 	mustWriteFile(t, filepath.Join(base, "old.csv"), "1.1.1.1,1\n")
 	mustWriteFile(t, filepath.Join(base, "mid.csv"), "2.2.2.2,1\n")
 	mustWriteFile(t, filepath.Join(base, "new.csv"), "3.3.3.3,1\n")
+	mustWriteFile(t, filepath.Join(base, "ignore.txt"), "x\n")
 
 	mustSetModTime(t, filepath.Join(base, "old.csv"), oldTime)
 	mustSetModTime(t, filepath.Join(base, "mid.csv"), midTime)
 	mustSetModTime(t, filepath.Join(base, "new.csv"), newTime)
-
-	// non-csv file should be ignored
-	mustWriteFile(t, filepath.Join(base, "ignore.txt"), "x\n")
 
 	got, err := ListIPFiles()
 	if err != nil {
@@ -193,28 +194,37 @@ func TestListIPFiles_SortsNewestFirstAndFiltersCSV(t *testing.T) {
 	}
 
 	wantNames := []string{"new", "mid", "old"}
+
 	if len(got) != len(wantNames) {
-		t.Fatalf("len(ListIPFiles()) = %d, want %d", len(got), len(wantNames))
+		t.Fatalf(
+			"len(ListIPFiles()) = %d, want %d",
+			len(got),
+			len(wantNames),
+		)
 	}
 
 	for i, want := range wantNames {
 		if got[i].Name != want {
-			t.Fatalf("got[%d].Name = %q, want %q", i, got[i].Name, want)
+			t.Fatalf(
+				"got[%d].Name = %q, want %q",
+				i,
+				got[i].Name,
+				want,
+			)
 		}
 	}
 
-	// also verify it returns only CSV files
-	for _, f := range got {
-		if filepath.Ext(f.Path) != ".csv" {
-			t.Fatalf("unexpected non-csv path returned: %q", f.Path)
+	for _, file := range got {
+		if filepath.Ext(file.Path) != ".csv" {
+			t.Fatalf("unexpected non-csv path returned: %q", file.Path)
 		}
 	}
 }
 
 func TestListIPFiles_EmptyDir(t *testing.T) {
-	chdirTempDir(t)
+	base := setBaseDir(t)
 
-	if err := os.MkdirAll("ips", 0o755); err != nil {
+	if err := os.MkdirAll(base, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
 
@@ -224,6 +234,26 @@ func TestListIPFiles_EmptyDir(t *testing.T) {
 	}
 
 	if len(got) != 0 {
-		t.Fatalf("ListIPFiles() len = %d, want 0", len(got))
+		t.Fatalf(
+			"ListIPFiles() len = %d, want 0",
+			len(got),
+		)
 	}
+}
+
+// setBaseDir redirects the application base directory to a temp dir and
+// returns the expected IP list directory inside it.
+func setBaseDir(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	old := baseDirOverride
+	baseDirOverride = dir
+
+	t.Cleanup(func() {
+		baseDirOverride = old
+	})
+
+	return filepath.Join(dir, IPListDir)
 }

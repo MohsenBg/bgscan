@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"bgscan/internal/core/netutil"
 	"bgscan/internal/logger"
 )
 
@@ -370,6 +371,7 @@ func readIPAtCSVOffset(file *os.File, offset int64) (netip.Addr, error) {
 	}
 
 	reader := bufio.NewReader(file)
+
 	lineBytes, err := reader.ReadBytes('\n')
 	if err != nil && err != io.EOF {
 		return netip.Addr{}, err
@@ -380,7 +382,12 @@ func readIPAtCSVOffset(file *os.File, offset int64) (netip.Addr, error) {
 		line = strings.TrimSpace(parts[0])
 	}
 
-	return netip.ParseAddr(line)
+	ip, ok := netutil.ParseIPOrCIDR(line)
+	if !ok {
+		return netip.Addr{}, fmt.Errorf("invalid IP or CIDR: %q", line)
+	}
+
+	return ip.Addr(), nil
 }
 
 // saturatingAdd returns a + b, clamped to ^uint64(0) on overflow.

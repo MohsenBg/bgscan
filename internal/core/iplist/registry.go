@@ -13,6 +13,10 @@ import (
 // IPListDir Directory where IP list files are stored.
 const IPListDir = "ips"
 
+// baseDirOverride redirects the application base directory in tests.
+// It is always empty in production.
+var baseDirOverride string
+
 // IPFileInfo contains metadata about an IP list file.
 type IPFileInfo struct {
 	Name      string    // filename without extension
@@ -23,11 +27,14 @@ type IPFileInfo struct {
 
 // getBaseDir resolves the absolute directory where IP lists are stored.
 func getBaseDir() (string, error) {
-	exe, err := os.Executable()
-	if err != nil {
-		return "", err
+	base := baseDirOverride
+	if base == "" {
+		var err error
+		if base, err = fileutil.BasePath(); err != nil {
+			return "", err
+		}
 	}
-	base := filepath.Dir(exe)
+
 	return filepath.Join(base, IPListDir), nil
 }
 

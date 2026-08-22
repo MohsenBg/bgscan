@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -11,6 +13,8 @@ import (
 	"time"
 
 	"bgscan/internal/core/config"
+	"bgscan/internal/core/dns"
+	"bgscan/internal/core/process"
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/scanner/engine"
 	"bgscan/internal/core/scanner/portmgr"
@@ -24,10 +28,139 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-// NewScanner
+// mockDNSTTService implements dns.DNSTTService.
+type mockDNSTTService struct {
+	loadFunc func(name string) (dns.DNSTTConfig, error)
+}
+
+func (m *mockDNSTTService) SaveConfig(cfg dns.DNSTTConfig, name string) error {
+	return nil
+}
+
+func (m *mockDNSTTService) LoadConfig(name string) (dns.DNSTTConfig, error) {
+	if m.loadFunc != nil {
+		return m.loadFunc(name)
+	}
+	return dns.DNSTTConfig{
+		ResolverPort: 5353,
+		ResolverType: dns.ResolverTypeUDP,
+		PubKey:       "testpubkey",
+		Domain:       "test.example",
+		Fingerprint:  "chrome",
+	}, nil
+}
+
+func (m *mockDNSTTService) GetAllConfigFiles() ([]dns.DNSTTConfigFile, error) {
+	return nil, nil
+}
+
+func (m *mockDNSTTService) ValidateAllConfigs() ([]dns.ConfigValidationResult, error) {
+	return nil, nil
+}
+
+func (m *mockDNSTTService) RenameConfig(oldName, newName string) error {
+	return nil
+}
+
+func (m *mockDNSTTService) NewTunnel(ctx context.Context, cfg dns.DNSTTConfig, resolverAddr netip.Addr) (net.Conn, error) {
+	return nil, nil
+}
+
+// mockSlipstreamService implements dns.SlipstreamService.
+type mockSlipstreamService struct {
+	loadFunc func(name string) (dns.SlipstreamConfig, error)
+}
+
+func (m *mockSlipstreamService) SaveConfig(cfg dns.SlipstreamConfig, name string) error {
+	return nil
+}
+
+func (m *mockSlipstreamService) LoadConfig(name string) (dns.SlipstreamConfig, error) {
+	if m.loadFunc != nil {
+		return m.loadFunc(name)
+	}
+	return dns.SlipstreamConfig{
+		ResolverPort: 5353,
+		Domain:       "test.example",
+	}, nil
+}
+
+func (m *mockSlipstreamService) GetAllConfigFiles() ([]dns.SlipstreamConfigFile, error) {
+	return nil, nil
+}
+
+func (m *mockSlipstreamService) ValidateAllConfigs() ([]dns.ConfigValidationResult, error) {
+	return nil, nil
+}
+
+func (m *mockSlipstreamService) RenameConfig(oldName, newName string) error {
+	return nil
+}
+
+func (m *mockSlipstreamService) RunTunnel(ctx context.Context, cfg dns.SlipstreamConfig, resolverIP string, listenPort uint16) (process.Process, error) {
+	return nil, nil
+}
+
+// mockVayDNSService implements dns.VayDNSService.
+type mockVayDNSService struct {
+	loadFunc func(name string) (dns.VayDNSConfig, error)
+}
+
+func (m *mockVayDNSService) SaveConfig(cfg dns.VayDNSConfig, name string) error {
+	return nil
+}
+
+func (m *mockVayDNSService) LoadConfig(name string) (dns.VayDNSConfig, error) {
+	if m.loadFunc != nil {
+		return m.loadFunc(name)
+	}
+	return dns.VayDNSConfig{
+		RecordType:   dns.TypeTXT,
+		ResolverPort: 5353,
+		ResolverType: dns.ResolverTypeUDP,
+		PubKey:       "testpubkey",
+		Domain:       "test.example",
+		Fingerprint:  "chrome",
+	}, nil
+}
+
+func (m *mockVayDNSService) GetAllConfigFiles() ([]dns.VayDNSConfigFile, error) {
+	return nil, nil
+}
+
+func (m *mockVayDNSService) ValidateAllConfigs() ([]dns.ConfigValidationResult, error) {
+	return nil, nil
+}
+
+func (m *mockVayDNSService) RenameConfig(oldName, newName string) error {
+	return nil
+}
+
+func (m *mockVayDNSService) NewTunnel(ctx context.Context, cfg dns.VayDNSConfig, resolverAddr netip.Addr) (net.Conn, error) {
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------
+// Existing tests – updated to use mocks where needed
+// ---------------------------------------------------------------------
+
+// newTestScanner wraps NewScanner with mock DNS tunnel services so tests
+// never require a real slipstream-client binary on the system.
+func newTestScanner(t *testing.T, opts ...ScannerOption) (Scanner, error) {
+	t.Helper()
+
+	opts = append([]ScannerOption{
+		WithDNSTTService(&mockDNSTTService{}),
+		WithSlipstreamService(&mockSlipstreamService{}),
+		WithVayDNSService(&mockVayDNSService{}),
+	}, opts...)
+
+	return NewScanner(context.Background(), "", opts...)
+}
 
 func TestNewScanner_NilContext(t *testing.T) {
-	s, err := NewScanner(nil, "127.0.0.1") //nolint:staticcheck
+	var ctx context.Context = nil
+	s, err := NewScanner(ctx, "127.0.0.1") //nolint:staticcheck
 	if err == nil {
 		t.Fatal("expected error for nil context")
 	}
@@ -38,7 +171,19 @@ func TestNewScanner_NilContext(t *testing.T) {
 
 func TestNewScanner_WithConfig(t *testing.T) {
 	cfg := config.ScannerConfig{}
-	s, err := NewScanner(context.Background(), "127.0.0.1", WithConfig(cfg))
+	// Use mocks to avoid real service creation
+	mockDNSTT := &mockDNSTTService{}
+	mockSlip := &mockSlipstreamService{}
+	mockVay := &mockVayDNSService{}
+
+	s, err := NewScanner(
+		context.Background(),
+		"127.0.0.1",
+		WithConfig(cfg),
+		WithDNSTTService(mockDNSTT),
+		WithSlipstreamService(mockSlip),
+		WithVayDNSService(mockVay),
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -65,15 +210,21 @@ func TestNewScanner_WithConfig(t *testing.T) {
 	if sc.cancel == nil {
 		t.Fatal("cancel func should be set")
 	}
+	// Verify mocks were stored
+	if sc.dnsttService != mockDNSTT {
+		t.Fatal("DNSTT service not set correctly")
+	}
+	if sc.slipstreamService != mockSlip {
+		t.Fatal("Slipstream service not set correctly")
+	}
+	if sc.vaydnsService != mockVay {
+		t.Fatal("VayDNS service not set correctly")
+	}
 }
 
 func TestNewScanner_WithPauseController(t *testing.T) {
 	custom := engine.NewPauseController()
-	s, err := NewScanner(
-		context.Background(), "",
-		WithConfig(config.ScannerConfig{}),
-		WithPauseController(custom),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithPauseController(custom))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -88,11 +239,7 @@ func TestNewScanner_WithPauseController(t *testing.T) {
 }
 
 func TestNewScanner_WithPauseController_NilIgnored(t *testing.T) {
-	s, err := NewScanner(
-		context.Background(), "",
-		WithConfig(config.ScannerConfig{}),
-		WithPauseController(nil),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithPauseController(nil))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -114,11 +261,7 @@ func TestNewScanner_WithPortManager(t *testing.T) {
 	}
 	defer pm.Close()
 
-	s, err := NewScanner(
-		context.Background(), "",
-		WithConfig(config.ScannerConfig{}),
-		WithPortManager(pm),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithPortManager(pm))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -134,11 +277,7 @@ func TestNewScanner_WithPortManager(t *testing.T) {
 }
 
 func TestNewScanner_WithPortManager_NilIgnored(t *testing.T) {
-	s, err := NewScanner(
-		context.Background(), "",
-		WithConfig(config.ScannerConfig{}),
-		WithPortManager(nil),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithPortManager(nil))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -157,11 +296,7 @@ func TestNewScanner_WithWriterFactory(t *testing.T) {
 	factory := func(ctx context.Context, opts result.WriterOptions) (result.Writer, error) {
 		return nil, nil
 	}
-	s, err := NewScanner(
-		context.Background(), "",
-		WithConfig(config.ScannerConfig{}),
-		WithWriterFactory(factory),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithWriterFactory(factory))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -177,11 +312,7 @@ func TestNewScanner_WithWriterFactory(t *testing.T) {
 }
 
 func TestNewScanner_WithWriterFactory_NilIgnored(t *testing.T) {
-	s, err := NewScanner(
-		context.Background(), "",
-		WithConfig(config.ScannerConfig{}),
-		WithWriterFactory(nil),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithWriterFactory(nil))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -193,13 +324,68 @@ func TestNewScanner_WithWriterFactory_NilIgnored(t *testing.T) {
 	}
 }
 
-func TestNewScanner_NilOptionSkipped(t *testing.T) {
-	var nilOpt ScannerOption
+func TestNewScanner_WithDNSTTService_NilIgnored(t *testing.T) {
 	s, err := NewScanner(
 		context.Background(), "",
 		WithConfig(config.ScannerConfig{}),
-		nilOpt,
+		WithDNSTTService(nil),
+		WithSlipstreamService(&mockSlipstreamService{}),
+		WithVayDNSService(&mockVayDNSService{}),
 	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	sc := s.(*scanner)
+	if sc.dnsttService == nil {
+		t.Fatal("DNSTT service should fall back to the default service")
+	}
+}
+
+func TestNewScanner_WithSlipstreamService_NilIgnored(t *testing.T) {
+	mock := &mockSlipstreamService{}
+	s, err := NewScanner(
+		context.Background(), "",
+		WithConfig(config.ScannerConfig{}),
+		WithSlipstreamService(mock),
+		WithSlipstreamService(nil),
+		WithDNSTTService(&mockDNSTTService{}),
+		WithVayDNSService(&mockVayDNSService{}),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	sc := s.(*scanner)
+	if sc.slipstreamService != mock {
+		t.Fatal("nil Slipstream service option should not replace an existing service")
+	}
+}
+
+func TestNewScanner_WithVayDNSService_NilIgnored(t *testing.T) {
+	s, err := NewScanner(
+		context.Background(), "",
+		WithConfig(config.ScannerConfig{}),
+		WithVayDNSService(nil),
+		WithDNSTTService(&mockDNSTTService{}),
+		WithSlipstreamService(&mockSlipstreamService{}),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	sc := s.(*scanner)
+	if sc.vaydnsService == nil {
+		t.Fatal("VayDNS service should fall back to the default service")
+	}
+}
+
+func TestNewScanner_NilOptionSkipped(t *testing.T) {
+	var nilOpt ScannerOption
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), nilOpt)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -209,7 +395,7 @@ func TestNewScanner_NilOptionSkipped(t *testing.T) {
 // AddStage / GetStages
 
 func TestGetStages_Empty(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -225,7 +411,7 @@ func TestGetStages_Empty(t *testing.T) {
 }
 
 func TestAddStage_GetStages(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -254,7 +440,7 @@ func TestAddStage_GetStages(t *testing.T) {
 }
 
 func TestAddStage_AfterClose(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -267,7 +453,7 @@ func TestAddStage_AfterClose(t *testing.T) {
 }
 
 func TestAddStage_AfterStarted(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -300,7 +486,7 @@ func TestStageConfig_AddHooks(t *testing.T) {
 // Run error paths
 
 func TestRun_Closed(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -312,7 +498,7 @@ func TestRun_Closed(t *testing.T) {
 }
 
 func TestRun_AlreadyStarted(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -328,7 +514,14 @@ func TestRun_AlreadyStarted(t *testing.T) {
 
 func TestRun_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	s, err := NewScanner(ctx, "", WithConfig(config.ScannerConfig{}))
+	s, err := NewScanner(
+		ctx,
+		"",
+		WithConfig(config.ScannerConfig{}),
+		WithDNSTTService(&mockDNSTTService{}),
+		WithSlipstreamService(&mockSlipstreamService{}),
+		WithVayDNSService(&mockVayDNSService{}),
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -343,7 +536,7 @@ func TestRun_CancelledContext(t *testing.T) {
 }
 
 func TestRun_NoStages(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -357,7 +550,7 @@ func TestRun_NoStages(t *testing.T) {
 // Pause / Resume / IsPaused / PausedDuration
 
 func TestPause_Resume(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -398,7 +591,7 @@ func TestPause_Resume(t *testing.T) {
 }
 
 func TestPause_Resume_Idempotent(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -418,7 +611,7 @@ func TestPause_Resume_Idempotent(t *testing.T) {
 }
 
 func TestPause_AccumulatesAcrossCycles(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -446,7 +639,7 @@ func TestPause_AccumulatesAcrossCycles(t *testing.T) {
 // Close
 
 func TestClose_Idempotent(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -460,7 +653,7 @@ func TestClose_Idempotent(t *testing.T) {
 }
 
 func TestClose_CancelsContext(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -475,7 +668,7 @@ func TestClose_CancelsContext(t *testing.T) {
 }
 
 func TestClose_MarksClosed(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -493,15 +686,15 @@ func TestClose_MarksClosed(t *testing.T) {
 // Fake writer + fake runner
 
 type fakeWriter struct {
-	started int32
-	stopped int32
-	writes  int32
+	started atomic.Int32
+	stopped atomic.Int32
+	writes  atomic.Int32
 	path    string
 }
 
-func (w *fakeWriter) Start() error          { atomic.AddInt32(&w.started, 1); return nil }
-func (w *fakeWriter) Stop() error           { atomic.AddInt32(&w.stopped, 1); return nil }
-func (w *fakeWriter) Write(r result.Result) { atomic.AddInt32(&w.writes, 1) }
+func (w *fakeWriter) Start() error          { w.started.Add(1); return nil }
+func (w *fakeWriter) Stop() error           { w.stopped.Add(1); return nil }
+func (w *fakeWriter) Write(r result.Result) { w.writes.Add(1) }
 func (w *fakeWriter) GetResultPath() string { return w.path }
 
 type fakeRunner struct {
@@ -558,16 +751,14 @@ func (r *fakeRunner) RunChain(ctx context.Context, input string, cfg engine.Chai
 
 func TestRun_OneStageUsesSingleRunner(t *testing.T) {
 	runner := &fakeRunner{}
-	s, err := NewScanner(
-		context.Background(),
-		"127.0.0.1",
-		WithConfig(config.ScannerConfig{}),
-		withScanRunner(runner),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), withScanRunner(runner))
 	if err != nil {
 		t.Fatalf("NewScanner() error = %v", err)
 	}
 	defer func() { _ = s.Close() }()
+
+	sc := s.(*scanner)
+	sc.input = "127.0.0.1"
 
 	s.AddStage(StageConfig{Workers: 3})
 	if err := s.Run(); err != nil {
@@ -589,16 +780,14 @@ func TestRun_OneStageUsesSingleRunner(t *testing.T) {
 
 func TestRun_MultipleStagesUsesChainRunner(t *testing.T) {
 	runner := &fakeRunner{}
-	s, err := NewScanner(
-		context.Background(),
-		"targets.txt",
-		WithConfig(config.ScannerConfig{}),
-		withScanRunner(runner),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), withScanRunner(runner))
 	if err != nil {
 		t.Fatalf("NewScanner() error = %v", err)
 	}
 	defer func() { _ = s.Close() }()
+
+	sc := s.(*scanner)
+	sc.input = "targets.txt"
 
 	s.AddStage(StageConfig{Workers: 1})
 	s.AddStage(StageConfig{Workers: 2})
@@ -624,12 +813,7 @@ func TestRun_MultipleStagesUsesChainRunner(t *testing.T) {
 
 func TestClose_WaitsForActiveRun(t *testing.T) {
 	runner := &fakeRunner{started: make(chan struct{}), wait: true}
-	s, err := NewScanner(
-		context.Background(),
-		"127.0.0.1",
-		WithConfig(config.ScannerConfig{}),
-		withScanRunner(runner),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), withScanRunner(runner))
 	if err != nil {
 		t.Fatalf("NewScanner() error = %v", err)
 	}
@@ -656,11 +840,7 @@ func TestNewWriter_FactoryError(t *testing.T) {
 	factory := func(ctx context.Context, opts result.WriterOptions) (result.Writer, error) {
 		return nil, errors.New("boom")
 	}
-	s, err := NewScanner(
-		context.Background(), "",
-		WithConfig(config.ScannerConfig{}),
-		WithWriterFactory(factory),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithWriterFactory(factory))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -684,11 +864,7 @@ func TestNewWriter_Success(t *testing.T) {
 		}
 		return fw, nil
 	}
-	s, err := NewScanner(
-		context.Background(), "",
-		WithConfig(config.ScannerConfig{}),
-		WithWriterFactory(factory),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithWriterFactory(factory))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -706,8 +882,8 @@ func TestNewWriter_Success(t *testing.T) {
 
 // newStage
 
-func TestNewStage(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+func TestNewStage_NoHooks(t *testing.T) {
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -716,7 +892,7 @@ func TestNewStage(t *testing.T) {
 	sc := s.(*scanner)
 	fw := &fakeWriter{path: "p"}
 
-	stage := sc.newStage(10, nil, fw, 100*time.Millisecond)
+	stage := sc.newStage(10, nil, fw)
 	if stage.Workers != 10 {
 		t.Fatalf("Workers = %d, want 10", stage.Workers)
 	}
@@ -725,6 +901,58 @@ func TestNewStage(t *testing.T) {
 	}
 	if stage.Probe != nil {
 		t.Fatal("Probe should be nil (passed as nil)")
+	}
+	if stage.Hooks.OnScanEnd != nil {
+		t.Fatal("Hooks should be zero value when none are passed")
+	}
+}
+
+func TestNewStage_WithHooks(t *testing.T) {
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	sc := s.(*scanner)
+	fw := &fakeWriter{path: "p"}
+
+	fired := false
+	hooks := engine.ScanHooks{OnScanEnd: func() { fired = true }}
+
+	stage := sc.newStage(10, nil, fw, hooks)
+	if stage.Hooks.OnScanEnd == nil {
+		t.Fatal("Hooks should be set from the first variadic argument")
+	}
+	stage.Hooks.OnScanEnd()
+	if !fired {
+		t.Fatal("stored hook did not fire")
+	}
+}
+
+func TestNewStage_OnlyFirstHooksArgumentUsed(t *testing.T) {
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	sc := s.(*scanner)
+	fw := &fakeWriter{path: "p"}
+
+	firstFired := false
+	secondFired := false
+	first := engine.ScanHooks{OnScanEnd: func() { firstFired = true }}
+	second := engine.ScanHooks{OnScanEnd: func() { secondFired = true }}
+
+	stage := sc.newStage(10, nil, fw, first, second)
+	stage.Hooks.OnScanEnd()
+
+	if !firstFired {
+		t.Fatal("expected the first hooks argument to be used")
+	}
+	if secondFired {
+		t.Fatal("second hooks argument should be ignored")
 	}
 }
 
@@ -749,14 +977,60 @@ func TestIsHTTP3(t *testing.T) {
 	}
 }
 
-// UpdateStageHooks
+// buildXrayPreScanStage
 
-func TestUpdateStageHooks_Success(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+func TestBuildXrayPreScanStage_None(t *testing.T) {
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	defer func() { _ = s.Close() }()
+
+	sc := s.(*scanner)
+
+	for _, preScanType := range []string{"", "none"} {
+		stage, err := sc.buildXrayPreScanStage(context.Background(), preScanType)
+		if err != nil {
+			t.Fatalf("buildXrayPreScanStage(%q) error = %v", preScanType, err)
+		}
+		if stage != nil {
+			t.Fatalf("buildXrayPreScanStage(%q) = %+v, want nil", preScanType, stage)
+		}
+	}
+}
+
+func TestBuildXrayPreScanStage_Unsupported(t *testing.T) {
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	sc := s.(*scanner)
+
+	stage, err := sc.buildXrayPreScanStage(context.Background(), "quic")
+	if err == nil {
+		t.Fatal("expected error for unsupported pre-scan type")
+	}
+	if stage != nil {
+		t.Fatalf("expected nil stage on error, got %+v", stage)
+	}
+	if !strings.Contains(err.Error(), "quic") {
+		t.Fatalf("expected error to mention the bad value, got %v", err)
+	}
+}
+
+// UpdateStageHooks
+
+func TestUpdateStageHooks_Success(t *testing.T) {
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	sc := s.(*scanner)
+	sc.input = "targets.txt"
 
 	s.AddStage(StageConfig{Workers: 1})
 	s.AddStage(StageConfig{Workers: 2})
@@ -773,8 +1047,8 @@ func TestUpdateStageHooks_Success(t *testing.T) {
 	}
 
 	// Verify hooks are stored on the actual internal stages, not copies.
-	sc := s.(*scanner)
-	for i, stage := range sc.stages {
+	scannerImpl := s.(*scanner)
+	for i, stage := range scannerImpl.stages {
 		if stage.Hooks.OnScanEnd == nil {
 			t.Errorf("stage %d: OnScanEnd hook not set", i)
 		}
@@ -786,7 +1060,7 @@ func TestUpdateStageHooks_Success(t *testing.T) {
 }
 
 func TestUpdateStageHooks_OutOfRange(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -803,7 +1077,7 @@ func TestUpdateStageHooks_OutOfRange(t *testing.T) {
 }
 
 func TestUpdateStageHooks_AfterClose(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -817,7 +1091,7 @@ func TestUpdateStageHooks_AfterClose(t *testing.T) {
 }
 
 func TestUpdateStageHooks_AfterStarted(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -834,7 +1108,7 @@ func TestUpdateStageHooks_AfterStarted(t *testing.T) {
 }
 
 func TestUpdateStageHooks_NoStages(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -846,7 +1120,7 @@ func TestUpdateStageHooks_NoStages(t *testing.T) {
 }
 
 func TestUpdateStageHooks_OverwritesPreviousHooks(t *testing.T) {
-	s, err := NewScanner(context.Background(), "", WithConfig(config.ScannerConfig{}))
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -877,12 +1151,7 @@ func TestUpdateStageHooks_OverwritesPreviousHooks(t *testing.T) {
 
 func TestUpdateStageHooks_HooksPassedToRunner(t *testing.T) {
 	runner := &fakeRunner{}
-	s, err := NewScanner(
-		context.Background(),
-		"127.0.0.1",
-		WithConfig(config.ScannerConfig{}),
-		withScanRunner(runner),
-	)
+	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), withScanRunner(runner))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -912,5 +1181,168 @@ func TestUpdateStageHooks_HooksPassedToRunner(t *testing.T) {
 	cfg.Hooks.OnScanEnd()
 	if !endFired {
 		t.Fatal("OnScanEnd hook did not fire when invoked via runner config")
+	}
+}
+
+func TestBuildDNSTTStage(t *testing.T) {
+	mock := &mockDNSTTService{
+		loadFunc: func(name string) (dns.DNSTTConfig, error) {
+			if name != "test-config" {
+				return dns.DNSTTConfig{}, errors.New("unexpected config name")
+			}
+			return dns.DNSTTConfig{
+				ResolverPort: 5353,
+				ResolverType: dns.ResolverTypeUDP,
+				PubKey:       "testpubkey",
+				Domain:       "test.example",
+				Fingerprint:  "chrome",
+			}, nil
+		},
+	}
+
+	cfg := config.ScannerConfig{
+		DNS: config.DNSConfig{
+			DNSTunneling: config.DNSTunneling{
+				CheckDNSResolver: true,
+				Timeout:          config.NewDurationMS(2 * time.Second),
+				OutputPrefix:     "dnstt_out",
+				Workers:          5,
+			},
+			Resolver: config.ResolverConfig{
+				Domain: "example.com",
+				// other fields have defaults
+			},
+		},
+	}
+
+	s, err := newTestScanner(t, WithConfig(cfg), WithDNSTTService(mock))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() {
+		_ = s.Close()
+	}()
+
+	stages, err := s.BuildDNSTTStage(context.Background(), "test-config")
+	if err != nil {
+		t.Fatalf("BuildDNSTTStage error: %v", err)
+	}
+
+	// With CheckDNSResolver=true we expect a resolver stage + DNSTT stage.
+	if len(stages) != 2 {
+		t.Fatalf("expected 2 stages, got %d", len(stages))
+	}
+	if stages[0].Writer == nil {
+		t.Error("resolver stage writer is nil")
+	}
+	if stages[1].Writer == nil {
+		t.Error("DNSTT stage writer is nil")
+	}
+}
+
+func TestBuildSlipStreamStage(t *testing.T) {
+	mock := &mockSlipstreamService{
+		loadFunc: func(name string) (dns.SlipstreamConfig, error) {
+			if name != "slip-config" {
+				return dns.SlipstreamConfig{}, errors.New("unexpected config name")
+			}
+			return dns.SlipstreamConfig{
+				ResolverPort: 5353,
+				Domain:       "test.example",
+			}, nil
+		},
+	}
+
+	cfg := config.ScannerConfig{
+		DNS: config.DNSConfig{
+			DNSTunneling: config.DNSTunneling{
+				CheckDNSResolver: true,
+				Timeout:          config.NewDurationMS(2 * time.Second),
+				OutputPrefix:     "slip_out",
+				Workers:          4,
+			},
+			Resolver: config.ResolverConfig{
+				Domain: "example.com",
+			},
+		},
+	}
+
+	s, err := NewScanner(
+		context.Background(),
+		"",
+		WithConfig(cfg),
+		WithSlipstreamService(mock),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	defer func() {
+		_ = s.Close()
+	}()
+
+	stages, err := s.BuildSlipStreamStage(context.Background(), "slip-config")
+	if err != nil {
+		t.Fatalf("BuildSlipStreamStage error: %v", err)
+	}
+
+	if len(stages) != 2 {
+		t.Fatalf("expected 2 stages, got %d", len(stages))
+	}
+	if stages[0].Writer == nil || stages[1].Writer == nil {
+		t.Error("writer missing in one of the stages")
+	}
+}
+
+func TestBuildVayDNSStage(t *testing.T) {
+	mock := &mockVayDNSService{
+		loadFunc: func(name string) (dns.VayDNSConfig, error) {
+			if name != "vay-config" {
+				return dns.VayDNSConfig{}, errors.New("unexpected config name")
+			}
+			return dns.VayDNSConfig{
+				RecordType:   dns.TypeTXT,
+				ResolverPort: 5353,
+				ResolverType: dns.ResolverTypeUDP,
+				PubKey:       "testpubkey",
+				Domain:       "test.example",
+				Fingerprint:  "chrome",
+			}, nil
+		},
+	}
+
+	cfg := config.ScannerConfig{
+		DNS: config.DNSConfig{
+			DNSTunneling: config.DNSTunneling{
+				CheckDNSResolver: true,
+				Timeout:          config.NewDurationMS(2 * time.Second),
+				OutputPrefix:     "vay_out",
+				Workers:          3,
+			},
+			Resolver: config.ResolverConfig{
+				Domain: "example.com",
+			},
+		},
+	}
+
+	s, err := newTestScanner(t, WithConfig(cfg), WithVayDNSService(mock))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	defer func() {
+		_ = s.Close()
+	}()
+
+	stages, err := s.BuildVayDNSStage(context.Background(), "vay-config")
+	if err != nil {
+		t.Fatalf("BuildVayDNSStage error: %v", err)
+	}
+
+	if len(stages) != 2 {
+		t.Fatalf("expected 2 stages, got %d", len(stages))
+	}
+	if stages[0].Writer == nil || stages[1].Writer == nil {
+		t.Error("writer missing in one of the stages")
 	}
 }

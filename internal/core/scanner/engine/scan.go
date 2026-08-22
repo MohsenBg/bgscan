@@ -190,7 +190,6 @@ func runProbe(
 		}
 	}
 	probeStart := time.Now()
-
 	res, err := cfg.Probe.Run(ctx, ip)
 	processed.Add(1)
 

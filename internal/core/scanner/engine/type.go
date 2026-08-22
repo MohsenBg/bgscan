@@ -1,3 +1,4 @@
+// Package engine provides the low-level scan execution engine.
 package engine
 
 import (

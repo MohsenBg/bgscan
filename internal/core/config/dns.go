@@ -14,34 +14,34 @@ type DNSConfig struct {
 
 // ResolverConfig defines settings for DNS resolver testing.
 type ResolverConfig struct {
-	Workers         int        `toml:"workers" comment:"Number of concurrent DNS resolver tests."`
-	Transport       string     `toml:"protocol" comment:"Transport protocol used for DNS queries, such as UDP or TCP."`
-	Domain          string     `toml:"domain" comment:"Domain name used for DNS resolver tests."`
-	Port            uint16     `toml:"port" comment:"DNS server port to query."`
-	CheckTypes      []string   `toml:"check_types" comment:"DNS record types to query during resolver checks."`
-	EDNSBufSize     uint16     `toml:"ends_buffer_size" comment:"EDNS buffer size advertised in DNS queries, in bytes."`
-	Timeout         DurationMS `toml:"timeout" comment:"Maximum time to wait for a DNS query, in milliseconds."`
-	Tries           int        `toml:"tries" comment:"Maximum number of DNS query attempts per target."`
-	RandomSubdomain bool       `toml:"random_subdomain" comment:"Whether to use a random subdomain for DNS queries."`
-	AcceptedRCodes  []string   `toml:"accepted_rcodes" comment:"DNS response codes accepted as successful resolver responses."`
-	OutputPrefix    string     `toml:"output_prefix" comment:"Filename prefix for DNS resolver results."`
+	Workers         int        `toml:"workers" comment:"Concurrent DNS workers. Range: 1-2500. Higher = faster but more CPU/network."`
+	Transport       string     `toml:"protocol" comment:"DNS transport: udp (fastest), tcp (reliable), dot (DNS-over-TLS, encrypted)."`
+	Domain          string     `toml:"domain" comment:"Domain to query. Used as the base domain for resolver tests."`
+	Port            uint16     `toml:"port" comment:"DNS server port. Range: 1-65535. Standard: 53."`
+	CheckTypes      []string   `toml:"check_types" comment:"DNS record types to query. Common: A, AAAA, TXT. Use TXT for DNSTT compatibility."`
+	EDNSBufSize     uint16     `toml:"edns_buffer_size" comment:"EDNS buffer size in bytes. 0 = disabled. Standard = 1232. Only affects DNS scans."`
+	Timeout         DurationMS `toml:"timeout" comment:"Max wait for DNS response, in ms. Range: 100-30000. Lower = faster but may miss slow resolvers."`
+	Tries           int        `toml:"tries" comment:"Retry attempts per target. Range: 1-10. Only retries on network errors, not on bad responses."`
+	RandomSubdomain bool       `toml:"random_subdomain" comment:"Add random prefix to domain. Prevents resolver caching and forces fresh lookups."`
+	AcceptedRCodes  []string   `toml:"accepted_rcodes" comment:"DNS response codes treated as success. Common: NOERROR, NXDOMAIN, SERVFAIL."`
+	OutputPrefix    string     `toml:"output_prefix" comment:"Filename prefix for result files."`
 	DPI             DPIConfig  `toml:"dpi"`
 }
 
 // DPIConfig defines configuration for DNS DPI detection.
 type DPIConfig struct {
-	Enabled bool       `toml:"enabled" comment:"Whether DNS DPI detection is enabled."`
-	Timeout DurationMS `toml:"timeout" comment:"Maximum time to wait for a DPI test, in milliseconds."`
-	Tries   int        `toml:"tries" comment:"Maximum number of DPI test attempts per target."`
+	Enabled bool       `toml:"enabled" comment:"Enable anti-hijacking check. Queries a fake .invalid domain and flags resolvers that return success."`
+	Timeout DurationMS `toml:"timeout" comment:"Max wait for DPI test, in ms. Range: 100-10000. Should be shorter than main timeout."`
+	Tries   int        `toml:"tries" comment:"DPI verification attempts. Range: 1-10. Higher = more reliable detection."`
 }
 
 // DNSTunneling defines configuration for DNS tunneling protocol tests.
 type DNSTunneling struct {
-	Workers          int        `toml:"workers" comment:"Number of concurrent DNS tunneling tests."`
-	Tries            int        `toml:"tries" comment:"Maximum number of attempts per target."`
-	Timeout          DurationMS `toml:"timeout" comment:"Maximum time to wait for a DNS tunneling test, in milliseconds."`
-	CheckDNSResolver bool       `toml:"check_dns_resolver" comment:"Check DNS resolver availability before testing the tunnel. Disable to test the tunnel directly."`
-	OutputPrefix     string     `toml:"output_prefix" comment:"Filename prefix for DNS tunneling results."`
+	Workers          int        `toml:"workers" comment:"Concurrent tunnel test workers. Range: 1-500. Higher = faster but more bandwidth."`
+	Tries            int        `toml:"tries" comment:"Retry attempts per target. Range: 1-10."`
+	Timeout          DurationMS `toml:"timeout" comment:"Max wait for tunnel test, in ms. Range: 100-60000. Tunnel tests need more time."`
+	CheckDNSResolver bool       `toml:"check_dns_resolver" comment:"Test DNS resolver before tunnel. true = chain resolver scan first, false = test tunnel directly."`
+	OutputPrefix     string     `toml:"output_prefix" comment:"Filename prefix for result files."`
 }
 
 func DefaultDNSConfig() DNSConfig {
@@ -103,7 +103,7 @@ func withTunnel(base DNSTunneling, workers, tries int, timeout time.Duration) DN
 	base.Workers = workers
 	base.Tries = tries
 	base.Timeout = NewDurationMS(timeout)
-	base.OutputPrefix = "dns_tun"
+	base.OutputPrefix = "dns_tun_"
 	return base
 }
 

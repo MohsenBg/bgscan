@@ -2,6 +2,7 @@ package result
 
 import (
 	"bgscan/internal/core/fileutil"
+	"bgscan/internal/logger"
 )
 
 var csvConfig = fileutil.CSVConfig{Comma: ','}
@@ -15,6 +16,7 @@ func ReadCSV(
 	return fileutil.StreamCSV(path, csvConfig, func(rec []string) error {
 		result, err := schema.Parser(rec)
 		if err != nil {
+			logger.CoreError("failed to parse record: %v", err)
 			return nil
 		}
 

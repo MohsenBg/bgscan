@@ -6,6 +6,7 @@ import (
 	"bgscan/internal/ui/components/menus/logs"
 	"bgscan/internal/ui/components/menus/settings"
 	"bgscan/internal/ui/components/menus/targetsource"
+	"bgscan/internal/ui/components/tables/dnstun"
 	"bgscan/internal/ui/components/tables/iplist"
 	"bgscan/internal/ui/components/tables/outbounds"
 	"bgscan/internal/ui/components/tables/resultlist"
@@ -62,43 +63,90 @@ func (m *Model) Mode() env.Mode {
 func newMainMenu(state *ui.AppState) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
-			"▶", "Run Scan", "s",
+			"▶",
+			"Run Scan",
+			"s",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
 					Component: targetsource.New(state),
 				}
 			},
 		),
-		menu.NewMenuItem("▤", "IP Files", "i", func() tea.Msg {
-			return ui.OpenComponentMsg{
-				Component: iplist.New(state.Layout, "IP Files", nil),
-			}
-		}),
-		menu.NewMenuItem("▤", "Result Files", "r", func() tea.Msg {
-			var maxRenderIP uint32 = 10_000
-			return ui.OpenComponentMsg{
-				Component: resultlist.New(state, "Result Files", maxRenderIP, nil),
-			}
-		}),
-		menu.NewMenuItem("▸", "Xray Outbound", "x", func() tea.Msg {
-			return ui.OpenComponentMsg{
-				Component: outbounds.New(
-					state.Layout,
-					"Xray Outbound",
-					nil,
-				),
-			}
-		}),
-		menu.NewMenuItem("⚙", "Settings", "c", func() tea.Msg {
-			return ui.OpenComponentMsg{
-				Component: settings.New(state),
-			}
-		}),
-		menu.NewMenuItem("⌘", "Logs", "l", func() tea.Msg {
-			return ui.OpenComponentMsg{
-				Component: logs.New(state),
-			}
-		}),
+		menu.NewMenuItem(
+			"▣",
+			"IP Files",
+			"i",
+			func() tea.Msg {
+				return ui.OpenComponentMsg{
+					Component: iplist.New(state.Layout, "IP Files", nil),
+				}
+			},
+		),
+		menu.NewMenuItem(
+			"◆",
+			"Result Files",
+			"r",
+			func() tea.Msg {
+				var maxRenderIP uint32 = 10_000
+				return ui.OpenComponentMsg{
+					Component: resultlist.New(
+						state,
+						"Result Files",
+						maxRenderIP,
+						nil,
+					),
+				}
+			},
+		),
+		menu.NewMenuItem(
+			"→",
+			"Xray Outbound",
+			"x",
+			func() tea.Msg {
+				return ui.OpenComponentMsg{
+					Component: outbounds.New(
+						state.Layout,
+						"Xray Outbound",
+						nil,
+					),
+				}
+			},
+		),
+		menu.NewMenuItem(
+			"≈",
+			"DNS Tunneling",
+			"d",
+			func() tea.Msg {
+				return ui.OpenComponentMsg{
+					Component: dnstun.New(
+						state.Layout,
+						"DNS Tunneling",
+						nil,
+					),
+				}
+			},
+		),
+		menu.NewMenuItem(
+			"⚙",
+			"Settings",
+			"c",
+			func() tea.Msg {
+				return ui.OpenComponentMsg{
+					Component: settings.New(state),
+				}
+			},
+		),
+		menu.NewMenuItem(
+			"≡",
+			"Logs",
+			"l",
+			func() tea.Msg {
+				return ui.OpenComponentMsg{
+					Component: logs.New(state),
+				}
+			},
+		),
 	}
+
 	return menu.New(items, "Main Menu", state.Layout)
 }

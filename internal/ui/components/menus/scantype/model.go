@@ -4,15 +4,17 @@ package scantype
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
+	"bgscan/internal/core/dns"
 	"bgscan/internal/core/scanner"
 	"bgscan/internal/core/xray"
+	"bgscan/internal/logger"
 	"bgscan/internal/ui/components/basic/menu"
 	"bgscan/internal/ui/components/basic/notice"
 	scannerUi "bgscan/internal/ui/components/scanner"
+	"bgscan/internal/ui/components/tables/dnstun"
 	"bgscan/internal/ui/components/tables/outbounds"
 	"bgscan/internal/ui/shared/env"
 	"bgscan/internal/ui/shared/ui"
@@ -25,9 +27,29 @@ const (
 	ICMPScan ScanType = iota
 	TCPScan
 	HTTPScan
-	DNSResolveScan
 	XRAYScan
+	DNSResolveScan
+	DNSTun
 )
+
+func (s ScanType) String() string {
+	switch s {
+	case ICMPScan:
+		return "ICMP"
+	case TCPScan:
+		return "TCP"
+	case HTTPScan:
+		return "HTTP"
+	case XRAYScan:
+		return "Xray"
+	case DNSResolveScan:
+		return "DNS resolve"
+	case DNSTun:
+		return "DNS tunneling"
+	default:
+		return fmt.Sprintf("ScanType(%d)", uint8(s))
+	}
+}
 
 // Model is the scan type selection screen.
 type Model struct {
@@ -36,6 +58,7 @@ type Model struct {
 	state        *ui.AppState
 	input        string
 	xrayTemplate string
+	dnsTunCfg    *dns.DNSTunConfigFile
 	menu         ui.Component
 	closeScanner bool
 	scanner      scanner.Scanner
@@ -52,13 +75,13 @@ func New(state *ui.AppState, input string) *Model {
 	}
 
 	m.menu = menu.New([]menu.MenuItem{
-		menu.NewMenuItem("▦", "ICMP Scan", "i", m.open(ICMPScan)),
-		menu.NewMenuItem("≡", "TCP Scan", "t", m.open(TCPScan)),
-		menu.NewMenuItem("▦", "HTTP Scan", "h", m.open(HTTPScan)),
-		menu.NewMenuItem("#", "DNS Scan", "d", m.open(DNSResolveScan)),
-		menu.NewMenuItem("▦", "Xray Scan", "x", m.openXrayTemplates()),
+		menu.NewMenuItem("◉", "ICMP Scan", "i", m.open(ICMPScan)),
+		menu.NewMenuItem("→", "TCP Scan", "t", m.open(TCPScan)),
+		menu.NewMenuItem("◌", "HTTP Scan", "h", m.open(HTTPScan)),
+		menu.NewMenuItem("◇", "Xray Scan", "x", m.openXrayTemplates()),
+		menu.NewMenuItem("?", "DNS Resolve", "r", m.open(DNSResolveScan)),
+		menu.NewMenuItem("≈", "DNS Tunneling", "d", m.openDNSTunConfig()),
 	}, "Select Scan Type", state.Layout)
-
 	return m
 }
 
@@ -80,8 +103,11 @@ func (m *Model) OnClose() tea.Cmd {
 
 func (m *Model) open(mode ScanType) tea.Cmd {
 	return func() tea.Msg {
+		logger.UIInfo("Starting %s scan", mode)
+
 		scn, err := m.createScanner(mode, m.input)
 		if err != nil {
+			logger.UIError("Failed to create %s scanner: %v", mode, err)
 			return m.errorCmd("scanner error", err.Error())
 		}
 
@@ -99,28 +125,43 @@ func (m *Model) openXrayTemplates() tea.Cmd {
 	)
 }
 
+func (m *Model) openDNSTunConfig() tea.Cmd {
+	return ui.OpenComponentCmd(
+		dnstun.New(m.state.Layout, "select dns tunneling config", func(dof *dns.DNSTunConfigFile) tea.Cmd {
+			m.dnsTunCfg = dof
+			return m.open(DNSTun)
+		}),
+	)
+}
+
 func (m *Model) createScanner(mode ScanType, input string) (scanner.Scanner, error) {
 	ctx := context.Background()
+
 	scn, err := scanner.NewScanner(ctx, input, scanner.WithConfig(*m.state.Config))
 	if err != nil {
 		return nil, err
 	}
 
-	if mode == XRAYScan {
+	switch mode {
+	case XRAYScan:
 		return m.buildXrayScanner(ctx, scn)
-	}
 
-	if mode == DNSResolveScan {
+	case DNSResolveScan:
 		return m.buildResolveScanner(ctx, scn)
-	}
 
-	stage, err := m.buildStage(ctx, scn, mode)
-	if err != nil {
-		return nil, err
-	}
+	case DNSTun:
+		return m.buildDNSTunScanner(ctx, scn)
 
-	scn.AddStage(stage)
-	return scn, nil
+	default:
+		stage, err := m.buildStage(ctx, scn, mode)
+		if err != nil {
+			_ = scn.Close()
+			return nil, err
+		}
+
+		scn.AddStage(stage)
+		return scn, nil
+	}
 }
 
 func (m *Model) buildStage(ctx context.Context, scn scanner.Scanner, mode ScanType) (scanner.StageConfig, error) {
@@ -132,80 +173,73 @@ func (m *Model) buildStage(ctx context.Context, scn scanner.Scanner, mode ScanTy
 	case HTTPScan:
 		return scn.BuildHTTPStage(ctx)
 	default:
-		return scn.BuildTCPStage(ctx)
+		return scanner.StageConfig{}, fmt.Errorf("unsupported scan type: %d", mode)
 	}
 }
 
 func (m *Model) buildResolveScanner(ctx context.Context, scn scanner.Scanner) (scanner.Scanner, error) {
-	if stage, err := scn.BuildResolveStage(ctx); err != nil {
+	stage, err := scn.BuildResolveStage(ctx)
+	if err != nil {
+		_ = scn.Close()
 		return nil, err
-	} else {
-		scn.AddStage(stage)
 	}
 
-	cfg := m.state.Config.DNS
-	if cfg.DNSTT.Enabled {
-		if stage, err := scn.BuildDNSTTStage(ctx); err == nil {
-			scn.AddStage(stage)
-		} else {
-			return nil, err
-		}
-	}
-
-	if cfg.SlipStream.Enabled {
-		if stage, err := scn.BuildSlipStreamStage(ctx); err == nil {
-			scn.AddStage(stage)
-		} else {
-			return nil, err
-		}
-	}
-
+	scn.AddStage(stage)
 	return scn, nil
 }
 
 func (m *Model) buildXrayScanner(ctx context.Context, scn scanner.Scanner) (scanner.Scanner, error) {
-	cfg := m.state.Config.Xray
-
-	pre := map[string]func() error{
-		"tcp": func() error {
-			s, err := scn.BuildTCPStage(ctx)
-			if err != nil {
-				return err
-			}
-			scn.AddStage(s)
-			return nil
-		},
-		"icmp": func() error {
-			s, err := scn.BuildICMPStage(ctx)
-			if err != nil {
-				return err
-			}
-			scn.AddStage(s)
-			return nil
-		},
-		"http": func() error {
-			s, err := scn.BuildHTTPStage(ctx)
-			if err != nil {
-				return err
-			}
-			scn.AddStage(s)
-			return nil
-		},
-	}
-
-	scanType := strings.ToLower(cfg.PreScanType)
-	if fn, ok := pre[scanType]; ok {
-		if err := fn(); err != nil {
-			return nil, fmt.Errorf("pre-scan failed: %w", err)
-		}
-	}
-
-	xrayStage, err := scn.BuildXrayStage(ctx, m.xrayTemplate)
+	stages, err := scn.BuildXrayStage(ctx, m.xrayTemplate)
 	if err != nil {
+		_ = scn.Close()
 		return nil, fmt.Errorf("xray stage failed: %w", err)
 	}
 
-	scn.AddStage(xrayStage)
+	for _, stage := range stages {
+		scn.AddStage(stage)
+	}
+	return scn, nil
+}
+
+func (m *Model) buildDNSTunScanner(ctx context.Context, scn scanner.Scanner) (scanner.Scanner, error) {
+	var stages []scanner.StageConfig
+
+	switch m.dnsTunCfg.Protocol {
+	case dns.DNSTunProtocolDNSTT:
+		stage, err := scn.BuildDNSTTStage(ctx, m.dnsTunCfg.Name)
+		if err != nil {
+			return nil, fmt.Errorf("build DNSTT stage: %w", err)
+		}
+
+		stages = append(stages, stage...)
+
+	case dns.DNSTunProtocolVayDNS:
+		stage, err := scn.BuildVayDNSStage(ctx, m.dnsTunCfg.Name)
+		if err != nil {
+			return nil, fmt.Errorf("build VayDNS stage: %w", err)
+		}
+
+		stages = append(stages, stage...)
+
+	case dns.DNSTunProtocolSlipstream:
+		stage, err := scn.BuildSlipStreamStage(ctx, m.dnsTunCfg.Name)
+		if err != nil {
+			return nil, fmt.Errorf("build Slipstream stage: %w", err)
+		}
+
+		stages = append(stages, stage...)
+
+	default:
+		return nil, fmt.Errorf(
+			"unsupported DNS tunnel protocol: %q",
+			m.dnsTunCfg.Protocol,
+		)
+	}
+
+	for _, stage := range stages {
+		scn.AddStage(stage)
+	}
+
 	return scn, nil
 }
 

@@ -1,6 +1,7 @@
 package startup
 
 import (
+	"bgscan/internal/core"
 	"bgscan/internal/core/config"
 	"bgscan/internal/core/config/validate"
 	"bgscan/internal/core/dns"
@@ -150,6 +151,13 @@ func checkLoggerHealth(r *reporter) {
 		return
 	}
 	r.success("Debug logger initialized")
+
+	r.info("Registering probe schemas...")
+	if err := core.Init(); err != nil {
+		r.errMsg("Probe schema registration failed", err)
+		return
+	}
+	r.success("Probe schemas registered")
 
 	r.success("Health check completed successfully")
 }

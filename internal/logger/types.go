@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -214,4 +216,30 @@ func reverse(s []byte) []byte {
 		s[i], s[j] = s[j], s[i]
 	}
 	return s
+}
+
+func basePath() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+
+	resolved, err := filepath.EvalSymlinks(exe)
+	if err == nil {
+		exe = resolved
+	}
+
+	if isGoRunTempBinary(exe) {
+		return os.Getwd()
+	}
+
+	return filepath.Dir(exe), nil
+}
+
+func isGoRunTempBinary(path string) bool {
+	dir := filepath.Dir(path)
+	base := filepath.Base(dir)
+
+	return strings.Contains(path, "go-build") ||
+		strings.HasPrefix(base, "exe") && strings.Contains(dir, string(os.PathSeparator)+"b0")
 }

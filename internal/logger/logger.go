@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,11 +12,16 @@ import (
 const LogDir = "logs"
 
 func newLogger(name string) (*Logger, error) {
-	return newLoggerToDir(name, LogDir)
+	base, err := basePath()
+	if err != nil {
+		return nil, fmt.Errorf("get base path: %w", err)
+	}
+	dir := filepath.Join(base, LogDir)
+	return newLoggerToDir(name, dir)
 }
 
 func newLoggerToDir(name string, dir string) (*Logger, error) {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
 

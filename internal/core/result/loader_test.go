@@ -9,7 +9,7 @@ func TestLoadResult_SendsValidRecords(t *testing.T) {
 	schema := validSchema(t)
 	out := make(chan Result, 10)
 
-	err := LoadResult(path, schema, out)
+	res, err := LoadResult(path, schema, out)
 	if err != nil {
 		t.Fatalf("LoadResult() error = %v", err)
 	}
@@ -18,6 +18,9 @@ func TestLoadResult_SendsValidRecords(t *testing.T) {
 	var results []Result
 	for r := range out {
 		results = append(results, r)
+	}
+	if res.Loaded != 2 {
+		t.Errorf("Loaded = %d, want 2", res.Loaded)
 	}
 	if len(results) != 2 {
 		t.Fatalf("got %d results, want 2", len(results))
@@ -35,7 +38,7 @@ func TestLoadResult_SkipsInvalidRecords(t *testing.T) {
 	schema := validSchema(t)
 	out := make(chan Result, 10)
 
-	err := LoadResult(path, schema, out)
+	res, err := LoadResult(path, schema, out)
 	if err != nil {
 		t.Fatalf("LoadResult() error = %v", err)
 	}
@@ -48,13 +51,16 @@ func TestLoadResult_SkipsInvalidRecords(t *testing.T) {
 	if count != 2 {
 		t.Errorf("got %d results, want 2 (bad line skipped)", count)
 	}
+	if res.Skipped != 1 {
+		t.Errorf("Skipped = %d, want 1", res.Skipped)
+	}
 }
 
 func TestLoadResult_NonexistentFile(t *testing.T) {
 	schema := validSchema(t)
 	out := make(chan Result, 1)
 
-	err := LoadResult("/nonexistent.csv", schema, out)
+	_, err := LoadResult("/nonexistent.csv", schema, out)
 	if err == nil {
 		t.Fatal("expected error for nonexistent file, got nil")
 	}

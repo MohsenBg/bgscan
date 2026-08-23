@@ -69,7 +69,7 @@ func TestMergeResults_AtomicReplacement(t *testing.T) {
 func readCSVRows(t *testing.T, path string) [][]string {
 	t.Helper()
 	var rows [][]string
-	err := ReadCSV(path, validSchema(t), func(r Result) error {
+	_, err := ReadCSV(path, validSchema(t), func(r Result) error {
 		rows = append(rows, r.ToRecord())
 		return nil
 	})

@@ -1,19 +1,10 @@
 package result
 
-import (
-	"io"
-
-	"bgscan/internal/core/fileutil"
-)
+import "io"
 
 // LoadResult streams valid scan results from CSV into a channel.
-func LoadResult(path string, schema ResultSchema, out chan<- Result) error {
-	return fileutil.StreamCSV(path, csvConfig, func(rec []string) error {
-		r, err := schema.Parser(rec)
-		if err != nil {
-			return nil // skip invalid records
-		}
-
+func LoadResult(path string, schema ResultSchema, out chan<- Result) (ReadResult, error) {
+	return ReadCSV(path, schema, func(r Result) error {
 		out <- r
 		return nil
 	})
@@ -29,7 +20,7 @@ func LoadAll(path string, schema ResultSchema, maxResults uint32) ([]Result, err
 	results := make([]Result, 0, 1024)
 	var count uint32
 
-	err := ReadCSV(path, schema, func(r Result) error {
+	_, err := ReadCSV(path, schema, func(r Result) error {
 		if count >= maxResults {
 			return io.EOF
 		}

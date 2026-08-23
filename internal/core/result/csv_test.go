@@ -12,12 +12,18 @@ func TestReadCSV_ValidRecords(t *testing.T) {
 	schema := validSchema(t)
 
 	var results []Result
-	err := ReadCSV(path, schema, func(r Result) error {
+	res, err := ReadCSV(path, schema, func(r Result) error {
 		results = append(results, r)
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("ReadCSV() error = %v", err)
+	}
+	if res.Loaded != 2 {
+		t.Errorf("Loaded = %d, want 2", res.Loaded)
+	}
+	if res.Skipped != 0 {
+		t.Errorf("Skipped = %d, want 0", res.Skipped)
 	}
 	if len(results) != 2 {
 		t.Fatalf("got %d results, want 2", len(results))
@@ -35,7 +41,7 @@ func TestReadCSV_SkipsParseErrors(t *testing.T) {
 	schema := validSchema(t)
 
 	var count int
-	err := ReadCSV(path, schema, func(r Result) error {
+	res, err := ReadCSV(path, schema, func(r Result) error {
 		count++
 		return nil
 	})
@@ -45,6 +51,9 @@ func TestReadCSV_SkipsParseErrors(t *testing.T) {
 	if count != 2 {
 		t.Errorf("got %d valid results, want 2", count)
 	}
+	if res.Skipped != 1 {
+		t.Errorf("Skipped = %d, want 1", res.Skipped)
+	}
 }
 
 func TestReadCSV_CallbackError_StopsIteration(t *testing.T) {
@@ -52,7 +61,7 @@ func TestReadCSV_CallbackError_StopsIteration(t *testing.T) {
 	schema := validSchema(t)
 
 	var count int
-	err := ReadCSV(path, schema, func(r Result) error {
+	_, err := ReadCSV(path, schema, func(r Result) error {
 		count++
 		if count == 2 {
 			return os.ErrClosed
@@ -72,7 +81,7 @@ func TestReadCSV_EmptyFile(t *testing.T) {
 	schema := validSchema(t)
 
 	var count int
-	err := ReadCSV(path, schema, func(r Result) error {
+	res, err := ReadCSV(path, schema, func(r Result) error {
 		count++
 		return nil
 	})
@@ -82,11 +91,14 @@ func TestReadCSV_EmptyFile(t *testing.T) {
 	if count != 0 {
 		t.Errorf("got %d results from empty file, want 0", count)
 	}
+	if res.Loaded != 0 {
+		t.Errorf("Loaded = %d, want 0", res.Loaded)
+	}
 }
 
 func TestReadCSV_NonexistentFile(t *testing.T) {
 	schema := validSchema(t)
-	err := ReadCSV("/nonexistent/path.csv", schema, func(r Result) error {
+	_, err := ReadCSV("/nonexistent/path.csv", schema, func(r Result) error {
 		return nil
 	})
 	if err == nil {
@@ -100,7 +112,7 @@ func TestReadCSV_SingleFieldLine(t *testing.T) {
 	schema := validSchema(t)
 
 	var count int
-	err := ReadCSV(path, schema, func(r Result) error {
+	res, err := ReadCSV(path, schema, func(r Result) error {
 		count++
 		return nil
 	})
@@ -110,6 +122,9 @@ func TestReadCSV_SingleFieldLine(t *testing.T) {
 	if count != 0 {
 		t.Errorf("got %d results, want 0 (parser should reject 1-field record)", count)
 	}
+	if res.Skipped != 1 {
+		t.Errorf("Skipped = %d, want 1", res.Skipped)
+	}
 }
 
 func TestReadCSV_EmptyLines(t *testing.T) {
@@ -117,7 +132,7 @@ func TestReadCSV_EmptyLines(t *testing.T) {
 	schema := validSchema(t)
 
 	var count int
-	err := ReadCSV(path, schema, func(r Result) error {
+	res, err := ReadCSV(path, schema, func(r Result) error {
 		count++
 		return nil
 	})
@@ -126,6 +141,9 @@ func TestReadCSV_EmptyLines(t *testing.T) {
 	}
 	if count != 0 {
 		t.Errorf("got %d results from empty lines, want 0", count)
+	}
+	if res.Loaded != 0 {
+		t.Errorf("Loaded = %d, want 0", res.Loaded)
 	}
 }
 

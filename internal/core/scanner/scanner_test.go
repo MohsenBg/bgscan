@@ -962,8 +962,8 @@ func TestIsHTTP3(t *testing.T) {
 	cases := map[string]bool{
 		"h3":    true,
 		"http3": true,
-		"H3":    false,
-		"HTTP3": false,
+		"H3":    true,
+		"HTTP3": true,
 		"http2": false,
 		"":      false,
 		"https": false,

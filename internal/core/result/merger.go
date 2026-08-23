@@ -105,7 +105,7 @@ func mergeWithExisting(
 ) error {
 	index := 0
 
-	err := ReadCSV(
+	_, err := ReadCSV(
 		resultPath,
 		schema,
 		func(existing Result) error {

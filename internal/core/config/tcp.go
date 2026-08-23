@@ -8,11 +8,11 @@ import (
 
 // TCPConfig defines configuration for TCP probing.
 type TCPConfig struct {
-	Workers      int        `toml:"workers" comment:"Number of concurrent TCP connection attempts."`
-	Port         int        `toml:"port" comment:"TCP port to probe on each IP address."`
-	Timeout      DurationMS `toml:"timeout" comment:"Maximum time to wait for a TCP connection, in milliseconds."`
-	Tries        uint16     `toml:"tries" comment:"Maximum number of connection attempts per target."`
-	OutputPrefix string     `toml:"output_prefix" comment:"Filename prefix for TCP scan results."`
+	Workers      int        `toml:"workers" comment:"Concurrent TCP workers. Range: 1-5000. Higher = faster but more CPU/network."`
+	Port         int        `toml:"port" comment:"TCP port to probe. Range: 1-65535. Common: 80 (HTTP), 443 (HTTPS), 22 (SSH)."`
+	Timeout      DurationMS `toml:"timeout" comment:"Max wait for TCP handshake, in ms. Range: 100-30000. Lower = faster but may miss slow targets."`
+	Tries        uint16     `toml:"tries" comment:"Retry attempts per target. Range: 1-10. Only retries on timeout, not on connection refused."`
+	OutputPrefix string     `toml:"output_prefix" comment:"Filename prefix for result files."`
 }
 
 func DefaultTCPConfig() TCPConfig {

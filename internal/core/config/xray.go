@@ -8,13 +8,13 @@ import (
 
 // XrayConfig defines configuration for Xray connectivity testing.
 type XrayConfig struct {
-	Workers              int              `toml:"workers" comment:"Number of concurrent Xray connectivity tests."`
-	ConnectivityTestType ConnectivityTest `toml:"connectivity_test_type" comment:"Type of connectivity test to perform."`
-	DownloadSpeed        int              `toml:"download_speed" comment:"Target download speed, in Kbps."`
-	UploadSpeed          int              `toml:"upload_speed" comment:"Target upload speed, in Kbps."`
-	Timeout              DurationMS       `toml:"timeout" comment:"Maximum time to wait for an Xray connectivity test, in milliseconds."`
-	OutputPrefix         string           `toml:"output_prefix" comment:"Filename prefix for Xray scan results."`
-	PreScanType          string           `toml:"pre_scan_type" comment:"Connectivity test to perform before running Xray."`
+	Workers              int              `toml:"workers" comment:"Concurrent Xray test workers. Range: 1-500. Higher = faster but more bandwidth."`
+	ConnectivityTestType ConnectivityTest `toml:"connectivity_test_type" comment:"Test type: 0=connectivity only, 1=download, 2=upload, 3=both."`
+	DownloadSpeed        int              `toml:"download_speed" comment:"Target download speed in Kbps. Range: 0-100000. Used when test type includes download."`
+	UploadSpeed          int              `toml:"upload_speed" comment:"Target upload speed in Kbps. Range: 0-100000. Used when test type includes upload."`
+	Timeout              DurationMS       `toml:"timeout" comment:"Max wait for Xray test, in ms. Range: 100-60000."`
+	OutputPrefix         string           `toml:"output_prefix" comment:"Filename prefix for result files."`
+	PreScanType          string           `toml:"pre_scan_type" comment:"Pre-scan test before Xray: tcp, icmp, http, or none (skip pre-scan)."`
 }
 
 func DefaultXrayConfig() XrayConfig {

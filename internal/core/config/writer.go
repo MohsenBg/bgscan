@@ -8,10 +8,10 @@ import (
 
 // WriterConfig defines configuration for the result writer subsystem.
 type WriterConfig struct {
-	MergeFlushInterval DurationMS `toml:"merge_flush_interval" comment:"Interval between result merge and flush operations, in milliseconds."`
-	ChanSize           int        `toml:"chan_size" comment:"Capacity of the channel used to queue result writes."`
-	BatchSize          int        `toml:"batch_size" comment:"Number of results processed in each write batch."`
-	ResultBaseDir      string     `toml:"result_directory" comment:"Base directory where scan results are stored."`
+	MergeFlushInterval DurationMS `toml:"merge_flush_interval" comment:"How often to flush results to disk, in ms. Range: 100-300000. Higher = fewer writes but more RAM."`
+	ChanSize           int        `toml:"chan_size" comment:"Result channel buffer size. Range: 1-1000000. Higher = fewer worker blocks during disk I/O."`
+	BatchSize          int        `toml:"batch_size" comment:"Results per write batch. Range: 1-1000000. Higher = fewer disk writes but more RAM."`
+	ResultBaseDir      string     `toml:"result_directory" comment:"Directory name for scan results. Created next to the binary."`
 }
 
 func DefaultWriterConfig() WriterConfig {

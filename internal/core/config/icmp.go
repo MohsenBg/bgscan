@@ -8,10 +8,10 @@ import (
 
 // ICMPConfig defines configuration for ICMP probing.
 type ICMPConfig struct {
-	Workers      int        `toml:"workers" comment:"Number of concurrent ICMP echo requests in flight."`
-	Timeout      DurationMS `toml:"timeout" comment:"Maximum time to wait for an ICMP echo reply, in milliseconds."`
-	Tries        uint16     `toml:"tries" comment:"Maximum number of echo request attempts per target."`
-	OutputPrefix string     `toml:"output_prefix" comment:"Filename prefix for ICMP scan results."`
+	Workers      int        `toml:"workers" comment:"Concurrent ICMP workers. Range: 1-5000. Higher = faster but more CPU/network."`
+	Timeout      DurationMS `toml:"timeout" comment:"Max wait for echo reply, in ms. Range: 100-30000. Lower = faster but may miss slow targets."`
+	Tries        uint16     `toml:"tries" comment:"Retry attempts per target. Range: 1-10. Higher = more reliable but slower."`
+	OutputPrefix string     `toml:"output_prefix" comment:"Filename prefix for result files."`
 }
 
 func DefaultICMPConfig() ICMPConfig {

@@ -8,18 +8,18 @@ import (
 
 // HTTPConfig defines configuration for HTTP probing and TLS validation.
 type HTTPConfig struct {
-	Workers             int        `toml:"workers" comment:"Number of concurrent HTTP requests."`
-	Host                string     `toml:"host" comment:"HTTP Host header sent with each request."`
-	ServerName          string     `toml:"server_name" comment:"TLS server name used for certificate validation."`
-	Port                int        `toml:"port" comment:"HTTP port to connect to."`
-	Protocol            string     `toml:"protocol" comment:"HTTP protocol to use, such as http or https."`
-	Version             string     `toml:"version" comment:"HTTP protocol versions to allow, such as h1 or h2."`
-	TLSValidation       bool       `toml:"tls_validation" comment:"Whether to validate the TLS certificate."`
-	MinTLSVersion       string     `toml:"min_tls_version" comment:"Minimum allowed TLS version."`
-	MaxTLSVersion       string     `toml:"max_tls_version" comment:"Maximum allowed TLS version."`
-	Timeout             DurationMS `toml:"timeout" comment:"Maximum time to wait for an HTTP request, in milliseconds."`
-	OutputPrefix        string     `toml:"output_prefix" comment:"Filename prefix for HTTP scan results."`
-	AcceptedStatusCodes []int      `toml:"accepted_status_codes" comment:"HTTP status codes considered successful."`
+	Workers             int        `toml:"workers" comment:"Concurrent HTTP workers. Range: 1-1000. Higher = faster but more CPU/network."`
+	Host                string     `toml:"host" comment:"Target host or URL. Used as Host header and SNI fallback."`
+	ServerName          string     `toml:"server_name" comment:"TLS SNI override. Empty = use host field. Must be a valid domain."`
+	Port                int        `toml:"port" comment:"HTTP port. Range: 1-65535. Common: 80 (HTTP), 443 (HTTPS)."`
+	Protocol            string     `toml:"protocol" comment:"Protocol: http or https."`
+	Version             string     `toml:"version" comment:"HTTP version: h1 (HTTP/1.1 only), h2 (HTTP/2 only), h1,h2 (negotiate), h3 (QUIC)."`
+	TLSValidation       bool       `toml:"tls_validation" comment:"Validate TLS certificates. false = accept self-signed/expired certs."`
+	MinTLSVersion       string     `toml:"min_tls_version" comment:"Min TLS version: tls1.0, tls1.1, tls1.2, tls1.3. Must be <= max_tls_version."`
+	MaxTLSVersion       string     `toml:"max_tls_version" comment:"Max TLS version: tls1.0, tls1.1, tls1.2, tls1.3. Must be >= min_tls_version."`
+	Timeout             DurationMS `toml:"timeout" comment:"Max wait for HTTP response, in ms. Range: 100-60000."`
+	OutputPrefix        string     `toml:"output_prefix" comment:"Filename prefix for result files."`
+	AcceptedStatusCodes []int      `toml:"accepted_status_codes" comment:"HTTP status codes to accept. Empty = accept all codes."`
 }
 
 func DefaultHTTPConfig() HTTPConfig {

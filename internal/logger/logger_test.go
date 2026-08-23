@@ -1,20 +1,37 @@
 package logger
 
 import (
+	"log"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func newTestLogger(t *testing.T) *Logger {
 	t.Helper()
-	l, err := newLogger("test_" + t.Name())
-	if err != nil {
-		t.Fatalf("newLogger: %v", err)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.log")
+
+	writer := &lumberjack.Logger{
+		Filename: path,
+		MaxSize:  1,
 	}
+
+	l := &Logger{
+		name:       t.Name(),
+		fileWriter: writer,
+		fileLogger: log.New(writer, "", log.LstdFlags),
+		enabled:    true,
+	}
+
 	t.Cleanup(func() {
 		l.Close()
 	})
+
 	return l
 }
 

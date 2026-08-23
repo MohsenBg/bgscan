@@ -19,7 +19,7 @@ const (
 
 	// Batch size limits
 	MinWriterBatchSize = 1
-	MaxWriterBatchSize = 1_000_000
+	MaxWriterBatchSize = 102_400
 )
 
 // ValidateWriter strictly validates a WriterConfig and returns errors by field name.

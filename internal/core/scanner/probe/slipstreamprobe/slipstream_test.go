@@ -10,7 +10,6 @@ import (
 
 	"bgscan/internal/core/dns"
 	"bgscan/internal/core/process"
-	"bgscan/internal/core/scanner/probe"
 	"bgscan/internal/core/socks"
 	"bgscan/internal/core/speedtest"
 )
@@ -56,7 +55,7 @@ func (t *fakeProcessTracker) Start(context.Context) {
 	t.started = true
 }
 
-func (t *fakeProcessTracker) Register(context.Context, probe.Killable) (string, error) {
+func (t *fakeProcessTracker) Register(context.Context, process.Killable) (string, error) {
 	return t.registeredID, t.registerErr
 }
 

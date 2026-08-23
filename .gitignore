@@ -71,7 +71,7 @@ assets/dns-tunneling/*/*
 !assets/dns-tunneling/*/*.example
 
 # Ignore local user settings and generated IP lists (keeps .default files tracked)
-settings/*.toml
+settings/
 ips/*.csv
 
 # Ignore local builder output

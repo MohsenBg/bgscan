@@ -30,7 +30,7 @@ type XrayService interface {
 // Xray SOCKS proxy configured for a target IP.
 type XrayProbe struct {
 	pm             portmgr.Manager
-	processTracker probe.ProcessTracker
+	processTracker process.ProcessTracker
 	xray           XrayService
 	speed          speedtest.Service
 
@@ -51,7 +51,7 @@ type XrayProbe struct {
 type Option func(*XrayProbe)
 
 // WithProcessTracker uses tracker to manage started Xray processes.
-func WithProcessTracker(tracker probe.ProcessTracker) Option {
+func WithProcessTracker(tracker process.ProcessTracker) Option {
 	return func(p *XrayProbe) {
 		if tracker != nil {
 			p.processTracker = tracker
@@ -105,7 +105,7 @@ func NewXrayProbe(
 
 	p := &XrayProbe{
 		pm:             pm,
-		processTracker: probe.NewProcessTracker(),
+		processTracker: process.NewProcessTracker(),
 		xray:           xray.NewXrayService(),
 		speed:          speedtest.NewService(),
 

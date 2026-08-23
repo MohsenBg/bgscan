@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"bgscan/internal/core/dns"
+	"bgscan/internal/core/process"
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/scanner/portmgr"
 	"bgscan/internal/core/scanner/probe"
@@ -22,7 +23,7 @@ import (
 // SlipstreamProbe verifies connectivity through a Slipstream DNS tunnel.
 type SlipstreamProbe struct {
 	pm             portmgr.Manager
-	processTracker probe.ProcessTracker
+	processTracker process.ProcessTracker
 	config         dns.SlipstreamConfig
 	slipstreamSvc  dns.SlipstreamService
 	sshService     ssh.SSHService
@@ -65,7 +66,7 @@ func WithSpeedtestService(service speedtest.Service) Option {
 	}
 }
 
-func WithProcessTracker(tracker probe.ProcessTracker) Option {
+func WithProcessTracker(tracker process.ProcessTracker) Option {
 	return func(p *SlipstreamProbe) {
 		if tracker != nil {
 			p.processTracker = tracker
@@ -95,7 +96,7 @@ func NewSlipstreamProbe(
 	p := &SlipstreamProbe{
 		pm:             pm,
 		config:         config,
-		processTracker: probe.NewProcessTracker(),
+		processTracker: process.NewProcessTracker(),
 		timeout:        timeout,
 	}
 

@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"bgscan/internal/core/config"
 	"bgscan/internal/core/dns"
@@ -122,6 +123,7 @@ func (s *scanner) newHTTPProbe(
 }
 
 func isHTTP3(version string) bool {
+	version = strings.ToLower(version)
 	return version == "h3" || version == "http3"
 }
 

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"bgscan/internal/core/netutil"
 	"bgscan/internal/core/result"
 	"bgscan/internal/core/scanner/probe"
 	"bgscan/internal/logger"
@@ -68,7 +69,7 @@ func (p *TCPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error
 		conn, err := p.dialer.DialContext(ctx, "tcp", address)
 		if err != nil {
 			lastErr = err
-			if isTimeout(err) {
+			if netutil.IsTimeout(err) {
 				continue
 			}
 			return nil, err
@@ -97,11 +98,4 @@ func (p *TCPProbe) Close() error {
 	return nil
 }
 
-// isTimeout reports whether the given error represents a network timeout,
-// which determines if the probe should retry the connection.
-func isTimeout(err error) bool {
-	if ne, ok := err.(net.Error); ok {
-		return ne.Timeout()
-	}
-	return false
-}
+

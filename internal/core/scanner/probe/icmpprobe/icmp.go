@@ -15,6 +15,7 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 
+	"bgscan/internal/core/netutil"
 	"bgscan/internal/core/result"
 )
 
@@ -140,7 +141,7 @@ func (p *ICMPProbe) reader(conn socket, protocol int) {
 
 		n, _, err := conn.ReadFrom(buf)
 		if err != nil {
-			if isTimeout(err) {
+			if netutil.IsTimeout(err) {
 				continue
 			}
 			return
@@ -346,10 +347,3 @@ func defaultFactory(privileged, unprivileged, addr string) (socket, string, int,
 	return conn, "udp", id, nil
 }
 
-// isTimeout checks if the error represents a network timeout.
-func isTimeout(err error) bool {
-	if ne, ok := err.(net.Error); ok {
-		return ne.Timeout()
-	}
-	return false
-}

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"bgscan/internal/core/netutil"
 	"bgscan/internal/core/result"
 )
 
@@ -265,16 +266,16 @@ func (nonTimeoutNetError) Temporary() bool { return true }
 func TestIsTimeout(t *testing.T) {
 	t.Parallel()
 
-	if !isTimeout(timeoutNetError{}) {
-		t.Fatal("isTimeout(timeoutNetError{}) = false, want true")
+	if !netutil.IsTimeout(timeoutNetError{}) {
+		t.Fatal("IsTimeout(timeoutNetError{}) = false, want true")
 	}
 
-	if isTimeout(nonTimeoutNetError{}) {
-		t.Fatal("isTimeout(nonTimeoutNetError{}) = true, want false")
+	if netutil.IsTimeout(nonTimeoutNetError{}) {
+		t.Fatal("IsTimeout(nonTimeoutNetError{}) = true, want false")
 	}
 
-	if isTimeout(errors.New("plain error")) {
-		t.Fatal("isTimeout(plain error) = true, want false")
+	if netutil.IsTimeout(errors.New("plain error")) {
+		t.Fatal("IsTimeout(plain error) = true, want false")
 	}
 }
 

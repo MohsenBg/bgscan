@@ -1,4 +1,4 @@
-package app
+package workspace
 
 import (
 	"bgscan/internal/ui/theme"
@@ -21,21 +21,10 @@ func mainStyle(contentWidth, contentHeight int) lipgloss.Style {
 		Height(contentHeight)
 }
 
-func warningStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(theme.Current().Yellow).
-		Bold(true).
-		Padding(1, 2)
-}
-
-func centerStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Align(lipgloss.Center, lipgloss.Center)
-}
-
-// WindowStyle returns a lipgloss style for overlay windows, bounded by maxWidth.
 func WindowStyle(maxWidth int) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).MaxWidth(maxWidth).
-		BorderForeground(theme.Current().BorderActive).Padding(0, 1)
+		Border(lipgloss.RoundedBorder()).
+		MaxWidth(maxWidth).
+		BorderForeground(theme.Current().BorderActive).
+		Padding(0, 1)
 }

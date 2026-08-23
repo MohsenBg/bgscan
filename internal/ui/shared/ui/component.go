@@ -1,18 +1,19 @@
 package ui
 
 import (
+	"uuid"
+
 	"bgscan/internal/ui/shared/env"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/google/uuid"
 )
 
 // ComponentID uniquely identifies a UI component instance.
-type ComponentID string
+type ComponentID uuid.UUID
 
 // NewComponentID generates a new unique ComponentID.
 func NewComponentID() ComponentID {
-	return ComponentID(uuid.NewString())
+	return ComponentID(uuid.New())
 }
 
 // Component is a self-contained UI module managed by the application.

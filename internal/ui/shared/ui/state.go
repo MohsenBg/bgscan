@@ -1,15 +1,30 @@
-// Package ui defines shared interfaces and state used across
-// application UI components.
 package ui
 
 import (
+	tea "charm.land/bubbletea/v2"
+
 	"bgscan/internal/core/config"
 	"bgscan/internal/ui/shared/layout"
 )
 
+// Program is the subset of *tea.Program that AppState needs.
+// Using an interface keeps AppState decoupled/testable.
+type Program interface {
+	Send(msg tea.Msg)
+}
+
 // AppState holds globally shared application state available to UI components.
 type AppState struct {
-	Layout *layout.Layout
-	Config *config.ScannerConfig
-	Store  *config.Store
+	Layout  *layout.Layout
+	Config  *config.ScannerConfig
+	Store   *config.Store
+	Program Program
+}
+
+func NewAppState(l *layout.Layout, cfg *config.ScannerConfig, store *config.Store) *AppState {
+	return &AppState{
+		Layout: l,
+		Config: cfg,
+		Store:  store,
+	}
 }

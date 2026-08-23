@@ -8,6 +8,8 @@ type Layout struct {
 	Terminal TerminalSize
 	Content  ContentSize
 
+	MinTerminal TerminalSize
+
 	Header ComponentSize
 	Body   ComponentSize
 	Footer ComponentSize
@@ -40,7 +42,11 @@ func New() *Layout {
 	return &Layout{
 		Terminal: TerminalSize{
 			Width:  80,
-			Height: 24,
+			Height: 35,
+		},
+		MinTerminal: TerminalSize{
+			Width:  75,
+			Height: 35,
 		},
 	}
 }
@@ -85,4 +91,14 @@ func (l *Layout) BodyContentWidth() int {
 
 func (l *Layout) BodyContentHeight() int {
 	return l.Body.Height
+}
+
+func (l *Layout) HasSpace() bool {
+	termWidth := l.Terminal.Width
+	termHeight := l.Terminal.Height
+
+	minWidth := l.MinTerminal.Width
+	minHeight := l.MinTerminal.Height
+
+	return termWidth >= minWidth && termHeight >= minHeight
 }

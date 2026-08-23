@@ -1,78 +1,52 @@
-// Package app implements the root BubbleTea application model and view.
 package app
 
 import (
-	"bgscan/internal/core/config"
-	"bgscan/internal/ui/main/body"
-	"bgscan/internal/ui/main/footer"
-	"bgscan/internal/ui/main/header"
-	"bgscan/internal/ui/shared/dialog"
+	"bgscan/internal/ui/main/splash"
+	"bgscan/internal/ui/main/startup"
+	"bgscan/internal/ui/main/workspace"
 	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
 
-// dialogPosition stores overlay placement metadata for a component.
-type dialogPosition struct {
-	XPos    dialog.DialogPosition
-	YPos    dialog.DialogPosition
-	XOffset int
-	YOffset int
+type Application interface {
+	tea.Model
+	SetProgram(program ui.Program)
 }
 
-// model is the root BubbleTea model.
+type AppStage uint8
+
+const (
+	StageSplash AppStage = iota
+	StageStartUP
+	StageWorkspace
+)
+
 type model struct {
-	state            *ui.AppState
-	dialog           []ui.Component
-	dialogPlacements map[ui.ComponentID]*dialogPosition
-	header           ui.Component
-	body             ui.Component
-	footer           ui.Component
+	state     *ui.AppState
+	splash    ui.Component
+	startup   ui.Component
+	workspace ui.Component
+	stage     AppStage
 }
 
-// New initializes the root application model.
-func New(cfg *config.ScannerConfig, store *config.Store) tea.Model {
+func New() Application {
 	l := layout.New()
-	state := &ui.AppState{
-		Layout: l,
-		Config: cfg,
-		Store:  store,
-	}
-
+	state := &ui.AppState{Layout: l}
 	return &model{
-		state:            state,
-		dialog:           make([]ui.Component, 0, 5),
-		dialogPlacements: make(map[ui.ComponentID]*dialogPosition),
-		header:           header.New(l),
-		body:             body.New(state),
-		footer:           footer.New(l),
+		state:     state,
+		splash:    splash.New(state),
+		startup:   startup.New(state),
+		workspace: workspace.New(state),
+		stage:     StageSplash,
 	}
 }
 
-// Init initializes the base components.
+func (m *model) SetProgram(program ui.Program) {
+	m.state.Program = program
+}
+
 func (m *model) Init() tea.Cmd {
-	return tea.Batch(
-		m.header.Init(),
-		m.body.Init(),
-		m.footer.Init(),
-	)
-}
-
-// getDialogPlacement returns placement for an overlay, creating a centered
-// default if needed.
-func (m *model) getDialogPlacement(id ui.ComponentID) *dialogPosition {
-	if p, ok := m.dialogPlacements[id]; ok {
-		return p
-	}
-
-	p := &dialogPosition{
-		XPos:    dialog.Center,
-		YPos:    dialog.Center,
-		XOffset: 0,
-		YOffset: 0,
-	}
-
-	m.dialogPlacements[id] = p
-	return p
+	return tea.Sequence(tea.ClearScreen, m.splash.Init())
 }

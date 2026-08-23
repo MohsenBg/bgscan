@@ -325,7 +325,7 @@ func TestSchema_Metadata(t *testing.T) {
 		t.Fatalf("len(Schema.Columns) = %d, want 6", len(Schema.Columns))
 	}
 
-	wantNames := []string{"IP", "Latency", "Transport", "Port", "AuthMethod", "ResolverProxyType"}
+	wantNames := []string{"IP", "Latency", "Transport", "Port", "Auth", "Proxy"}
 	for i, want := range wantNames {
 		if Schema.Columns[i].Name != want {
 			t.Fatalf("Schema.Columns[%d].Name = %q, want %q", i, Schema.Columns[i].Name, want)

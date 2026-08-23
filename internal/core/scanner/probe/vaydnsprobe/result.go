@@ -15,12 +15,12 @@ var Schema = result.ResultSchema{
 	Directory: "vaydns",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 40},
-		{Name: "Latency", Width: 20},
-		{Name: "Transport", Width: 20},
-		{Name: "Port", Width: 20},
-		{Name: "AuthMethod", Width: 15},
-		{Name: "ResolverProxyType", Width: 20},
+		{Name: "IP", Width: 30},
+		{Name: "Latency", Width: 15},
+		{Name: "Transport", Width: 15},
+		{Name: "Port", Width: 10},
+		{Name: "Auth", Width: 15},
+		{Name: "Proxy", Width: 15},
 	},
 
 	Parser: parseVayDNSResult,
@@ -32,11 +32,11 @@ var Schema = result.ResultSchema{
 // through the tunnel until a valid response is received. It excludes the initial
 // tunnel startup overhead to reflect sustained tunnel performance.
 type VayDNSResult struct {
-	IP               netip.Addr
-	Latency          time.Duration
-	Transport        dns.ResolverType      // Underlying DNS transport used for the tunnel (e.g., UDP, DoH, DoT).
-	Port             uint16                // Local SOCKS5 port allocated for validation.
-	AuthMethod       dns.AuthMethod        // How the tunnel authenticates.
+	IP                netip.Addr
+	Latency           time.Duration
+	Transport         dns.ResolverType      // Underlying DNS transport used for the tunnel (e.g., UDP, DoH, DoT).
+	Port              uint16                // Local SOCKS5 port allocated for validation.
+	AuthMethod        dns.AuthMethod        // How the tunnel authenticates.
 	ResolverProxyType dns.ResolverProxyType // Proxy type used to reach the resolver.
 }
 
@@ -113,11 +113,11 @@ func parseVayDNSResult(record []string) (result.Result, error) {
 	}
 
 	return VayDNSResult{
-		IP:               ip,
-		Latency:          latency,
-		Transport:        transport,
-		Port:             port,
-		AuthMethod:       authMethod,
+		IP:                ip,
+		Latency:           latency,
+		Transport:         transport,
+		Port:              port,
+		AuthMethod:        authMethod,
 		ResolverProxyType: proxyType,
 	}, nil
 }

@@ -97,5 +97,3 @@ func (p *TCPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error
 func (p *TCPProbe) Close() error {
 	return nil
 }
-
-

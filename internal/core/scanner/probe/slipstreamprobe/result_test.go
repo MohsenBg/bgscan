@@ -39,11 +39,11 @@ func TestSchema(t *testing.T) {
 		name  string
 		width int
 	}{
-		{name: "IP", width: 45},
-		{name: "Latency", width: 20},
-		{name: "Port", width: 20},
-		{name: "AuthMethod", width: 15},
-		{name: "ResolverProxyType", width: 20},
+		{name: "IP", width: 35},
+		{name: "Latency", width: 15},
+		{name: "Port", width: 10},
+		{name: "Auth", width: 20},
+		{name: "Proxy", width: 20},
 	}
 
 	for i, want := range wantCols {

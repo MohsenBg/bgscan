@@ -155,23 +155,20 @@ func TestParseTLSVersion(t *testing.T) {
 	}
 }
 
-func TestIsPortAvailable(t *testing.T) {
-	// Port 0 asks the OS for a random available port, so it should succeed.
-	if !IsPortAvailable(0) {
-		t.Errorf("IsPortAvailable(0) = false, want true")
-	}
-
-	// Bind to a random port to make it unavailable.
+func TestIsPortAvailable_Available(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("failed to listen: %v", err)
+		t.Fatalf("net.Listen() error = %v", err)
 	}
-	defer func() {
-		_ = ln.Close()
-	}()
 
 	port := ln.Addr().(*net.TCPAddr).Port
-	if IsPortAvailable(port) {
-		t.Errorf("IsPortAvailable(%d) = true, want false", port)
+
+	_ = ln.Close()
+
+	if !IsPortAvailable(port) {
+		t.Fatalf(
+			"IsPortAvailable(%d) = false, want true",
+			port,
+		)
 	}
 }

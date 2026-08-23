@@ -11,19 +11,23 @@ import (
 
 func TestVayDNSResult_ToRecord(t *testing.T) {
 	r := VayDNSResult{
-		IP:        netip.MustParseAddr("1.2.3.4"),
-		Latency:   125 * time.Millisecond,
-		Transport: dns.ResolverTypeUDP,
-		Port:      1080,
+		IP:                 netip.MustParseAddr("1.2.3.4"),
+		Latency:            125 * time.Millisecond,
+		Transport:          dns.ResolverTypeUDP,
+		Port:               1080,
+		AuthMethod:         dns.AuthNone,
+		ResolverProxyType:  dns.ResolverProxySOCKS,
 	}
 
 	got := r.ToRecord()
 
 	want := []string{
 		"1.2.3.4",
-		"125ms",
+		"125.00ms",
 		string(dns.ResolverTypeUDP),
 		"1080",
+		"none",
+		"socks",
 	}
 
 	if len(got) != len(want) {

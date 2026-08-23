@@ -111,7 +111,7 @@ func TestResolverResultToRecord(t *testing.T) {
 				Rcode:      0,
 				DPIChecked: true,
 			},
-			want: []string{"203.0.113.1", "25ms", "A", "3", "0", "passed"},
+			want: []string{"203.0.113.1", "25.00ms", "A", "3", "0", "passed"},
 		},
 		{
 			name: "dpi skipped",
@@ -123,7 +123,7 @@ func TestResolverResultToRecord(t *testing.T) {
 				Rcode:      3,
 				DPIChecked: false,
 			},
-			want: []string{"203.0.113.2", "40ms", "AAAA", "1", "3", "skipped"},
+			want: []string{"203.0.113.2", "40.00ms", "AAAA", "1", "3", "skipped"},
 		},
 	}
 

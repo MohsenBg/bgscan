@@ -110,9 +110,11 @@ func TestDNSTTResult_ToRecord(t *testing.T) {
 	got := r.ToRecord()
 	want := []string{
 		"2001:db8::1",
-		"1.5s",
+		"1.50s",
 		"udp",
 		"1080",
+		"",
+		"",
 	}
 
 	if !reflect.DeepEqual(got, want) {
@@ -223,10 +225,12 @@ func TestParseDNSTTResult_NewFormat(t *testing.T) {
 	}
 
 	want := DNSTTResult{
-		IP:        mustAddr(t, "8.8.8.8"),
-		Latency:   150 * time.Millisecond,
-		Transport: dns.ParseResolverType("udp"),
-		Port:      1080,
+		IP:                 mustAddr(t, "8.8.8.8"),
+		Latency:            150 * time.Millisecond,
+		Transport:          dns.ParseResolverType("udp"),
+		Port:               1080,
+		AuthMethod:         dns.AuthNone,
+		ResolverProxyType:  dns.ResolverProxySOCKS,
 	}
 
 	if res != want {
@@ -239,7 +243,7 @@ func TestParseDNSTTResult_IPv6(t *testing.T) {
 
 	record := []string{
 		"2001:db8::5",
-		"2s",
+		"2.00s",
 		"doh",
 		"9050",
 	}
@@ -317,11 +321,11 @@ func TestSchema_Metadata(t *testing.T) {
 		t.Fatalf("Schema.Directory = %q, want %q", Schema.Directory, "dnstt")
 	}
 
-	if len(Schema.Columns) != 4 {
-		t.Fatalf("len(Schema.Columns) = %d, want 4", len(Schema.Columns))
+	if len(Schema.Columns) != 6 {
+		t.Fatalf("len(Schema.Columns) = %d, want 6", len(Schema.Columns))
 	}
 
-	wantNames := []string{"IP", "Latency", "Transport", "Port"}
+	wantNames := []string{"IP", "Latency", "Transport", "Port", "AuthMethod", "ResolverProxyType"}
 	for i, want := range wantNames {
 		if Schema.Columns[i].Name != want {
 			t.Fatalf("Schema.Columns[%d].Name = %q, want %q", i, Schema.Columns[i].Name, want)

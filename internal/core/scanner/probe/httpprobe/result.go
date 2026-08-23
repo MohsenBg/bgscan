@@ -76,7 +76,7 @@ func (r HTTPResult) ToRecord() []string {
 
 	return []string{
 		r.IP.String(),
-		r.Latency.String(),
+		result.FormatDuration(r.Latency),
 		status,
 		r.HTTPVersion,
 		useTLS,

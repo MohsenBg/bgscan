@@ -31,8 +31,8 @@ func TestSchema(t *testing.T) {
 		t.Fatalf("Schema.Directory = %q, want %q", Schema.Directory, "slipstream")
 	}
 
-	if len(Schema.Columns) != 3 {
-		t.Fatalf("len(Schema.Columns) = %d, want %d", len(Schema.Columns), 3)
+	if len(Schema.Columns) != 5 {
+		t.Fatalf("len(Schema.Columns) = %d, want %d", len(Schema.Columns), 5)
 	}
 
 	wantCols := []struct {
@@ -40,8 +40,10 @@ func TestSchema(t *testing.T) {
 		width int
 	}{
 		{name: "IP", width: 45},
-		{name: "Latency", width: 35},
+		{name: "Latency", width: 20},
 		{name: "Port", width: 20},
+		{name: "AuthMethod", width: 15},
+		{name: "ResolverProxyType", width: 20},
 	}
 
 	for i, want := range wantCols {
@@ -106,7 +108,7 @@ func TestSlipstreamResultToRecord(t *testing.T) {
 	}
 
 	got := r.ToRecord()
-	want := []string{"203.0.113.5", "25ms", "1080"}
+	want := []string{"203.0.113.5", "25.00ms", "1080", "", ""}
 
 	if len(got) != len(want) {
 		t.Fatalf("len(ToRecord()) = %d, want %d", len(got), len(want))

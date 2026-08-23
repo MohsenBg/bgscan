@@ -67,7 +67,7 @@ func (r ICMPResult) ToRecord() []string {
 	}
 	return []string{
 		r.IP.String(),
-		r.Latency.String(),
+		result.FormatDuration(r.Latency),
 		strconv.Itoa(tries),
 		r.Mode,
 	}

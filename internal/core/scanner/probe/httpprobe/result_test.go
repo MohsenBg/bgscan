@@ -93,7 +93,7 @@ func TestHTTPResult_ToRecord_Full(t *testing.T) {
 		t.Fatalf("len = %d, want 5", len(rec))
 	}
 
-	want := []string{"93.184.216.34", "150ms", "200", "HTTP/2.0", "true"}
+	want := []string{"93.184.216.34", "150.00ms", "200", "HTTP/2.0", "true"}
 	for i, w := range want {
 		if rec[i] != w {
 			t.Errorf("record[%d] = %q, want %q", i, rec[i], w)
@@ -210,7 +210,7 @@ func TestHTTPResult_Score_Ordering(t *testing.T) {
 }
 
 func TestParseHTTPResult_FullRecord(t *testing.T) {
-	record := []string{"93.184.216.34", "150ms", "200", "HTTP/2.0", "true"}
+	record := []string{"93.184.216.34", "150.00ms", "200", "HTTP/2.0", "true"}
 
 	res, err := parseHTTPResult(record)
 	if err != nil {

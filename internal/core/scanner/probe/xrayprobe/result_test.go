@@ -82,8 +82,8 @@ func TestXrayResult_ToRecord(t *testing.T) {
 	if rec[0] != "10.0.0.1" {
 		t.Errorf("record[0] = %q, want %q", rec[0], "10.0.0.1")
 	}
-	if rec[1] != "42ms" {
-		t.Errorf("record[1] = %q, want %q", rec[1], "42ms")
+	if rec[1] != "42.00ms" {
+		t.Errorf("record[1] = %q, want %q", rec[1], "42.00ms")
 	}
 
 	wantDL := speedtest.BitsPerSec(100_000_000).String()

@@ -82,7 +82,7 @@ func TestICMPResult_ToRecord(t *testing.T) {
 	got := r.ToRecord()
 	want := []string{
 		"192.0.2.1",
-		"25ms",
+		"25.00ms",
 		"3",
 		"raw",
 	}
@@ -111,7 +111,7 @@ func TestICMPResult_ToRecord_DefaultTries(t *testing.T) {
 	got := r.ToRecord()
 	want := []string{
 		"192.0.2.2",
-		"10ms",
+		"10.00ms",
 		"1",
 		"udp",
 	}

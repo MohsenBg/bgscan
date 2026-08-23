@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"time"
 
+	"bgscan/internal/core/dns"
 	"bgscan/internal/core/result"
 )
 
@@ -14,18 +15,11 @@ var Schema = result.ResultSchema{
 	Directory: "slipstream",
 
 	Columns: []result.ColumnDef{
-		{
-			Name:  "IP",
-			Width: 45,
-		},
-		{
-			Name:  "Latency",
-			Width: 35,
-		},
-		{
-			Name:  "Port",
-			Width: 20,
-		},
+		{Name: "IP", Width: 45},
+		{Name: "Latency", Width: 20},
+		{Name: "Port", Width: 20},
+		{Name: "AuthMethod", Width: 15},
+		{Name: "ResolverProxyType", Width: 20},
 	},
 
 	Parser: parseSlipstreamResult,
@@ -33,9 +27,11 @@ var Schema = result.ResultSchema{
 
 // SlipstreamResult represents the outcome of a single Slipstream tunnel probe.
 type SlipstreamResult struct {
-	IP      netip.Addr
-	Latency time.Duration // Measures only the proxy validation phase, reflecting tunnel quality rather than startup overhead.
-	Port    uint16        // Local SOCKS5 port allocated for this run.
+	IP               netip.Addr
+	Latency          time.Duration         // Measures only the proxy validation phase, reflecting tunnel quality rather than startup overhead.
+	Port             uint16                // Local SOCKS5 port allocated for this run.
+	AuthMethod       dns.AuthMethod        // How the tunnel authenticates.
+	ResolverProxyType dns.ResolverProxyType // Proxy type used to reach the resolver.
 }
 
 // Key returns the IP address string used for result deduplication.
@@ -57,8 +53,10 @@ func (r SlipstreamResult) Equal(rs result.Result) bool {
 func (r SlipstreamResult) ToRecord() []string {
 	return []string{
 		r.IP.String(),
-		r.Latency.String(),
+		result.FormatDuration(r.Latency),
 		fmt.Sprintf("%d", r.Port),
+		string(r.AuthMethod),
+		string(r.ResolverProxyType),
 	}
 }
 
@@ -100,9 +98,21 @@ func parseSlipstreamResult(record []string) (result.Result, error) {
 		}
 	}
 
+	var authMethod dns.AuthMethod
+	var proxyType dns.ResolverProxyType
+	if len(record) >= 5 {
+		authMethod = dns.ParseAuthMethod(record[3])
+		proxyType = dns.ParseResolverProxyType(record[4])
+	} else {
+		authMethod = dns.AuthNone
+		proxyType = dns.ResolverProxySOCKS
+	}
+
 	return SlipstreamResult{
-		IP:      ip,
-		Latency: latency,
-		Port:    port,
+		IP:               ip,
+		Latency:          latency,
+		Port:             port,
+		AuthMethod:       authMethod,
+		ResolverProxyType: proxyType,
 	}, nil
 }

@@ -203,9 +203,11 @@ func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result
 	}
 
 	return SlipstreamResult{
-		IP:      ip,
-		Latency: latency.RTT,
-		Port:    localPort,
+		IP:               ip,
+		Latency:          latency.RTT,
+		Port:             localPort,
+		AuthMethod:       s.config.AuthMethod,
+		ResolverProxyType: s.config.ProxyType,
 	}, nil
 }
 

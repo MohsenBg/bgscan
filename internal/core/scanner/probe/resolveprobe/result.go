@@ -60,7 +60,7 @@ func (r ResolverResult) ToRecord() []string {
 
 	return []string{
 		r.IP.String(),
-		r.Latency.String(),
+		result.FormatDuration(r.Latency),
 		r.RecordType,
 		strconv.Itoa(r.Tries),
 		strconv.FormatUint(uint64(r.Rcode), 10),

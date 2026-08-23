@@ -113,7 +113,7 @@ func TestTCPResultToRecord(t *testing.T) {
 				Latency: 23 * time.Millisecond,
 				Tries:   4,
 			},
-			want: []string{"203.0.113.5", "23ms", "443", "4"},
+			want: []string{"203.0.113.5", "23.00ms", "443", "4"},
 		},
 		{
 			name: "zero port becomes dash",
@@ -123,7 +123,7 @@ func TestTCPResultToRecord(t *testing.T) {
 				Latency: 50 * time.Millisecond,
 				Tries:   2,
 			},
-			want: []string{"203.0.113.6", "50ms", "-", "2"},
+			want: []string{"203.0.113.6", "50.00ms", "-", "2"},
 		},
 		{
 			name: "zero tries defaults to one",
@@ -133,7 +133,7 @@ func TestTCPResultToRecord(t *testing.T) {
 				Latency: 75 * time.Millisecond,
 				Tries:   0,
 			},
-			want: []string{"203.0.113.7", "75ms", "80", "1"},
+			want: []string{"203.0.113.7", "75.00ms", "80", "1"},
 		},
 	}
 

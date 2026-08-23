@@ -46,7 +46,7 @@ func (r XrayResult) Equal(rs result.Result) bool { return r.IP.String() == rs.Ke
 func (r XrayResult) ToRecord() []string {
 	return []string{
 		r.IP.String(),
-		r.Latency.String(),
+		result.FormatDuration(r.Latency),
 		r.Download.String(),
 		r.Upload.String(),
 	}

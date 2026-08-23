@@ -47,7 +47,6 @@ func (p *provider) Load() ([]iplist.IPFileInfo, error) {
 	}
 	logger.UIInfo("Loaded %d IP files", len(files))
 
-	// Explicit sorting: Newest files first using built-in time comparison patterns
 	slices.SortFunc(files, func(i, j iplist.IPFileInfo) int {
 		return j.CreatedAt.Compare(i.CreatedAt)
 	})
@@ -73,7 +72,6 @@ func (p *provider) OnSelect(item iplist.IPFileInfo) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// OnDelete runs asynchronously inside an isolated thread to preserve user interface frame rates
 func (p *provider) OnDelete(item iplist.IPFileInfo) (tea.Cmd, bool) {
 	cmd := func() tea.Msg {
 		if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
@@ -85,7 +83,6 @@ func (p *provider) OnDelete(item iplist.IPFileInfo) (tea.Cmd, bool) {
 	return cmd, true
 }
 
-// OnRename runs asynchronously inside an isolated thread to protect the main run-loop
 func (p *provider) OnRename(item iplist.IPFileInfo, newName string) (tea.Cmd, bool) {
 	cmd := func() tea.Msg {
 		dstPath, err := iplist.GetIPFilePath(newName)

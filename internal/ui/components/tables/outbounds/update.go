@@ -12,17 +12,13 @@ import (
 
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
-
-	// Catch action trigger from inner controller
 	case crud.MsgActionTrigger:
 		if msg.ActionType == "add" {
 			return m, m.ShowAdditionMethod()
 		}
 
-	// Import method selection from outbound menu
 	case outboundmenu.MsgSelectImportMethod:
 		switch msg.Method {
-
 		case outboundmenu.MethodJSON:
 			return m, tea.Sequence(
 				m.closeOutboundMenu(),

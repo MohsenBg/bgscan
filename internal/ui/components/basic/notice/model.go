@@ -14,21 +14,13 @@ import (
 type LEVEL int
 
 const (
-	// NOTICE_ERROR indicates an error message.
 	NOTICE_ERROR LEVEL = iota
-
-	// NOTICE_INFO indicates an informational message.
 	NOTICE_INFO
-
-	// NOTICE_SUCCESS indicates a successful operation message.
 	NOTICE_SUCCESS
 )
 
-// Model represents a notice dialog component.
-//
-// A notice is used to display informational, success, or error messages
-// to the user. The message content is rendered inside a scrollable
-// viewport to support long text.
+// Model is a notice dialog showing an informational, success, or error
+// message inside a scrollable viewport.
 type Model struct {
 	id   ui.ComponentID
 	name string
@@ -39,10 +31,8 @@ type Model struct {
 	message    string
 	title      string
 
-	// UI components
 	viewport viewport.Model
 
-	// Layout metrics
 	titleHeight    int
 	viewportHeight int
 	footerHeight   int

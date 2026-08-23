@@ -6,20 +6,20 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-func filedNameStyle() lipgloss.Style {
+func fieldNameStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(theme.Current().Text).
 		Padding(0, 1)
 }
 
-func selectedFiledNameStyle() lipgloss.Style {
+func selectedFieldNameStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(theme.Current().Primary).
 		Padding(0, 0).
 		Bold(true)
 }
 
-func vlaueStyle() lipgloss.Style {
+func valueStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(theme.Current().Text)
 }

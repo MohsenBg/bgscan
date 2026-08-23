@@ -3,56 +3,59 @@ package scanner
 import (
 	"bgscan/internal/logger"
 	"bgscan/internal/ui/components/basic/confirm"
-	logview "bgscan/internal/ui/components/basic/logview"
-	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/components/basic/progress"
-	"bgscan/internal/ui/shared/dialog"
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
 
-// Update handles scanner-specific messages and routing.
-//
-// Key behavior:
-//   - tick/force refresh messages drive UI updates and resizes
-//   - toggle/pause/log/exit key handling
-//   - errors from Run/Close are surfaced through notices or stack resets
-//   - all other messages are forwarded to the active tab components
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	switch msg := msg.(type) {
+	if m.closing {
+		// Block all input while closing, but still forward resize to keep layout.
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.recalcTableSizes()
+			return m, nil
 
-	// Regular periodic update
+		case scanClosedMsg:
+			m.closing = false
+			if msg.err != nil {
+				logger.UIError("Failed to close scanner: %v", msg.err)
+				cmds = append(cmds, m.errorCmd("Failed to close scanner", msg.err.Error()))
+			}
+			logger.UIInfo("Scan closed")
+			cmds = append(cmds, func() tea.Msg { return ui.ResetComponentStacksMsg{} })
+			return m, tea.Batch(cmds...)
+
+		default:
+			return m, nil
+		}
+	}
+
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.recalcTableSizes()
+		return m, nil
+
 	case tickMsg:
 		cmds = append(cmds, m.updateTick(), m.tick())
 		return m, tea.Batch(cmds...)
 
-	// Instant refresh
 	case immediateTickMsg:
 		cmds = append(cmds, m.updateTick(), m.forceResize())
 		return m, tea.Batch(cmds...)
 
-	// Pause toggle via UI
 	case TogglePauseMsg:
 		m.togglePause()
 		return m, nil
 
-	// Scanner.Run() returned an error before the scan started
 	case scanErrorMsg:
+		logger.UIError("Scan error: %v", msg.err)
 		m.onError(msg.err)
 		return m, nil
 
-	// Scanner.Close() finished
-	case scanClosedMsg:
-		if msg.err != nil {
-			cmds = append(cmds, m.errorCmd("Failed to close scanner", msg.err.Error()))
-		}
-		cmds = append(cmds, func() tea.Msg { return ui.ResetComponentStacksMsg{} })
-		return m, tea.Batch(cmds...)
-
-	// Global keybindings
 	case tea.KeyMsg:
 		cmds = append(cmds, m.handleKey(msg))
 	}
@@ -61,30 +64,32 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// handleKey processes global keybindings.
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
+	if m.closing {
+		return nil
+	}
 	switch msg.String() {
-
 	case "q", "b":
 		return confirm.ConfirmCmd(
 			m.state.Layout,
 			"Do you want to exit the scan?",
 			func() tea.Msg {
+				m.closing = true // block further input
 				return tea.BatchMsg{m.asyncClose()}
 			},
 			false,
 		)
-
 	case "p":
 		m.togglePause()
 		return nil
-
 	case "l":
 		return m.openLogViewer()
 	}
-
 	return nil
 }
 
+// updateComponents forwards the message to the active tab's components.
 func (m *Model) updateComponents(msg tea.Msg) tea.Cmd {
 	idx := m.currentTab
 	var tCmd, pCmd, tabCmd tea.Cmd
@@ -96,59 +101,27 @@ func (m *Model) updateComponents(msg tea.Msg) tea.Cmd {
 	return tea.Batch(tCmd, pCmd, tabCmd)
 }
 
-func (m *Model) togglePause() {
-	if m.scn.IsPaused() {
-		m.scn.Resume()
-	} else {
-		m.scn.Pause()
-	}
-}
-
-func (m *Model) openLogViewer() tea.Cmd {
-	return func() tea.Msg {
-		v := logview.New(m.state, logger.Core(), "core logs")
-		v.SetContainerWidth(min(80, m.state.Layout.Body.Width))
-		v.SetShowBorder(false)
-		return dialog.OpenDialog(v)
-	}
-}
-
-func (m *Model) errorCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(m.state.Layout, title, message, notice.NOTICE_ERROR)
-}
-
-// asyncClose runs Scanner.Close() on a goroutine and delivers scanClosedMsg
-// when it finishes.
-func (m *Model) asyncClose() tea.Cmd {
-	return func() tea.Msg {
-		ch := make(chan error, 1)
-		go func() { ch <- m.scn.Close() }()
-		return scanClosedMsg{err: <-ch}
-	}
-}
-
+// updateTick merges new results and updates the progress bar.
 func (m *Model) updateTick() tea.Cmd {
+	if m.closing {
+		return nil
+	}
 	var cmds []tea.Cmd
-
 	m.mergeBatch()
-
 	idx := m.currentTab
 
 	switch m.currentStatus() {
-
 	case StatusScanning:
 		pct := m.currentProgress()
 		cmds = append(cmds, progress.UpdateProgressMsg{
 			ID:       m.progress[idx].ID(),
 			Progress: pct,
 		}.Cmd())
-
 	case StatusEnded:
 		cmds = append(cmds, progress.UpdateProgressMsg{
 			ID:       m.progress[idx].ID(),
 			Progress: 1,
 		}.Cmd())
-
 	case StatusError:
 		m.mu.Lock()
 		err := m.scanError
@@ -157,17 +130,10 @@ func (m *Model) updateTick() tea.Cmd {
 			m.errorShown = true
 		}
 		m.mu.Unlock()
-
 		if err != nil && !shown {
-			cmds = append(cmds, m.errorCmd(
-				"Error while scanning",
-				err.Error(),
-			))
+			cmds = append(cmds, m.errorCmd("Error while scanning", err.Error()))
 		}
-
 	case StatusPreProcess, StatusWaiting:
-		// No UI update needed
 	}
-
 	return tea.Batch(cmds...)
 }

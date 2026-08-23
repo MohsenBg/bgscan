@@ -29,15 +29,12 @@ type Model struct {
 	containerWidth    int
 	showBorder        bool
 
-	// Viewport
 	viewport viewport.Model
 
-	// Logger integration
 	logger     *logger.Logger
 	loggerChan chan string
 	maxMessage int
 
-	// Thread-safe message buffer
 	mu         sync.Mutex
 	messages   []string
 	needUpdate bool

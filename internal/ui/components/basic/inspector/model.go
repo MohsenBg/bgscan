@@ -18,7 +18,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-type FiledInput interface {
+type FieldInput interface {
 	input.Dialog
 	Value() any
 	SetValue(any)
@@ -30,7 +30,7 @@ type Field struct {
 	Name        string
 	Description string
 	Group       string
-	Input       FiledInput
+	Input       FieldInput
 	Visible     func() bool
 	Format      func(any) string
 	snapshot    *any
@@ -43,6 +43,7 @@ func (f Field) value() string {
 	if f.snapshot == nil {
 		return ""
 	}
+
 	v := *f.snapshot
 	if f.Format != nil {
 		return f.Format(v)
@@ -82,12 +83,12 @@ func (d fieldDelegate) Render(w io.Writer, m list.Model, index int, listItem lis
 
 	name := f.Name
 	if index == m.Index() {
-		name = selectedFiledNameStyle().Render("▶ " + name)
+		name = selectedFieldNameStyle().Render("▶ " + name)
 	} else {
-		name = filedNameStyle().Render(name)
+		name = fieldNameStyle().Render(name)
 	}
 	leftSection := name
-	rightSection := vlaueStyle().Render(f.value())
+	rightSection := valueStyle().Render(f.value())
 
 	gap := max(m.Width()-lipgloss.Width(leftSection)-lipgloss.Width(rightSection), 1)
 
@@ -206,7 +207,7 @@ func newFieldList(fields []Field, width, height int) list.Model {
 		return []key.Binding{
 			key.NewBinding(
 				key.WithKeys(env.KeyEnter),
-				key.WithHelp(env.KeyEnter, "edit selected filed"),
+				key.WithHelp(env.KeyEnter, "edit selected field"),
 			),
 			key.NewBinding(
 				key.WithKeys("d"),
@@ -239,13 +240,15 @@ func (m *Model) Width() int {
 	if m.layout == nil {
 		return m.maxWidth
 	}
-	return min(m.maxWidth, m.layout.Body.Width)
+	return min(m.maxWidth, m.layout.BodyContentWidth())
 }
 
 // Height calculates the height of the inspector
 func (m *Model) Height() int {
+	padding := 4
+
 	if m.layout == nil {
-		return 30
+		return 15
 	}
 
 	takenHeight := 0
@@ -257,8 +260,8 @@ func (m *Model) Height() int {
 		takenHeight += lipgloss.Height(m.Title)
 	}
 
-	available := m.layout.Body.Height - takenHeight
-	maxHeight := min(30, available)
+	available := m.layout.BodyContentHeight() - takenHeight - padding
+	maxHeight := max(15, available)
 
 	return maxHeight
 }

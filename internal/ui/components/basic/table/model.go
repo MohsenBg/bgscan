@@ -45,6 +45,7 @@ type Model struct {
 	originalCols []table.Column
 	paddingY     int
 	maxWidth     int // 0 means unlimited
+	maxHeight    int // 0 means unlimited
 
 	// Pending fields for Functional Options Pattern
 	pendingCols []table.Column
@@ -77,6 +78,11 @@ func WithPaddingY(padding int) Option {
 // WithMaxWidth sets an optional maximum width for the table (0 = unlimited).
 func WithMaxWidth(w int) Option {
 	return func(m *Model) { m.maxWidth = w }
+}
+
+// WithMaxHeight sets an optional maximum height for the table (0 = unlimited).
+func WithMaxHeight(w int) Option {
+	return func(m *Model) { m.maxHeight = w }
 }
 
 // WithKeyBindings appends custom key bindings to the default ones.
@@ -114,7 +120,7 @@ func New(lay *layout.Layout, opts ...Option) *Model {
 
 	m.originalCols = slices.Clone(cols)
 	m.BubbleTable = table.New(
-		table.WithColumns(cols), // original widths; real scaling happens on first WindowSizeMsg
+		table.WithColumns(cols),
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(max(1, len(rows))),
@@ -143,6 +149,13 @@ func (m *Model) SetMaxWidth(w int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.maxWidth = w
+	m.updateTableSizeLocked()
+}
+
+func (m *Model) SetMaxHeight(h int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.maxHeight = h
 	m.updateTableSizeLocked()
 }
 
@@ -227,24 +240,33 @@ func (m *Model) updateTableSizeLocked() {
 	scaled := m.scaledColumns()
 	m.BubbleTable.SetColumns(scaled)
 
-	// Calculate available height
 	helpHeight := lipgloss.Height(m.renderHelpView())
 	titleHeight := lipgloss.Height(m.renderTitle())
-	height := max(1, m.Layout.Body.Height-helpHeight-titleHeight-m.paddingY)
-
+	height := max(1, m.tableHeightLocked()-helpHeight-titleHeight-m.paddingY)
 	m.BubbleTable.SetHeight(height)
 	m.BubbleTable.SetWidth(m.tableWidthLocked())
 }
 
 func (m *Model) tableWidthLocked() int {
 	if m.Layout == nil || m.Layout.Body.Width == 0 {
-		return 78 // sensible fallback matching default 80-col terminal minus tableHPad
+		return 48
 	}
 	w := max(10, m.Layout.Body.Width-tableHPad)
 	if m.maxWidth > 0 {
 		w = min(w, m.maxWidth)
 	}
 	return w
+}
+
+func (m *Model) tableHeightLocked() int {
+	if m.Layout == nil || m.Layout.Body.Height == 0 {
+		return 15 // sensible default
+	}
+	h := max(15, m.Layout.Body.Height)
+	if m.maxHeight > 0 {
+		h = min(h, m.maxHeight)
+	}
+	return h
 }
 
 type ActionKey struct {

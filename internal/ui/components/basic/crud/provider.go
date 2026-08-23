@@ -18,7 +18,6 @@ type Provider[T any] interface {
 	// Identity returns a stable key for item, used for selection and diffing.
 	Identity(item T) string
 
-	// Optional Operations
 	// OnSelect is called when an item is chosen. The bool reports whether
 	// the operation handled the selection (true) or should fall through.
 	OnSelect(item T) (tea.Cmd, bool)

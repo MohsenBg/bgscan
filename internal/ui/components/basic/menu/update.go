@@ -8,19 +8,8 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// Update handles incoming Bubble Tea messages and updates the menu state.
-//
-// It processes window resize events to recalculate the menu layout and
-// keyboard input to trigger menu actions.
-//
-// Supported keys:
-//
-//   - "enter": Executes the currently selected menu item.
-//   - "q": Exits the menu without executing an action.
-//   - item shortcut: Selects and executes the corresponding menu item.
-//
-// Any messages that are not handled directly are forwarded to the underlying
-// list component to preserve built‑in navigation behavior.
+// Update handles resize and key input. Unhandled messages are forwarded to
+// the underlying list to preserve its built-in navigation behavior.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -58,20 +47,23 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		}
 	}
 
-	// Update the underlying list component.
 	m.List, cmd = m.List.Update(msg)
 	return m, cmd
 }
 
-// updateMenuLayout recalculates and applies layout constraints for the menu.
-//
-// The menu width and height are clamped to a maximum size to prevent it from
-// expanding excessively on large terminals while still adapting to smaller
-// screens. The title bar is centered horizontally and vertically within the
-// calculated width.
+// updateMenuLayout clamps the menu to a maximum size so it doesn't expand
+// unboundedly on large terminals while still shrinking on small ones.
 func (m *Model) updateMenuLayout() {
-	width := min(m.Layout.BodyContentWidth(), 50)
-	height := min(m.Layout.BodyContentHeight(), 20)
+	width := m.width
+	height := m.height
+
+	if m.widthAuto {
+		width = min(m.Layout.BodyContentWidth(), 50)
+	}
+
+	if m.heightAuto {
+		height = min(m.Layout.BodyContentHeight(), 20)
+	}
 
 	m.List.Styles.TitleBar = m.List.Styles.TitleBar.
 		Width(width).

@@ -11,11 +11,7 @@ import (
 )
 
 const (
-	// padding defines the horizontal padding applied around the progress bar.
-	padding = 1
-
-	// maxWidth limits the maximum width of the progress bar to prevent
-	// overly wide rendering on large terminals.
+	padding  = 1
 	maxWidth = 90
 )
 
@@ -62,12 +58,6 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-// Width calculates the progress bar width based on the layout body.
-//
-// The width is constrained by:
-//   - the layout body width
-//   - the defined maximum width
-//   - internal horizontal padding
 func (m *Model) Width() int {
 	width := min(m.layout.Body.Width, maxWidth)
 	return width - padding*10
@@ -88,10 +78,6 @@ func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-// Mode returns the interaction mode of the component.
-//
-// The progress component operates in NormalMode and does not
-// capture exclusive input.
 func (m *Model) Mode() env.Mode {
 	return env.NormalMode
 }

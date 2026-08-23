@@ -17,8 +17,7 @@ import (
 	"bgscan/internal/ui/shared/validation"
 )
 
-// Model wraps a generic CRUD administration table layer tailored specifically
-// to monitoring, adding, and selecting source IP target lists.
+// Model wraps the generic CRUD table for managing IP list files.
 type Model struct {
 	id        ui.ComponentID
 	name      string
@@ -26,7 +25,6 @@ type Model struct {
 	crudTable *crud.Model[iplist.IPFileInfo]
 }
 
-// New instantiates a reactive UI node orchestrating underlying IP asset tracking configurations.
 func New(l *layout.Layout, title string, onSelect func(*iplist.IPFileInfo) tea.Cmd) *Model {
 	m := &Model{
 		id:     ui.NewComponentID(),
@@ -34,8 +32,7 @@ func New(l *layout.Layout, title string, onSelect func(*iplist.IPFileInfo) tea.C
 		layout: l,
 	}
 
-	canAdd := true
-	m.crudTable = crud.New("IP File", l, newProvider(l, title, onSelect), 90, canAdd)
+	m.crudTable = crud.New("IP File", l, newProvider(l, title, onSelect), 90, true)
 
 	return m
 }
@@ -60,7 +57,7 @@ func (m *Model) Mode() env.Mode {
 	return m.crudTable.Mode()
 }
 
-// handleFileSelect manages context transitions when mounting external system target sources.
+// handleFileSelect opens the name dialog for a file picked from disk.
 func (m *Model) handleFileSelect(path string) tea.Cmd {
 	if path == "" {
 		logger.UIInfo("[%s]: File selection cancelled", m.name)
@@ -87,7 +84,8 @@ func (m *Model) handleFileSelect(path string) tea.Cmd {
 	return input.OpenInputDialog(inp)
 }
 
-// saveIPFileCmd contractually isolates filesystem disk operations away from the main loop thread.
+// saveIPFileCmd copies the picked file into the IP list directory off the
+// UI thread so large imports don't block rendering.
 func (m *Model) saveIPFileCmd(srcPath, filename string) tea.Cmd {
 	return func() tea.Msg {
 		dstPath, err := iplist.GetIPFilePath(filename)

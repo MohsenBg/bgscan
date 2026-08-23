@@ -30,7 +30,13 @@ func (i MenuItem) Icon() string           { return i.icon }
 func (i MenuItem) Shortcut() string       { return i.shortcut }
 func (i MenuItem) Action() func() tea.Cmd { return i.action }
 
-func NewMenuItem(icon, title, shortcut string, action tea.Cmd) MenuItem {
+// NewMenuItem creates a new menu item.
+func NewMenuItem(
+	icon string,
+	title string,
+	shortcut string,
+	action tea.Cmd,
+) MenuItem {
 	return MenuItem{
 		icon:     icon,
 		title:    title,
@@ -55,42 +61,104 @@ func NewItemDelegate(showIcon, showShortcut bool) ItemDelegate {
 func (d ItemDelegate) Height() int  { return 2 }
 func (d ItemDelegate) Spacing() int { return 0 }
 
-func (d ItemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d ItemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd {
+	return nil
+}
 
-func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+func (d ItemDelegate) Render(
+	w io.Writer,
+	m list.Model,
+	index int,
+	listItem list.Item,
+) {
 	item, ok := listItem.(MenuItem)
 	if !ok {
 		return
 	}
 
-	var leftSection, rightSection string
+	selected := index == m.Index()
 
-	titleText := item.title
-	if index == m.Index() {
-		leftSection += selectedIconStyle().Render(item.icon)
-		titleText = selectedItemTitleStyle().Render(titleText)
+	var left string
+
+	// Icon column.
+	if d.showIcon {
+		if selected {
+			left += selectedIconStyle().Render(item.icon)
+		} else {
+			left += iconStyle().Render(item.icon)
+		}
+	}
+
+	// Title.
+	if selected {
+		left += selectedItemTitleStyle().Render(item.title)
 	} else {
-		leftSection += iconStyle().Render(item.icon)
-		titleText = itemTitleStyle().Render(titleText)
+		left += itemTitleStyle().Render(item.title)
 	}
-	leftSection += titleText
 
+	// Shortcut.
+	var right string
 	if d.showShortcut && item.shortcut != "" {
-		rightSection += shortcutStyle().Render(item.shortcut)
+		right = shortcutStyle().Render(item.shortcut)
 	}
 
-	gap := max(m.Width()-lipgloss.Width(leftSection)-lipgloss.Width(rightSection), 1)
+	// Keep the shortcut aligned to the right edge.
+	gap := max(
+		m.Width()-lipgloss.Width(left)-lipgloss.Width(right),
+		1,
+	)
 
 	line := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		leftSection,
+		left,
 		strings.Repeat(" ", gap),
-		rightSection,
+		right,
 	)
 
 	_, err := fmt.Fprint(w, PaddingCell().Render(line))
 	if err != nil {
 		logger.UIError("Error while rendering menu: %v", err)
+	}
+}
+
+// Option configures a menu.
+type Option func(*Model)
+
+// WithIcon enables or disables the icon column.
+func WithIcon(enabled bool) Option {
+	return func(m *Model) {
+		m.showIcon = enabled
+	}
+}
+
+// WithShortcut enables or disables the shortcut column.
+func WithShortcut(enabled bool) Option {
+	return func(m *Model) {
+		m.showShortcut = enabled
+	}
+}
+
+// WithWidth sets the menu width.
+//
+// A value <= 0 keeps the automatically calculated width.
+func WithWidth(width int) Option {
+	return func(m *Model) {
+		if width > 0 {
+			m.width = width
+			m.widthAuto = false
+		}
+	}
+}
+
+// WithHeight sets the menu height.
+//
+// A value <= 0 keeps the automatically calculated height.
+func WithHeight(height int) Option {
+	return func(m *Model) {
+		if height > 0 {
+			m.height = height
+			m.heightAuto = false
+		}
 	}
 }
 
@@ -101,40 +169,67 @@ type Model struct {
 	List     list.Model
 	onSelect func(MenuItem) tea.Cmd
 	Layout   *layout.Layout
-	keyMap   KeyMap
 	items    []MenuItem
+
+	showIcon     bool
+	showShortcut bool
+
+	width  int
+	height int
+
+	widthAuto  bool
+	heightAuto bool
 }
 
-type KeyMap struct {
-	ExecuteShortcut string // was tea.KeyMsg
-}
-
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		ExecuteShortcut: "",
+func New(
+	items []MenuItem,
+	title string,
+	layout *layout.Layout,
+	options ...Option,
+) *Model {
+	m := &Model{
+		id:           ui.NewComponentID(),
+		name:         "menu",
+		items:        items,
+		Layout:       layout,
+		showIcon:     true,
+		showShortcut: true,
+		width:        layout.BodyContentWidth(),
+		height:       layout.BodyContentHeight(),
+		widthAuto:    true,
+		heightAuto:   true,
 	}
-}
 
-func New(items []MenuItem, title string, layout *layout.Layout) *Model {
+	// Apply options before creating the list delegate.
+	for _, option := range options {
+		option(m)
+	}
+
 	listItems := make([]list.Item, len(items))
 	for i, item := range items {
 		listItems[i] = item
 	}
 
-	width := min(layout.BodyContentWidth(), 50)
-	height := min(layout.BodyContentHeight(), 20)
+	delegate := NewItemDelegate(
+		m.showIcon,
+		m.showShortcut,
+	)
 
-	delegate := NewItemDelegate(true, true)
-	l := list.New(listItems, delegate, width, height)
+	m.List = list.New(
+		listItems,
+		delegate,
+		m.width,
+		m.height,
+	)
 
-	l.Title = title
-	l.Styles.Title = titleStyle()
+	m.List.Title = title
+	m.List.Styles.Title = titleStyle()
 
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(true)
-	l.SetShowHelp(true)
-	l.SetFilteringEnabled(false)
-	l.AdditionalShortHelpKeys = func() []key.Binding {
+	m.List.SetShowStatusBar(false)
+	m.List.SetFilteringEnabled(false)
+	m.List.SetShowHelp(true)
+
+	m.List.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(
 				key.WithKeys(env.KeyEnter),
@@ -143,7 +238,7 @@ func New(items []MenuItem, title string, layout *layout.Layout) *Model {
 		}
 	}
 
-	l.AdditionalFullHelpKeys = func() []key.Binding {
+	m.List.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(
 				key.WithKeys(env.KeyEnter),
@@ -152,22 +247,26 @@ func New(items []MenuItem, title string, layout *layout.Layout) *Model {
 		}
 	}
 
-	m := &Model{
-		id:     ui.NewComponentID(),
-		name:   "menu",
-		List:   l,
-		items:  items,
-		keyMap: DefaultKeyMap(),
-		Layout: layout,
-	}
 	m.updateMenuLayout()
+
 	return m
 }
 
-func (m *Model) Init() tea.Cmd      { return nil }
-func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
+func (m *Model) Init() tea.Cmd {
+	return nil
+}
+
+func (m *Model) ID() ui.ComponentID {
+	return m.id
+}
+
+func (m *Model) Name() string {
+	return m.name
+}
+
+func (m *Model) OnClose() tea.Cmd {
+	return nil
+}
 
 func (m *Model) SetOnSelect(fn func(MenuItem) tea.Cmd) {
 	m.onSelect = fn
@@ -180,9 +279,13 @@ func (m *Model) GetSelected() (MenuItem, bool) {
 
 func (m *Model) SetItems(items []MenuItem) tea.Cmd {
 	listItems := make([]list.Item, len(items))
+
 	for i, item := range items {
 		listItems[i] = item
 	}
+
+	m.items = items
+
 	return m.List.SetItems(listItems)
 }
 

@@ -3,7 +3,6 @@ package ipviewer
 import (
 	"fmt"
 
-	"bgscan/internal/core/result"
 	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/components/basic/table"
 	"bgscan/internal/ui/shared/env"
@@ -40,20 +39,6 @@ func (m *Model) copySelectedIP() tea.Cmd {
 		return m.errorCmd("Error Copying IP", err.Error())
 	}
 	return m.infoCmd("IP Copied", fmt.Sprintf("IP copied to clipboard:%s", row[0]))
-}
-
-func (m *Model) updateRows(rows []result.Result) {
-	limit := min(len(rows), int(m.maxRow))
-	list := make([]table.Row, 0, limit)
-
-	for _, row := range rows[:limit] {
-		list = append(list, row.ToRecord())
-	}
-
-	m.rows = list
-	if t, ok := m.table.(*table.Model); ok && t != nil {
-		t.SetRows(list)
-	}
 }
 
 func (m *Model) errorCmd(title, message string) tea.Cmd {

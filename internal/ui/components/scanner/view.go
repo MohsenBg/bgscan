@@ -11,10 +11,19 @@ import (
 
 // View renders the scanner UI.
 func (m *Model) View() string {
+	if m.closing {
+		return lipgloss.NewStyle().
+			Width(m.state.Layout.Body.Width).
+			Height(m.state.Layout.Body.Height).
+			Align(lipgloss.Center, lipgloss.Center).
+			Render("⏳ Closing scanner, please wait…")
+	}
 	idx := m.currentTab
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		m.tabs.View(),
+		lipgloss.NewStyle().
+			Width(m.state.Layout.BodyContentWidth()).
+			Align(lipgloss.Center).Render(m.tabs.View()),
 		m.renderProgress(idx),
 		m.ipViewers[idx].View(),
 	)
@@ -44,7 +53,6 @@ func (m *Model) renderStatsRow(p engine.Progress) string {
 	if p.Total > p.Processed {
 		left = p.Total - p.Processed
 	}
-
 	return lipgloss.JoinHorizontal(
 		lipgloss.Left,
 		scannedStyle().Render(fmt.Sprintf("scanned: %s", formatCount(p.Processed))),
@@ -68,10 +76,10 @@ func (m *Model) statusText() string {
 
 	switch status {
 	case StatusPreProcess:
-		return "preparing scan..."
+		return "preparing scan…"
 	case StatusScanning:
 		if m.scn.IsPaused() {
-			return "scan paused..."
+			return "scan paused…"
 		}
 		return m.estimateRemaining(p)
 	case StatusEnded:
@@ -82,22 +90,18 @@ func (m *Model) statusText() string {
 		}
 		return "scan error"
 	default:
-		return "starting scan..."
+		return "starting scan…"
 	}
 }
 
 func (m *Model) estimateRemaining(p engine.Progress) string {
 	if p.ETA <= 0 || p.RatePerSec <= 0 {
-		return "estimating remaining time..."
+		return "estimating remaining time…"
 	}
-
-	rateStr := fmt.Sprintf("[%.2fIP/S]", p.RatePerSec)
-	rateStr = leftStyle().Render(rateStr)
+	rateStr := leftStyle().Render(fmt.Sprintf("[%.2fIP/S]", p.RatePerSec))
 	return fmt.Sprintf("estimated remaining: %s %s", formatDuration(p.ETA), rateStr)
 }
 
-// formatCount formats a uint64 as a short human-readable string.
-// Supports up to Exa (10^18), which gracefully handles 2^64 (~18.45E).
 func formatCount(n uint64) string {
 	switch {
 	case n < 10_000:
@@ -111,26 +115,22 @@ func formatCount(n uint64) string {
 	case n < 1_000_000_000_000_000:
 		return fmt.Sprintf("%.2fT", float64(n)/1_000_000_000_000)
 	case n < 1_000_000_000_000_000_000:
-		return fmt.Sprintf("%.2fP", float64(n)/1_000_000_000_000_000) // Peta
+		return fmt.Sprintf("%.2fP", float64(n)/1_000_000_000_000_000)
 	default:
-		return fmt.Sprintf("%.2fE", float64(n)/1_000_000_000_000_000_000) // Exa
+		return fmt.Sprintf("%.2fE", float64(n)/1_000_000_000_000_000_000)
 	}
 }
 
-// formatDuration formats a duration into a human-readable string that scales
-// from seconds all the way up to years, dropping lower units to prevent UI clutter.
 func formatDuration(d time.Duration) string {
 	if d <= 0 {
 		return "0s"
 	}
-
 	const (
 		minute = time.Minute
 		hour   = time.Hour
 		day    = 24 * time.Hour
 		year   = 365*day + 6*time.Hour
 	)
-
 	switch {
 	case d < minute:
 		return fmt.Sprintf("%ds", int(d.Seconds()))

@@ -7,15 +7,16 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Update handles key events to switch tabs.
 func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if msg.String() == env.KeyTab {
+		switch msg.String() {
+		case env.KeyTab:
 			m.NextTab()
 			cmd = m.selectTabCmd()
-		}
-		if msg.String() == env.KeyShiftTab {
+		case env.KeyShiftTab:
 			m.BackTab()
 			cmd = m.selectTabCmd()
 		}

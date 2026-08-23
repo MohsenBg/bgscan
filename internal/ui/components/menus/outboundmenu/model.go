@@ -65,7 +65,7 @@ func (m *Model) Init() tea.Cmd {
 func newMenu(layout *layout.Layout) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
-			"▶",
+			"↗",
 			"Via Link",
 			"l",
 			func() tea.Msg {
@@ -73,8 +73,8 @@ func newMenu(layout *layout.Layout) *menu.Model {
 			},
 		),
 		menu.NewMenuItem(
-			"::",
-			"Select Json",
+			"{}",
+			"Select JSON",
 			"j",
 			func() tea.Msg {
 				return MsgSelectImportMethod{Method: MethodJSON}
@@ -82,5 +82,9 @@ func newMenu(layout *layout.Layout) *menu.Model {
 		),
 	}
 
-	return menu.New(items, "Addition Method", layout)
+	return menu.New(
+		items, "Addition Method", layout,
+		menu.WithHeight(12),
+		menu.WithWidth(40),
+	)
 }

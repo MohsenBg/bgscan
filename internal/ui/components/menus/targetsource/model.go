@@ -30,7 +30,7 @@ func New(state *ui.AppState) *Model {
 		name:  "Target Source",
 	}
 	items := []menu.MenuItem{
-		menu.NewMenuItem("▤", "IP List", "i", func() tea.Msg {
+		menu.NewMenuItem("▣", "IP List", "i", func() tea.Msg {
 			return m.OpenIPList(func(i *iplist.IPFileInfo) tea.Cmd {
 				return ui.OpenComponentCmd(scantype.New(state, i.Path))
 			})

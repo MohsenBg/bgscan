@@ -32,14 +32,19 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(m.Width())
 		m.list.SetHeight(m.Height())
+		hasPaging := m.list.Paginator.TotalPages > 1
+		if hasPaging {
+			m.list.SetHeight(m.Height() - 1)
+		}
+
 	case tea.KeyPressMsg:
 		if msg.Code == tea.KeyEnter {
-			filed, ok := m.SelectedField()
-			if ok && filed.Input != nil && filed.snapshot != nil {
-				filed.Input.SetValue(*filed.snapshot)
+			field, ok := m.SelectedField()
+			if ok && field.Input != nil && field.snapshot != nil {
+				field.Input.SetValue(*field.snapshot)
 				cmds = append(
 					cmds, input.OpenInputDialog(
-						filed.Input,
+						field.Input,
 						dialog.WithPosition(dialog.Center, dialog.Top),
 						dialog.WithOffset(0, 3),
 					),
@@ -48,10 +53,10 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		}
 
 		if msg.String() == "d" {
-			filed, ok := m.SelectedField()
-			if ok && filed.Input != nil {
-				title := fmt.Sprintf("Description %s", filed.Name)
-				return m, notice.NewNoticeCmd(m.layout, title, filed.Description, notice.NOTICE_INFO)
+			field, ok := m.SelectedField()
+			if ok && field.Input != nil {
+				title := fmt.Sprintf("Description %s", field.Name)
+				return m, notice.NewNoticeCmd(m.layout, title, field.Description, notice.NOTICE_INFO)
 			}
 		}
 	}

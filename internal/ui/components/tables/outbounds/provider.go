@@ -41,7 +41,7 @@ func (p *provider) Columns() []table.Column {
 func (p *provider) Load() ([]xray.XrayOutboundsFile, error) {
 	outbounds, err := xray.ListOutboundTemplates()
 	if err != nil {
-		logger.UIError("Failed to load outbounds: %s", err.Error())
+		logger.UIError("Failed to load outbounds: %v", err)
 		return nil, err
 	}
 
@@ -83,7 +83,7 @@ func (p *provider) OnSelect(item xray.XrayOutboundsFile) (tea.Cmd, bool) {
 
 func (p *provider) OnDelete(item xray.XrayOutboundsFile) (tea.Cmd, bool) {
 	if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
-		logger.UIError("Failed to delete outbound: %s", err.Error())
+		logger.UIError("Failed to delete outbound: %v", err)
 
 		return notice.NewNoticeCmd(
 			p.layout,
@@ -112,8 +112,8 @@ func (p *provider) OnRename(item xray.XrayOutboundsFile, newName string) (tea.Cm
 	return nil, true
 }
 
-// We satisfy the provider interface, but since we use a custom picker workflow via `AddFunc`,
-// this hook isn't directly needed for triggering updates.
+// OnAdd is unused: adding an outbound goes through the custom picker
+// workflow wired via the "add" action in Update.
 func (p *provider) OnAdd(item xray.XrayOutboundsFile) (tea.Cmd, bool) {
 	return nil, true
 }

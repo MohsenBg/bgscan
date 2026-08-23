@@ -46,9 +46,9 @@ func New(state *ui.AppState) *Model {
 				Component: http.New(state, "HTTP Settings"),
 			}
 		}),
-		menu.NewMenuItem("◇", "XRay Settings", "x", func() tea.Msg {
+		menu.NewMenuItem("◇", "Xray Settings", "x", func() tea.Msg {
 			return ui.OpenComponentMsg{
-				Component: xray.New(state, "XRay Settings"),
+				Component: xray.New(state, "Xray Settings"),
 			}
 		}),
 		menu.NewMenuItem("⌘", "DNS Settings", "d", func() tea.Msg {

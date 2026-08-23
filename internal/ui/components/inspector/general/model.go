@@ -6,6 +6,7 @@ import (
 
 	"bgscan/internal/core/config"
 	"bgscan/internal/core/config/validate"
+	"bgscan/internal/logger"
 	"bgscan/internal/ui/components/basic/input"
 	"bgscan/internal/ui/components/basic/input/selectinput"
 	"bgscan/internal/ui/components/basic/input/textinput"
@@ -64,6 +65,7 @@ func (m *Model) OnClose() tea.Cmd   { return nil }
 
 func saveGeneral(state *ui.AppState) tea.Cmd {
 	if err := state.Store.SaveGeneral(state.Config.General); err != nil {
+		logger.UIError("Failed to save General settings: %v", err)
 		return notice.NewNoticeCmd(state.Layout, "Failed to save General settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
@@ -71,6 +73,7 @@ func saveGeneral(state *ui.AppState) tea.Cmd {
 
 func saveWriter(state *ui.AppState) tea.Cmd {
 	if err := state.Store.SaveWriter(state.Config.Writer); err != nil {
+		logger.UIError("Failed to save Writer settings: %v", err)
 		return notice.NewNoticeCmd(state.Layout, "Failed to save Writer settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
@@ -115,8 +118,6 @@ func New(state *ui.AppState, name string) *Model {
 
 	saveGeneralCmd := func() tea.Cmd { return saveGeneral(state) }
 	saveWriterCmd := func() tea.Cmd { return saveWriter(state) }
-
-	// ── General ──────────────────────────────────────────────────────────────
 
 	statusInterval := durationMSInput(state, "Enter Status Interval", cfg.General.StatusInterval.Duration(),
 		func(v string) error {
@@ -267,8 +268,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.General.BatchSize = n }, saveGeneralCmd)
 
-	// ── Writer ────────────────────────────────────────────────────────────────
-
+	// Writer settings
 	mergeFlushInterval := durationMSInput(state, "Enter Merge Flush Interval", cfg.Writer.MergeFlushInterval.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)

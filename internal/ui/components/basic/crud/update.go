@@ -104,7 +104,7 @@ func (m *Model[T]) requestDeletion() tea.Cmd {
 	if len(row) == 0 {
 		return nil
 	}
-	itemID := row[0] // Based on getSelected() logic, row[0] is the ID
+	itemID := row[0]
 
 	return confirm.ConfirmCmd(
 		m.layout,
@@ -130,7 +130,7 @@ func (m *Model[T]) handleRequestRename() tea.Cmd {
 		m.layout,
 		fmt.Sprintf("Enter new name for %s:", m.name),
 		textinput.WithPlaceholder("new name"),
-		textinput.WithValue(itemID), // Pre-fill with current ID/name
+		textinput.WithValue(itemID),
 		textinput.WithValidation(validation.ValidateFilename),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(newName string) tea.Cmd {

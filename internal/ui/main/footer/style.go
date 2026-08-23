@@ -6,73 +6,65 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-var (
-	containerStyle = func(width, height int) lipgloss.Style {
-		t := theme.Current()
+func containerStyle(width, height int) lipgloss.Style {
+	t := theme.Current()
+	return lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		Foreground(t.Text)
+}
 
-		return lipgloss.NewStyle().
-			Width(width).
-			Height(height).
-			Foreground(t.Text)
-	}
+func separatorStyle(width int) lipgloss.Style {
+	t := theme.Current()
+	return lipgloss.NewStyle().
+		Width(width).
+		Foreground(t.Border)
+}
 
-	separatorStyle = func(width int) lipgloss.Style {
-		t := theme.Current()
+func leftSectionStyle(width int) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Width(width).
+		Padding(0, 1).
+		Align(lipgloss.Left)
+}
 
-		return lipgloss.NewStyle().
-			Width(width).
-			Foreground(t.Border)
-	}
+func centerSectionStyle(width int) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Width(width).
+		Padding(0, 1).
+		Align(lipgloss.Center)
+}
 
-	leftSectionStyle = func(width int) lipgloss.Style {
-		return lipgloss.NewStyle().
-			Width(width).
-			Padding(0, 1).
-			Align(lipgloss.Left)
-	}
+func rightSectionStyle(width int) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Width(width).
+		Padding(0, 1).
+		Align(lipgloss.Right)
+}
 
-	centerSectionStyle = func(width int) lipgloss.Style {
-		return lipgloss.NewStyle().
-			Width(width).
-			Padding(0, 1).
-			Align(lipgloss.Center)
-	}
+func appNameStyle() lipgloss.Style {
+	t := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(t.Yellow).
+		Bold(true)
+}
 
-	rightSectionStyle = func(width int) lipgloss.Style {
-		return lipgloss.NewStyle().
-			Width(width).
-			Padding(0, 1).
-			Align(lipgloss.Right)
-	}
+func versionStyle() lipgloss.Style {
+	t := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(t.Success).
+		Faint(true)
+}
 
-	appNameStyle = func() lipgloss.Style {
-		t := theme.Current()
+func statusTextStyle() lipgloss.Style {
+	t := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(t.Primary).
+		Bold(true)
+}
 
-		return lipgloss.NewStyle().
-			Foreground(t.Yellow).
-			Bold(true)
-	}
-
-	versionStyle = func() lipgloss.Style {
-		t := theme.Current()
-
-		return lipgloss.NewStyle().
-			Foreground(t.Success).
-			Faint(true)
-	}
-
-	statusTextStyle = func() lipgloss.Style {
-		t := theme.Current()
-
-		return lipgloss.NewStyle().
-			Foreground(t.Primary).
-			Bold(true)
-	}
-
-	iconStyle = func() lipgloss.Style {
-		t := theme.Current()
-
-		return lipgloss.NewStyle().
-			Foreground(t.Orange)
-	}
-)
+func iconStyle() lipgloss.Style {
+	t := theme.Current()
+	return lipgloss.NewStyle().
+		Foreground(t.Orange)
+}

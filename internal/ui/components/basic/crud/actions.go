@@ -51,7 +51,6 @@ func (m *Model[T]) configureKeymaps() {
 	m.table.SetKeys(keys...)
 }
 
-// Helper to avoid creating zero value repeatedly
 func (m *Model[T]) zeroValue() T {
 	var zero T
 	return zero

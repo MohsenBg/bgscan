@@ -2,7 +2,7 @@ package inspector
 
 import "bgscan/internal/ui/components/basic/input"
 
-// fieldInputAdapter adapts a typed input.Input[T] to FiledInput by
+// fieldInputAdapter adapts a typed input.Input[T] to FieldInput by
 // widening Value() T / SetValue(T) to Value() any / SetValue(any).
 // All other methods (ID, Name, Init, Mode, OnClose, CloseCmd, Snapshot,
 // AppendOnSubmit) are promoted unchanged from the embedded input.Input[T].
@@ -12,10 +12,9 @@ type fieldInputAdapter[T any] struct {
 
 func (a fieldInputAdapter[T]) Value() any { return a.Input.Value() }
 
-// SetValue implements FiledInput, shadowing the embedded SetValue(T).
-// It panics if v is not assertable to T, which should never happen in
-// practice since v always originates from a call to Value() on the same
-// underlying input.
+// SetValue implements FieldInput, shadowing the embedded SetValue(T).
+// A non-T value is ignored; in practice values always come from Value()
+// on the same underlying input.
 func (a fieldInputAdapter[T]) SetValue(v any) {
 	tv, ok := v.(T)
 	if !ok {
@@ -25,6 +24,6 @@ func (a fieldInputAdapter[T]) SetValue(v any) {
 }
 
 // Adapt wraps a typed input.Input[T] so it can be used as Field.Input.
-func Adapt[T any](in input.Input[T]) FiledInput {
+func Adapt[T any](in input.Input[T]) FieldInput {
 	return fieldInputAdapter[T]{in}
 }

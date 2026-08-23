@@ -6,7 +6,6 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// bannerStyle renders the ASCII banner in the header region.
 func bannerStyle(width, height int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Align(lipgloss.Center, lipgloss.Bottom).

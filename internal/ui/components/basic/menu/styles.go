@@ -27,14 +27,14 @@ func shortcutStyle() lipgloss.Style {
 func iconStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(theme.Current().Text).
-		Width(4).
+		Width(3).
 		Bold(true)
 }
 
 func selectedIconStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(theme.Current().Primary).
-		Width(4).
+		Width(3).
 		Bold(true)
 }
 

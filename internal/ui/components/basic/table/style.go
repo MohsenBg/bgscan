@@ -10,7 +10,6 @@ import (
 func tableStyles() table.Styles {
 	s := table.DefaultStyles()
 
-	// Header styling
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(theme.Current().Info).
@@ -44,7 +43,6 @@ func tableViewStyle(_ int) lipgloss.Style {
 		Padding(0, 1, 0, 1)
 }
 
-// helpViewStyle now includes a top border to visually separate it from the table
 func helpViewStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width-2).

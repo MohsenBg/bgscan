@@ -18,8 +18,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Model coordinates outbound configuration additions, list table management,
-// and multi-step dialog sequencing paths within the UI stack.
+// Model manages the outbound template list: the CRUD table plus the
+// multi-step dialogs for importing outbounds from a file or link.
 type Model struct {
 	id           ui.ComponentID
 	name         string
@@ -36,8 +36,7 @@ func New(l *layout.Layout, title string, onSelect func(*xray.XrayOutboundsFile) 
 		layout: l,
 	}
 
-	canAdd := true
-	m.crudTable = crud.New("outbound", l, newProvider(l, onSelect), 100, canAdd)
+	m.crudTable = crud.New("outbound", l, newProvider(l, onSelect), 100, true)
 
 	return m
 }
@@ -48,7 +47,8 @@ func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return m.crudTable.OnClose() }
 func (m *Model) Mode() env.Mode     { return m.crudTable.Mode() }
 
-// ShowAdditionMethod overwrites standard add hooks to show your custom dialog method menu instead.
+// ShowAdditionMethod opens the dialog for choosing how to add an outbound
+// (file or link) instead of the provider's default add hook.
 func (m *Model) ShowAdditionMethod() tea.Cmd {
 	return func() tea.Msg {
 		m.outboundMenu = outboundmenu.New(m.layout)
@@ -95,7 +95,6 @@ func (m *Model) handleLinkImport() tea.Cmd {
 	)
 
 	linkInput.OnSubmit(func(link string) tea.Cmd {
-		// validate early
 		if _, err := xray.ParseLink(link); err != nil {
 			return notice.NewNoticeCmd(
 				m.layout,
@@ -130,8 +129,6 @@ func (m *Model) openFilenameDialog(link string) tea.Cmd {
 
 	return input.OpenInputDialog(nameInput)
 }
-
-// ── Private Framework Command Utilities ──────────────────────────────────────
 
 func (m *Model) saveOutboundFromFileCmd(srcPath, filename string) tea.Cmd {
 	meta, err := xray.SaveOutboundFromFile(srcPath, filename)

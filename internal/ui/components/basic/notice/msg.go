@@ -7,16 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// NewNoticeCmd creates a BubbleTea command that opens a Notice overlay.
-//
-// The notice is positioned using the overlay manager and centered
-// horizontally while appearing near the top of the screen.
-//
-// Parameters:
-//   - layout: application layout reference
-//   - title: notice title
-//   - message: notice body message
-//   - level: severity level (INFO, ERROR, SUCCESS)
+// NewNoticeCmd opens a Notice overlay centered horizontally near the top
+// of the screen.
 func NewNoticeCmd(
 	l *layout.Layout,
 	title string,

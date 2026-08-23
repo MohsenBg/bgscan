@@ -11,12 +11,15 @@ import (
 const LogDir = "logs"
 
 func newLogger(name string) (*Logger, error) {
+	return newLoggerToDir(name, LogDir)
+}
 
-	if err := os.MkdirAll(LogDir, 0755); err != nil {
+func newLoggerToDir(name string, dir string) (*Logger, error) {
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
 
-	path := filepath.Join(LogDir, name)
+	path := filepath.Join(dir, name)
 
 	writer := &lumberjack.Logger{
 		Filename:   path,

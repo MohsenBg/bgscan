@@ -67,7 +67,7 @@ func defaultTestWriterConfig(t *testing.T) config.WriterConfig {
 	t.Helper()
 
 	cfg := config.DefaultWriterConfig()
-	cfg.ResultBaseDir = "tmp"
+	setBaseDir(t)
 	return cfg
 }
 

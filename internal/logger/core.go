@@ -8,6 +8,12 @@ func InitCore() error {
 	return err
 }
 
+func InitCoreToDir(dir string) error {
+	var err error
+	coreLogger, err = newLoggerToDir("core.log", dir)
+	return err
+}
+
 func Core() *Logger {
 	return coreLogger
 }

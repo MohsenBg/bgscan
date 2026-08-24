@@ -41,6 +41,7 @@ type DNSTunneling struct {
 	Tries            int        `toml:"tries" comment:"Retry attempts per target. Range: 1-10."`
 	Timeout          DurationMS `toml:"timeout" comment:"Max wait for tunnel test, in ms. Range: 100-60000. Tunnel tests need more time."`
 	CheckDNSResolver bool       `toml:"check_dns_resolver" comment:"Test DNS resolver before tunnel. true = chain resolver scan first, false = test tunnel directly."`
+	AdaptiveResolver bool       `toml:"adaptive_resolver" comment:"When true, overrides resolver settings (type, port, domain) to match the DNS tunnel config. When false, uses the Resolver scanner settings as-is."`
 	OutputPrefix     string     `toml:"output_prefix" comment:"Filename prefix for result files."`
 }
 

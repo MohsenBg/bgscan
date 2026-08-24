@@ -249,11 +249,11 @@ func (d *DNSTTProbe) measureLatency(
 	}
 
 	return DNSTTResult{
-		IP:               ip,
-		Latency:          latency.RTT,
-		Transport:        d.cfg.ResolverType,
-		Port:             d.cfg.ResolverPort,
-		AuthMethod:       d.cfg.AuthMethod,
+		IP:                ip,
+		Latency:           latency.RTT,
+		Transport:         d.cfg.ResolverType,
+		Port:              d.cfg.ResolverPort,
+		AuthMethod:        d.cfg.AuthMethod,
 		ResolverProxyType: d.cfg.ProxyType,
 	}, nil
 }

@@ -249,11 +249,11 @@ func (v *VayDNSProbe) measureLatency(
 	}
 
 	return VayDNSResult{
-		IP:               ip,
-		Latency:          latency.RTT,
-		Transport:        v.cfg.ResolverType,
-		Port:             v.cfg.ResolverPort,
-		AuthMethod:       v.cfg.AuthMethod,
+		IP:                ip,
+		Latency:           latency.RTT,
+		Transport:         v.cfg.ResolverType,
+		Port:              v.cfg.ResolverPort,
+		AuthMethod:        v.cfg.AuthMethod,
 		ResolverProxyType: v.cfg.ProxyType,
 	}, nil
 }

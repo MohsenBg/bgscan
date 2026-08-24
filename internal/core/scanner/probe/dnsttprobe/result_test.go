@@ -225,12 +225,12 @@ func TestParseDNSTTResult_NewFormat(t *testing.T) {
 	}
 
 	want := DNSTTResult{
-		IP:                 mustAddr(t, "8.8.8.8"),
-		Latency:            150 * time.Millisecond,
-		Transport:          dns.ParseResolverType("udp"),
-		Port:               1080,
-		AuthMethod:         dns.AuthNone,
-		ResolverProxyType:  dns.ResolverProxySOCKS,
+		IP:                mustAddr(t, "8.8.8.8"),
+		Latency:           150 * time.Millisecond,
+		Transport:         dns.ParseResolverType("udp"),
+		Port:              1080,
+		AuthMethod:        dns.AuthNone,
+		ResolverProxyType: dns.ResolverProxySOCKS,
 	}
 
 	if res != want {

@@ -346,4 +346,3 @@ func defaultFactory(privileged, unprivileged, addr string) (socket, string, int,
 	id := conn.LocalAddr().(*net.UDPAddr).Port
 	return conn, "udp", id, nil
 }
-

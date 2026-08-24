@@ -31,7 +31,7 @@ type reporter struct {
 	abort      *atomic.Bool
 
 	// status tracks the final (non-transient) status this category should
-	// end with; consumed via categoryEndMsg once the check function returns.
+	// end with consumed via categoryEndMsg once the check function returns.
 	status categoryStatus
 }
 
@@ -42,8 +42,6 @@ func newReporter(categoryID string, ch chan<- tea.Msg, abort *atomic.Bool) *repo
 func (r *reporter) report(status categoryStatus, msg string) {
 	r.ch <- logMsg{categoryID: r.categoryID, status: status, line: msg}
 
-	// Same "don't let a later info/running line downgrade an already
-	// finalized status" rule that appendLine used to apply.
 	if status != catRunning || r.status == catRunning {
 		r.status = status
 	}

@@ -240,8 +240,11 @@ func (s *scanner) BuildDNSTTStage(
 
 	if tunCfg.CheckDNSResolver {
 		resolverCfg := s.config.DNS.Resolver
-		resolverCfg.Port = dnsttCfg.ResolverPort
-		resolverCfg.Transport = string(dnsttCfg.ResolverType)
+		if tunCfg.AdaptiveResolver {
+			resolverCfg.Port = dnsttCfg.ResolverPort
+			resolverCfg.Transport = string(dnsttCfg.ResolverType)
+			resolverCfg.Domain = dnsttCfg.Domain
+		}
 
 		stage, err := s.buildResolverStage(
 			ctx,
@@ -336,8 +339,11 @@ func (s *scanner) BuildSlipStreamStage(
 
 	if tunCfg.CheckDNSResolver {
 		resolverCfg := s.config.DNS.Resolver
-		resolverCfg.Port = slipstreamCfg.ResolverPort
-		resolverCfg.Transport = string(dns.ResolverTypeUDP)
+		if tunCfg.AdaptiveResolver {
+			resolverCfg.Port = slipstreamCfg.ResolverPort
+			resolverCfg.Transport = string(dns.ResolverTypeUDP)
+			resolverCfg.Domain = slipstreamCfg.Domain
+		}
 
 		stage, err := s.buildResolverStage(
 			ctx,
@@ -394,8 +400,11 @@ func (s *scanner) BuildVayDNSStage(
 
 	if tunCfg.CheckDNSResolver {
 		resolverCfg := s.config.DNS.Resolver
-		resolverCfg.Port = vaydnsCfg.ResolverPort
-		resolverCfg.Transport = string(vaydnsCfg.ResolverType)
+		if tunCfg.AdaptiveResolver {
+			resolverCfg.Port = vaydnsCfg.ResolverPort
+			resolverCfg.Transport = string(vaydnsCfg.ResolverType)
+			resolverCfg.Domain = vaydnsCfg.Domain
+		}
 
 		stage, err := s.buildResolverStage(
 			ctx,

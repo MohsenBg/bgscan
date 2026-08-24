@@ -11,12 +11,12 @@ import (
 
 func TestVayDNSResult_ToRecord(t *testing.T) {
 	r := VayDNSResult{
-		IP:                 netip.MustParseAddr("1.2.3.4"),
-		Latency:            125 * time.Millisecond,
-		Transport:          dns.ResolverTypeUDP,
-		Port:               1080,
-		AuthMethod:         dns.AuthNone,
-		ResolverProxyType:  dns.ResolverProxySOCKS,
+		IP:                netip.MustParseAddr("1.2.3.4"),
+		Latency:           125 * time.Millisecond,
+		Transport:         dns.ResolverTypeUDP,
+		Port:              1080,
+		AuthMethod:        dns.AuthNone,
+		ResolverProxyType: dns.ResolverProxySOCKS,
 	}
 
 	got := r.ToRecord()

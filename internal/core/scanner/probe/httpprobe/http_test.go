@@ -24,14 +24,17 @@ func newTestProbe(ts *httptest.Server, req HTTPRequest, acceptedCodes []int) *HT
 		filter: newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
 	}
 
-	p.clientFactory = func(_ netip.Addr) (*http.Transport, *http.Client) {
+	p.clientFactory = func(_ netip.Addr) httpClientResult {
 		t := &http.Transport{
 			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 				return (&net.Dialer{}).DialContext(ctx, network, ts.Listener.Addr().String())
 			},
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
-		return t, &http.Client{Transport: t, Timeout: 5 * time.Second}
+		return httpClientResult{
+			client: &http.Client{Transport: t, Timeout: 5 * time.Second},
+			close:  t.CloseIdleConnections,
+		}
 	}
 
 	return p
@@ -267,13 +270,16 @@ func TestRun_ConnectionRefused(t *testing.T) {
 		req:    req,
 		filter: newStatusFilter(nil, totalHTTPStatusCodes),
 	}
-	p.clientFactory = func(_ netip.Addr) (*http.Transport, *http.Client) {
+	p.clientFactory = func(_ netip.Addr) httpClientResult {
 		tr := &http.Transport{
 			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 				return nil, net.ErrClosed
 			},
 		}
-		return tr, &http.Client{Transport: tr, Timeout: time.Second}
+		return httpClientResult{
+			client: &http.Client{Transport: tr, Timeout: time.Second},
+			close:  tr.CloseIdleConnections,
+		}
 	}
 
 	_, err := p.Run(context.Background(), mustParseAddr("1.2.3.4"))
@@ -295,13 +301,16 @@ func TestRun_ServerTimeout(t *testing.T) {
 		req:    req,
 		filter: newStatusFilter(nil, totalHTTPStatusCodes),
 	}
-	p.clientFactory = func(_ netip.Addr) (*http.Transport, *http.Client) {
+	p.clientFactory = func(_ netip.Addr) httpClientResult {
 		tr := &http.Transport{
 			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 				return (&net.Dialer{}).DialContext(ctx, network, ts.Listener.Addr().String())
 			},
 		}
-		return tr, &http.Client{Transport: tr, Timeout: 100 * time.Millisecond}
+		return httpClientResult{
+			client: &http.Client{Transport: tr, Timeout: 100 * time.Millisecond},
+			close:  tr.CloseIdleConnections,
+		}
 	}
 
 	_, err := p.Run(context.Background(), mustParseAddr("1.2.3.4"))

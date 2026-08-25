@@ -179,7 +179,7 @@ func (m *Model) recalcTableSizes() {
 	m.SetTableSize(tableWidth, tableHeight)
 
 	if t, ok := m.tabs.(*tabs.Model[int]); ok {
-		t.SetMaxWidth(tableWidth)
+		t.SetMaxWidth(tableWidth - 2)
 	}
 }
 

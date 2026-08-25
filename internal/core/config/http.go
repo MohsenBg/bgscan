@@ -14,6 +14,7 @@ type HTTPConfig struct {
 	Port                int        `toml:"port" comment:"HTTP port. Range: 1-65535. Common: 80 (HTTP), 443 (HTTPS)."`
 	Protocol            string     `toml:"protocol" comment:"Protocol: http or https."`
 	Version             string     `toml:"version" comment:"HTTP version: h1 (HTTP/1.1 only), h2 (HTTP/2 only), h1,h2 (negotiate), h3 (QUIC)."`
+	Fingerprint         string     `toml:"fingerprint" comment:"uTLS fingerprint for TLS camouflage. Empty = standard crypto/tls. Options: Chrome, Firefox, iOS, random, etc."`
 	TLSValidation       bool       `toml:"tls_validation" comment:"Validate TLS certificates. false = accept self-signed/expired certs."`
 	MinTLSVersion       string     `toml:"min_tls_version" comment:"Min TLS version: tls1.0, tls1.1, tls1.2, tls1.3. Must be <= max_tls_version."`
 	MaxTLSVersion       string     `toml:"max_tls_version" comment:"Max TLS version: tls1.0, tls1.1, tls1.2, tls1.3. Must be >= min_tls_version."`

@@ -15,8 +15,13 @@ import (
 	"bgscan/internal/logger"
 )
 
+type httpClientResult struct {
+	client *http.Client
+	close  func()
+}
+
 // httpClientFactory abstracts HTTP client creation, primarily to allow mocking in tests.
-type httpClientFactory func(ip netip.Addr) (*http.Transport, *http.Client)
+type httpClientFactory func(ip netip.Addr) httpClientResult
 
 // HTTPProbe validates HTTP/HTTPS connectivity to a target IP, preserving
 // Host and SNI semantics.
@@ -38,8 +43,34 @@ func NewHTTPProbe(req HTTPRequest, acceptedCodes []int) probe.Probe {
 		filter: newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
 	}
 
-	p.clientFactory = func(ip netip.Addr) (*http.Transport, *http.Client) {
-		return p.buildClient(ip)
+	if req.Fingerprint != "" {
+		p.clientFactory = func(ip netip.Addr) httpClientResult {
+			client, err := utlsHTTPClientFactory(
+				ip,
+				req.Timeout,
+				req.Fingerprint,
+				req.MinTLSVersion,
+				req.MaxTLSVersion,
+				req.SkipTLSVerify,
+				req.Version,
+			)
+			if err != nil {
+				t, c := p.buildClient(ip)
+				return httpClientResult{client: c, close: t.CloseIdleConnections}
+			}
+			return httpClientResult{
+				client: client,
+				close:  client.CloseIdleConnections,
+			}
+		}
+	} else {
+		p.clientFactory = func(ip netip.Addr) httpClientResult {
+			t, client := p.buildClient(ip)
+			return httpClientResult{
+				client: client,
+				close:  t.CloseIdleConnections,
+			}
+		}
 	}
 
 	return p
@@ -66,10 +97,10 @@ func (p *HTTPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 
 	start := time.Now()
 
-	t, client := p.clientFactory(ip)
-	resp, err := client.Do(req)
+	r := p.clientFactory(ip)
+	resp, err := r.client.Do(req)
 
-	t.CloseIdleConnections()
+	r.close()
 
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)

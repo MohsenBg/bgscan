@@ -1,6 +1,8 @@
 package validate
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"bgscan/internal/core/config"
@@ -80,6 +82,11 @@ func ValidateHTTP(cfg config.HTTPConfig) map[string]error {
 
 	if err := checkEnum("HTTP Version", cfg.Version, allowedHTTPVersions); err != nil {
 		errs["Version"] = err
+	}
+
+	if cfg.Fingerprint != "" && !config.ValidFingerprint(cfg.Fingerprint) {
+		errs["Fingerprint"] = fmt.Errorf("unknown fingerprint %q; valid: %s",
+			cfg.Fingerprint, strings.Join(config.FingerprintLabels(), ", "))
 	}
 
 	hasTLSErr := false
@@ -220,6 +227,16 @@ func NormalizeHTTP(cfg *config.HTTPConfig) []Warning {
 		def.OutputPrefix,
 		&warns,
 	)
+
+	if cfg.Fingerprint != "" && !config.ValidFingerprint(cfg.Fingerprint) {
+		warns = append(warns, Warning{
+			Field:  "Fingerprint",
+			OldVal: cfg.Fingerprint,
+			NewVal: "",
+			Reason: "unknown fingerprint → cleared",
+		})
+		cfg.Fingerprint = ""
+	}
 
 	return warns
 }

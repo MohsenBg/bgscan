@@ -131,6 +131,7 @@ func (s *fakeSpeedTester) MeasureUploadSpeed(context.Context, speedtest.UploadCo
 func validConfig() *config.XrayConfig {
 	return &config.XrayConfig{
 		Timeout:              config.NewDurationMS(5 * time.Second),
+		SpeedTestTimeout:     config.NewDurationMS(5 * time.Second),
 		DownloadSpeed:        1000,
 		UploadSpeed:          500,
 		ConnectivityTestType: config.ConnectivityOnly,
@@ -210,6 +211,7 @@ func TestNewXrayProbeRejectsUnknownTemplate(t *testing.T) {
 func TestNewXrayProbeAppliesOptionsAndCalculatesTransferSizes(t *testing.T) {
 	cfg := validConfig()
 	cfg.Timeout = config.NewDurationMS(10 * time.Second)
+	cfg.SpeedTestTimeout = config.NewDurationMS(10 * time.Second)
 	cfg.DownloadSpeed = 8000
 	cfg.UploadSpeed = 4000
 	cfg.ConnectivityTestType = config.Both

@@ -60,6 +60,7 @@ const (
 	descPort               = "The target port for the HTTP/HTTPS connection (e.g., 80 for HTTP, 443 for HTTPS)."
 	descProtocol           = "The application protocol to use for the scan: 'http' or 'https'."
 	descHTTPVersion        = "The HTTP protocol version used for requests: HTTP/1.1, HTTP/2, both (HTTP/1.1 + HTTP/2 with automatic negotiation), or HTTP/3 over QUIC."
+	descFingerprint        = "uTLS fingerprint for TLS camouflage. When set, the scanner impersonates a real browser's TLS handshake to bypass DPI. Leave empty to use standard crypto/tls."
 	descTLSValidation      = "Enables strict TLS certificate validation when using HTTPS. If disabled, invalid, expired, or self-signed certificates are accepted."
 	descMinTLSVersion      = "The minimum TLS version allowed for HTTPS connections. Connections attempting to negotiate a lower version will be rejected."
 	descMaxTLSVersion      = "The maximum TLS version allowed for HTTPS connections. Limits the highest TLS version the scanner will attempt to negotiate."
@@ -355,6 +356,31 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 	)
 
+	fingerprintOptions := make([]huh.Option[string], 0, len(config.FingerprintLabels())+1)
+	fingerprintOptions = append(fingerprintOptions, huh.NewOption("None (standard TLS)", ""))
+	for _, label := range config.FingerprintLabels() {
+		fingerprintOptions = append(fingerprintOptions, huh.NewOption(label, label))
+	}
+
+	fingerprint := selectinput.New(
+		state.Layout, "TLS Fingerprint",
+		selectinput.WithValue(cfg.Fingerprint),
+		selectinput.WithFocus[string](),
+		selectinput.WithOptions(fingerprintOptions...),
+		selectinput.WithValidation(func(v string) error {
+			if v == "" {
+				return nil
+			}
+			tmp := *cfg
+			tmp.Fingerprint = v
+			return valField(tmp, "Fingerprint")
+		}),
+		selectinput.WithOnSubmit(func(v string) tea.Cmd {
+			cfg.Fingerprint = v
+			return saveHTTP(state)
+		}),
+	)
+
 	timeout := newDurationInput(state, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
 		func(d time.Duration) error {
 			tmp := *cfg
@@ -482,6 +508,7 @@ func New(state *ui.AppState, name string) *Model {
 
 	isHTTPS := func() bool { return cfg.Protocol == "https" }
 	isStrictTLS := func() bool { return isHTTPS() && cfg.TLSValidation && !isHTTP3(cfg.Version) }
+	isUTLS := func() bool { return isHTTPS() && !isHTTP3(cfg.Version) }
 
 	fields := []inspector.Field{
 		{Name: "Workers", Description: descWorkers, Group: groupHTTP, Input: inspector.Adapt(workers), Visible: alwaysVisible, Format: inspector.FormatInt},
@@ -491,6 +518,7 @@ func New(state *ui.AppState, name string) *Model {
 		{Name: "HTTP Version", Description: descHTTPVersion, Group: groupHTTP, Input: inspector.Adapt(httpVersion), Visible: isHTTPS},
 		{Name: "Timeout", Description: descTimeout, Group: groupHTTP, Input: inspector.Adapt(timeout), Visible: alwaysVisible, Format: inspector.FormatDurationMS},
 		{Name: "TLS Validation", Description: descTLSValidation, Group: groupHTTP, Input: inspector.Adapt(tlsValidation), Visible: isHTTPS, Format: inspector.FormatBool},
+		{Name: "TLS Fingerprint", Description: descFingerprint, Group: groupHTTP, Input: inspector.Adapt(fingerprint), Visible: isUTLS, Format: inspector.FormatUTLS},
 
 		// Advanced TLS and status-code settings
 		{Name: "Server Name SNI", Description: descServerName, Group: groupAdvanceHTTPS, Input: inspector.Adapt(serverName), Visible: isHTTPS},

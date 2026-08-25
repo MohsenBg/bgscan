@@ -39,6 +39,7 @@ type HTTPRequest struct {
 	Version       HTTPVersion
 	UseTLS        bool
 	SkipTLSVerify bool
+	Fingerprint   string
 	Timeout       time.Duration
 	MinTLSVersion uint16
 	MaxTLSVersion uint16
@@ -177,6 +178,7 @@ func NewHTTPRequestFromConfig(cfg config.HTTPConfig) (*HTTPRequest, error) {
 		Version:       resolveHTTPVersion(cfg.Version),
 		UseTLS:        useHTTPS,
 		SkipTLSVerify: !cfg.TLSValidation,
+		Fingerprint:   cfg.Fingerprint,
 		Timeout:       cfg.Timeout.Duration(),
 		MinTLSVersion: minTLS,
 		MaxTLSVersion: maxTLS,

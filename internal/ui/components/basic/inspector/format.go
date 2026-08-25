@@ -150,3 +150,15 @@ func FormatHex(v any) string {
 
 	return "0x" + s[:m] + "..."
 }
+
+func FormatUTLS(v any) string {
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	if s == "" {
+		return "Native TLS"
+	}
+	return s
+}

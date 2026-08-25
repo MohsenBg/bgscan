@@ -74,6 +74,15 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 		errs["Timeout"] = err
 	}
 
+	if err := checkDuration(
+		"SpeedTestTimeout",
+		cfg.SpeedTestTimeout.Duration(),
+		MinXrayTimeout,
+		MaxXrayTimeout,
+	); err != nil {
+		errs["SpeedTestTimeout"] = err
+	}
+
 	if err := checkEnum(
 		"PreScanType",
 		cfg.PreScanType,
@@ -141,6 +150,15 @@ func NormalizeXray(cfg *config.XrayConfig) []Warning {
 		MinXrayTimeout,
 		MaxXrayTimeout,
 		def.Timeout,
+		&warns,
+	)
+
+	fixDurationMS(
+		"SpeedTestTimeout",
+		&cfg.SpeedTestTimeout,
+		MinXrayTimeout,
+		MaxXrayTimeout,
+		def.SpeedTestTimeout,
 		&warns,
 	)
 

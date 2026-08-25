@@ -101,7 +101,12 @@ func NewXrayProbe(
 		return nil, fmt.Errorf("xray timeout must be positive")
 	}
 
-	transferSeconds := int64(timeout.Seconds())
+	speedTestTimeout := cfg.SpeedTestTimeout.Duration()
+	if speedTestTimeout <= 0 {
+		return nil, fmt.Errorf("xray speed test timeout must be positive")
+	}
+
+	transferSeconds := int64(speedTestTimeout.Seconds())
 
 	p := &XrayProbe{
 		pm:             pm,
@@ -111,7 +116,7 @@ func NewXrayProbe(
 
 		outbound:        outboundName,
 		latencyTimeout:  timeout,
-		transferTimeout: timeout,
+		transferTimeout: speedTestTimeout,
 		testMode:        cfg.ConnectivityTestType,
 		downloadBytes:   int64(cfg.DownloadSpeed) * 1000 / 8 * transferSeconds,
 		uploadBytes:     int64(cfg.UploadSpeed) * 1000 / 8 * transferSeconds,

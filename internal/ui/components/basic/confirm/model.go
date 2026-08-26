@@ -17,17 +17,16 @@ type Model struct {
 	message string
 	confirm bool
 
-	confirmFunc func() tea.Cmd
+	confirmFunc tea.Cmd
 }
 
 // New creates a new confirmation dialog.
 func New(
 	layout *layout.Layout,
 	message string,
-	onConfirm func() tea.Cmd,
+	onConfirm func() tea.Msg,
 	defaultYes bool,
 ) *Model {
-
 	return &Model{
 		id:          ui.NewComponentID(),
 		name:        "confirm",

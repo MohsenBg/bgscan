@@ -119,7 +119,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
 					Component: dnstun.New(
-						state.Layout,
+						state,
 						"DNS Tunneling",
 						nil,
 					),

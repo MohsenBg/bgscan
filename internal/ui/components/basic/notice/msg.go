@@ -30,16 +30,3 @@ func NewNoticeCmd(
 		)
 	}
 }
-
-// NoticeUnderDevelopment returns a command that displays a standard
-// "Under Development" informational notice.
-//
-// This helper is used for UI sections that are not yet implemented.
-func NoticeUnderDevelopment(layout *layout.Layout) tea.Cmd {
-	title := "Under Development"
-
-	message := "This section is currently being built.\n" +
-		"Thank you for your patience. Stay tuned for future updates."
-
-	return NewNoticeCmd(layout, title, message, NOTICE_INFO)
-}

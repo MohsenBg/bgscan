@@ -36,7 +36,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			cmds := []tea.Cmd{m.CloseCmd()}
 
 			if m.confirm && m.confirmFunc != nil {
-				cmds = append(cmds, m.confirmFunc())
+				cmds = append(cmds, m.confirmFunc)
 			}
 
 			return m, tea.Batch(cmds...)

@@ -127,7 +127,7 @@ func (m *Model) openXrayTemplates() tea.Cmd {
 
 func (m *Model) openDNSTunConfig() tea.Cmd {
 	return ui.OpenComponentCmd(
-		dnstun.New(m.state.Layout, "select dns tunneling config", func(dof *dns.DNSTunConfigFile) tea.Cmd {
+		dnstun.New(m.state, "select dns tunneling config", func(dof *dns.DNSTunConfigFile) tea.Cmd {
 			m.dnsTunCfg = dof
 			return m.open(DNSTun)
 		}),

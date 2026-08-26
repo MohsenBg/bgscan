@@ -1,4 +1,4 @@
-package outboundmenu
+package dnstunmenu
 
 import "charm.land/lipgloss/v2"
 

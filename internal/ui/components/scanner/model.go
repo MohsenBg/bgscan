@@ -106,7 +106,7 @@ func New(state *ui.AppState, maxIPs int, scn scanner.Scanner) *Model {
 
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
-func (m *Model) Mode() env.Mode     { return env.ScanMode }
+func (m *Model) Mode() env.Mode     { return env.ManagedMode }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
 // Init registers scanner hooks and starts the scan run plus periodic UI ticks.

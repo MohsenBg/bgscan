@@ -18,15 +18,15 @@ const (
 )
 
 var backKeys = map[Mode][]string{
-	NormalMode: {"b", KeyBackspace, KeyEsc},
-	InputMode:  {KeyEsc},
-	ScanMode:   {},
+	NormalMode:  {"b", KeyBackspace, KeyEsc},
+	InputMode:   {KeyEsc},
+	ManagedMode: {},
 }
 
 var quitKeys = map[Mode][]string{
-	NormalMode: {"q", KeyCtrlC},
-	InputMode:  {KeyCtrlC},
-	ScanMode:   {KeyCtrlC},
+	NormalMode:  {"q", KeyCtrlC},
+	InputMode:   {KeyCtrlC},
+	ManagedMode: {KeyCtrlC},
 }
 
 // IsBackKey reports whether the key press represents a back action in the given mode.

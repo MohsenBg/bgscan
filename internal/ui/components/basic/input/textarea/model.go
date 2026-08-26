@@ -33,6 +33,8 @@ type Model struct {
 
 	onChange func(string) tea.Cmd
 	onSubmit func(string) tea.Cmd
+
+	allowNewline bool
 }
 
 // New creates a new multi-line text input component.
@@ -50,6 +52,7 @@ func New(
 		textarea:          ta,
 		height:            3,
 		dynamicValidation: false,
+		allowNewline:      true,
 	}
 
 	m.textarea.SetWidth(m.Width())
@@ -98,6 +101,14 @@ func WithCharLimit(limit int) Option {
 func WithHeight(height int) Option {
 	return func(m *Model) {
 		m.height = height
+	}
+}
+
+// WithNewlines controls whether Shift+Enter inserts a newline.
+// When disabled, newlines cannot be entered at all.
+func WithNewlines(enabled bool) Option {
+	return func(m *Model) {
+		m.allowNewline = enabled
 	}
 }
 

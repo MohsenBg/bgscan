@@ -121,17 +121,45 @@ type Model struct {
 	tabs     ui.Component
 	list     list.Model
 	maxWidth int
+
+	widthOverride  int
+	heightOverride int
+}
+
+// Option configures an inspector.
+type Option func(*Model)
+
+// WithWidth overrides the inspector width.
+func WithWidth(width int) Option {
+	return func(m *Model) {
+		if width > 0 {
+			m.widthOverride = width
+		}
+	}
+}
+
+// WithHeight overrides the inspector height.
+func WithHeight(height int) Option {
+	return func(m *Model) {
+		if height > 0 {
+			m.heightOverride = height
+		}
+	}
 }
 
 // New creates a new inspector from a flat list of fields, grouped by
 // Field.Group into tabs. Groups are ordered alphabetically for a stable
 // tab order across runs (map iteration order is not stable in Go).
-func New(l *layout.Layout, name string, fields []Field) *Model {
+func New(l *layout.Layout, name string, fields []Field, opts ...Option) *Model {
 	m := &Model{
 		id:       ui.NewComponentID(),
 		name:     name,
 		layout:   l,
 		maxWidth: 60,
+	}
+
+	for _, opt := range opts {
+		opt(m)
 	}
 
 	for i := range fields {
@@ -172,7 +200,7 @@ func New(l *layout.Layout, name string, fields []Field) *Model {
 			return tabChangeMsg{Group: tab.Label, Fields: tab.Value}
 		}
 	})
-	tb.SetMaxWidth(m.maxWidth + 5)
+	tb.SetMaxWidth(m.maxWidth)
 	m.tabs = tb
 
 	if len(tbs) > 0 {
@@ -185,6 +213,7 @@ func New(l *layout.Layout, name string, fields []Field) *Model {
 
 func newFieldList(fields []Field, width, height int) list.Model {
 	lm := list.New(visibleItems(fields), fieldDelegate{}, width, height)
+	lm.DisableQuitKeybindings()
 	lm.SetShowStatusBar(false)
 	lm.SetShowTitle(false)
 	lm.SetFilteringEnabled(true)
@@ -237,6 +266,9 @@ func (m *Model) Mode() env.Mode     { return env.NormalMode }
 
 // Width calculates the maximum width of the inspector.
 func (m *Model) Width() int {
+	if m.widthOverride > 0 {
+		return m.widthOverride
+	}
 	if m.layout == nil {
 		return m.maxWidth
 	}
@@ -247,10 +279,6 @@ func (m *Model) Width() int {
 func (m *Model) Height() int {
 	padding := 4
 
-	if m.layout == nil {
-		return 15
-	}
-
 	takenHeight := 0
 	if len(m.groups) > 0 {
 		takenHeight += lipgloss.Height(m.tabs.View())
@@ -260,10 +288,31 @@ func (m *Model) Height() int {
 		takenHeight += lipgloss.Height(m.Title)
 	}
 
-	available := m.layout.BodyContentHeight() - takenHeight - padding
-	maxHeight := max(15, available)
+	total := m.heightOverride
+	if total <= 0 {
+		if m.layout == nil {
+			return 15
+		}
+		total = m.layout.BodyContentHeight()
+	}
 
-	return maxHeight
+	available := total - takenHeight - padding
+	return max(15, available)
+}
+
+// SetWidth sets the inspector width and updates the tabs and list.
+func (m *Model) SetWidth(width int) {
+	m.widthOverride = width
+	if tb, ok := m.tabs.(*tabs.Model[[]Field]); ok {
+		tb.SetMaxWidth(width)
+	}
+	m.list.SetWidth(width)
+}
+
+// SetHeight sets the total inspector height and updates the list.
+func (m *Model) SetHeight(height int) {
+	m.heightOverride = height
+	m.list.SetHeight(m.Height())
 }
 
 // CloseCmd returns a command that closes this component.

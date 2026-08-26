@@ -31,22 +31,28 @@ func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 	case dialog.OpenDialogMsg:
 		m.dialog = append(m.dialog, msg.Component)
-		m.dialogPlacements[msg.Component.ID()] = &dialogPosition{
+		m.dialogPlacements[msg.Component.ID()] = &dialogOptions{
 			XPos:    msg.XPos,
 			YPos:    msg.YPos,
 			XOffset: msg.XOffset,
 			YOffset: msg.YOffset,
+			OnClose: msg.OnClose,
 		}
 		return m, msg.Component.Init()
 
 	case ui.CloseComponentMsg:
 		for i, ov := range m.dialog {
-			if ov.ID() == msg.ID {
-				cmds = append(cmds, ov.OnClose())
-				m.dialog = append(m.dialog[:i], m.dialog[i+1:]...)
-				delete(m.dialogPlacements, msg.ID)
-				break
+			if ov.ID() != msg.ID {
+				continue
 			}
+
+			if opts := m.dialogPlacements[msg.ID]; opts != nil && opts.OnClose != nil {
+				cmds = append(cmds, opts.OnClose)
+			}
+
+			m.dialog = append(m.dialog[:i], m.dialog[i+1:]...)
+			delete(m.dialogPlacements, msg.ID)
+			break
 		}
 	}
 

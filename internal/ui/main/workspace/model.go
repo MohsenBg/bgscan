@@ -11,11 +11,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-type dialogPosition struct {
+type dialogOptions struct {
 	XPos    dialog.DialogPosition
 	YPos    dialog.DialogPosition
 	XOffset int
 	YOffset int
+	OnClose tea.Cmd
 }
 
 type model struct {
@@ -23,7 +24,7 @@ type model struct {
 	name             string
 	state            *ui.AppState
 	dialog           []ui.Component
-	dialogPlacements map[ui.ComponentID]*dialogPosition
+	dialogPlacements map[ui.ComponentID]*dialogOptions
 	header           ui.Component
 	body             ui.Component
 	footer           ui.Component
@@ -42,7 +43,7 @@ func New(state *ui.AppState) ui.Component {
 		name:             "workspace",
 		state:            state,
 		dialog:           make([]ui.Component, 0, 5),
-		dialogPlacements: make(map[ui.ComponentID]*dialogPosition),
+		dialogPlacements: make(map[ui.ComponentID]*dialogOptions),
 		header:           header.New(state.Layout),
 		body:             body.New(state),
 		footer:           footer.New(state.Layout),
@@ -53,11 +54,11 @@ func (m *model) Init() tea.Cmd {
 	return tea.Batch(m.header.Init(), m.body.Init(), m.footer.Init())
 }
 
-func (m *model) getDialogPlacement(id ui.ComponentID) *dialogPosition {
+func (m *model) getDialogPlacement(id ui.ComponentID) *dialogOptions {
 	if p, ok := m.dialogPlacements[id]; ok {
 		return p
 	}
-	p := &dialogPosition{XPos: dialog.Center, YPos: dialog.Center}
+	p := &dialogOptions{XPos: dialog.Center, YPos: dialog.Center}
 	m.dialogPlacements[id] = p
 	return p
 }

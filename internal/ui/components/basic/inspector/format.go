@@ -151,6 +151,66 @@ func FormatHex(v any) string {
 	return "0x" + s[:m] + "..."
 }
 
+func FormatPublicKey(v any) string {
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	s = strings.TrimSpace(s)
+	if len(s) <= 10 {
+		return s
+	}
+
+	return s[:6] + "..." + s[len(s)-4:]
+}
+
+// FormatPrivateKey renders an SSH private key as a safe, compact preview.
+// The actual key material is never displayed.
+func FormatPrivateKey(v any) string {
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "<empty>"
+	}
+
+	keyType := "SSH private key"
+	switch {
+	case strings.Contains(s, "BEGIN OPENSSH PRIVATE KEY"):
+		keyType = "OpenSSH private key"
+	case strings.Contains(s, "BEGIN RSA PRIVATE KEY"):
+		keyType = "RSA private key"
+	case strings.Contains(s, "BEGIN EC PRIVATE KEY"):
+		keyType = "EC private key"
+	case strings.Contains(s, "BEGIN PRIVATE KEY"):
+		keyType = "Private key"
+	}
+
+	return "🔑 " + keyType
+}
+
+func FormatZeroAsAuto(v any) string {
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+	if err != nil {
+		return s
+	}
+
+	if f == 0 {
+		return "Auto"
+	}
+
+	return s
+}
+
 func FormatUTLS(v any) string {
 	s, ok := v.(string)
 	if !ok {
@@ -159,6 +219,18 @@ func FormatUTLS(v any) string {
 
 	if s == "" {
 		return "Native TLS"
+	}
+	return s
+}
+
+func FormatEmptyString(v any) string {
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	if s == "" {
+		return "<empty>"
 	}
 	return s
 }

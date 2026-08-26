@@ -9,22 +9,22 @@ import (
 	"bgscan/internal/ui/components/basic/crud"
 	"bgscan/internal/ui/components/basic/notice"
 	"bgscan/internal/ui/components/basic/table"
-	"bgscan/internal/ui/shared/layout"
+	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 type provider struct {
-	layout   *layout.Layout
+	state    *ui.AppState
 	onSelect func(*dns.DNSTunConfigFile) tea.Cmd
 }
 
 func newProvider(
-	layout *layout.Layout,
+	state *ui.AppState,
 	onSelect func(*dns.DNSTunConfigFile) tea.Cmd,
 ) crud.Provider[dns.DNSTunConfigFile] {
 	return &provider{
-		layout:   layout,
+		state:    state,
 		onSelect: onSelect,
 	}
 }
@@ -84,7 +84,7 @@ func (p *provider) OnDelete(item dns.DNSTunConfigFile) (tea.Cmd, bool) {
 		logger.UIError("Failed to delete DNS tunnel config: %s", err)
 
 		return notice.NewNoticeCmd(
-			p.layout,
+			p.state.Layout,
 			"Delete Failed",
 			err.Error(),
 			notice.NOTICE_ERROR,
@@ -99,7 +99,7 @@ func (p *provider) OnRename(item dns.DNSTunConfigFile, newName string) (tea.Cmd,
 		logger.UIError("Rename failed: %v", err)
 
 		return notice.NewNoticeCmd(
-			p.layout,
+			p.state.Layout,
 			"Rename Failed",
 			err.Error(),
 			notice.NOTICE_ERROR,

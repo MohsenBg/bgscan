@@ -26,7 +26,7 @@ func ExitConfirmCmd(l *layout.Layout, options ...dialog.DialogOption) tea.Cmd {
 			New(
 				l,
 				"Are you sure you want to exit?",
-				func() tea.Cmd { return tea.Quit },
+				tea.Quit,
 				false,
 			),
 			opts...,
@@ -62,7 +62,7 @@ func ConfirmCmd(
 			New(
 				l,
 				message,
-				func() tea.Cmd { return confirm },
+				confirm,
 				defaultYes,
 			),
 			opts...,

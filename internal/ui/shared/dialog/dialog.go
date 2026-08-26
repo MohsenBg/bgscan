@@ -3,6 +3,7 @@ package dialog
 import (
 	ui "bgscan/internal/ui/shared/ui"
 
+	tea "charm.land/bubbletea/v2"
 	bubbleTeaOverlay "github.com/rmhubbert/bubbletea-overlay"
 )
 
@@ -26,6 +27,8 @@ type OpenDialogMsg struct {
 
 	XOffset int
 	YOffset int
+
+	OnClose tea.Cmd
 }
 
 // OpenDialog builds an OpenDialogMsg. Position options override the default
@@ -62,5 +65,12 @@ func WithOffset(x, y int) DialogOption {
 	return func(m *OpenDialogMsg) {
 		m.XOffset = x
 		m.YOffset = y
+	}
+}
+
+// WithOnClose sets the command to execute when the dialog closes.
+func WithOnClose(cmd tea.Cmd) DialogOption {
+	return func(m *OpenDialogMsg) {
+		m.OnClose = cmd
 	}
 }

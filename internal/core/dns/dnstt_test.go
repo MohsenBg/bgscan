@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	vaydns "github.com/net2share/vaydns/client"
@@ -538,5 +539,48 @@ func TestNewDNSTTResolverInvalidFingerprint(t *testing.T) {
 		t.Fatal(
 			"newDNSTTResolver() expected fingerprint error",
 		)
+	}
+}
+
+func TestDNSTTServiceEditConfigUpdatesExisting(t *testing.T) {
+	dir := t.TempDir()
+
+	service := NewDNSTTService(
+		WithDNSTTDir(dir),
+	)
+
+	if err := service.SaveConfig(validDNSTTConfig(), "my-tunnel"); err != nil {
+		t.Fatalf("SaveConfig() error = %v", err)
+	}
+
+	updated := validDNSTTConfig()
+	updated.Domain = "updated.example.com"
+
+	if err := service.EditConfig(updated, "my-tunnel"); err != nil {
+		t.Fatalf("EditConfig() error = %v", err)
+	}
+
+	got, err := service.LoadConfig("my-tunnel")
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+
+	if got.Domain != "updated.example.com" {
+		t.Fatalf("Domain = %q, want %q", got.Domain, "updated.example.com")
+	}
+}
+
+func TestDNSTTServiceEditConfigMissingConfigReturnsError(t *testing.T) {
+	service := NewDNSTTService(
+		WithDNSTTDir(t.TempDir()),
+	)
+
+	err := service.EditConfig(validDNSTTConfig(), "does-not-exist")
+	if err == nil {
+		t.Fatal("EditConfig() error = nil, want error")
+	}
+
+	if !strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("EditConfig() error = %q, want does not exist", err)
 	}
 }

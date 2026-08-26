@@ -33,6 +33,11 @@ type mockDNSTTService struct {
 	loadFunc func(name string) (dns.DNSTTConfig, error)
 }
 
+// EditConfig implements [dns.DNSTTService].
+func (m *mockDNSTTService) EditConfig(config dns.DNSTTConfig, originalName string) error {
+	return nil
+}
+
 func (m *mockDNSTTService) SaveConfig(cfg dns.DNSTTConfig, name string) error {
 	return nil
 }
@@ -71,6 +76,11 @@ type mockSlipstreamService struct {
 	loadFunc func(name string) (dns.SlipstreamConfig, error)
 }
 
+// EditConfig implements [dns.SlipstreamService].
+func (m *mockSlipstreamService) EditConfig(config dns.SlipstreamConfig, originalName string) error {
+	return nil
+}
+
 func (m *mockSlipstreamService) SaveConfig(cfg dns.SlipstreamConfig, name string) error {
 	return nil
 }
@@ -104,6 +114,11 @@ func (m *mockSlipstreamService) RunTunnel(ctx context.Context, cfg dns.Slipstrea
 // mockVayDNSService implements dns.VayDNSService.
 type mockVayDNSService struct {
 	loadFunc func(name string) (dns.VayDNSConfig, error)
+}
+
+// EditConfig implements [dns.VayDNSService].
+func (m *mockVayDNSService) EditConfig(config dns.VayDNSConfig, originalName string) error {
+	return nil
 }
 
 func (m *mockVayDNSService) SaveConfig(cfg dns.VayDNSConfig, name string) error {

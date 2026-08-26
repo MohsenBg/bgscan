@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"bgscan/internal/core/fileutil"
+	"bgscan/internal/core/netutil"
 	"bgscan/internal/core/process"
 )
 
@@ -55,7 +56,15 @@ type SlipstreamConfigFile struct {
 // Domain is deployment-specific and must be provided by the user.
 func DefaultSlipstreamConfig() SlipstreamConfig {
 	return SlipstreamConfig{
+		Domain:       "",
 		ResolverPort: 53,
+		CertPath:     "",
+		ProxyPort:    1080,
+		ProxyType:    ResolverProxySOCKS,
+		AuthMethod:   AuthNone,
+		Username:     "",
+		Password:     "",
+		PrivateKey:   "",
 	}
 }
 
@@ -64,8 +73,8 @@ func (c SlipstreamConfig) Validate() map[string]error {
 	errs := make(map[string]error)
 
 	domain := strings.TrimSpace(c.Domain)
-	if err := validateDomain(domain); err != nil {
-		errs["domain"] = fmt.Errorf("domain is invalid: %w", err)
+	if err := netutil.ValidateDomain(domain); err != nil {
+		errs["domain"] = err
 	}
 
 	if c.ResolverPort == 0 {
@@ -74,12 +83,52 @@ func (c SlipstreamConfig) Validate() map[string]error {
 		)
 	}
 
+	if c.ProxyType != "" {
+		if c.ProxyPort == 0 {
+			errs["proxy_port"] = fmt.Errorf(
+				"proxy port is required when proxy is enabled",
+			)
+		}
+
+		switch c.ProxyType {
+		case ResolverProxySSH:
+			if c.AuthMethod == AuthNone {
+				errs["auth_method"] = fmt.Errorf("authentication is required for SSH proxy")
+			}
+		case ResolverProxySOCKS:
+			if c.AuthMethod == AuthKey {
+				errs["auth_method"] = fmt.Errorf("key auth is not supported for SOCKS proxy")
+			}
+		default:
+			errs["proxy_type"] = fmt.Errorf("proxy type must be socks or ssh")
+		}
+	}
+
+	if c.AuthMethod == AuthPassword {
+		if strings.TrimSpace(c.Username) == "" {
+			errs["username"] = fmt.Errorf("username is required for password auth")
+		}
+		if strings.TrimSpace(c.Password) == "" {
+			errs["password"] = fmt.Errorf("password is required for password auth")
+		}
+	}
+
+	if c.AuthMethod == AuthKey {
+		if strings.TrimSpace(c.Username) == "" {
+			errs["username"] = fmt.Errorf("username is required for key auth")
+		}
+		if err := validatePrivateKey(c.PrivateKey); err != nil {
+			errs["private_key"] = err
+		}
+	}
+
 	return errs
 }
 
 // SlipstreamService manages Slipstream configurations and tunnels.
 type SlipstreamService interface {
 	SaveConfig(config SlipstreamConfig, name string) error
+	EditConfig(config SlipstreamConfig, originalName string) error
 	LoadConfig(name string) (SlipstreamConfig, error)
 	GetAllConfigFiles() ([]SlipstreamConfigFile, error)
 	ValidateAllConfigs() ([]ConfigValidationResult, error)
@@ -174,12 +223,19 @@ func getSlipstreamDir() string {
 }
 
 // SaveConfig saves a Slipstream configuration to disk.
+// It returns an error if a config with the given name already exists.
 func (s *slipstreamService) SaveConfig(
 	config SlipstreamConfig,
 	name string,
 ) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("config name is required")
+	}
+
+	path := s.configPath(name)
+
+	if fileutil.CheckFileExists(path) {
+		return fmt.Errorf("config %q already exists", name)
 	}
 
 	if errs := config.Validate(); len(errs) > 0 {
@@ -189,12 +245,40 @@ func (s *slipstreamService) SaveConfig(
 		)
 	}
 
-	path := s.configPath(name)
-
 	if err := fileutil.WriteTOMLFile(path, config); err != nil {
 		return fmt.Errorf(
 			"save Slipstream config %q: %w",
 			name,
+			err,
+		)
+	}
+
+	return nil
+}
+
+// EditConfig updates an existing Slipstream configuration identified by originalName.
+func (s *slipstreamService) EditConfig(config SlipstreamConfig, originalName string) error {
+	if strings.TrimSpace(originalName) == "" {
+		return fmt.Errorf("original config name is required")
+	}
+
+	path := s.configPath(originalName)
+
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("config %q does not exist", originalName)
+	}
+
+	if errs := config.Validate(); len(errs) > 0 {
+		return fmt.Errorf(
+			"invalid Slipstream config: %v",
+			errs,
+		)
+	}
+
+	if err := fileutil.WriteTOMLFile(path, config); err != nil {
+		return fmt.Errorf(
+			"edit Slipstream config %q: %w",
+			originalName,
 			err,
 		)
 	}

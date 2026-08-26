@@ -354,6 +354,56 @@ func TestSaveConfigCreatesExpectedFile(t *testing.T) {
 	}
 }
 
+func TestEditConfigUpdatesExisting(t *testing.T) {
+	dir := t.TempDir()
+
+	service := NewVayDNSService(
+		WithVayDNSDir(dir),
+	)
+
+	config := validEditableVayDNSConfig()
+	if err := service.SaveConfig(config, "my-tunnel"); err != nil {
+		t.Fatalf("SaveConfig() error = %v", err)
+	}
+
+	updated := config
+	updated.Domain = "updated.example.com"
+
+	if err := service.EditConfig(updated, "my-tunnel"); err != nil {
+		t.Fatalf("EditConfig() error = %v", err)
+	}
+
+	got, err := service.LoadConfig("my-tunnel")
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+
+	if got.Domain != "updated.example.com" {
+		t.Fatalf("Domain = %q, want %q", got.Domain, "updated.example.com")
+	}
+}
+
+func TestEditConfigMissingConfigReturnsError(t *testing.T) {
+	service := NewVayDNSService(
+		WithVayDNSDir(t.TempDir()),
+	)
+
+	err := service.EditConfig(validEditableVayDNSConfig(), "does-not-exist")
+	if err == nil {
+		t.Fatal("EditConfig() error = nil, want error")
+	}
+
+	if !strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("EditConfig() error = %q, want does not exist", err)
+	}
+}
+
+func validEditableVayDNSConfig() VayDNSConfig {
+	config := validVayDNSConfig()
+	config.PubKey = "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748"
+	return config
+}
+
 func TestGetAllConfigFiles(t *testing.T) {
 	dir := t.TempDir()
 
@@ -623,5 +673,124 @@ func TestParseClientHelloIDError(t *testing.T) {
 			err,
 			fingerprint,
 		)
+	}
+}
+
+func TestRenameConfig(t *testing.T) {
+	dir := t.TempDir()
+
+	service := NewVayDNSService(
+		WithVayDNSDir(dir),
+	)
+
+	if err := service.SaveConfig(validEditableVayDNSConfig(), "old-name"); err != nil {
+		t.Fatalf("SaveConfig() error = %v", err)
+	}
+
+	if err := service.RenameConfig("old-name", "new-name"); err != nil {
+		t.Fatalf("RenameConfig() error = %v", err)
+	}
+
+	if _, err := service.LoadConfig("new-name"); err != nil {
+		t.Fatalf("LoadConfig(new-name) error = %v", err)
+	}
+
+	if _, err := service.LoadConfig("old-name"); err == nil {
+		t.Fatal("LoadConfig(old-name) expected error after rename")
+	}
+}
+
+func TestEditConfigThenRename(t *testing.T) {
+	dir := t.TempDir()
+
+	service := NewVayDNSService(
+		WithVayDNSDir(dir),
+	)
+
+	if err := service.SaveConfig(validEditableVayDNSConfig(), "my-tunnel"); err != nil {
+		t.Fatalf("SaveConfig() error = %v", err)
+	}
+
+	updated := validEditableVayDNSConfig()
+	updated.Domain = "updated.example.com"
+
+	if err := service.EditConfig(updated, "my-tunnel"); err != nil {
+		t.Fatalf("EditConfig() error = %v", err)
+	}
+
+	if err := service.RenameConfig("my-tunnel", "renamed-tunnel"); err != nil {
+		t.Fatalf("RenameConfig() error = %v", err)
+	}
+
+	got, err := service.LoadConfig("renamed-tunnel")
+	if err != nil {
+		t.Fatalf("LoadConfig(renamed-tunnel) error = %v", err)
+	}
+
+	if got.Domain != "updated.example.com" {
+		t.Fatalf("Domain = %q, want %q", got.Domain, "updated.example.com")
+	}
+}
+
+func TestRenameConfigDestinationAlreadyExists(t *testing.T) {
+	dir := t.TempDir()
+
+	service := NewVayDNSService(
+		WithVayDNSDir(dir),
+	)
+
+	config := validEditableVayDNSConfig()
+
+	if err := service.SaveConfig(config, "a"); err != nil {
+		t.Fatalf("SaveConfig(a) error = %v", err)
+	}
+
+	if err := service.SaveConfig(config, "b"); err != nil {
+		t.Fatalf("SaveConfig(b) error = %v", err)
+	}
+
+	err := service.RenameConfig("a", "b")
+	if err == nil {
+		t.Fatal("RenameConfig() expected error for existing destination")
+	}
+
+	if !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("RenameConfig() error = %q, want already exists", err)
+	}
+}
+
+func TestValidatePrivateKey(t *testing.T) {
+	if err := validatePrivateKey(""); err == nil {
+		t.Fatal("validatePrivateKey() error = nil, want error for empty key")
+	}
+
+	if err := validatePrivateKey("not a valid key"); err == nil {
+		t.Fatal("validatePrivateKey() error = nil, want error for invalid key")
+	}
+}
+
+func TestVayDNSClientIDSizeRange(t *testing.T) {
+	config := validVayDNSConfig()
+	config.PubKey = "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748"
+
+	config.ClientIDSize = 0
+	errs := config.Validate()
+	if _, ok := errs["client_id_size"]; !ok {
+		t.Fatal("client id size 0 should be invalid (range 1-8)")
+	}
+
+	config.ClientIDSize = 1
+	if _, ok := config.Validate()["client_id_size"]; ok {
+		t.Fatal("client id size 1 should be valid")
+	}
+
+	config.ClientIDSize = 8
+	if _, ok := config.Validate()["client_id_size"]; ok {
+		t.Fatal("client id size 8 should be valid")
+	}
+
+	config.ClientIDSize = 9
+	if _, ok := config.Validate()["client_id_size"]; !ok {
+		t.Fatal("client id size 9 should be invalid (range 1-8)")
 	}
 }

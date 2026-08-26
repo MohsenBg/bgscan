@@ -96,6 +96,8 @@ func withResolver(base ResolverConfig, workers, tries int, timeout time.Duration
 func tunnelBase() DNSTunneling {
 	return DNSTunneling{
 		CheckDNSResolver: true,
+		OutputPrefix:     "dns_tun_",
+		AdaptiveResolver: true,
 	}
 }
 
@@ -104,7 +106,6 @@ func withTunnel(base DNSTunneling, workers, tries int, timeout time.Duration) DN
 	base.Workers = workers
 	base.Tries = tries
 	base.Timeout = NewDurationMS(timeout)
-	base.OutputPrefix = "dns_tun_"
 	return base
 }
 

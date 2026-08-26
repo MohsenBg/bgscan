@@ -273,6 +273,10 @@ func (s *SlipstreamProbe) dialSOCKS(proxyAddr string) (func(context.Context, str
 		Password: s.config.Password,
 	}
 
+	if s.config.AuthMethod == dns.AuthNone {
+		socksConfig.User = ""
+	}
+
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
 		conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", proxyAddr)
 		if err != nil {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -711,4 +712,41 @@ func resolvedSlipstreamDir(t *testing.T) string {
 	}
 
 	return dir
+}
+
+func TestSlipstreamEditConfigUpdatesExisting(t *testing.T) {
+	service := newTestSlipstreamService(t, &captureStarter{})
+
+	if err := service.SaveConfig(validSlipstreamConfig(), "my-tunnel"); err != nil {
+		t.Fatalf("SaveConfig() error = %v", err)
+	}
+
+	updated := validSlipstreamConfig()
+	updated.Domain = "updated.example.com"
+
+	if err := service.EditConfig(updated, "my-tunnel"); err != nil {
+		t.Fatalf("EditConfig() error = %v", err)
+	}
+
+	got, err := service.LoadConfig("my-tunnel")
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+
+	if got.Domain != "updated.example.com" {
+		t.Fatalf("Domain = %q, want %q", got.Domain, "updated.example.com")
+	}
+}
+
+func TestSlipstreamEditConfigMissingConfigReturnsError(t *testing.T) {
+	service := newTestSlipstreamService(t, &captureStarter{})
+
+	err := service.EditConfig(validSlipstreamConfig(), "does-not-exist")
+	if err == nil {
+		t.Fatal("EditConfig() error = nil, want error")
+	}
+
+	if !strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("EditConfig() error = %q, want does not exist", err)
+	}
 }

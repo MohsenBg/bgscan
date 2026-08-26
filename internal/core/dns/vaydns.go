@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"bgscan/internal/core/fileutil"
+	"bgscan/internal/core/netutil"
 
 	vaydns "github.com/net2share/vaydns/client"
-	"golang.org/x/net/idna"
 )
 
 const vaydnsDir = "assets/dns-tunneling/vaydns/"
@@ -57,16 +57,24 @@ type VayDNSConfigFile struct {
 // Domain and PubKey must be provided for a usable configuration.
 func DefaultVayDNSConfig() VayDNSConfig {
 	return VayDNSConfig{
+		Domain:       "",
+		PubKey:       "",
 		ClientIDSize: 2,
 		MaxQnameLen:  101,
-		MaxNumLabels: 0, // 0 means unlimited.
-		MTU:          0,
+		MaxNumLabels: 0, // 0 means auto.
+		MTU:          0, // 0 means auto
 		RPS:          0, // 0 means unlimited.
 		RecordType:   TypeTXT,
 
-		ResolverType: ResolverType(vaydns.ResolverTypeUDP),
+		ResolverType: ResolverTypeUDP,
 		ResolverPort: 53,
-		Fingerprint:  "chrome",
+		Fingerprint:  "Chrome",
+
+		ProxyType:  ResolverProxySOCKS,
+		AuthMethod: AuthNone,
+		Username:   "",
+		Password:   "",
+		PrivateKey: "",
 	}
 }
 
@@ -75,19 +83,16 @@ func DefaultVayDNSConfig() VayDNSConfig {
 func (c VayDNSConfig) Validate() map[string]error {
 	errs := make(map[string]error)
 
-	domain := strings.TrimSpace(c.Domain)
-	if domain == "" {
-		errs["domain"] = fmt.Errorf("domain is required")
-	} else if _, err := idna.ToASCII(domain); err != nil {
-		errs["domain"] = fmt.Errorf("domain is invalid: %w", err)
+	if err := netutil.ValidateDomain(c.Domain); err != nil {
+		errs["domain"] = err
 	}
 
-	if strings.TrimSpace(c.PubKey) == "" {
-		errs["pub_key"] = fmt.Errorf("public key is required")
+	if err := validatePubKey(c.PubKey); err != nil {
+		errs["pub_key"] = err
 	}
 
-	if c.ClientIDSize > 8 {
-		errs["client_id_size"] = fmt.Errorf("must be between 0 and 8")
+	if c.ClientIDSize < 1 || c.ClientIDSize > 8 {
+		errs["client_id_size"] = fmt.Errorf("must be between 1 and 8")
 	}
 
 	if c.MaxQnameLen > 253 {
@@ -125,12 +130,50 @@ func (c VayDNSConfig) Validate() map[string]error {
 		errs["fingerprint"] = fmt.Errorf("invalid TLS fingerprint: %w", err)
 	}
 
+	if c.ProxyType != "" {
+		if c.ProxyPort == 0 {
+			errs["proxy_port"] = fmt.Errorf("proxy port must be greater than zero")
+		}
+
+		switch c.ProxyType {
+		case ResolverProxySSH:
+			if c.AuthMethod == AuthNone {
+				errs["auth_method"] = fmt.Errorf("authentication is required for SSH proxy")
+			}
+		case ResolverProxySOCKS:
+			if c.AuthMethod == AuthKey {
+				errs["auth_method"] = fmt.Errorf("key auth is not supported for SOCKS proxy")
+			}
+		default:
+			errs["proxy_type"] = fmt.Errorf("proxy type must be socks or ssh")
+		}
+	}
+
+	if c.AuthMethod == AuthPassword {
+		if strings.TrimSpace(c.Username) == "" {
+			errs["username"] = fmt.Errorf("username is required for password auth")
+		}
+		if strings.TrimSpace(c.Password) == "" {
+			errs["password"] = fmt.Errorf("password is required for password auth")
+		}
+	}
+
+	if c.AuthMethod == AuthKey {
+		if strings.TrimSpace(c.Username) == "" {
+			errs["username"] = fmt.Errorf("username is required for key auth")
+		}
+		if err := validatePrivateKey(c.PrivateKey); err != nil {
+			errs["private_key"] = err
+		}
+	}
+
 	return errs
 }
 
 // VayDNSService manages VayDNS configurations and tunnels.
 type VayDNSService interface {
 	SaveConfig(config VayDNSConfig, name string) error
+	EditConfig(config VayDNSConfig, originalName string) error
 	LoadConfig(name string) (VayDNSConfig, error)
 	GetAllConfigFiles() ([]VayDNSConfigFile, error)
 	ValidateAllConfigs() ([]ConfigValidationResult, error)
@@ -176,17 +219,47 @@ func getVayDNSDir() string {
 }
 
 // SaveConfig validates and saves a VayDNS configuration to disk.
+// It returns an error if a config with the given name already exists.
 func (s *vayDNSService) SaveConfig(config VayDNSConfig, name string) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("config name is required")
+	}
+
+	path := s.configPath(name)
+
+	if fileutil.CheckFileExists(path) {
+		return fmt.Errorf("config %q already exists", name)
 	}
 
 	if errs := config.Validate(); len(errs) > 0 {
 		return fmt.Errorf("invalid VayDNS config: %v", errs)
 	}
 
-	if err := fileutil.WriteTOMLFile(s.configPath(name), config); err != nil {
+	if err := fileutil.WriteTOMLFile(path, config); err != nil {
 		return fmt.Errorf("save VayDNS config %q: %w", name, err)
+	}
+
+	return nil
+}
+
+// EditConfig updates an existing VayDNS configuration identified by originalName.
+func (s *vayDNSService) EditConfig(config VayDNSConfig, originalName string) error {
+	if strings.TrimSpace(originalName) == "" {
+		return fmt.Errorf("original config name is required")
+	}
+
+	path := s.configPath(originalName)
+
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("config %q does not exist", originalName)
+	}
+
+	if errs := config.Validate(); len(errs) > 0 {
+		return fmt.Errorf("invalid VayDNS config: %v", errs)
+	}
+
+	if err := fileutil.WriteTOMLFile(path, config); err != nil {
+		return fmt.Errorf("edit VayDNS config %q: %w", originalName, err)
 	}
 
 	return nil

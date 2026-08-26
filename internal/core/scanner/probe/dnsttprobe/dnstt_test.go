@@ -21,6 +21,11 @@ type fakeDNSTTService struct {
 	gotResolver netip.Addr
 }
 
+// EditConfig implements [dns.DNSTTService].
+func (f *fakeDNSTTService) EditConfig(config dns.DNSTTConfig, originalName string) error {
+	return nil
+}
+
 // ValidateAllConfigs implements [dns.DNSTTService].
 func (f *fakeDNSTTService) ValidateAllConfigs() ([]dns.ConfigValidationResult, error) {
 	return nil, nil

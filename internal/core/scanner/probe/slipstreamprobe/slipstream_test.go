@@ -74,6 +74,11 @@ type fakeSlipstreamService struct {
 	runListenPort uint16
 }
 
+// EditConfig implements [dns.SlipstreamService].
+func (s *fakeSlipstreamService) EditConfig(config dns.SlipstreamConfig, originalName string) error {
+	return nil
+}
+
 func (s *fakeSlipstreamService) ValidateAllConfigs() ([]dns.ConfigValidationResult, error) {
 	return nil, nil
 }

@@ -14,7 +14,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("create temp dir: %v", err)
 	}
-	defer os.RemoveAll(dir)
+
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
 
 	if err := logger.InitCoreToDir(filepath.Join(dir, "logs")); err != nil {
 		log.Fatalf("core logger initialization failed: %v", err)

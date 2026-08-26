@@ -1,14 +1,16 @@
 package dns
 
 import (
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
 
+	"golang.org/x/crypto/ssh"
+
 	vaydns "github.com/net2share/vaydns/client"
 	utls "github.com/refraction-networking/utls"
-	"golang.org/x/net/idna"
 )
 
 // parseClientHelloID resolves a case-insensitive TLS fingerprint label.
@@ -27,50 +29,34 @@ func parseClientHelloID(fingerprint string) (utls.ClientHelloID, error) {
 	)
 }
 
-// validateDomain validates a domain name: non-empty, valid IDNA conversion,
-// no leading/trailing dots, no empty labels, valid label syntax and length.
-func validateDomain(domain string) error {
-	domain = strings.TrimSpace(domain)
-	if domain == "" {
-		return fmt.Errorf("domain is required")
+// validatePubKey validates a DNSTT/VayDNS public key:
+// exactly 64 hexadecimal characters.
+func validatePubKey(pubKey string) error {
+	pubKey = strings.TrimSpace(pubKey)
+	if pubKey == "" {
+		return fmt.Errorf("public key is required")
 	}
 
-	ascii, err := idna.Lookup.ToASCII(domain)
-	if err != nil {
-		return fmt.Errorf("domain is invalid: %w", err)
+	if len(pubKey) != 64 {
+		return fmt.Errorf("public key must be 64 hexadecimal characters")
 	}
 
-	if strings.HasPrefix(ascii, ".") ||
-		strings.HasSuffix(ascii, ".") ||
-		strings.Contains(ascii, "..") {
-		return fmt.Errorf("domain is invalid")
+	if _, err := hex.DecodeString(pubKey); err != nil {
+		return fmt.Errorf("public key must be hexadecimal")
 	}
 
-	labels := strings.Split(ascii, ".")
-	if len(labels) < 2 {
-		return fmt.Errorf("domain must contain at least two labels")
+	return nil
+}
+
+// validatePrivateKey validates an SSH private key (PEM-encoded).
+func validatePrivateKey(privateKey string) error {
+	pemBlock := strings.TrimSpace(privateKey)
+	if pemBlock == "" {
+		return fmt.Errorf("private key is required")
 	}
 
-	for _, label := range labels {
-		if len(label) == 0 || len(label) > 63 {
-			return fmt.Errorf("domain is invalid")
-		}
-		if label[0] == '-' || label[len(label)-1] == '-' {
-			return fmt.Errorf("domain is invalid")
-		}
-		for _, r := range label {
-			if (r >= 'a' && r <= 'z') ||
-				(r >= 'A' && r <= 'Z') ||
-				(r >= '0' && r <= '9') ||
-				r == '-' {
-				continue
-			}
-			return fmt.Errorf("domain is invalid")
-		}
-	}
-
-	if len(ascii) > 253 {
-		return fmt.Errorf("domain is invalid")
+	if _, err := ssh.ParsePrivateKey([]byte(pemBlock)); err != nil {
+		return fmt.Errorf("invalid SSH private key: %w", err)
 	}
 
 	return nil

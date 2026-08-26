@@ -204,6 +204,10 @@ func (d *DNSTTProbe) dialSOCKS(tunnel net.Conn) (func(context.Context, string, s
 		User:     d.cfg.Username,
 	}
 
+	if d.cfg.AuthMethod == dns.AuthNone {
+		socksConfig.User = ""
+	}
+
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err

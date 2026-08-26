@@ -162,3 +162,88 @@ func IsPortAvailable(port int) bool {
 	_ = ln.Close()
 	return true
 }
+
+// validateDomain validates a domain name: non-empty, valid IDNA conversion,
+// no leading/trailing dots, no empty labels, valid label syntax and length.
+func ValidateDomain(domain string) error {
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return fmt.Errorf("domain is required")
+	}
+
+	ascii, err := idna.Lookup.ToASCII(domain)
+	if err != nil {
+		return fmt.Errorf("invalid domain %q: %v", domain, err)
+	}
+
+	if strings.HasPrefix(ascii, ".") {
+		return fmt.Errorf("invalid domain %q: domain cannot start with '.'", domain)
+	}
+
+	if strings.HasSuffix(ascii, ".") {
+		return fmt.Errorf("invalid domain %q: domain cannot end with '.'", domain)
+	}
+
+	if strings.Contains(ascii, "..") {
+		return fmt.Errorf("invalid domain %q: domain cannot contain consecutive dots", domain)
+	}
+
+	labels := strings.Split(ascii, ".")
+	if len(labels) < 2 {
+		return fmt.Errorf(
+			"invalid domain %q: domain must contain at least two labels (for example, example.com)",
+			domain,
+		)
+	}
+
+	for _, label := range labels {
+		if len(label) > 63 {
+			return fmt.Errorf(
+				"invalid domain %q: label %q is too long (maximum is 63 characters)",
+				domain,
+				label,
+			)
+		}
+
+		if label[0] == '-' {
+			return fmt.Errorf(
+				"invalid domain %q: label %q cannot start with '-'",
+				domain,
+				label,
+			)
+		}
+
+		if label[len(label)-1] == '-' {
+			return fmt.Errorf(
+				"invalid domain %q: label %q cannot end with '-'",
+				domain,
+				label,
+			)
+		}
+
+		for _, r := range label {
+			if (r >= 'a' && r <= 'z') ||
+				(r >= 'A' && r <= 'Z') ||
+				(r >= '0' && r <= '9') ||
+				r == '-' {
+				continue
+			}
+
+			return fmt.Errorf(
+				"invalid domain %q: label %q contains invalid character %q",
+				domain,
+				label,
+				string(r),
+			)
+		}
+	}
+
+	if len(ascii) > 253 {
+		return fmt.Errorf(
+			"invalid domain %q: domain is too long (maximum is 253 characters)",
+			domain,
+		)
+	}
+
+	return nil
+}

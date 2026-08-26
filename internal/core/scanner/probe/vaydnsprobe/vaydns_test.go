@@ -17,6 +17,11 @@ type mockVayDNSService struct {
 	newTunnelFn func(dns.VayDNSConfig, netip.Addr) (net.Conn, error)
 }
 
+// EditConfig implements [dns.VayDNSService].
+func (m *mockVayDNSService) EditConfig(config dns.VayDNSConfig, originalName string) error {
+	return nil
+}
+
 // ValidateAllConfigs implements [dns.VayDNSService].
 func (m *mockVayDNSService) ValidateAllConfigs() ([]dns.ConfigValidationResult, error) {
 	return nil, nil

@@ -79,6 +79,7 @@ const (
 	TypeTXT   RecordType = "TXT"
 	TypeSRV   RecordType = "SRV"
 	TypeNULL  RecordType = "NULL"
+	TypeCAA   RecordType = "CAA"
 )
 
 // IsValid reports whether the record type is supported.
@@ -91,7 +92,8 @@ func (r RecordType) IsValid() bool {
 		string(TypeMX),
 		string(TypeTXT),
 		string(TypeSRV),
-		string(TypeNULL):
+		string(TypeNULL),
+		string(TypeCAA):
 		return true
 	default:
 		return false
@@ -119,6 +121,8 @@ func ParseRecordType(s string) RecordType {
 		return TypeSRV
 	case string(TypeNULL):
 		return TypeNULL
+	case string(TypeCAA):
+		return TypeCAA
 	default:
 		return ""
 	}
@@ -142,6 +146,8 @@ func toMiekgDNS(record RecordType) uint16 {
 		return dns.TypeSRV
 	case string(TypeNULL):
 		return dns.TypeNULL
+	case string(TypeCAA):
+		return dns.TypeCAA
 	default:
 		return dns.TypeNone
 	}

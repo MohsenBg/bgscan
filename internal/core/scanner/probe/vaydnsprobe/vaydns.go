@@ -204,6 +204,10 @@ func (v *VayDNSProbe) dialSOCKS(tunnel net.Conn) (func(context.Context, string, 
 		User:     v.cfg.Username,
 	}
 
+	if v.cfg.AuthMethod == dns.AuthNone {
+		socksConfig.User = ""
+	}
+
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"bgscan/internal/core/fileutil"
+	"bgscan/internal/core/netutil"
 
 	vaydns "github.com/net2share/vaydns/client"
 )
@@ -67,10 +68,18 @@ func (c *dnsttConn) Close() error {
 // Domain and PubKey are deployment-specific and must be provided by the user.
 func DefaultDNSTTConfig() DNSTTConfig {
 	return DNSTTConfig{
+		Domain:       "",
+		ProxyPort:    1080,
 		ResolverType: ResolverType(vaydns.ResolverTypeUDP),
 		ResolverPort: 53,
-		Fingerprint:  "chrome",
+		Fingerprint:  "Chrome",
 		RPS:          0, // 0 = unlimited.
+		AuthMethod:   AuthNone,
+		ProxyType:    ResolverProxySOCKS,
+		PubKey:       "",
+		Username:     "",
+		Password:     "",
+		PrivateKey:   "",
 	}
 }
 
@@ -82,12 +91,12 @@ func (c DNSTTConfig) Validate() map[string]error {
 	errs := make(map[string]error)
 
 	domain := strings.TrimSpace(c.Domain)
-	if err := validateDomain(domain); err != nil {
+	if err := netutil.ValidateDomain(domain); err != nil {
 		errs["domain"] = err
 	}
 
-	if strings.TrimSpace(c.PubKey) == "" {
-		errs["pub_key"] = fmt.Errorf("public key is required")
+	if err := validatePubKey(c.PubKey); err != nil {
+		errs["pub_key"] = err
 	}
 
 	if !c.ResolverType.IsValid() {
@@ -112,12 +121,50 @@ func (c DNSTTConfig) Validate() map[string]error {
 		errs["fingerprint"] = fmt.Errorf("invalid TLS fingerprint: %w", err)
 	}
 
+	if c.ProxyType != "" {
+		if c.ProxyPort == 0 {
+			errs["proxy_port"] = fmt.Errorf("proxy port must be greater than zero")
+		}
+
+		switch c.ProxyType {
+		case ResolverProxySSH:
+			if c.AuthMethod == AuthNone {
+				errs["auth_method"] = fmt.Errorf("authentication is required for SSH proxy")
+			}
+		case ResolverProxySOCKS:
+			if c.AuthMethod == AuthKey {
+				errs["auth_method"] = fmt.Errorf("key auth is not supported for SOCKS proxy")
+			}
+		default:
+			errs["proxy_type"] = fmt.Errorf("proxy type must be socks or ssh")
+		}
+	}
+
+	if c.AuthMethod == AuthPassword {
+		if strings.TrimSpace(c.Username) == "" {
+			errs["username"] = fmt.Errorf("username is required for password auth")
+		}
+		if strings.TrimSpace(c.Password) == "" {
+			errs["password"] = fmt.Errorf("password is required for password auth")
+		}
+	}
+
+	if c.AuthMethod == AuthKey {
+		if strings.TrimSpace(c.Username) == "" {
+			errs["username"] = fmt.Errorf("username is required for key auth")
+		}
+		if err := validatePrivateKey(c.PrivateKey); err != nil {
+			errs["private_key"] = err
+		}
+	}
+
 	return errs
 }
 
 // DNSTTService manages DNSTT configurations and tunnels.
 type DNSTTService interface {
 	SaveConfig(config DNSTTConfig, name string) error
+	EditConfig(config DNSTTConfig, originalName string) error
 	LoadConfig(name string) (DNSTTConfig, error)
 	GetAllConfigFiles() ([]DNSTTConfigFile, error)
 	ValidateAllConfigs() ([]ConfigValidationResult, error)
@@ -166,6 +213,7 @@ func getDNSTTDir() string {
 }
 
 // SaveConfig saves a DNSTT configuration to disk.
+// It returns an error if a config with the given name already exists.
 func (s *dnsttService) SaveConfig(
 	config DNSTTConfig,
 	name string,
@@ -174,11 +222,15 @@ func (s *dnsttService) SaveConfig(
 		return fmt.Errorf("config name is required")
 	}
 
+	path := s.configPath(name)
+
+	if fileutil.CheckFileExists(path) {
+		return fmt.Errorf("config %q already exists", name)
+	}
+
 	if errs := config.Validate(); len(errs) > 0 {
 		return fmt.Errorf("invalid DNSTT config: %v", errs)
 	}
-
-	path := s.configPath(name)
 
 	if err := fileutil.WriteTOMLFile(path, config); err != nil {
 		return fmt.Errorf(
@@ -186,6 +238,29 @@ func (s *dnsttService) SaveConfig(
 			name,
 			err,
 		)
+	}
+
+	return nil
+}
+
+// EditConfig updates an existing DNSTT configuration identified by originalName.
+func (s *dnsttService) EditConfig(config DNSTTConfig, name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("original config name is required")
+	}
+
+	path := s.configPath(name)
+
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("config %q does not exist", name)
+	}
+
+	if errs := config.Validate(); len(errs) > 0 {
+		return fmt.Errorf("invalid DNSTT config: %v", errs)
+	}
+
+	if err := fileutil.WriteTOMLFile(path, config); err != nil {
+		return fmt.Errorf("edit DNSTT config %q: %w", name, err)
 	}
 
 	return nil

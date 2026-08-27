@@ -11,8 +11,8 @@ import (
 	"bgscan/internal/core/fileutil"
 )
 
-// AppVersion is the current application version.
-const AppVersion = "2.9.1"
+// AppVersion is the current application version fill by main app.
+var AppVersion = "dev"
 
 const (
 	settingsDir = "settings"

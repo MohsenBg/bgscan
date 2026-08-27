@@ -92,6 +92,24 @@ spinner() {
   tput cnorm 2>/dev/null || true
 }
 
+get_version() {
+  local binary="$1"
+
+  if [[ ! -x "$binary" ]]; then
+    echo "unknown"
+    return
+  fi
+
+  local version
+  version=$(timeout 1s "$binary" --version 2>/dev/null)
+
+  if [[ "$version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)?$ ]]; then
+    echo "$version"
+  else
+    echo "unknown"
+  fi
+}
+
 # ── detect platform ─────────────────────────────────────────
 detect_platform() {
   OS="$(uname -s)"

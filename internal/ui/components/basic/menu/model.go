@@ -228,6 +228,7 @@ func New(
 	m.List.SetShowStatusBar(false)
 	m.List.SetFilteringEnabled(false)
 	m.List.SetShowHelp(true)
+	m.List.DisableQuitKeybindings()
 
 	m.List.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{

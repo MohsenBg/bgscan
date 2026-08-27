@@ -1,8 +1,6 @@
 package logview
 
 import (
-	"strings"
-
 	"bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -24,8 +22,12 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		m.mu.Lock()
 
 		if m.needUpdate {
+			isEmpty := m.viewport.TotalLineCount() == 0
+			shouldGoToBottom := isEmpty || m.viewport.AtBottom()
 			m.viewport.SetContent(m.renderContent())
-			m.viewport.GotoBottom()
+			if shouldGoToBottom {
+				m.viewport.GotoBottom()
+			}
 			m.needUpdate = false
 		}
 
@@ -52,7 +54,9 @@ func (m *Model) renderContent() string {
 
 	width := max(0, m.viewport.Width()-5)
 
+	content := formatLogLines(m.messages)
+
 	return lipgloss.NewStyle().
 		Width(width).
-		Render(strings.Join(m.messages, "\n"))
+		Render(content)
 }

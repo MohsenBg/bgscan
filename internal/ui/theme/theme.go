@@ -50,8 +50,9 @@ type Theme struct {
 	Border       color.Color
 	BorderActive color.Color
 
-	Text  color.Color
-	Muted color.Color
+	Text      color.Color
+	Muted     color.Color
+	Timestamp color.Color
 
 	Info    color.Color
 	Error   color.Color
@@ -73,6 +74,7 @@ var Dark = Theme{
 	BorderActive:  lipgloss.Color("#5F5FD7"),
 	Text:          lipgloss.Color("#D0D0D0"),
 	Muted:         lipgloss.Color("#626262"),
+	Timestamp:     lipgloss.Color("#CE9178"),
 	Error:         lipgloss.Color("#FF0000"),
 	Success:       lipgloss.Color("#00D787"),
 	Info:          lipgloss.Color("#00AFFF"),
@@ -91,10 +93,13 @@ var Light = Theme{
 	BorderActive:  lipgloss.Color("#5F5FD7"),
 	Text:          lipgloss.Color("#1C1C1C"),
 	Muted:         lipgloss.Color("#949494"),
+	Timestamp:     lipgloss.Color("#1E3A8A"),
 	Info:          lipgloss.Color("#005FFF"),
 	Error:         lipgloss.Color("#D70000"),
 	Success:       lipgloss.Color("#008700"),
 	Orange:        lipgloss.Color("#FF8700"),
+	Yellow:        lipgloss.Color("#FFD700"),
+	Purple:        lipgloss.Color("#5F5FD7"),
 	ProgressStart: lipgloss.Color("#6D28D9"),
 	ProgressEnd:   lipgloss.Color("#0369A1"),
 }

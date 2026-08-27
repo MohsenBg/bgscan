@@ -45,3 +45,15 @@ func helpKeyStyle() lipgloss.Style {
 		Foreground(theme.Current().Secondary).
 		Bold(true)
 }
+
+// ScrollBarStyle returns the style for the scroll bar track.
+func ScrollBarStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Align(lipgloss.Center, lipgloss.Center).
+		Foreground(theme.Current().Muted)
+}
+
+// ScrollBarThumbStyle returns the style for the scroll bar thumb.
+func ScrollBarThumbStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(theme.Current().Primary)
+}

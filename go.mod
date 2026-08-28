@@ -3,7 +3,7 @@ module bgscan
 go 1.27
 
 require (
-	charm.land/bubbles/v2 v2.2.0
+	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.0.9
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.6
@@ -15,7 +15,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/quic-go/quic-go v0.61.0
 	github.com/refraction-networking/utls v1.8.2
-	github.com/rmhubbert/bubbletea-overlay v0.6.8
+	github.com/rmhubbert/bubbletea-overlay v0.6.9
 	golang.org/x/crypto v0.55.0
 	golang.org/x/net v0.58.0
 	golang.org/x/time v0.15.0
@@ -23,7 +23,7 @@ require (
 )
 
 require (
-	github.com/andybalholm/brotli v1.2.2 // indirect
+	github.com/andybalholm/brotli v1.2.3 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/charmbracelet/bubbletea v1.3.10 // indirect

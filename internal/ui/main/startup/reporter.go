@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-const EnableReportDelay = true
+const EnableReportDelay = false
 
 const (
 	minReportDelay = 200 * time.Millisecond

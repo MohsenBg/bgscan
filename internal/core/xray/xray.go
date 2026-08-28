@@ -3,7 +3,10 @@ package xray
 import (
 	"fmt"
 	"net"
+	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"bgscan/internal/core/fileutil"
 )
@@ -85,4 +88,21 @@ func configDir() string {
 
 func templateDir() string {
 	return getAssetsPath("assets", "xray", "outbounds")
+}
+
+func RemoveTmpCfg() error {
+	dir := configDir()
+	err := fileutil.EnsureDir(dir)
+	if err != nil {
+		return err
+	}
+
+	_, err = fileutil.ListFiles(dir, func(name string, info os.FileInfo) bool {
+		if info.IsDir() || !strings.HasSuffix(strings.ToLower(name), ".json") {
+			return false
+		}
+		return os.Remove(path.Join(dir, name)) == nil
+	})
+
+	return err
 }

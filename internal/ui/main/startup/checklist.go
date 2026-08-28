@@ -164,16 +164,16 @@ func checkLoggerHealth(r *reporter) {
 
 func checkXrayHealth(r *reporter) {
 	r.info("Finding Xray binary...")
-	path, err := xray.FindXrayBinary()
+	binaryPath, err := xray.FindXrayBinary()
 	if err != nil {
 		r.binaryMissing("Xray", "xray")
 		r.errMsg("Binary lookup error", err)
 		return
 	}
-	r.successf("Xray found at: %s", path)
+	r.successf("Xray found at: %s", binaryPath)
 
 	r.info("Ensuring Xray binary is executable...")
-	if err := process.EnsureExecutable(path); err != nil {
+	if err := process.EnsureExecutable(binaryPath); err != nil {
 		r.errMsg("Failed to set executable bit for Xray binary", err)
 		return
 	}
@@ -197,12 +197,21 @@ func checkXrayHealth(r *reporter) {
 
 	for _, outbound := range outbounds {
 		r.infof("Validating outbound: %s", outbound.Name)
+
 		if err := xray.ValidateOutbound(outbound.Name); err != nil {
 			r.errMsg("Outbound validation failed: "+outbound.Name, err)
 			continue
 		}
+
 		r.successf("%s OK", outbound.Name)
 	}
+
+	r.info("Cleaning up generated template configs...")
+	if err := xray.RemoveTmpCfg(); err != nil {
+		r.errMsg("Failed to clean up template configs", err)
+		return
+	}
+
 	r.success("Health check completed successfully")
 }
 

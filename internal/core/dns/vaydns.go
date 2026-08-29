@@ -37,12 +37,12 @@ type VayDNSConfig struct {
 	ResolverPort uint16
 	Fingerprint  string
 
-	ProxyType  ResolverProxyType
-	ProxyPort  uint16
-	AuthMethod AuthMethod
-	Username   string
-	Password     string
-	PrivateKey   string
+	ProxyType      ResolverProxyType
+	ProxyPort      uint16
+	AuthMethod     AuthMethod
+	Username       string
+	Password       string
+	PrivateKey     string
 	KnownHostsFile string
 }
 
@@ -71,9 +71,9 @@ func DefaultVayDNSConfig() VayDNSConfig {
 		ResolverPort: 53,
 		Fingerprint:  "Chrome",
 
-		ProxyType:  ResolverProxySOCKS,
-		AuthMethod: AuthNone,
-		Username:   "",
+		ProxyType:      ResolverProxySOCKS,
+		AuthMethod:     AuthNone,
+		Username:       "",
 		Password:       "",
 		PrivateKey:     "",
 		KnownHostsFile: "",

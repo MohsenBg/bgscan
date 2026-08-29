@@ -35,12 +35,12 @@ type SlipstreamConfig struct {
 	ResolverPort uint16
 	CertPath     string
 
-	ProxyType  ResolverProxyType
-	ProxyPort  uint16
-	AuthMethod AuthMethod
-	Username   string
-	Password     string
-	PrivateKey   string
+	ProxyType      ResolverProxyType
+	ProxyPort      uint16
+	AuthMethod     AuthMethod
+	Username       string
+	Password       string
+	PrivateKey     string
 	KnownHostsFile string
 }
 
@@ -57,13 +57,13 @@ type SlipstreamConfigFile struct {
 // Domain is deployment-specific and must be provided by the user.
 func DefaultSlipstreamConfig() SlipstreamConfig {
 	return SlipstreamConfig{
-		Domain:       "",
-		ResolverPort: 53,
-		CertPath:     "",
-		ProxyPort:    1080,
-		ProxyType:    ResolverProxySOCKS,
-		AuthMethod:   AuthNone,
-		Username:     "",
+		Domain:         "",
+		ResolverPort:   53,
+		CertPath:       "",
+		ProxyPort:      1080,
+		ProxyType:      ResolverProxySOCKS,
+		AuthMethod:     AuthNone,
+		Username:       "",
 		Password:       "",
 		PrivateKey:     "",
 		KnownHostsFile: "",

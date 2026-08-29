@@ -31,12 +31,13 @@ type DNSTTConfig struct {
 	Fingerprint  string
 	RPS          float64
 
-	ProxyType  ResolverProxyType
-	ProxyPort  uint16
-	AuthMethod AuthMethod
-	Username   string
-	Password   string
-	PrivateKey string
+	ProxyType      ResolverProxyType
+	ProxyPort      uint16
+	AuthMethod     AuthMethod
+	Username       string
+	Password       string
+	PrivateKey     string
+	KnownHostsFile string
 }
 
 type DNSTTConfigFile struct {
@@ -68,18 +69,19 @@ func (c *dnsttConn) Close() error {
 // Domain and PubKey are deployment-specific and must be provided by the user.
 func DefaultDNSTTConfig() DNSTTConfig {
 	return DNSTTConfig{
-		Domain:       "",
-		ProxyPort:    1080,
-		ResolverType: ResolverType(vaydns.ResolverTypeUDP),
-		ResolverPort: 53,
-		Fingerprint:  "Chrome",
-		RPS:          0, // 0 = unlimited.
-		AuthMethod:   AuthNone,
-		ProxyType:    ResolverProxySOCKS,
-		PubKey:       "",
-		Username:     "",
-		Password:     "",
-		PrivateKey:   "",
+		Domain:         "",
+		ProxyPort:      1080,
+		ResolverType:   ResolverType(vaydns.ResolverTypeUDP),
+		ResolverPort:   53,
+		Fingerprint:    "Chrome",
+		RPS:            0, // 0 = unlimited.
+		AuthMethod:     AuthNone,
+		ProxyType:      ResolverProxySOCKS,
+		PubKey:         "",
+		Username:       "",
+		Password:       "",
+		PrivateKey:     "",
+		KnownHostsFile: "",
 	}
 }
 
@@ -156,8 +158,12 @@ func (c DNSTTConfig) Validate() map[string]error {
 		if err := validatePrivateKey(c.PrivateKey); err != nil {
 			errs["private_key"] = err
 		}
+		if c.KnownHostsFile != "" {
+			if err := validateKnownHostsFile(c.KnownHostsFile); err != nil {
+				errs["known_hosts_file"] = err
+			}
+		}
 	}
-
 	return errs
 }
 

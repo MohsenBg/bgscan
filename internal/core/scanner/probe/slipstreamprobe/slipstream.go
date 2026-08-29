@@ -232,11 +232,12 @@ func (s *SlipstreamProbe) dialSSH(proxyAddr string) (func(context.Context, strin
 	}
 
 	auth := ssh.SSHConfig{
-		Password: s.config.Password,
-		User:     s.config.Username,
+		Password:       s.config.Password,
+		User:           s.config.Username,
+		KnownHostsFile: s.config.KnownHostsFile,
 	}
 	if s.config.AuthMethod == dns.AuthKey {
-		auth = ssh.SSHConfig{PrivateKey: s.config.PrivateKey}
+		auth = ssh.SSHConfig{PrivateKey: s.config.PrivateKey, KnownHostsFile: s.config.KnownHostsFile}
 	}
 
 	return func(ctx context.Context, network, address string) (net.Conn, error) {

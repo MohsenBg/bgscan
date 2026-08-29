@@ -39,8 +39,9 @@ type SlipstreamConfig struct {
 	ProxyPort  uint16
 	AuthMethod AuthMethod
 	Username   string
-	Password   string
-	PrivateKey string
+	Password     string
+	PrivateKey   string
+	KnownHostsFile string
 }
 
 type SlipstreamConfigFile struct {
@@ -63,8 +64,9 @@ func DefaultSlipstreamConfig() SlipstreamConfig {
 		ProxyType:    ResolverProxySOCKS,
 		AuthMethod:   AuthNone,
 		Username:     "",
-		Password:     "",
-		PrivateKey:   "",
+		Password:       "",
+		PrivateKey:     "",
+		KnownHostsFile: "",
 	}
 }
 
@@ -119,6 +121,11 @@ func (c SlipstreamConfig) Validate() map[string]error {
 		}
 		if err := validatePrivateKey(c.PrivateKey); err != nil {
 			errs["private_key"] = err
+		}
+		if c.KnownHostsFile != "" {
+			if err := validateKnownHostsFile(c.KnownHostsFile); err != nil {
+				errs["known_hosts_file"] = err
+			}
 		}
 	}
 

@@ -163,11 +163,12 @@ func (d *DNSTTProbe) dialSSH(ctx context.Context, tunnel net.Conn) (func(context
 	addr := net.JoinHostPort(d.cfg.Domain, strconv.Itoa(int(port)))
 
 	auth := ssh.SSHConfig{
-		Password: d.cfg.Password,
-		User:     d.cfg.Username,
+		Password:       d.cfg.Password,
+		User:           d.cfg.Username,
+		KnownHostsFile: d.cfg.KnownHostsFile,
 	}
 	if d.cfg.AuthMethod == dns.AuthKey {
-		auth = ssh.SSHConfig{PrivateKey: d.cfg.PrivateKey}
+		auth = ssh.SSHConfig{PrivateKey: d.cfg.PrivateKey, KnownHostsFile: d.cfg.KnownHostsFile}
 	}
 
 	type sshResult struct {

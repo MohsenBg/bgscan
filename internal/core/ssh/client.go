@@ -4,16 +4,21 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
+	"runtime"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 type Client = ssh.Client
 
 type SSHConfig struct {
-	User       string
-	Password   string
-	PrivateKey string
+	User           string
+	Password       string
+	PrivateKey     string
+	KnownHostsFile string
 }
 
 type SSHService interface {
@@ -43,10 +48,22 @@ func (s *sshService) Connect(
 	if err != nil {
 		return nil, err
 	}
+
+	var hostKeyCallback ssh.HostKeyCallback
+	if config.KnownHostsFile != "" {
+		var err error
+		hostKeyCallback, err = knownhosts.New(config.KnownHostsFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load known_hosts: %w", err)
+		}
+	} else {
+		hostKeyCallback = ssh.InsecureIgnoreHostKey()
+	}
+
 	clientConfig := &ssh.ClientConfig{
 		User:            config.User,
 		Auth:            auth,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCallback,
 	}
 
 	type result struct {
@@ -114,4 +131,21 @@ func (s *sshService) SSHDialContext(
 			return result.conn, result.err
 		}
 	}
+}
+
+func DefaultKnownHostsPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+
+	switch runtime.GOOS {
+	case "windows", "linux", "darwin":
+		path := filepath.Join(home, ".ssh", "known_hosts")
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return home
 }

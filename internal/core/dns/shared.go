@@ -3,6 +3,7 @@ package dns
 import (
 	"encoding/hex"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	vaydns "github.com/net2share/vaydns/client"
 	utls "github.com/refraction-networking/utls"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // parseClientHelloID resolves a case-insensitive TLS fingerprint label.
@@ -57,6 +59,27 @@ func validatePrivateKey(privateKey string) error {
 
 	if _, err := ssh.ParsePrivateKey([]byte(pemBlock)); err != nil {
 		return fmt.Errorf("invalid SSH private key: %w", err)
+	}
+
+	return nil
+}
+
+func validateKnownHostsFile(path string) error {
+	if path == "" {
+		return fmt.Errorf("known hosts file is not configured")
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("access known hosts file: %w", err)
+	}
+
+	if info.IsDir() {
+		return fmt.Errorf("known hosts path is a directory")
+	}
+
+	if _, err := knownhosts.New(path); err != nil {
+		return fmt.Errorf("invalid known hosts file: %w", err)
 	}
 
 	return nil

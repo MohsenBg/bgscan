@@ -3,4 +3,4 @@
 	url = https://github.com/alex-shpak/hugo-book.git
 [submodule "third_party/vaydns"]
 	path = third_party/vaydns
-	url = git@github.com:MohsenBg/vaydns.git
+	url = https://github.com/MohsenBg/vaydns.git

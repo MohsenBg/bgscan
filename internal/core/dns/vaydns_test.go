@@ -14,7 +14,7 @@ import (
 func validVayDNSConfig() VayDNSConfig {
 	return VayDNSConfig{
 		Domain:       "example.com",
-		PubKey:       "test-public-key",
+		PubKey:       "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748",
 		ClientIDSize: 2,
 		MaxQnameLen:  253,
 		MaxNumLabels: 0,
@@ -196,7 +196,7 @@ func TestSaveConfigAndLoadConfig(t *testing.T) {
 
 	want := validVayDNSConfig()
 	want.Domain = "example.com"
-	want.PubKey = "test-public-key"
+	want.PubKey = "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748"
 	want.ClientIDSize = 2
 	want.MaxQnameLen = 240
 	want.MaxNumLabels = 3

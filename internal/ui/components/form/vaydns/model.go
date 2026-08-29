@@ -229,7 +229,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		textinput.WithFocus(),
 		textinput.WithPlaceholder("0-253"),
 		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 16)
+			n, err := strconv.ParseUint(v, 10, 8)
 			if err != nil {
 				return err
 			}
@@ -242,7 +242,7 @@ func (m *Model) buildInspector() *inspector.Model {
 			return nil
 		}),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseUint(v, 10, 16)
+			n, _ := strconv.ParseUint(v, 10, 8)
 			cfg.MaxQnameLen = uint8(n)
 			return nil
 		}),
@@ -254,7 +254,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		textinput.WithPlaceholder("0-4, 0=auto"),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 16)
+			n, err := strconv.ParseUint(v, 10, 8)
 			if err != nil {
 				return err
 			}
@@ -267,7 +267,7 @@ func (m *Model) buildInspector() *inspector.Model {
 			return nil
 		}),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseUint(v, 10, 16)
+			n, _ := strconv.ParseUint(v, 10, 8)
 			cfg.MaxNumLabels = uint8(n)
 			return nil
 		}),

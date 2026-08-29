@@ -49,7 +49,7 @@ func (m *mockDNSTTService) LoadConfig(name string) (dns.DNSTTConfig, error) {
 	return dns.DNSTTConfig{
 		ResolverPort: 5353,
 		ResolverType: dns.ResolverTypeUDP,
-		PubKey:       "testpubkey",
+		PubKey:       "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748",
 		Domain:       "test.example",
 		Fingerprint:  "chrome",
 	}, nil
@@ -133,7 +133,8 @@ func (m *mockVayDNSService) LoadConfig(name string) (dns.VayDNSConfig, error) {
 		RecordType:   dns.TypeTXT,
 		ResolverPort: 5353,
 		ResolverType: dns.ResolverTypeUDP,
-		PubKey:       "testpubkey",
+		PubKey:       "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748",
+		ClientIDSize: 2,
 		Domain:       "test.example",
 		Fingerprint:  "chrome",
 	}, nil
@@ -1208,7 +1209,7 @@ func TestBuildDNSTTStage(t *testing.T) {
 			return dns.DNSTTConfig{
 				ResolverPort: 5353,
 				ResolverType: dns.ResolverTypeUDP,
-				PubKey:       "testpubkey",
+				PubKey:       "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748",
 				Domain:       "test.example",
 				Fingerprint:  "chrome",
 			}, nil
@@ -1319,7 +1320,8 @@ func TestBuildVayDNSStage(t *testing.T) {
 				RecordType:   dns.TypeTXT,
 				ResolverPort: 5353,
 				ResolverType: dns.ResolverTypeUDP,
-				PubKey:       "testpubkey",
+				PubKey:       "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748",
+				ClientIDSize: 2,
 				Domain:       "test.example",
 				Fingerprint:  "chrome",
 			}, nil

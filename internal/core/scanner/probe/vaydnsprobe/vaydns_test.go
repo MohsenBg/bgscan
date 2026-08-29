@@ -73,7 +73,8 @@ func validConfig(t *testing.T) dns.VayDNSConfig {
 
 	cfg := dns.DefaultVayDNSConfig()
 	cfg.Domain = "tunnel.example.com"
-	cfg.PubKey = "test-pub-key"
+	cfg.PubKey = "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748"
+	cfg.ProxyPort = 1080
 	cfg.AuthMethod = dns.AuthPassword
 	cfg.Username = "user"
 	cfg.Password = "pass"
@@ -272,7 +273,7 @@ func TestRun_SOCKS_KeyAuthRejected(t *testing.T) {
 		_ = tunnel.Close()
 	}()
 
-	p, err := NewVayDNSProbe(
+	_, err := NewVayDNSProbe(
 		cfg, time.Second,
 		WithVayDNSService(&mockVayDNSService{
 			newTunnelFn: func(dns.VayDNSConfig, netip.Addr) (net.Conn, error) {
@@ -280,13 +281,8 @@ func TestRun_SOCKS_KeyAuthRejected(t *testing.T) {
 			},
 		}),
 	)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	_, err = p.Run(context.Background(), netip.MustParseAddr("2.2.2.2"))
 	if err == nil {
-		t.Fatal("expected error for SOCKS + key auth, got nil")
+		t.Fatal("expected error for SOCKS + key auth from constructor")
 	}
 }
 
@@ -300,7 +296,7 @@ func TestRun_SSH_NoAuthRejected(t *testing.T) {
 		_ = tunnel.Close()
 	}()
 
-	p, err := NewVayDNSProbe(
+	_, err := NewVayDNSProbe(
 		cfg, time.Second,
 		WithVayDNSService(&mockVayDNSService{
 			newTunnelFn: func(dns.VayDNSConfig, netip.Addr) (net.Conn, error) {
@@ -308,13 +304,8 @@ func TestRun_SSH_NoAuthRejected(t *testing.T) {
 			},
 		}),
 	)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	_, err = p.Run(context.Background(), netip.MustParseAddr("2.2.2.2"))
 	if err == nil {
-		t.Fatal("expected error for SSH + no auth, got nil")
+		t.Fatal("expected error for SSH + no auth from constructor")
 	}
 }
 

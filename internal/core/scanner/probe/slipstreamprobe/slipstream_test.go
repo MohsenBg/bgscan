@@ -153,7 +153,7 @@ func validConfig() dns.SlipstreamConfig {
 		ResolverPort: 53,
 		CertPath:     "/certs/ca.pem",
 		ProxyType:    dns.ResolverProxySOCKS,
-		ProxyPort:    0,
+		ProxyPort:    1080,
 		AuthMethod:   dns.AuthPassword,
 		Username:     "user",
 		Password:     "pass",

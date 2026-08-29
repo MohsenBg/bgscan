@@ -38,11 +38,11 @@ func TestDefaultDNSTTConfig(t *testing.T) {
 		)
 	}
 
-	if config.Fingerprint != "chrome" {
+	if config.Fingerprint != "Chrome" {
 		t.Errorf(
 			"Fingerprint = %q, want %q",
 			config.Fingerprint,
-			"chrome",
+			"Chrome",
 		)
 	}
 

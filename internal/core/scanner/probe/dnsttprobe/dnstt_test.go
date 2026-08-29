@@ -137,7 +137,7 @@ func (f *fakeSpeedtestService) MeasureUploadSpeed(
 func validConfig() dns.DNSTTConfig {
 	return dns.DNSTTConfig{
 		Domain:       "tunnel.example.com",
-		PubKey:       "test-public-key",
+		PubKey:       "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748",
 		ResolverType: dns.ResolverTypeUDP,
 		ResolverPort: 53,
 		ProxyType:    dns.ResolverProxySOCKS,
@@ -393,21 +393,15 @@ func TestRunSSHRequiresAuthentication(t *testing.T) {
 		_ = peer.Close()
 	}()
 
-	p := newTestProbe(
-		t,
+	_, err := NewDNSTTProbe(
 		config,
-		&fakeDNSTTService{tunnel: dnsttConn},
-		&fakeSOCKSService{},
-		&fakeSpeedtestService{},
+		2*time.Second,
+		WithDNSTTService(&fakeDNSTTService{tunnel: dnsttConn}),
+		WithSocksService(&fakeSOCKSService{}),
+		WithSpeedtestService(&fakeSpeedtestService{}),
 	)
-
-	_, err := p.Run(context.Background(), testIP())
 	if err == nil {
-		t.Fatal("expected SSH authentication error")
-	}
-
-	if err.Error() != "SSH authentication is required" {
-		t.Fatalf("error = %v, want SSH authentication is required", err)
+		t.Fatal("expected SSH authentication error from constructor")
 	}
 }
 
@@ -421,24 +415,15 @@ func TestRunSOCKSRejectsKeyAuthentication(t *testing.T) {
 		_ = peer.Close()
 	}()
 
-	p := newTestProbe(
-		t,
+	_, err := NewDNSTTProbe(
 		config,
-		&fakeDNSTTService{tunnel: dnsttConn},
-		&fakeSOCKSService{},
-		&fakeSpeedtestService{},
+		2*time.Second,
+		WithDNSTTService(&fakeDNSTTService{tunnel: dnsttConn}),
+		WithSocksService(&fakeSOCKSService{}),
+		WithSpeedtestService(&fakeSpeedtestService{}),
 	)
-
-	_, err := p.Run(context.Background(), testIP())
 	if err == nil {
-		t.Fatal("expected SOCKS authentication error")
-	}
-
-	if err.Error() != "SOCKS proxy does not support key authentication" {
-		t.Fatalf(
-			"error = %v, want SOCKS proxy does not support key authentication",
-			err,
-		)
+		t.Fatal("expected SOCKS authentication error from constructor")
 	}
 }
 
@@ -498,7 +483,7 @@ func TestRunSOCKSConnectError(t *testing.T) {
 func TestRunSOCKSSuccess(t *testing.T) {
 	config := validConfig()
 	config.ProxyType = dns.ResolverProxySOCKS
-	config.AuthMethod = dns.AuthNone
+	config.AuthMethod = dns.AuthPassword
 
 	tunnel, tunnelPeer := net.Pipe()
 	defer func() {

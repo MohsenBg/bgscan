@@ -15,11 +15,12 @@
 #        dist/*.zip ONLY (no raw binaries kept)
 #
 # USAGE:
-#   ./release.sh <os> <arch> <project-dir>
+#   ./release.sh <os> <arch> <project-dir> <version>
 #
 #   os           Target OS (e.g. linux, macos, windows, android). Default: linux
 #   arch         Target architecture, or "all". Default: all
 #   project-dir  Path to project root. Default: current directory
+#   version      Release version tag embedded into the binaries. Default: dev
 #
 # IMPORTANT:
 #   - THIS SCRIPT IS CI ONLY
@@ -33,9 +34,9 @@ set -euo pipefail
 OS="${1:-linux}"
 ARCH="${2:-all}"
 PROJECT_DIR="$(cd "${3:-$PWD}" && pwd)"
+VERSION="${4:-dev}"
 DEST_DIR="$PROJECT_DIR/dist"
 ROOT_DIR="$PROJECT_DIR"
-PROJECT_DIR="$(cd "${3:-$PWD}" && pwd)"
 INSTALLER="$ROOT_DIR/scripts/install-builder.sh"
 BUILDER="$ROOT_DIR/bgscan-builder"
 SCRIPT_NAME="$(basename "$0")"
@@ -102,6 +103,7 @@ validate_project() {
   info "Project directory : $ROOT_DIR"
   info "Target OS         : $OS"
   info "Target arch       : $ARCH"
+  info "Release version   : $VERSION"
 
   [ -f "$ROOT_DIR/go.mod" ] ||
     fail "go.mod not found in $ROOT_DIR"
@@ -202,7 +204,7 @@ setup_android_ndk() {
 run_release() {
   log "Running bgscan-builder release"
 
-  ARGS=(release --project-dir "$PROJECT_DIR" --os "$OS" --arch "$ARCH" --dest "$DEST_DIR")
+  ARGS=(release --project-dir "$PROJECT_DIR" --os "$OS" --arch "$ARCH" --dest "$DEST_DIR" --version "$VERSION")
 
   if [ "$OS" = "android" ]; then
     info "Android target detected — preparing NDK toolchain"
@@ -266,6 +268,7 @@ main() {
   echo -e "${C_GREEN}  Release pipeline completed successfully${C_RESET}"
   echo -e "${C_GREEN}  OS          : ${OS}${C_RESET}"
   echo -e "${C_GREEN}  Arch        : ${ARCH}${C_RESET}"
+  echo -e "${C_GREEN}  Version     : ${VERSION}${C_RESET}"
   echo -e "${C_GREEN}  Output dir  : ${DEST_DIR}${C_RESET}"
   echo -e "${C_GREEN}  Total steps : ${STEP}${C_RESET}"
   echo -e "${C_GREEN}  Elapsed time: ${elapsed}s${C_RESET}"

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -345,6 +346,18 @@ func (s *scanner) Run() error {
 		return errors.New("scanner has no stages")
 	}
 
+	if config.DetectPlatform() == config.Android {
+		if err := exec.Command("termux-wake-lock").Run(); err != nil {
+			logger.CoreWarn("termux-wake-lock failed: %v", err)
+		}
+
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			_ = exec.CommandContext(ctx, "termux-wake-unlock").Run()
+		}()
+	}
 	s.started = true
 	stages := append([]StageConfig(nil), s.stages...)
 	s.wg.Add(1)

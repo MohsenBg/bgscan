@@ -72,6 +72,7 @@ func DefaultVayDNSConfig() VayDNSConfig {
 		Fingerprint:  "Chrome",
 
 		ProxyType:      ResolverProxySOCKS,
+		ProxyPort:      1080,
 		AuthMethod:     AuthNone,
 		Username:       "",
 		Password:       "",

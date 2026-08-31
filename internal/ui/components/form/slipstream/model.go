@@ -17,6 +17,7 @@ import (
 	"bgscan/internal/ui/shared/env"
 	"bgscan/internal/ui/shared/layout"
 	"bgscan/internal/ui/shared/ui"
+	"bgscan/internal/ui/shared/validation"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
@@ -145,8 +146,8 @@ func (m *Model) buildInspector() *inspector.Model {
 		textinput.WithValue(m.name),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
-			if strings.TrimSpace(v) == "" {
-				return fmt.Errorf("config name is required")
+			if err := validation.ValidateFilename(v); err != nil {
+				return err
 			}
 			return nil
 		}),
@@ -210,20 +211,6 @@ func (m *Model) buildInspector() *inspector.Model {
 		}),
 	)
 
-	proxyType := selectinput.New(
-		l, "Select proxy type",
-		selectinput.WithValue(string(cfg.ProxyType)),
-		selectinput.WithFocus[string](),
-		selectinput.WithOptions(
-			huh.NewOption("SOCKS", "socks"),
-			huh.NewOption("SSH", "ssh"),
-		),
-		selectinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.ProxyType = dns.ResolverProxyType(v)
-			return nil
-		}),
-	)
-
 	proxyPort := textinput.New(
 		l, "Enter proxy port",
 		textinput.WithValue(strconv.Itoa(int(cfg.ProxyPort))),
@@ -245,6 +232,32 @@ func (m *Model) buildInspector() *inspector.Model {
 			n, _ := strconv.ParseUint(v, 10, 16)
 			cfg.ProxyPort = uint16(n)
 			return nil
+		}),
+	)
+
+	proxyType := selectinput.New(
+		l, "Select proxy type",
+		selectinput.WithValue(string(cfg.ProxyType)),
+		selectinput.WithFocus[string](),
+		selectinput.WithOptions(
+			huh.NewOption("SOCKS", "socks"),
+			huh.NewOption("SSH", "ssh"),
+		),
+		selectinput.WithOnSubmit(func(v string) tea.Cmd {
+			pt := dns.ResolverProxyType(v)
+			if pt == cfg.ProxyType {
+				return nil
+			}
+			cfg.ProxyType = pt
+			if cfg.ProxyType == dns.ResolverProxySOCKS {
+				cfg.ProxyPort = 1080
+				proxyPort.SetValue("1080")
+			} else {
+				cfg.ProxyPort = 22
+				proxyPort.SetValue("22")
+			}
+
+			return m.refresh()
 		}),
 	)
 
@@ -445,4 +458,11 @@ func (m *Model) cancel() tea.Msg {
 		},
 		false,
 	)()
+}
+
+func (m *Model) refresh() tea.Cmd {
+	if m.inspector != nil {
+		return m.inspector.Refresh()
+	}
+	return nil
 }

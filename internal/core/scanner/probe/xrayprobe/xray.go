@@ -3,6 +3,7 @@ package xrayprobe
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 	"os"
@@ -18,10 +19,12 @@ import (
 	"bgscan/internal/logger"
 )
 
+const bytesPerKbpsSecond float64 = 1000.0 / 8.0
+
 // XrayService creates, validates, and starts Xray configurations.
 type XrayService interface {
 	GetOutboundTemplateByName(string) (*xray.XrayOutboundsFile, error)
-	GenerateConfig(outbound, ip string, port uint16) (string, error)
+	GenerateConfig(outbound string, ip netip.Addr, port uint16) (string, error)
 	ValidateConfig(context.Context, string) error
 	Start(context.Context, string) (process.Process, error)
 }
@@ -42,7 +45,6 @@ type XrayProbe struct {
 	uploadBytes     int64
 	minDownload     speedtest.BitsPerSec
 	minUpload       speedtest.BitsPerSec
-	maxLatency      time.Duration
 
 	remove func(string) error
 }
@@ -106,20 +108,21 @@ func NewXrayProbe(
 		return nil, fmt.Errorf("xray speed test timeout must be positive")
 	}
 
-	transferSeconds := int64(speedTestTimeout.Seconds())
+	byteFactor := bytesPerKbpsSecond * speedTestTimeout.Seconds()
+	downloadBytes := math.Round(float64(cfg.DownloadSpeed) * byteFactor)
+	uploadBytes := math.Round(float64(cfg.UploadSpeed) * byteFactor)
 
 	p := &XrayProbe{
 		pm:             pm,
 		processTracker: process.NewProcessTracker(),
-		xray:           xray.NewXrayService(),
 		speed:          speedtest.NewService(),
 
 		outbound:        outboundName,
 		latencyTimeout:  timeout,
 		transferTimeout: speedTestTimeout,
 		testMode:        cfg.ConnectivityTestType,
-		downloadBytes:   int64(cfg.DownloadSpeed) * 1000 / 8 * transferSeconds,
-		uploadBytes:     int64(cfg.UploadSpeed) * 1000 / 8 * transferSeconds,
+		downloadBytes:   int64(downloadBytes),
+		uploadBytes:     int64(uploadBytes),
 		minDownload:     speedtest.BitsPerSec(cfg.DownloadSpeed) * speedtest.Kbps,
 		minUpload:       speedtest.BitsPerSec(cfg.UploadSpeed) * speedtest.Kbps,
 
@@ -128,6 +131,14 @@ func NewXrayProbe(
 
 	for _, opt := range opts {
 		opt(p)
+	}
+
+	if p.xray == nil {
+		svc, err := xray.NewXrayService()
+		if err != nil {
+			return nil, fmt.Errorf("create Xray service: %w", err)
+		}
+		p.xray = svc
 	}
 
 	if _, err := p.xray.GetOutboundTemplateByName(outboundName); err != nil {
@@ -142,9 +153,37 @@ func (p *XrayProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init starts process tracking for the probe.
+// Init starts process tracking and validates the outbound template once.
+//
+// The per-IP configs generated in Run differ from this template only by the
+// substituted target address, so a single validation covers the whole scan.
+// Run therefore skips per-target validation, which halves the number of
+// Xray process spawns per scanned IP.
 func (p *XrayProbe) Init(ctx context.Context) error {
 	p.processTracker.Start(ctx)
+
+	port, err := p.pm.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("lease port for Xray config validation: %w", err)
+	}
+	p.pm.Release(port)
+
+	loopback := netip.AddrFrom4([4]byte{127, 0, 0, 1})
+
+	configPath, err := p.xray.GenerateConfig(p.outbound, loopback, port)
+	if err != nil {
+		return fmt.Errorf("generate Xray config for validation: %w", err)
+	}
+
+	defer func() {
+		if err := p.remove(configPath); err != nil {
+			logger.CoreError("remove Xray config file: %v", err)
+		}
+	}()
+
+	if err := p.xray.ValidateConfig(ctx, configPath); err != nil {
+		return fmt.Errorf("outbound template %q is invalid: %w", p.outbound, err)
+	}
 
 	return nil
 }
@@ -162,7 +201,7 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	}
 	defer p.pm.Release(port)
 
-	configPath, err := p.xray.GenerateConfig(p.outbound, ip.String(), port)
+	configPath, err := p.xray.GenerateConfig(p.outbound, ip, port)
 	if err != nil {
 		return nil, fmt.Errorf("generate Xray config: %w", err)
 	}
@@ -171,10 +210,6 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 			logger.CoreError("remove Xray config file: %v", err)
 		}
 	}()
-
-	if err := p.xray.ValidateConfig(ctx, configPath); err != nil {
-		return nil, fmt.Errorf("validate Xray config: %w", err)
-	}
 
 	proc, err := p.xray.Start(ctx, configPath)
 	if err != nil {
@@ -213,9 +248,8 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	}
 
 	latency, err := p.speed.MeasureLatency(ctx, speedtest.LatencyConfig{
-		Timeout:    p.latencyTimeout,
-		MaxLatency: p.maxLatency,
-		ProxyPort:  port,
+		Timeout:   p.latencyTimeout,
+		ProxyPort: port,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("measure latency for %s: %w", ip, err)

@@ -164,23 +164,23 @@ func checkLoggerHealth(r *reporter) {
 
 func checkXrayHealth(r *reporter) {
 	r.info("Finding Xray binary...")
-	binaryPath, err := xray.FindXrayBinary()
+	svc, err := xray.NewXrayService()
 	if err != nil {
 		r.binaryMissing("Xray", "xray")
 		r.errMsg("Binary lookup error", err)
 		return
 	}
-	r.successf("Xray found at: %s", binaryPath)
+	r.successf("Xray found at: %s", svc.Binary())
 
 	r.info("Ensuring Xray binary is executable...")
-	if err := process.EnsureExecutable(binaryPath); err != nil {
+	if err := process.EnsureExecutable(svc.Binary()); err != nil {
 		r.errMsg("Failed to set executable bit for Xray binary", err)
 		return
 	}
 	r.success("Xray binary is executable")
 
 	r.info("Checking Xray version...")
-	version, err := xray.XrayVersion()
+	version, err := svc.Version()
 	if err != nil {
 		r.errMsg("Failed to retrieve Xray version", err)
 		return

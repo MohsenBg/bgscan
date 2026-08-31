@@ -2,6 +2,7 @@ package xray
 
 import (
 	"encoding/json"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -68,7 +69,7 @@ func TestApplyOutboundTemplate(t *testing.T) {
 		},
 	})
 
-	got, err := applyOutboundTemplate(path, "8.8.8.8")
+	got, err := applyOutboundTemplate(path, netip.MustParseAddr("8.8.8.8"))
 	if err != nil {
 		t.Fatalf("applyOutboundTemplate() error = %v", err)
 	}
@@ -97,7 +98,8 @@ func TestApplyOutboundTemplate_InvalidIP(t *testing.T) {
 		"address": addressPlaceholder,
 	})
 
-	_, err := applyOutboundTemplate(path, "not-an-ip")
+	// The zero netip.Addr is the only invalid value the type can carry.
+	_, err := applyOutboundTemplate(path, netip.Addr{})
 	if err == nil {
 		t.Fatal("expected invalid IP error")
 	}
@@ -114,7 +116,7 @@ func TestApplyOutboundTemplate_InvalidJSON(t *testing.T) {
 		t.Fatalf("os.WriteFile() error = %v", err)
 	}
 
-	_, err := applyOutboundTemplate(path, "1.1.1.1")
+	_, err := applyOutboundTemplate(path, netip.MustParseAddr("1.1.1.1"))
 	if err == nil {
 		t.Fatal("expected JSON parse error")
 	}

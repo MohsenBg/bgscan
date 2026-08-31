@@ -2,7 +2,7 @@ package xray
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,11 +16,10 @@ import (
 //
 // The function performs the following steps:
 //
-//  1. Validates the provided IP address.
-//  2. Loads the specified outbound template.
-//  3. Replaces template placeholders (e.g. $ADDRESS).
-//  4. Injects a scanner-generated inbound proxy.
-//  5. Writes the final configuration file to disk.
+//  1. Loads the specified outbound template.
+//  2. Replaces template placeholders (e.g. $ADDRESS) with the target IP.
+//  3. Injects a scanner-generated inbound proxy.
+//  4. Writes the final configuration file to disk.
 //
 // Each generated config contains:
 //
@@ -29,9 +28,8 @@ import (
 //
 // The returned value is the path to the generated configuration file,
 // which can then be passed to an Xray process.
-func GenerateConfig(outboundName, ip string, port uint16) (string, error) {
-	// Validate IP
-	if net.ParseIP(ip) == nil {
+func GenerateConfig(outboundName string, ip netip.Addr, port uint16) (string, error) {
+	if !ip.IsValid() {
 		return "", fmt.Errorf("invalid IP: %s", ip)
 	}
 
@@ -65,11 +63,9 @@ func GenerateConfig(outboundName, ip string, port uint16) (string, error) {
 
 // getNewXrayConfigName returns the file path for a generated
 // Xray configuration associated with the given IP address.
-//
-// Each target IP produces a dedicated configuration file stored
-// inside the configPath directory.
-func getNewXrayConfigName(ip string) string {
-	filename := fmt.Sprintf("%s.json", ip)
+
+func getNewXrayConfigName(ip netip.Addr) string {
+	filename := fmt.Sprintf("%s.json", strings.ReplaceAll(ip.String(), ":", "_"))
 	return filepath.Join(configDir(), filename)
 }
 

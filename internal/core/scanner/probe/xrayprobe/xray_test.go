@@ -87,7 +87,7 @@ func (s *fakeXrayService) GetOutboundTemplateByName(string) (*xray.XrayOutbounds
 	return &xray.XrayOutboundsFile{}, nil
 }
 
-func (s *fakeXrayService) GenerateConfig(string, string, uint16) (string, error) {
+func (s *fakeXrayService) GenerateConfig(string, netip.Addr, uint16) (string, error) {
 	if s.generateErr != nil {
 		return "", s.generateErr
 	}
@@ -290,8 +290,8 @@ func TestRunReleasesPortWhenConfigGenerationFails(t *testing.T) {
 	}
 }
 
-func TestRunRemovesConfigAfterValidationFailure(t *testing.T) {
-	p, _, _, service, _ := newTestProbe(config.ConnectivityOnly)
+func TestInitRemovesConfigAfterValidationFailure(t *testing.T) {
+	p, pm, _, service, _ := newTestProbe(config.ConnectivityOnly)
 	service.validateErr = errors.New("invalid config")
 
 	var removed string
@@ -300,13 +300,17 @@ func TestRunRemovesConfigAfterValidationFailure(t *testing.T) {
 		return nil
 	}
 
-	_, err := p.Run(context.Background(), testIP())
+	err := p.Init(context.Background())
 	if err == nil {
 		t.Fatal("expected an error")
 	}
 
 	if removed != "/tmp/xray.json" {
 		t.Fatalf("removed path = %q, want /tmp/xray.json", removed)
+	}
+
+	if got := pm.released; len(got) != 1 || got[0] != 1080 {
+		t.Fatalf("released ports = %v, want [1080]", got)
 	}
 }
 

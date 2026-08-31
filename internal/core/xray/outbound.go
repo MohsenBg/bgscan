@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,8 +13,6 @@ import (
 	"bgscan/internal/core/fileutil"
 	"bgscan/internal/logger"
 )
-
-// ── 1. Placeholder Replacement Logic ─────────────────────────────────────────
 
 // replacePlaceholders recursively walks a decoded JSON structure and replaces
 // any string whose value exactly matches a key from the replacements map.
@@ -45,8 +43,8 @@ func replacePlaceholders(data any, replacements map[string]string) any {
 
 // applyOutboundTemplate loads an outbound template, swaps placeholders
 // with runtime values, and returns the modified, decoded structure.
-func applyOutboundTemplate(templatePath, ip string) (any, error) {
-	if net.ParseIP(ip) == nil {
+func applyOutboundTemplate(templatePath string, ip netip.Addr) (any, error) {
+	if !ip.IsValid() {
 		return nil, fmt.Errorf("invalid IP target address: %s", ip)
 	}
 
@@ -61,11 +59,9 @@ func applyOutboundTemplate(templatePath, ip string) (any, error) {
 	}
 
 	return replacePlaceholders(parsed, map[string]string{
-		addressPlaceholder: ip,
+		addressPlaceholder: ip.String(),
 	}), nil
 }
-
-// ── 2. Template Saving Logic ─────────────────────────────────────────────────
 
 // SaveOutboundFromFile validates and stores a new outbound template from a disk source file.
 func SaveOutboundFromFile(src, name string) (*XrayOutboundsFile, error) {
@@ -164,8 +160,6 @@ func SaveOutboundFromLink(link, name string) (*XrayOutboundsFile, error) {
 	return loadOutboundFileMetadata(dst)
 }
 
-// ── 3. Template Operations & Retrieval ───────────────────────────────────────
-
 // GetOutboundTemplateByName finds an outbound template by name, automatically handling extensions.
 func GetOutboundTemplateByName(name string) (*XrayOutboundsFile, error) {
 	name = normalizeTemplateName(name)
@@ -223,11 +217,15 @@ func RenameOutboundTemplate(oldName, newName string) (*XrayOutboundsFile, error)
 	return loadOutboundFileMetadata(dst)
 }
 
-// ── 4. Validation & Internal Helpers ──────────────────────────────────────────
-
 // ValidateOutbound generates a validation testbed frame to run Xray logic testing.
 func ValidateOutbound(outbound string) error {
-	configPath, err := GenerateConfig(outbound, "127.0.0.1", 40443)
+	svc, err := NewXrayService()
+	if err != nil {
+		return err
+	}
+
+	loopback := netip.AddrFrom4([4]byte{127, 0, 0, 1})
+	configPath, err := GenerateConfig(outbound, loopback, 40443)
 	if err != nil {
 		return err
 	}
@@ -238,7 +236,7 @@ func ValidateOutbound(outbound string) error {
 		}
 	}()
 
-	return ValidateConfig(context.Background(), configPath)
+	return svc.ValidateConfig(context.Background(), configPath)
 }
 
 // loadOutboundFileMetadata reads an outbound template and extracts

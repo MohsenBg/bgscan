@@ -89,7 +89,7 @@ Number of IPs per chunk in `batch` mode. With more than one stage, the effective
 ## Shuffle Targets
 
 ```toml
-shuffled = false
+shuffled = true
 ```
 
 Randomizes target order before scanning. Useful to spread load across subnets, avoid hammering one range, and get a representative sample when combined with `max_ips_to_test`.
@@ -97,8 +97,8 @@ Randomizes target order before scanning. Useful to spread load across subnets, a
 ## Probe Rate Limit
 
 ```toml
-probe_per_sec = 1500
-probe_burst = 200
+probe_per_sec = 500
+probe_burst = 100
 ```
 
 `probe_per_sec` and `probe_burst` form a token-bucket limiter applied to every probe across all stages. `probe_per_sec` is the sustained ceiling — tokens refilled per second. `probe_burst` is the bucket capacity — how many probes may fire back-to-back before the limiter blocks. Together they cap outgoing request volume regardless of `Workers`, which is how you avoid tripping upstream rate limits or DPI.
@@ -108,7 +108,7 @@ Both are validated. `probe_per_sec` ranges 1 to 1,000,000; `probe_burst` ranges 
 ## Minimum Probe Duration
 
 ```toml
-min_probe_duration = 10
+min_probe_duration = 50
 ```
 
 Enforces a floor on how long each probe takes, in milliseconds. After a probe finishes faster than this, the worker sleeps for the remainder before moving to the next target. Used to normalize timing-based side channels and to pace scans that would otherwise complete too fast.

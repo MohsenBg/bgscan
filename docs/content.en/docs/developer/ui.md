@@ -13,14 +13,18 @@ bgscan's terminal UI is built on [BubbleTea](https://github.com/charmbracelet/bu
 
 | Package | Responsibility |
 |---|---|
-| `ui/main/app` | Root BubbleTea model. Manages layout, header/body/footer, and overlay dialog stack. |
+| `ui/main/app` | Root BubbleTea model. Manages three application stages (splash → startup → workspace). |
+| `ui/main/splash` | Splash screen with ASCII art logo animation and version display. |
+| `ui/main/startup` | Startup health checks — validates Logger, Config, Xray, DNSTT, Slipstream, Vaydns, and App state. |
+| `ui/main/workspace` | Main workspace — header, body (component stack), footer, and overlay dialog stack. |
 | `ui/main/header` | Top bar — app title and branding. |
 | `ui/main/body` | Central content area — holds a component stack (main menu → sub-screens). |
 | `ui/main/footer` | Status bar — app version, current screen name, goroutine count, memory usage. |
-| `ui/components/basic` | Reusable widgets: confirm, crud, input, inspector, logview, menu, notice, picker, progress, table, tabs. |
+| `ui/components/basic` | Reusable widgets: confirm, crud, form, input, inspector, logview, menu, notice, picker, progress, table, tabs. |
+| `ui/components/form` | DNS tunnel config forms: dnstt, slipstream, vaydns. |
 | `ui/components/inspector` | Per-protocol settings forms (DNS, general, HTTP, ICMP, TCP, Xray). |
-| `ui/components/menus` | Screen-level menus: entry (main), logs, outbound, scantype, settings, targetsource. |
-| `ui/components/tables` | Data tables: iplist, ipviewer, outbounds, resultlist. |
+| `ui/components/menus` | Screen-level menus: entry (main), logs, outbound, scantype, settings, targetsource, dnstunmenu. |
+| `ui/components/tables` | Data tables: iplist, ipviewer, outbounds, resultlist, dnstun (DNS tunnel CRUD). |
 | `ui/components/scanner` | Live scan view — tabbed progress bars + result tables per stage. |
 | `ui/shared` | Shared infrastructure: layout, dialog, env (keys/modes), component interface, validation. |
 | `ui/theme` | Dark/light/auto color palettes + huh form theme adapter. |
@@ -55,22 +59,29 @@ type Component interface {
 
 ## Root model (app)
 
-`ui/main/app` is the top-level BubbleTea model. It holds the shared app state, three base components, and a dialog stack:
+`ui/main/app` is the top-level BubbleTea model. It manages three application stages and the shared app state:
 
 ```go
 type model struct {
-    state            *ui.AppState
-    dialog           []ui.Component
-    dialogPlacements map[ui.ComponentID]*dialogPosition
-    header           ui.Component
-    body             ui.Component
-    footer           ui.Component
+    state     *ui.AppState
+    splash    ui.Component
+    startup   ui.Component
+    workspace ui.Component
+    stage     AppStage
 }
 
 func New(cfg *config.ScannerConfig, store *config.Store) tea.Model
 ```
 
-`AppState` is what threads shared dependencies through the whole tree:
+The app progresses through three stages:
+
+| Stage | Component | Description |
+|---|---|---|
+| `StageSplash` | `splash` | Animated ASCII logo with glitch effects and version display |
+| `StageStartUP` | `startup` | Sequential health checks (Logger → Config → Xray → DNSTT → Slipstream → Vaydns → App) |
+| `StageWorkspace` | `workspace` | Main workspace with header, body (component stack), footer, and overlay dialog stack |
+
+`AppState` threads shared dependencies through the whole tree:
 
 ```go
 type AppState struct {
@@ -82,20 +93,23 @@ type AppState struct {
 
 Components read settings from `state.Config` and persist edits with `state.Store`. There is no config singleton to reach for.
 
-#### Message routing (`app/update.go`)
+#### Message routing
 
-The root `Update` is the central router:
+The app routes messages differently depending on the current stage:
 
-1. **`tea.WindowSizeMsg`** — recalculates `layout.Update(width, height)`.
-2. **`tea.KeyPressMsg`** — `ctrl+c` quits immediately; `ctrl+t` dumps goroutines.
-3. **Overlay intercept** — if dialogs exist, the top dialog consumes all key input. Back/quit keys close it.
-4. **`dialog.OpenDialogMsg`** — pushes a new overlay onto the stack with placement metadata.
-5. **`ui.CloseComponentMsg`** — removes the matching overlay by ID and runs its `OnClose`.
-6. **Base dispatch** — if no overlay blocks, the message fans out to header, body, and footer.
+1. **Splash stage** — the splash animation runs until complete, then transitions to startup.
+2. **Startup stage** — health check messages flow from the goroutine via `logCh` channel. Critical errors abort subsequent checks. Pressing Enter transitions to workspace.
+3. **Workspace stage** — the workspace handles all UI messages:
+   - `tea.WindowSizeMsg` — recalculates `layout.Update(width, height)`.
+   - `tea.KeyPressMsg` — `ctrl+c` quits immediately; `ctrl+t` dumps goroutines.
+   - **Overlay intercept** — if dialogs exist, the top dialog consumes all key input. Back/quit keys close it.
+   - `dialog.OpenDialogMsg` — pushes a new overlay onto the stack with placement metadata.
+   - `ui.CloseComponentMsg` — removes the matching overlay by ID and runs its `OnClose`.
+   - **Base dispatch** — if no overlay blocks, the message fans out to header, body, and footer.
 
-#### Rendering (`app/view.go`)
+#### Rendering
 
-The root `View` renders:
+During the **workspace stage**, the rendering is:
 
 ```
 ┌─────────────────────────────────┐
@@ -114,9 +128,39 @@ Overlays are rendered on top via `bubbletea-overlay`. Minimum terminal size is 7
 
 ---
 
+## Splash screen
+
+`ui/main/splash` displays an animated ASCII art logo of "BGSCAN" with glitch effects:
+
+- 80 animation frames at 30ms tick, then 150 hold frames
+- Glitch characters (`▓▒░╬╪┼╫┃━╳▄▀`) replace logo characters with decreasing probability
+- Horizontal sweep accent color highlight at 72% progress
+- Horizontal shake and artifact rows during animation
+- Version display with fade-in after animation completes
+
+---
+
+## Startup checks
+
+`ui/main/startup` runs seven sequential health checks in a goroutine, reporting status through a sidebar with dots (pending/running/success/warn/error), a progress bar, and a scrollable viewport:
+
+| # | Category | What it checks |
+|---|----------|----------------|
+| 1 | Logger | Initialize core, UI, and debug loggers; register probe schemas |
+| 2 | Config | Load config, NormalizeAll, report any clamped values |
+| 3 | Xray | Find binary, ensure executable, check version, validate outbound templates |
+| 4 | DNSTT | Validate all DNSTT config files |
+| 5 | Slipstream | Find binary, ensure executable, verify, validate config files |
+| 6 | Vaydns | Validate all VayDNS config files |
+| 7 | App | Wait for user to press Enter |
+
+Critical errors abort subsequent checks. The user can scroll with `j`/`k` and press `Enter` to continue when done.
+
+---
+
 ## Body — component stack
 
-`ui/main/body` holds a **stack** of components. The top of the stack is the active screen.
+`ui/main/body` holds a **stack** of components. The top of the stack is the active screen. The body is part of the `workspace` stage and is not active during splash or startup.
 
 ```
 components[0] = mainMenu (entry)   ← always present
@@ -213,9 +257,9 @@ Each widget follows the standard `Component` interface and is designed to be com
 
 ---
 
-## Settings inspectors
+## Settings inspectors and forms
 
-`ui/components/inspector/` contains per-protocol settings forms:
+#### Settings inspectors (`ui/components/inspector/`)
 
 | Form | Config it edits |
 |---|---|
@@ -226,11 +270,21 @@ Each widget follows the standard `Component` interface and is designed to be com
 | `dns` | `dns_settings.toml` |
 | `xray` | `xray_settings.toml` |
 
-Each inspector reads its section from `state.Config`, renders editable fields, and on save calls the matching `state.Store.SaveXxx()` method. Fields can be dynamic — for example, TLS options only appear when HTTPS is selected, and DNSTT/SlipStream fields only show when those probes are enabled.
+Each inspector reads its section from `state.Config`, renders editable fields, and on save calls the matching `state.Store.SaveXxx()` method. Fields can be dynamic — for example, TLS options only appear when HTTPS is selected, and tunnel-specific fields only show when the corresponding protocol is enabled.
 
 Every field validates before it commits. The inspector applies the edit to a copy of the section, runs `validate.ValidateXxx` on it, and rejects the input if that field reports an error, so an invalid value never reaches the config or the disk.
 
 The generic `basic/inspector` widget handles the field rendering, formatting, and type adaptation; the per-protocol packages just define which fields to show and how to map them to the config struct.
+
+#### DNS tunnel config forms (`ui/components/form/`)
+
+| Form | Protocol | Config struct |
+|---|---|---|
+| `dnstt` | DNSTT | `dns.DNSTTConfig` |
+| `slipstream` | Slipstream | `dns.SlipstreamConfig` |
+| `vaydns` | VayDNS | `dns.VayDNSConfig` |
+
+Each form creates a protocol-specific inspector with fields for connection settings, advanced options (VayDNS only), and proxy/authentication. Forms support both creating new configs and editing existing ones. On save, they call the matching service's `SaveConfig` or `EditConfig` method.
 
 ---
 
@@ -240,11 +294,12 @@ The generic `basic/inspector` widget handles the field rendering, formatting, an
 
 | Menu | Triggered from | What it shows |
 |---|---|---|
-| `entry` | App start | Main menu (Run Scan, IP Files, Result Files, Settings, Xray Outbounds, Logs) |
+| `entry` | App start | Main menu (Run Scan, IP Files, Result Files, Xray Outbound, DNS Tunneling, Settings, Logs) |
 | `targetsource` | Run Scan | Source picker (IP List vs Result List) |
-| `scantype` | After source selection | Scan type picker (ICMP, TCP, HTTP, DNS, Xray) |
+| `scantype` | After source selection | Scan type picker (ICMP, TCP, HTTP, Xray, DNS Resolve, DNS Tunneling) |
 | `settings` | Settings menu item | Settings category picker |
 | `outboundmenu` | Xray Outbounds menu item | Outbound management |
+| `dnstunmenu` | DNS Tunneling scan type | Protocol selector (DNSTT, Slipstream, VayDNS) |
 | `logs` | Logs menu item | Log category picker (core/ui/debug) |
 
 #### Tables (`ui/components/tables`)
@@ -254,9 +309,10 @@ The generic `basic/inspector` widget handles the field rendering, formatting, an
 | `iplist` | `ips/` directory | `iplist.Registry` |
 | `resultlist` | `result/` directory | `result.GetResultFiles` |
 | `outbounds` | Xray outbound configs | `xray` package |
+| `dnstun` | DNS tunnel configs | `dns.GetAllDNSTunsFile` |
 | `ipviewer` | In-memory result set | scanner component |
 
-Tables use the `basic/table` widget and a `Provider` interface that supplies rows and handles column sorting. `resultlist` renders its columns from the schema attached to each `result.ResultFile`, so a new probe's results display without touching the table code.
+Tables use the `basic/table` widget and a `Provider` interface that supplies rows and handles column sorting. `resultlist` renders its columns from the schema attached to each `result.ResultFile`, so a new probe's results display without touching the table code. `dnstun` is a CRUD table that manages DNS tunnel configurations across all three protocols.
 
 ---
 
@@ -286,6 +342,7 @@ type Theme struct {
     BorderActive  color.Color
     Text          color.Color
     Muted         color.Color
+    Timestamp     color.Color
     Info          color.Color
     Error         color.Color
     Success       color.Color
@@ -305,7 +362,7 @@ type Theme struct {
 | `ModeDark` | Forces the `Dark` palette |
 | `ModeLight` | Forces the `Light` palette |
 
-`theme.Init()` is called during startup. Components retrieve the active palette via `theme.Current()` — never hardcode colors.
+`theme.Init()` is called from `main()` before the TUI starts. Components retrieve the active palette via `theme.Current()` — never hardcode colors.
 
 #### Huh integration
 

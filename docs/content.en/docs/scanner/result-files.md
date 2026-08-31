@@ -33,7 +33,7 @@ Two keyboard actions are available:
 
 #### Opening a result file
 
-Press Enter on any file to open the IP viewer, which displays the targets found in that file along with the columns defined by that scan type's result schema. ICMP, TCP, HTTP, DNS, DNSTT, and SlipStream show latency plus their type-specific columns; Xray results additionally show download and upload measurements.
+Press Enter on any file to open the IP viewer, which displays the targets found in that file along with the columns defined by that scan type's result schema. ICMP, TCP, HTTP, DNS, DNSTT, VayDNS, and Slipstream show latency plus their type-specific columns; Xray results additionally show download and upload measurements.
 
 ---
 
@@ -50,6 +50,7 @@ Result files are stored under the `result/` directory next to the bgscan binary,
     ├── xray/
     ├── dns_resolver/
     ├── dnstt/
+    ├── vaydns/
     └── slipstream/
 ```
 
@@ -73,9 +74,10 @@ Each scan type has a default prefix set in its configuration:
 | TCP | `tcp_` | `tcp_20240711_143022.csv` |
 | HTTP | `http_` | `http_20240711_143022.csv` |
 | Xray | `xray_` | `xray_20240711_143022.csv` |
-| DNS Resolver | `dns_resolver_` | `dns_resolver_20240711_143022.csv` |
-| DNSTT | `dns_dnstt_` | `dns_dnstt_20240711_143022.csv` |
-| SlipStream | `dns_slipstream_` | `dns_slipstream_20240711_143022.csv` |
+| DNS Resolver | `dns_` | `dns_20240711_143022.csv` |
+| DNSTT | `dns_tun_` | `dns_tun_20240711_143022.csv` |
+| VayDNS | `dns_tun_` | `dns_tun_20240711_143022.csv` |
+| Slipstream | `dns_tun_` | `dns_tun_20240711_143022.csv` |
 
 The prefix for each scan type is set in its own settings file. See [Settings Overview](../settings/overview.md).
 
@@ -92,8 +94,9 @@ Result files are plain CSV with no header row. Each row is one responsive target
 | HTTP | `ip, latency, status, version, tls` |
 | Xray | `ip, latency, download, upload` |
 | DNS Resolver | `ip, latency, record_type, tries, rcode, dpi_check` |
-| DNSTT | `ip, latency, transport, port` |
-| SlipStream | `ip, latency, port` |
+| DNSTT | `ip, latency, transport, port, auth, proxy` |
+| VayDNS | `ip, latency, transport, port, auth, proxy` |
+| Slipstream | `ip, latency, port, auth, proxy` |
 
 - `ip` — the IPv4 or IPv6 address that responded.
 - `latency` — round-trip or connection latency (e.g. `123ms`).
@@ -103,6 +106,7 @@ Result files are plain CSV with no header row. Each row is one responsive target
 - `mode` — ICMP socket mode (`raw` or `udp`).
 - `rcode` / `dpi_check` — DNS response code and whether the anti-hijacking DPI check passed.
 - `transport` / `port` — DNS transport used and the local SOCKS5 port allocated for tunnel probes.
+- `auth` / `proxy` — authentication method and proxy type configured for the tunnel probe.
 
 #### Example (HTTP)
 
@@ -126,7 +130,7 @@ For scan types that do not measure speed, the download and upload columns are ab
 
 IPs within a result file are sorted by a per-schema quality score — higher is better. Each scan type defines its own `Score()`:
 
-- **ICMP, TCP, HTTP, DNS, DNSTT, SlipStream** — inverse latency (`1000 / latency_ms`), so the lowest-latency targets sort first.
+- **ICMP, TCP, HTTP, DNS, DNSTT, VayDNS, Slipstream** — inverse latency (`1000 / latency_ms`), so the lowest-latency targets sort first.
 - **Xray** — weighted blend of latency (10%), download throughput (60%), and upload throughput (30%). When a speed test is disabled, its component is zero, so a connectivity-only Xray scan sorts purely by latency.
 
 The writer merge-sorts new results against the existing file by score and replaces duplicate IPs with the newer record. Equal scores retain their relative order.

@@ -5,7 +5,7 @@ weight: 3
 
 # Scan Pipeline
 
-A pipeline chains scan stages so that only the targets surviving one stage reach the next. Stages come from the scan type you pick: a DNS scan with tunneling enabled builds three, an Xray scan with a pre-scan builds two, and a plain ICMP scan builds one.
+A pipeline chains scan stages so that only the targets surviving one stage reach the next. Stages come from the scan type you pick: a DNS tunneling scan with resolver pre-scan builds two, an Xray scan with a pre-scan builds two, and a plain ICMP scan builds one.
 
 A single-stage scan skips the chain logic entirely. The pipeline mode only matters once there are two or more stages.
 
@@ -64,7 +64,7 @@ Only targets a stage accepts are forwarded. What counts as accepted is the probe
 - TCP: the handshake completed on the configured port
 - HTTP: a response arrived and its status code is in `accepted_status_codes`
 - DNS resolver: the response code is in `accepted_rcodes`, and the DPI check passed when enabled
-- DNSTT and SlipStream: the tunnel came up and validated through the local SOCKS5 port
+- DNSTT, VayDNS, and Slipstream: the tunnel came up and validated through the local SOCKS5 port
 - Xray: the proxy connected, and any enabled speed test met its minimum
 
 Each stage writes its own result file regardless of what happens downstream, so intermediate output is always available for a later re-scan.

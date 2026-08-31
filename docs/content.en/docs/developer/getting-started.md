@@ -15,7 +15,7 @@ This guide explains how to set up your environment, build, and run **bgscan** lo
 
 ## Prerequisites
 
-- [Go](https://go.dev/) 1.26.3+ (see `go.mod` for the exact version)
+- [Go](https://go.dev/) 1.27+ (see `go.mod` for the exact version)
 - Git
 - For Android builds: [Android NDK](https://developer.android.com/ndk)
 
@@ -106,16 +106,23 @@ bgscan-builder release -os android -arch arm64 -ndk-dir /opt/android-ndk
 
 ## bgscan-builder reference
 
-Builds release artifacts for one or more OS/architecture combinations.
+A small Go CLI for managing the project. The same binary is used for three workflows:
+
+- **install** / **update** — resolve a bgscan release, verify its checksum, and place it on disk. (Run by the user-facing installer.)
+- **release** — assemble dependencies (Xray, Slipstream) and build a release binary for a target OS/arch.
+- **setup-dev** — download the correct dependency binaries for the host so `go run ./cmd/bgscan/` works locally.
 
 **Flags:**
 
-| Flag | Description |
-|---|---|
-| `-arch string` | Target architecture (`amd64`, `arm64`, `arm32`, `amd32`, `all`) |
-| `-dep-version string` | Dependencies version tag (default `"v1.0"`) |
-| `-dest string` | Release output directory (default `"./dist"`) |
-| `-ndk-dir string` | Android NDK root directory |
-| `-os string` | Target operating system (`linux`, `windows`, `macos`, `android`, `all`) |
-| `-project-dir string` | Path to the bgscan project |
-| `-xray-version string` | Xray version tag (default `"v26.3.27"`) |
+| Flag | Subcommand | Description |
+|---|---|---|
+| `-arch string` | release | Target architecture (`amd64`, `arm64`, `arm32`, `amd32`, `all`) |
+| `-dest string` | release | Release output directory (default `"./dist"`) |
+| `-dir string` | install, update | Directory where bgscan is installed (default `"bgscan"`) |
+| `-ndk-dir string` | release (android) | Android NDK root directory |
+| `-os string` | release | Target operating system (`linux`, `windows`, `macos`, `android`, `all`) |
+| `-project-dir string` | setup-dev | Path to the bgscan project |
+| `-verbose` | all | Print each step as it runs |
+| `-version string` | install, update | bgscan release tag to install/update (default: latest) |
+| `-version string` | release | Version embedded into the built binary |
+| `-xray-version string` | release | Xray version tag (default `"v26.3.27"`) |

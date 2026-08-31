@@ -19,9 +19,9 @@ The TCP probe opens a connection to one port on each target and records the hand
 | --------- | --------- | ------- | ------------- |
 | `port` | `443` | 1-65535 | Target TCP port |
 | `timeout` | `2000` | 100-30000 | Connection timeout in milliseconds |
-| `workers` | `400` | 1-10000 | Concurrent connection attempts |
+| `workers` | `400` | 1-5000 | Concurrent connection attempts |
 | `tries` | `1` | 1-10 | Connection attempts per target |
-| `prefix_output` | `"tcp_"` | | Result filename prefix |
+| `output_prefix` | `"tcp_"` | | Result filename prefix |
 
 ## Port
 
@@ -62,10 +62,10 @@ tries = 1
 
 Attempts per target before giving up. Only timeouts are retried. A refused connection or other immediate error fails the target right away, which keeps throughput up on dead ranges. The minimum is 1, so there is no way to disable the first attempt.
 
-## Prefix Output
+## Output Prefix
 
 ```toml
-prefix_output = "tcp_"
+output_prefix = "tcp_"
 ```
 
 Filename prefix for result files written by this probe. Files land in `result/tcp/`.

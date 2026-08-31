@@ -17,18 +17,19 @@ The HTTP probe sends one request per target and records status code, negotiated 
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `workers` | `50` | Concurrent requests (1-5000) |
+| `workers` | platform-dependent | Concurrent requests (1-1000) |
 | `host` | `"example.com"` | Request host, optionally with a path |
 | `server_name` | `""` | SNI override; empty means derive from `host` |
 | `port` | `443` | Target port (1-65535) |
 | `protocol` | `"https"` | `http` or `https` |
 | `version` | `"h1,h2"` | Protocol version to negotiate |
+| `fingerprint` | `""` | uTLS ClientHello fingerprint; empty uses the standard library |
 | `tls_validation` | `true` | Verify the server certificate |
 | `min_tls_version` | `"tls1.1"` | Lowest TLS version allowed |
 | `max_tls_version` | `"tls1.3"` | Highest TLS version allowed |
-| `timeout` | `4000` | Request timeout in milliseconds (100-60000) |
+| `timeout` | platform-dependent | Request timeout in milliseconds (100-60000) |
 | `accepted_status_codes` | `[]` | Status codes treated as success; empty accepts all |
-| `prefix_output` | `"http_"` | Result filename prefix |
+| `output_prefix` | `"http_"` | Result filename prefix |
 
 ## Workers
 
@@ -109,6 +110,23 @@ max_tls_version = "tls1.3"
 
 Bounds passed to the TLS handshake. Accepted values are `tls1.0`, `tls1.1`, `tls1.2`, and `tls1.3`. The minimum must not exceed the maximum. Ignored when `version = "h3"`.
 
+## TLS Fingerprint
+
+```toml
+fingerprint = ""
+```
+
+A uTLS ClientHello fingerprint for the TLS handshake. When set, the probe mimicks the chosen browser profile instead of the standard library ClientHello, which can help bypass TLS fingerprinting — commonly used when scanning behind DPI. Labels are matched case-insensitively.
+
+| Category | Labels |
+|---|---|
+| Chrome | `Chrome`, `Chrome_58`, `Chrome_62`, `Chrome_70`, `Chrome_72`, `Chrome_83`, `Chrome_87`, `Chrome_96`, `Chrome_100`, `Chrome_102`, `Chrome_120` |
+| Firefox | `Firefox`, `Firefox_55`, `Firefox_56`, `Firefox_63`, `Firefox_65`, `Firefox_99`, `Firefox_102`, `Firefox_105`, `Firefox_120` |
+| iOS | `iOS`, `iOS_11_1`, `iOS_12_1`, `iOS_13`, `iOS_14` |
+| Other | `random` |
+
+An empty value (the default) uses Go's standard `crypto/tls` ClientHello. HTTP/3 over QUIC does not use uTLS; an empty fingerprint is always used for `version = "h3"`.
+
 ## Server Name Indication
 
 ```toml
@@ -129,10 +147,10 @@ Allow-list of status codes counted as a successful result. An empty list, or a l
 accepted_status_codes = [200, 204, 301, 302, 307, 308]
 ```
 
-## Prefix Output
+## Output Prefix
 
 ```toml
-prefix_output = "http_"
+output_prefix = "http_"
 ```
 
 Filename prefix for result files written by this probe. Files land in `result/http/`.

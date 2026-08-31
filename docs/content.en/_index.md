@@ -407,7 +407,7 @@ body.dark .lp,
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-badge">v2.9.1 · Now available</div>
+  <div class="hero-badge">v2.10.0 · Now available</div>
   <h1>Scan everything.<br>At full speed.</h1>
   <p>bgscan is a blazing-fast, multi-protocol network scanner built in Go — with a modular chain engine and an interactive terminal UI.</p>
   <div class="hero-actions">
@@ -444,7 +444,7 @@ body.dark .lp,
   <div class="feature"><div class="fi">🔗</div><h3>Chain engine</h3><p>Compose scan stages using Stream, Sequential, or Batch modes to build full detection pipelines.</p></div>
   <div class="feature"><div class="fi">🖥️</div><h3>Interactive TUI</h3><p>A Bubble Tea terminal UI — scan, monitor, and explore results live, no browser needed.</p></div>
   <div class="feature"><div class="fi">💾</div><h3>Save &amp; replay</h3><p>Persist results and re-run new scans against saved data. Full Xray outbound management included.</p></div>
-  <div class="feature"><div class="fi">🌐</div><h3>Advanced DNS</h3><p>DNS Tunnel support with a built-in fallback mechanism for complex resolution scenarios.</p></div>
+  <div class="feature"><div class="fi">🌐</div><h3>Advanced DNS</h3><p>DNS resolver scanning with DPI detection and three tunneling protocols: DNSTT, VayDNS, and Slipstream.</p></div>
   <div class="feature"><div class="fi">🛰️</div><h3>Xray integration</h3><p>Save, manage, and validate Xray outbounds directly from the scanner.</p></div>
 </div>
 
@@ -458,10 +458,10 @@ body.dark .lp,
     <div class="proto-card"><span class="ptag">L3</span><div><p class="pname">ICMP</p><p class="pdesc">Host discovery &amp; ping</p></div></div>
     <div class="proto-card"><span class="ptag">L4</span><div><p class="pname">TCP</p><p class="pdesc">Connection &amp; handshake</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">HTTP</p><p class="pdesc">HTTP/1.1 · HTTP/2 · QUIC</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">TLS</p><p class="pdesc">TLS 1.0 through 1.3</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNS</p><p class="pdesc">Advanced queries + fallback</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNSTT</p><p class="pdesc">DNS Tunnel validation</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Slipstream</p><p class="pdesc">SOCKS-based validation</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNSTT</p><p class="pdesc">SOCKS and SSH base validation</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">VayDNS</p><p class="pdesc">SOCKS and SSH base validation</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Slipstream</p><p class="pdesc">SOCKS and SSH base validation</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Xray</p><p class="pdesc">Outbound testing</p></div></div>
   </div>
 </div>
@@ -492,7 +492,7 @@ body.dark .lp,
     </div>
     <div id="tab-android" class="tab-pane">
       <div class="install-cmd">
-        <code>pkg update -y && pkg install bash curl unzip -y && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | bash</code>
+        <code>{ command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh</code>
         <button class="copy-btn" onclick="cpCmd(this)">Copy</button>
       </div>
     </div>

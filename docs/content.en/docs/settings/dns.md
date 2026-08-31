@@ -5,44 +5,38 @@ weight: 8
 
 # DNS Settings
 
-> 💡 **Tip:** You can change these settings directly in the bgscan application instead of editing the TOML file manually.
+> **Tip:** You can change these settings directly in the bgscan application instead of editing the TOML file manually.
 >
 > Navigate to **Settings** → **DNS Settings** in the main menu to configure these options interactively using the TUI inspector.
 
 Configuration file: `settings/dns_settings.toml`
 
-Three independent modules live in this file. The resolver section tests plain DNS resolvers. The DNSTT and SlipStream sections test whether a resolver can carry a tunnel, and both need an external client binary.
+This file has two sections. The **resolver** section controls plain DNS resolver testing. The **dns_tunneling** section controls how DNS tunnel scans are orchestrated — tunnel protocol-specific settings (DNSTT, VayDNS, Slipstream) are stored in separate config files under `assets/dns-tunneling/`.
 
 ## Quick Reference
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `resolver.workers` | `100` | Concurrent DNS queries (1-2500) |
-| `resolver.protocol` | `"udp"` | Transport: `udp`, `tcp`, `dot`, `doh` |
-| `resolver.domain` | `"google.com"` | Domain queried through each resolver |
-| `resolver.port` | `53` | Resolver port |
-| `resolver.check_types` | `["A"]` | Record types tried in order |
-| `resolver.ends_buffer_size` | `1234` | Advertised EDNS0 UDP buffer size |
-| `resolver.timeout` | `2000` | Per-query timeout in milliseconds (100-30000) |
+| `resolver.workers` | platform-dependent | Concurrent DNS queries (1-2500) |
+| `resolver.protocol` | `"udp"` | Transport: `udp`, `tcp`, `dot` |
+| `resolver.domain` | `"example.com"` | Domain queried through each resolver |
+| `resolver.port` | `53` | Resolver port (1-65535) |
+| `resolver.check_types` | `["TXT"]` | Record types tried in order |
+| `resolver.edns_buffer_size` | `1232` | EDNS0 UDP buffer size in bytes; 0 disables |
+| `resolver.timeout` | platform-dependent | Per-query timeout in ms (100-30000) |
 | `resolver.tries` | `1` | Attempts per record type (1-10) |
 | `resolver.random_subdomain` | `true` | Prepend a random label to bypass caches |
-| `resolver.accepted_rcodes` | `["noerror", "nxdomain"]` | Response codes counted as alive |
-| `resolver.check_dpi` | `true` | Run the hijack check before probing |
-| `resolver.dpi_timeout` | `500` | DPI check timeout in milliseconds (100-10000) |
-| `resolver.dpi_tries` | `2` | DPI check attempts (1-10) |
-| `resolver.prefix_output` | `"dns_resolver_"` | Result filename prefix |
-| `dnstt.enabled` | `false` | Enable the DNSTT stage |
-| `dnstt.workers` | `20` | Concurrent DNSTT handshakes (1-500) |
-| `dnstt.domain` | `"ns.example.com"` | Zone delegated to your DNSTT server |
-| `dnstt.public_key` | 64 zeros | Server public key, 64 hex characters |
-| `dnstt.timeout` | `8000` | Handshake timeout in milliseconds |
-| `dnstt.prefix_output` | `"dns_dnstt_"` | Result filename prefix |
-| `slip_stream.enabled` | `false` | Enable the SlipStream stage |
-| `slip_stream.workers` | `20` | Concurrent SlipStream probes (1-500) |
-| `slip_stream.domain` | `"ns.example.com"` | Zone used by the SlipStream server |
-| `slip_stream.cert_path` | `""` | Optional TLS certificate for the client |
-| `slip_stream.timeout` | `8000` | Probe timeout in milliseconds |
-| `slip_stream.prefix_output` | `"dns_slipstream_"` | Result filename prefix |
+| `resolver.accepted_rcodes` | `["NOERROR","NXDOMAIN","SERVFAIL"]` | Response codes counted as alive |
+| `resolver.output_prefix` | `"dns_"` | Result filename prefix |
+| `resolver.dpi.enabled` | `true` | Run the hijack check before probing |
+| `resolver.dpi.timeout` | `2000` | DPI check timeout in ms (100-10000) |
+| `resolver.dpi.tries` | `1` | DPI check attempts (1-10) |
+| `dns_tunneling.workers` | platform-dependent | Concurrent tunnel test workers (1-500) |
+| `dns_tunneling.tries` | `1` | Retry attempts per target (1-10) |
+| `dns_tunneling.timeout` | platform-dependent | Tunnel test timeout in ms (100-60000) |
+| `dns_tunneling.check_dns_resolver` | `true` | Run resolver scan before tunnel test |
+| `dns_tunneling.adaptive_resolver` | `true` | Override resolver settings to match tunnel config |
+| `dns_tunneling.output_prefix` | `"dns_tun_"` | Result filename prefix |
 
 ## Resolver
 
@@ -51,23 +45,26 @@ Each target IP is treated as a resolver. The probe queries `domain` through it a
 ### Workers
 
 ```toml
-workers = 100
+[resolver]
+workers = 150
 ```
 
-Concurrent queries in flight. UDP queries are cheap, so this scales further than the HTTP probe, but a high rate against a single upstream network will be noticed.
+Concurrent queries in flight. The effective default depends on platform and resource tier. UDP queries are cheap, so this scales further than the HTTP probe, but a high rate against a single upstream network will be noticed.
 
 ### Protocol
 
 ```toml
+[resolver]
 protocol = "udp"
 ```
 
-Transport used for queries: `udp`, `tcp`, `dot`, or `doh`. DoH is accepted by the config but resolves to DoT at runtime, because DoH needs a domain-based endpoint while the scanner targets resolvers by IP.
+Transport used for queries: `udp`, `tcp`, or `dot`. Parsing is case-insensitive; unknown values default to `udp`.
 
 ### Domain
 
 ```toml
-domain = "google.com"
+[resolver]
+domain = "example.com"
 ```
 
 Domain queried through each resolver. It must be a bare domain with no scheme, port, or path. Pick a name that resolves reliably worldwide, otherwise honest resolvers will look broken.
@@ -75,6 +72,7 @@ Domain queried through each resolver. It must be a bare domain with no scheme, p
 ### Port
 
 ```toml
+[resolver]
 port = 53
 ```
 
@@ -83,22 +81,27 @@ Port the resolver listens on. Use 853 with `protocol = "dot"`.
 ### Check Types
 
 ```toml
-check_types = ["A"]
+[resolver]
+check_types = ["TXT"]
 ```
 
 Record types tried in order. The probe stops at the first type that returns an accepted rcode and records that type in the result. Add more types when a resolver may answer for one and refuse another.
 
+Supported record types: `A`, `AAAA`, `CNAME`, `NS`, `MX`, `TXT`, `SRV`, `NULL`, `CAA`.
+
 ### EDNS Buffer Size
 
 ```toml
-ends_buffer_size = 1234
+[resolver]
+edns_buffer_size = 1232
 ```
 
-UDP payload size advertised in the OPT record. `0` disables EDNS0. Note the key is spelled `ends_buffer_size` in the file.
+UDP payload size advertised in the OPT record. `0` disables EDNS0.
 
 ### Timeout
 
 ```toml
+[resolver]
 timeout = 2000
 ```
 
@@ -107,6 +110,7 @@ Per-query timeout in milliseconds.
 ### Tries
 
 ```toml
+[resolver]
 tries = 1
 ```
 
@@ -115,6 +119,7 @@ Attempts per record type. Retries only cover network errors. Once any DNS respon
 ### Random Subdomain
 
 ```toml
+[resolver]
 random_subdomain = true
 ```
 
@@ -123,144 +128,123 @@ Prepends a random 10-character label to `domain` for each probe. This defeats re
 ### Accepted RCodes
 
 ```toml
-accepted_rcodes = ["noerror", "nxdomain"]
+[resolver]
+accepted_rcodes = ["NOERROR", "NXDOMAIN", "SERVFAIL"]
 ```
 
 Response codes counted as a live resolver.
 
 | Value | Aliases | Code |
 |---|---|---|
-| `noerror` | `success` | 0 |
-| `formerr` | `formaterror` | 1 |
-| `servfail` | `serverfailure` | 2 |
-| `nxdomain` | `nameerror` | 3 |
-| `notimp` | `notimplemented` | 4 |
-| `refused` | | 5 |
+| `NOERROR` | `success` | 0 |
+| `FORMERR` | `formaterror` | 1 |
+| `SERVFAIL` | `serverfailure` | 2 |
+| `NXDOMAIN` | `nameerror` | 3 |
+| `NOTIMP` | `notimplemented` | 4 |
+| `REFUSED` | | 5 |
 
-With `random_subdomain` enabled, `nxdomain` is a normal answer for a made-up label, which is why it is accepted by default.
+With `random_subdomain` enabled, `NXDOMAIN` is a normal answer for a made-up label, which is why it is accepted by default.
 
-### Check DPI
-
-```toml
-check_dpi = true
-```
-
-Runs before the real queries. The probe asks the resolver for a random `.invalid` name, which cannot exist. A resolver that answers `NOERROR` is fabricating results, so the target is dropped. Any other rcode counts as honest. The outcome is stored per result as `passed` or `skipped`.
-
-### DPI Timeout and Tries
+### Output Prefix
 
 ```toml
-dpi_timeout = 500
-dpi_tries = 2
-```
-
-Timeout and attempt count for the hijack check. Keep the timeout well below the main `timeout` so dead targets are discarded quickly.
-
-### Prefix Output
-
-```toml
-prefix_output = "dns_resolver_"
+[resolver]
+output_prefix = "dns_"
 ```
 
 Filename prefix for resolver results. Files land in `result/dns_resolver/`.
 
-## DNSTT
-
-Tests whether a resolver can carry a DNSTT tunnel. The stage shells out to `dnstt-client`, which must be present in `assets/` or on `PATH`, and probes the tunnel through a locally allocated SOCKS5 port. When the binary is missing, startup logs a warning and the scan type is disabled.
-
-Reported latency measures the tunnel after it is up, excluding startup cost.
-
-### Enabled
+### DPI Check
 
 ```toml
-enabled = false
+[resolver.dpi]
+enabled = true
+timeout = 2000
+tries = 1
 ```
+
+The DPI (Deep Packet Inspection) check runs before the real queries. The probe asks the resolver for a random `.invalid` name, which cannot exist. A resolver that answers `NOERROR` is fabricating results, so the target is dropped. Any other rcode counts as honest. The outcome is stored per result as `passed` or `skipped`.
+
+`timeout` is in milliseconds (range 100-10000). `tries` ranges from 1-10. Keep the DPI timeout well below the main `timeout` so dead targets are discarded quickly.
+
+## DNS Tunneling
+
+The `dns_tunneling` section controls how tunnel scans are orchestrated. It does not contain tunnel protocol settings — those are stored in separate per-config TOML files under `assets/dns-tunneling/`.
 
 ### Workers
 
 ```toml
-workers = 20
+[dns_tunneling]
+workers = 16
 ```
 
-Each worker runs its own client process and holds a local port, so this is far more expensive than the resolver probe.
+Concurrent tunnel test workers. Each worker runs its own tunnel probe and holds a local port, so this is far more expensive than the resolver probe. The effective default depends on platform and resource tier.
 
-### Domain
+### Tries
 
 ```toml
-domain = "ns.example.com"
+[dns_tunneling]
+tries = 1
 ```
 
-The zone delegated to your DNSTT server. Passed to the client as the tunnel domain.
-
-### Public Key
-
-```toml
-public_key = "0000000000000000000000000000000000000000000000000000000000000000"
-```
-
-Server public key, passed through as `-pubkey`. It must be exactly 64 hexadecimal characters. The default is a placeholder and will not connect to anything.
+Retry attempts per target.
 
 ### Timeout
 
 ```toml
-timeout = 8000
+[dns_tunneling]
+timeout = 10000
 ```
 
-Time budget for bringing up the tunnel and validating it, in milliseconds.
+Time budget for bringing up the tunnel and validating it, in milliseconds. Tunnel tests need more time than plain DNS queries.
 
-### Prefix Output
+### Check DNS Resolver
 
 ```toml
-prefix_output = "dns_dnstt_"
+[dns_tunneling]
+check_dns_resolver = true
 ```
 
-Files land in `result/dnstt/`.
+When `true`, a resolver pre-scan runs before the tunnel test. Only resolvers that pass the resolver scan are tested as tunnel candidates. This avoids wasting tunnel probes on resolvers that cannot even answer basic DNS queries.
 
-## SlipStream
-
-An alternative DNS tunneling technique with the same shape as DNSTT: an external `slipstream-client` binary, a local SOCKS5 port per probe, and latency measured after the tunnel is established.
-
-### Enabled
+### Adaptive Resolver
 
 ```toml
-enabled = false
+[dns_tunneling]
+adaptive_resolver = true
 ```
 
-### Workers
+When `true`, the resolver settings (transport, port, domain) are automatically overridden to match the selected tunnel configuration. For example, if a DNSTT config uses `resolver_type = "tcp"` on port 853, the resolver pre-scan will use the same transport and port. This ensures the resolver pre-scan tests the same path the tunnel will use.
+
+When `false`, the resolver pre-scan uses the settings from the `[resolver]` section as-is.
+
+### Output Prefix
 
 ```toml
-workers = 20
+[dns_tunneling]
+output_prefix = "dns_tun_"
 ```
 
-### Domain
+Filename prefix for tunnel result files. Files land in `result/dnstt/`, `result/vaydns/`, or `result/slipstream/` depending on the protocol.
 
-```toml
-domain = "ns.example.com"
+## Tunnel Configurations
+
+DNS tunnel protocols (DNSTT, VayDNS, Slipstream) are configured through separate TOML files stored under `assets/dns-tunneling/`:
+
+```
+assets/dns-tunneling/
+├── dnstt/
+│   ├── my-dnstt-config.toml
+│   └── ...
+├── vaydns/
+│   ├── my-vaydns-config.toml
+│   └── ...
+└── slipstream/
+    ├── my-slipstream-config.toml
+    └── ...
 ```
 
-The zone served by your SlipStream server.
-
-### Certificate Path
-
-```toml
-cert_path = ""
-```
-
-Optional TLS certificate file, passed to the client as `--cert`. Leave empty when the server does not require one.
-
-### Timeout
-
-```toml
-timeout = 8000
-```
-
-### Prefix Output
-
-```toml
-prefix_output = "dns_slipstream_"
-```
-
-Files land in `result/slipstream/`.
+These configs are created and managed through the TUI at **Main Menu → DNS Tunneling**. Each config has a name, a protocol type, and protocol-specific fields. See [DNS Tunneling](../dns-tunneling/) for detailed configuration of each protocol.
 
 ## Related Files
 
@@ -270,3 +254,4 @@ Files land in `result/slipstream/`.
 - [`http_settings.toml`](./http.md) — HTTP/HTTPS/HTTP3 probe configuration
 - [`xray_settings.toml`](./xray.md) — Xray outbound validation
 - [`writer_settings.toml`](./writer.md) — Result output configuration
+- [DNS Tunneling](../dns-tunneling/) — Tunnel protocol configuration

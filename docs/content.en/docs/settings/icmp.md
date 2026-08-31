@@ -19,8 +19,8 @@ The ICMP probe sends echo requests and records the round-trip time. It opens one
 | --------- | --------- | ------- | ------------- |
 | `timeout` | `2000` | 100-30000 | Time to wait for an echo reply, in milliseconds |
 | `tries` | `1` | 1-10 | Echo requests per target |
-| `workers` | `200` | 1-10000 | Concurrent probes in flight |
-| `prefix_output` | `"icmp_"` | | Result filename prefix |
+| `workers` | `200` | 1-5000 | Concurrent probes in flight |
+| `output_prefix` | `"icmp_"` | | Result filename prefix |
 
 ## Timeout
 
@@ -46,10 +46,10 @@ workers = 200
 
 Number of targets probed concurrently. Workers share the same sockets, so raising this mostly affects packet rate rather than file descriptors. Very high values can trigger rate limiting on intermediate routers.
 
-## Prefix Output
+## Output Prefix
 
 ```toml
-prefix_output = "icmp_"
+output_prefix = "icmp_"
 ```
 
 Filename prefix for result files written by this probe. Files land in `result/icmp/`.

@@ -55,10 +55,13 @@ bgscan ships with a set of pre-built IP lists in the `ips/` directory. These are
 | `cloudflare_IPv4` | Cloudflare IPv4 ranges |
 | `cloudflare_IPv6` | Cloudflare IPv6 ranges |
 | `cloudflare_ipv6_known` | Cloudflare IPv6 known-good ranges |
+| `cloudflare_common_IPv6` | Cloudflare common IPv6 ranges |
+| `cloudflare_full_IPv6` | Cloudflare full IPv6 ranges |
 | `fastly_IPv4` | Fastly CDN IPv4 ranges |
 | `gcore_IPv4` | G-Core Labs IPv4 ranges |
 | `google_IPv4` | Google IPv4 ranges |
 | `iran_IPv4` | Iranian IPv4 addresses |
+| `pub_dns_IPv4` | Public DNS server IPv4 addresses |
 
 These files follow the same internal CSV format as any imported list and can be renamed or deleted like any other file.
 

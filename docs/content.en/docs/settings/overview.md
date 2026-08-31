@@ -17,7 +17,7 @@ bgscan keeps all configuration in plain TOML files inside `settings/`. The app a
 | `settings/tcp_settings.toml` | TCP connect tuning |
 | `settings/http_settings.toml` | HTTP/HTTPS/HTTP3 probe tuning |
 | `settings/xray_settings.toml` | Xray test tuning |
-| `settings/dns_settings.toml` | DNS resolver, DNSTT, and SlipStream tuning |
+| `settings/dns_settings.toml` | DNS resolver and tunnel scan orchestration |
 
 ## Two ways to edit settings
 
@@ -32,4 +32,4 @@ Defaults are compiled into bgscan. A missing settings file is created with its d
 
 On startup, every loaded config is validated. Out-of-range values are replaced with the default and the correction is logged, so a bad edit degrades to the default instead of failing the run.
 
-The `settings/*.toml.default` files in the repository are reference copies of the shipped defaults. bgscan does not read them at runtime.
+DNS tunnel protocol settings (DNSTT, VayDNS, Slipstream) are stored in separate TOML files under `assets/dns-tunneling/`, not in `dns_settings.toml`. These are created and managed through the TUI at **Main Menu → DNS Tunneling**.

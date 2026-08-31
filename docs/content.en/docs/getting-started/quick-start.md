@@ -24,8 +24,9 @@ When you launch bgscan, you'll see the main menu with the following options:
 | **Run Scan** | Start a new network scan |
 | **IP Files** | Manage and select IP list files for scanning |
 | **Result Files** | View and manage saved scan results |
-| **Settings** | Configure scan parameters and preferences |
 | **Xray Outbounds** | Manage Xray proxy configurations |
+| **DNS Tunneling** | Configure and manage DNS tunnel connections |
+| **Settings** | Configure scan parameters and preferences |
 | **Logs** | View application and scan logs |
 
 ## Navigation Controls

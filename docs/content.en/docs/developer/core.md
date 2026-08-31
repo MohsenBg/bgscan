@@ -19,7 +19,9 @@ weight: 3
 | `scanner/portmgr` | Ephemeral local port pool for probes that spawn tunnel clients. |
 | `result` | `Writer`, CSV merge, schema registry, loader, counters. |
 | `iplist` | IP list CSV import, parsing, registry, shuffle, streaming. |
-| `dns` | DNS query helpers, transport parsing, DNSTT and SlipStream clients, SOCKS5. |
+| `dns` | DNS query helpers, transport parsing, DNSTT/VayDNS/Slipstream config services, and tunnel management. |
+| `socks` | SOCKS5 client for tunnel validation. |
+| `ssh` | SSH client for tunneled connections. |
 | `xray` | Xray runner, inbound and outbound config, link parsing, speed test. |
 | `speedtest` | Latency, download, and upload measurement used by the Xray probe. |
 | `netutil` | Host normalization, TLS version parsing, and SNI extraction used by the HTTP probes. |
@@ -37,23 +39,25 @@ type Scanner interface {
 
     GetStages() []StageConfig
     AddStage(StageConfig)
+    UpdateStageHooks(index int, hooks engine.ScanHooks) error
 
     Pause()
     Resume()
     IsPaused() bool
     PausedDuration() time.Duration
 
-    BuildICMPStage(context.Context) (StageConfig, error)
-    BuildTCPStage(context.Context) (StageConfig, error)
-    BuildHTTPStage(context.Context) (StageConfig, error)
-    BuildXrayStage(context.Context, string) (StageConfig, error)
-    BuildResolveStage(context.Context) (StageConfig, error)
-    BuildDNSTTStage(context.Context) (StageConfig, error)
-    BuildSlipStreamStage(context.Context) (StageConfig, error)
+    BuildICMPStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+    BuildTCPStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+    BuildHTTPStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+    BuildXrayStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildResolveStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+    BuildDNSTTStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildSlipStreamStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildVayDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 }
 ```
 
-`BuildXrayStage` takes the outbound template name chosen in the UI. The other builders take only a context.
+`BuildXrayStage`, `BuildDNSTTStage`, `BuildSlipStreamStage`, and `BuildVayDNSStage` take a config name and return a slice of stages (an optional resolver pre-scan stage plus the main stage). The other builders return a single stage. All builders accept optional `ScanHooks` via variadic arguments.
 
 A stage is:
 
@@ -189,6 +193,7 @@ Each probe lives in its own subpackage under `scanner/probe`:
 | `httpprobe` | HTTP/3 over QUIC | `NewHTTP3Probe(req, acceptedCodes)` |
 | `resolveprobe` | DNS resolver with DPI check | `NewResolverProbe(*DNSRequest)` |
 | `dnsttprobe` | DNSTT tunnel validation | `NewDNSTTProbe(config, portMgr)` |
+| `vaydnsprobe` | VayDNS tunnel validation | `NewVayDNSProbe(config, portMgr)` |
 | `slipstreamprobe` | SlipStream tunnel validation | `NewSlipstreamProbe(workers, config, portMgr)` |
 | `xrayprobe` | Xray connectivity and bandwidth | `NewXrayProbe(cfg, template, portMgr)` |
 
@@ -224,7 +229,7 @@ type ResultSchema struct {
 ```go
 result.DefaultRegistry.Register(icmpprobe.Schema)
 result.DefaultRegistry.Register(tcpprobe.Schema)
-// http, resolve, dnstt, slipstream, xray
+// http, resolve, dnstt, vaydns, slipstream, xray
 ```
 
 The registry maps a directory name back to its schema, which is how the result file browser knows how to parse and display a file it finds on disk.
@@ -315,9 +320,11 @@ Disabled entries are skipped during streaming. Both IPv4 and IPv6 prefixes are s
 ## DNS subsystem
 
 - `query.go` builds and sends queries over UDP, TCP, and DoT.
-- `type.go` parses transports and rcodes. `doh` parses successfully but resolves to DoT, since the scanner targets resolvers by IP.
-- `dnstt.go` and `slipstream.go` wrap the external client binaries and translate transport choice into client flags.
-- `socks5.go` is a minimal SOCKS5 client used to validate a tunnel once it is up.
+- `type.go` parses transports, rcodes, and protocol types. `doh` parses successfully but resolves to DoT, since the scanner targets resolvers by IP.
+- `dnstt.go`, `vaydns.go`, and `slipstream.go` define config structs, service interfaces (`DNSTTService`, `VayDNSService`, `SlipstreamService`), and manage tunnel config files under `assets/dns-tunneling/`.
+- `shared.go` provides config name normalization, public key validation, and the `GetAllDNSTunsFile` aggregator that merges configs from all three services.
+- `socks/` is a SOCKS5 client used to validate a tunnel once it is up.
+- `ssh/` is an SSH client for tunneled connections through SSH proxies.
 
 ## Xray integration
 
@@ -344,22 +351,26 @@ Each logger writes to file and fans out to any subscribed viewer channel. Rotati
 
 ## Startup
 
-`startup.RunHealthChecks(&cfg, &store)` runs after the config is loaded and before the TUI starts:
+The startup stage lives inside the TUI at `internal/ui/main/startup`. It runs as the second stage of the app model — after the splash animation, before the workspace — and shows each step live in a status sidebar.
+
+The checks are private functions in `checklist.go` driven by the startup component's `Init` and `Update` methods, and they run sequentially in a single goroutine:
 
 ```
-1. checkLoggerHealth()      open log files, start rotation
-2. theme.Init()             resolve the palette
-3. checkConfigHealth()      NormalizeAll, then save corrected sections
-4. checkXrayHealth()        locate the Xray binary and templates
-5. checkDNSTTHealth()       locate dnstt-client
-6. checkSlipstreamHealth()  locate slipstream-client
+1. Logger     — initialize core, UI, and debug loggers; call core.Init()
+                 to register probe result schemas
+2. Config     — store.Load() (fatal on malformed TOML), validate.NormalizeAll
+                 to report any out-of-range values clamped to defaults
+3. Xray       — locate Xray binary, ensure executable, check version
+4. DNSTT      — validate all DNSTT config files
+5. Slipstream — find slipstream-client binary, ensure executable, verify,
+                 validate config files
+6. Vaydns     — validate all VayDNS config files
+7. App        — wait for user to press Enter
 ```
 
-Checks are split across `checks_logger.go`, `checks_config.go`, `checks_xray.go`, and `checks_dns.go`. A missing optional binary prints a warning and disables only the scan type that needs it. The run ends with a prompt to press Enter.
+Each check reports status through a `reporter` that emits `[INFO]`, `[SUCCESS]`, `[WARN]`, or `[ERROR]` messages. Critical errors abort subsequent checks. A missing optional binary prints a warning and disables only the scan type that needs it. Once all checks pass and the user presses Enter, the app transitions to the workspace stage.
 
-Note that config failures surface earlier: `store.Load()` in `main` is fatal on malformed TOML, before health checks run at all.
-
-Set the `fastboot` constant in `health.go` to `true` to skip the 500 ms pauses between checks while debugging.
+Unlike the previous design, `main.go` does **not** load config or run any checks — it only calls `theme.Init()`, constructs the app, and starts the BubbleTea program. Config load failures, schema registration, and binary checks all happen as visible steps in the startup UI rather than as silent pre-TUI failures. Corrected values live in memory until the user saves the section through the settings inspector.
 
 ## Related pages
 

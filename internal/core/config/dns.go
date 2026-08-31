@@ -112,15 +112,15 @@ func withTunnel(base DNSTunneling, workers, tries int, timeout time.Duration) DN
 var dnsDefaults = map[Platform]map[Tier]DNSConfig{
 	Server: {
 		Low: DNSConfig{
-			Resolver:     withResolver(resolverBase(), 100, 1, 2*time.Second),
+			Resolver:     withResolver(resolverBase(), 80, 1, 2*time.Second),
 			DNSTunneling: withTunnel(tunnelBase(), 12, 1, 10*time.Second),
 		},
 		Mid: DNSConfig{
-			Resolver:     withResolver(resolverBase(), 400, 1, 2*time.Second),
+			Resolver:     withResolver(resolverBase(), 100, 1, 2*time.Second),
 			DNSTunneling: withTunnel(tunnelBase(), 24, 1, 10*time.Second),
 		},
 		High: DNSConfig{
-			Resolver:     withResolver(resolverBase(), 1000, 1, 1500*time.Millisecond),
+			Resolver:     withResolver(resolverBase(), 200, 1, 1500*time.Millisecond),
 			DNSTunneling: withTunnel(tunnelBase(), 64, 1, 8*time.Second),
 		},
 	},
@@ -130,11 +130,11 @@ var dnsDefaults = map[Platform]map[Tier]DNSConfig{
 			DNSTunneling: withTunnel(tunnelBase(), 8, 1, 10*time.Second),
 		},
 		Mid: DNSConfig{
-			Resolver:     withResolver(resolverBase(), 150, 1, 2*time.Second),
+			Resolver:     withResolver(resolverBase(), 80, 1, 2*time.Second),
 			DNSTunneling: withTunnel(tunnelBase(), 16, 1, 10*time.Second),
 		},
 		High: DNSConfig{
-			Resolver:     withResolver(resolverBase(), 300, 1, 2*time.Second),
+			Resolver:     withResolver(resolverBase(), 100, 1, 2*time.Second),
 			DNSTunneling: withTunnel(tunnelBase(), 32, 1, 10*time.Second),
 		},
 	},
@@ -144,11 +144,11 @@ var dnsDefaults = map[Platform]map[Tier]DNSConfig{
 			DNSTunneling: withTunnel(tunnelBase(), 3, 1, 10*time.Second),
 		},
 		Mid: DNSConfig{
-			Resolver:     withResolver(resolverBase(), 60, 1, 3*time.Second),
+			Resolver:     withResolver(resolverBase(), 40, 1, 3*time.Second),
 			DNSTunneling: withTunnel(tunnelBase(), 6, 1, 10*time.Second),
 		},
 		High: DNSConfig{
-			Resolver:     withResolver(resolverBase(), 100, 1, 2500*time.Millisecond),
+			Resolver:     withResolver(resolverBase(), 80, 1, 2500*time.Millisecond),
 			DNSTunneling: withTunnel(tunnelBase(), 12, 1, 10*time.Second),
 		},
 	},

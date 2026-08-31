@@ -229,8 +229,8 @@ func TestDNSDefaultsDesktopMidValues(t *testing.T) {
 	cfg := dnsDefaults[Desktop][Mid]
 	r := cfg.Resolver
 
-	if r.Workers != 150 {
-		t.Errorf("Resolver.Workers = %d, want 150", r.Workers)
+	if r.Workers != 80 {
+		t.Errorf("Resolver.Workers = %d, want 80", r.Workers)
 	}
 	if r.Transport != "udp" {
 		t.Errorf("Resolver.Protocol = %q, want %q", r.Transport, "udp")

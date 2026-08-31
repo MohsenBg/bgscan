@@ -17,9 +17,9 @@ The ICMP probe sends echo requests and records the round-trip time. It opens one
 
 | Setting | Default | Range | Description |
 | --------- | --------- | ------- | ------------- |
-| `timeout` | `2000` | 100-30000 | Time to wait for an echo reply, in milliseconds |
+| `timeout` | platform-dependent | 100-30000 | Time to wait for an echo reply, in milliseconds |
 | `tries` | `1` | 1-10 | Echo requests per target |
-| `workers` | `200` | 1-5000 | Concurrent probes in flight |
+| `workers` | platform-dependent | 1-5000 | Concurrent probes in flight |
 | `output_prefix` | `"icmp_"` | | Result filename prefix |
 
 ## Timeout
@@ -29,6 +29,9 @@ timeout = 2000
 ```
 
 How long a single echo request waits for its reply, in milliseconds. Applies per attempt, so the worst case for a target is `timeout * tries`.
+
+- `1500-2000` on servers and desktops
+- `2500-3000` on Android devices
 
 ## Retries
 
@@ -45,6 +48,10 @@ workers = 200
 ```
 
 Number of targets probed concurrently. Workers share the same sockets, so raising this mostly affects packet rate rather than file descriptors. Very high values can trigger rate limiting on intermediate routers.
+
+- `15-100` on Android devices
+- `30-400` on desktop machines
+- `100-1000` on servers
 
 ## Output Prefix
 

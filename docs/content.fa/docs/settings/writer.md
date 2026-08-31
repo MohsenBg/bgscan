@@ -18,8 +18,8 @@ weight: 4
 | گزینه | پیش‌فرض | توضیح |
 |---|---:|---|
 | `merge_flush_interval` | `2000` | فاصلهٔ Flush، میلی‌ثانیه |
-| `chan_size` | `2048` | ظرفیت Channel بین Worker و Writer |
-| `batch_size` | `4096` | تعداد نتیجهٔ نگه‌داری‌شده در حافظه تا Flush |
+| `chan_size` | وابسته به سیستم | ظرفیت Channel بین Worker و Writer |
+| `batch_size` | وابسته به سیستم | تعداد نتیجهٔ نگه‌داری‌شده در حافظه تا Flush |
 | `result_directory` | `"result"` | پوشهٔ پایهٔ نتیجه‌ها |
 
 ## Merge Flush Interval

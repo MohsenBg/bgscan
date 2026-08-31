@@ -20,8 +20,8 @@ Each scan stage owns one writer. Workers push results into a channel, the writer
 | Setting | Default | Description |
 | --------- | --------- | ------------- |
 | `merge_flush_interval` | `2000` | Flush interval in milliseconds |
-| `chan_size` | `2048` | Capacity of the worker to writer channel |
-| `batch_size` | `4096` | Results buffered in memory before a flush |
+| `chan_size` | platform-dependent | Capacity of the worker to writer channel |
+| `batch_size` | platform-dependent | Results buffered in memory before a flush |
 | `result_directory` | `"result"` | Base directory for result files |
 
 ## Merge Flush Interval

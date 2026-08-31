@@ -19,7 +19,7 @@ The TCP probe opens a connection to one port on each target and records the hand
 | --------- | --------- | ------- | ------------- |
 | `port` | `443` | 1-65535 | Target TCP port |
 | `timeout` | `2000` | 100-30000 | Connection timeout in milliseconds |
-| `workers` | `400` | 1-5000 | Concurrent connection attempts |
+| `workers` | platform-dependent | 1-5000 | Concurrent connection attempts |
 | `tries` | `1` | 1-10 | Connection attempts per target |
 | `output_prefix` | `"tcp_"` | | Result filename prefix |
 

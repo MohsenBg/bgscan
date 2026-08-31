@@ -13,6 +13,11 @@ import (
 
 var ErrClosed = errors.New("port manager closed")
 
+const (
+	minPort       = 20000
+	ephemeralPort = 49152
+)
+
 type Manager interface {
 	Get(context.Context) (uint16, error)
 	Release(uint16)
@@ -28,6 +33,10 @@ type manager struct {
 	closeOnce sync.Once
 
 	isFree func(uint16) bool
+
+	mu            sync.Mutex
+	startPort     uint16
+	lastAddedPort uint16
 }
 
 // New creates a port manager with ports starting from startPort.
@@ -37,9 +46,11 @@ func New(startPort, count uint16) (Manager, error) {
 	}
 
 	m := &manager{
-		ports:  make(chan uint16, count),
-		done:   make(chan struct{}),
-		isFree: portAvailable,
+		ports:         make(chan uint16, count),
+		done:          make(chan struct{}),
+		isFree:        portAvailable,
+		startPort:     startPort,
+		lastAddedPort: startPort + count - 1,
 	}
 
 	for i := range count {
@@ -76,6 +87,12 @@ func (m *manager) Get(ctx context.Context) (uint16, error) {
 
 			if m.isFree(port) {
 				return port, nil
+			} else {
+				fresh := m.nextPort()
+				select {
+				case m.ports <- fresh:
+				default:
+				}
 			}
 		}
 	}
@@ -126,11 +143,6 @@ func GenerateInstanceRange(base, size uint16) (uint16, uint16) {
 
 // RandomBase returns a random starting port avoiding ephemeral ports.
 func RandomBase(size uint16) uint16 {
-	const (
-		minPort       = 20000
-		ephemeralPort = 49152
-	)
-
 	max := ephemeralPort - size
 
 	return minPort + uint16(rand.Intn(int(max-minPort)))
@@ -165,4 +177,16 @@ func (s *manager) WaitOpen(ctx context.Context, addr string, timeout time.Durati
 			return nil
 		}
 	}
+}
+
+func (s *manager) nextPort() uint16 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.lastAddedPort++
+	if s.lastAddedPort >= ephemeralPort {
+		s.lastAddedPort = s.startPort
+	}
+
+	return s.lastAddedPort
 }

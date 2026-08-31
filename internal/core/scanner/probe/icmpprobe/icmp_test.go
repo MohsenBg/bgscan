@@ -70,6 +70,7 @@ func (c *fakeClock) advance(d time.Duration) {
 type fakeSocket struct {
 	mu        sync.Mutex
 	written   [][]byte
+	lastDest  net.Addr
 	replies   chan []byte
 	autoReply bool
 	protocol  int
@@ -105,7 +106,7 @@ func (f *fakeSocket) enqueueReply(id, seq int) {
 	f.replies <- data
 }
 
-func (f *fakeSocket) WriteTo(b []byte, _ net.Addr) (int, error) {
+func (f *fakeSocket) WriteTo(b []byte, addr net.Addr) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -119,6 +120,7 @@ func (f *fakeSocket) WriteTo(b []byte, _ net.Addr) (int, error) {
 	cp := make([]byte, len(b))
 	copy(cp, b)
 	f.written = append(f.written, cp)
+	f.lastDest = addr
 
 	if f.autoReply {
 		msg, err := icmp.ParseMessage(f.protocol, b)
@@ -139,7 +141,9 @@ func (f *fakeSocket) ReadFrom(b []byte) (int, net.Addr, error) {
 			return 0, nil, errors.New("socket closed")
 		}
 		n := copy(b, pkt)
-		return n, &net.IPAddr{IP: net.ParseIP("127.0.0.1")}, nil
+		// Echo replies originate from the address the request was sent to;
+		// handlePacket verifies this against the waiter's target IP.
+		return n, f.lastDest, nil
 	case <-time.After(readTimeout):
 		return 0, nil, &errTimeout{}
 	}
@@ -223,6 +227,12 @@ func newFixture(t *testing.T, opts Options, ipv6Available bool) probeFixture {
 
 func ipv4Addr() netip.Addr { return netip.MustParseAddr("192.0.2.1") }
 func ipv6Addr() netip.Addr { return netip.MustParseAddr("2001:db8::1") }
+
+// ipAddrFrom builds the net.Addr form of ip, as handlePacket would receive
+// from a raw socket's ReadFrom.
+func ipAddrFrom(ip netip.Addr) net.Addr {
+	return &net.IPAddr{IP: net.IP(ip.AsSlice())}
+}
 
 func TestNew_FailsWhenIPv4Unavailable(t *testing.T) {
 	_, err := NewICMPProbe(Options{
@@ -474,9 +484,9 @@ func TestHandlePacket_IPv4_SignalsWaiter(t *testing.T) {
 	p := fx.probe
 
 	const id, seq = 999, 42
-	key := makeKey(id, seq)
+	key := makeKey(icmpProtocol, id, seq)
 	ch := make(chan struct{}, 1)
-	p.waiters.Store(key, ch)
+	p.waiters.Store(key, &waiter{ch: ch, addr: ipv4Addr()})
 	defer p.waiters.Delete(key)
 
 	pkt, _ := (&icmp.Message{
@@ -485,7 +495,7 @@ func TestHandlePacket_IPv4_SignalsWaiter(t *testing.T) {
 		Body: &icmp.Echo{ID: id, Seq: seq},
 	}).Marshal(nil)
 
-	p.handlePacket(pkt, icmpProtocol)
+	p.handlePacket(pkt, icmpProtocol, ipAddrFrom(ipv4Addr()))
 
 	select {
 	case <-ch:
@@ -499,9 +509,9 @@ func TestHandlePacket_IPv6_SignalsWaiter(t *testing.T) {
 	p := fx.probe
 
 	const id, seq = 888, 7
-	key := makeKey(id, seq)
+	key := makeKey(icmp6Protocol, id, seq)
 	ch := make(chan struct{}, 1)
-	p.waiters.Store(key, ch)
+	p.waiters.Store(key, &waiter{ch: ch, addr: ipv6Addr()})
 	defer p.waiters.Delete(key)
 
 	pkt, _ := (&icmp.Message{
@@ -510,7 +520,7 @@ func TestHandlePacket_IPv6_SignalsWaiter(t *testing.T) {
 		Body: &icmp.Echo{ID: id, Seq: seq},
 	}).Marshal(nil)
 
-	p.handlePacket(pkt, icmp6Protocol)
+	p.handlePacket(pkt, icmp6Protocol, ipAddrFrom(ipv6Addr()))
 
 	select {
 	case <-ch:
@@ -524,9 +534,9 @@ func TestHandlePacket_WrongType_Ignored(t *testing.T) {
 	p := fx.probe
 
 	const id, seq = 777, 5
-	key := makeKey(id, seq)
+	key := makeKey(icmpProtocol, id, seq)
 	ch := make(chan struct{}, 1)
-	p.waiters.Store(key, ch)
+	p.waiters.Store(key, &waiter{ch: ch, addr: ipv4Addr()})
 	defer p.waiters.Delete(key)
 
 	pkt, _ := (&icmp.Message{
@@ -535,7 +545,7 @@ func TestHandlePacket_WrongType_Ignored(t *testing.T) {
 		Body: &icmp.Echo{ID: id, Seq: seq},
 	}).Marshal(nil)
 
-	p.handlePacket(pkt, icmpProtocol)
+	p.handlePacket(pkt, icmpProtocol, ipAddrFrom(ipv4Addr()))
 
 	select {
 	case <-ch:
@@ -554,24 +564,100 @@ func TestHandlePacket_UnknownKey_NoSignal(t *testing.T) {
 		Body: &icmp.Echo{ID: 1, Seq: 1},
 	}).Marshal(nil)
 
-	p.handlePacket(pkt, icmpProtocol)
+	p.handlePacket(pkt, icmpProtocol, ipAddrFrom(ipv4Addr()))
 }
 
 func TestHandlePacket_Garbage_Ignored(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, true)
 	p := fx.probe
-	p.handlePacket([]byte{0xde, 0xad, 0xbe, 0xef}, icmpProtocol)
+	p.handlePacket([]byte{0xde, 0xad, 0xbe, 0xef}, icmpProtocol, ipAddrFrom(ipv4Addr()))
+}
+
+func TestHandlePacket_AddrMismatch_Dropped(t *testing.T) {
+	fx := newFixture(t, Options{Tries: 1}, true)
+	p := fx.probe
+
+	const id, seq = 555, 9
+	key := makeKey(icmpProtocol, id, seq)
+	ch := make(chan struct{}, 1)
+	p.waiters.Store(key, &waiter{ch: ch, addr: ipv4Addr()})
+	defer p.waiters.Delete(key)
+
+	pkt, _ := (&icmp.Message{
+		Type: ipv4.ICMPTypeEchoReply,
+		Code: 0,
+		Body: &icmp.Echo{ID: id, Seq: seq},
+	}).Marshal(nil)
+
+	// Reply carries the registered (protocol, id, seq) key but originates
+	// from a different host — the source-validation guard must drop it so
+	// a colliding key can never signal the wrong waiter.
+	p.handlePacket(pkt, icmpProtocol, ipAddrFrom(netip.MustParseAddr("192.0.2.2")))
+
+	select {
+	case <-ch:
+		t.Fatal("waiter was signalled by a reply from a different source address")
+	default:
+	}
 }
 
 func TestMakeKey_Uniqueness(t *testing.T) {
-	cases := [][2]int{{1, 1}, {1, 2}, {2, 1}, {0xffff, 0xffff}}
+	cases := [][3]int{
+		{icmpProtocol, 1, 1},
+		{icmpProtocol, 1, 2},
+		{icmpProtocol, 2, 1},
+		{icmpProtocol, 0xffff, 0xffff},
+		{icmp6Protocol, 1, 1},
+		{icmp6Protocol, 1, 2},
+		{icmp6Protocol, 2, 1},
+		{icmp6Protocol, 0xffff, 0xffff},
+	}
 	seen := map[uint64]bool{}
 	for _, c := range cases {
-		k := makeKey(c[0], c[1])
+		k := makeKey(c[0], c[1], c[2])
 		if seen[k] {
-			t.Errorf("collision for id=%d seq=%d", c[0], c[1])
+			t.Errorf("collision for protocol=%d id=%d seq=%d", c[0], c[1], c[2])
 		}
 		seen[k] = true
+	}
+
+	// Identical id/seq across protocols must never share a key: an IPv6 reply
+	// must not resolve to an IPv4 waiter (and vice versa).
+	if makeKey(icmpProtocol, 1, 1) == makeKey(icmp6Protocol, 1, 1) {
+		t.Error("IPv4 and IPv6 keys with identical id/seq must differ")
+	}
+}
+
+func TestAddrMatches(t *testing.T) {
+	v4 := ipv4Addr()
+	v4other := netip.MustParseAddr("192.0.2.2")
+	v6 := ipv6Addr()
+	v4mapped := netip.MustParseAddr("::ffff:192.0.2.1")
+
+	tests := []struct {
+		name   string
+		target netip.Addr
+		from   net.Addr
+		want   bool
+	}{
+		{"v4 IPAddr match", v4, &net.IPAddr{IP: net.IP(v4.AsSlice())}, true},
+		{"v4 UDPAddr match", v4, &net.UDPAddr{IP: net.IP(v4.AsSlice())}, true},
+		{"v4 matches IPv4-mapped form", v4, &net.IPAddr{IP: net.IP(v4mapped.AsSlice())}, true},
+		{"v4 mismatch", v4, &net.IPAddr{IP: net.IP(v4other.AsSlice())}, false},
+		{"v4 target vs v6 sender", v4, &net.IPAddr{IP: net.IP(v6.AsSlice())}, false},
+		{"v6 match", v6, &net.IPAddr{IP: net.IP(v6.AsSlice())}, true},
+		{"v6 target vs v4 sender", v6, &net.IPAddr{IP: net.IP(v4.AsSlice())}, false},
+		{"unsupported addr type", v4, &net.TCPAddr{IP: net.IP(v4.AsSlice())}, false},
+		{"nil addr", v4, nil, false},
+		{"IPAddr with nil IP", v4, &net.IPAddr{}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := addrMatches(tt.target, tt.from); got != tt.want {
+				t.Errorf("addrMatches(%v, %T) = %v, want %v", tt.target, tt.from, got, tt.want)
+			}
+		})
 	}
 }
 

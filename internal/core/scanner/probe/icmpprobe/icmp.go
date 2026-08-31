@@ -49,6 +49,16 @@ func (realClock) NewTimer(d time.Duration) *time.Timer { return time.NewTimer(d)
 // socketFactory abstracts socket creation for testing.
 type socketFactory func(privileged, unprivileged, addr string) (socket, string, int, error)
 
+// waiter tracks an in-flight Ping call awaiting a reply. addr records the
+// target IP so replies can be verified against the sender, not just the
+// (protocol, id, seq) key, which can legitimately collide once more than
+// 65536 pings for a given protocol are in flight at once (ICMP sequence
+// numbers are only 16 bits on the wire).
+type waiter struct {
+	ch   chan struct{}
+	addr netip.Addr
+}
+
 // ICMPProbe measures reachability and latency for IPv4 and IPv6 targets using ICMP echo requests.
 // It maintains shared ICMP sockets and dedicated reader goroutines to demultiplex echo replies.
 // IPv6 support is best-effort; if unavailable, IPv6 targets return an error.
@@ -66,7 +76,7 @@ type ICMPProbe struct {
 	tries   uint16
 	clock   clock
 
-	waiters   sync.Map
+	waiters   sync.Map // key: uint64 from makeKey -> *waiter
 	done      chan struct{}
 	closeOnce sync.Once
 	startOnce sync.Once
@@ -139,7 +149,7 @@ func (p *ICMPProbe) reader(conn socket, protocol int) {
 
 		_ = conn.SetReadDeadline(p.clock.Now().Add(readTimeout))
 
-		n, _, err := conn.ReadFrom(buf)
+		n, addr, err := conn.ReadFrom(buf)
 		if err != nil {
 			if netutil.IsTimeout(err) {
 				continue
@@ -147,12 +157,17 @@ func (p *ICMPProbe) reader(conn socket, protocol int) {
 			return
 		}
 
-		p.handlePacket(buf[:n], protocol)
+		p.handlePacket(buf[:n], protocol, addr)
 	}
 }
 
-// handlePacket parses an incoming ICMP packet and signals the corresponding waiter if it matches an active Echo Reply.
-func (p *ICMPProbe) handlePacket(packet []byte, protocol int) {
+// handlePacket parses an incoming ICMP packet and signals the corresponding waiter if it matches
+// an active Echo Reply. The (protocol, id, seq) key narrows candidates, but since ICMP sequence
+// numbers are only 16 bits on the wire, two different in-flight targets can legitimately share a
+// key once more than ~65536 pings for a protocol are outstanding at once. To guard against
+// signaling the wrong waiter in that case, the packet's source address must also match the
+// waiter's target address before it is treated as a genuine reply.
+func (p *ICMPProbe) handlePacket(packet []byte, protocol int, from net.Addr) {
 	msg, err := icmp.ParseMessage(protocol, packet)
 	if err != nil {
 		return
@@ -176,19 +191,56 @@ func (p *ICMPProbe) handlePacket(packet []byte, protocol int) {
 		return
 	}
 
-	key := makeKey(body.ID, body.Seq)
+	key := makeKey(protocol, body.ID, body.Seq)
 
-	if ch, ok := p.waiters.Load(key); ok {
-		select {
-		case ch.(chan struct{}) <- struct{}{}:
-		default:
-		}
+	v, ok := p.waiters.Load(key)
+	if !ok {
+		return
+	}
+
+	w := v.(*waiter)
+	if !addrMatches(w.addr, from) {
+		// Key collision (e.g. sequence-number wraparound with a very high number
+		// of concurrent pings): this reply belongs to a different in-flight
+		// target than the one currently registered under this key. Drop it;
+		// the real waiter for this reply either already fired or will time out
+		// and retry. This is a safe failure mode — it never signals the wrong
+		// waiter as successful.
+		return
+	}
+
+	select {
+	case w.ch <- struct{}{}:
+	default:
 	}
 }
 
-// makeKey generates a unique 64-bit identifier from an ICMP ID and sequence number.
-func makeKey(id, seq int) uint64 {
-	return uint64(id)<<32 | uint64(seq)
+// addrMatches reports whether the sender address of an ICMP reply corresponds to the given target IP.
+func addrMatches(target netip.Addr, from net.Addr) bool {
+	var fromIP net.IP
+
+	switch a := from.(type) {
+	case *net.IPAddr:
+		fromIP = a.IP
+	case *net.UDPAddr:
+		fromIP = a.IP
+	default:
+		return false
+	}
+
+	got, ok := netip.AddrFromSlice(fromIP)
+	if !ok {
+		return false
+	}
+
+	return got.Unmap() == target.Unmap()
+}
+
+// makeKey generates a unique 64-bit identifier from an ICMP protocol, ID, and sequence number.
+// Including the protocol prevents an IPv4 waiter from ever being matched by an IPv6 reply (or vice
+// versa) even when both families happen to share the same ICMP ID and sequence number.
+func makeKey(protocol, id, seq int) uint64 {
+	return uint64(protocol)<<48 | uint64(id)<<32 | uint64(seq)
 }
 
 // Ping sends a single ICMP echo request to the target IP and waits for a reply or timeout.
@@ -216,10 +268,10 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Durati
 	}
 
 	seq := int(p.seq.Add(1) & 0xffff)
-	key := makeKey(id, seq)
+	key := makeKey(proto, id, seq)
 
-	ch := make(chan struct{}, 1)
-	p.waiters.Store(key, ch)
+	w := &waiter{ch: make(chan struct{}, 1), addr: ip}
+	p.waiters.Store(key, w)
 	defer p.waiters.Delete(key)
 
 	var msgType icmp.Type
@@ -256,7 +308,7 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Durati
 		return ctx.Err()
 	case <-p.done:
 		return errors.New("icmp probe closed")
-	case <-ch:
+	case <-w.ch:
 		return nil
 	case <-timer.C:
 		return errors.New("timeout")

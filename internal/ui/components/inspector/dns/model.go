@@ -139,6 +139,22 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.Resolver.Workers = n })
 
+	resolverPort := intInput(
+		state,
+		"Enter port number",
+		int(cfg.Resolver.Port),
+		func(v string) error {
+			n, err := strconv.ParseUint(v, 10, 16)
+			if err != nil {
+				return err
+			}
+			tmp := *cfg
+			tmp.Resolver.Port = uint16(n)
+			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Port")
+		},
+		func(n int) { cfg.Resolver.Port = uint16(n) },
+	)
+
 	resolverTransport := selectinput.New(
 		state.Layout, "Select protocol",
 		selectinput.WithValue(cfg.Resolver.Transport),
@@ -149,7 +165,17 @@ func New(state *ui.AppState, name string) *Model {
 			huh.NewOption("DoT", "dot"),
 		),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
+			if v == cfg.Resolver.Transport {
+				return nil
+			}
 			cfg.Resolver.Transport = v
+			if v == "dot" {
+				cfg.Resolver.Port = 853
+				resolverPort.SetValue("853")
+			} else {
+				cfg.Resolver.Port = 53
+				resolverPort.SetValue("53")
+			}
 			return saveDNS(state)
 		}),
 	)
@@ -182,22 +208,6 @@ func New(state *ui.AppState, name string) *Model {
 			tmp.Resolver.Domain = v
 			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Domain")
 		}, func(v string) { cfg.Resolver.Domain = v },
-	)
-
-	resolverPort := intInput(
-		state,
-		"Enter port number",
-		int(cfg.Resolver.Port),
-		func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 16)
-			if err != nil {
-				return err
-			}
-			tmp := *cfg
-			tmp.Resolver.Port = uint16(n)
-			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Port")
-		},
-		func(n int) { cfg.Resolver.Port = uint16(n) },
 	)
 
 	resolverEDNSBufSize := intInput(state, "Enter EDNS buffer size", int(cfg.Resolver.EDNSBufSize),

@@ -15,6 +15,15 @@ import (
 // IP validation is handled more reliably by net/netip.
 var hostPattern = regexp.MustCompile(`^(localhost|([a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63})$`)
 
+// schemePattern matches a leading URL scheme such as http://, https://, or
+// ftp:// in any letter case.
+var schemePattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*://`)
+
+// HasScheme reports whether the value starts with a URL scheme like http://.
+func HasScheme(v string) bool {
+	return schemePattern.MatchString(v)
+}
+
 // --------------------
 // Public API
 // --------------------
@@ -163,12 +172,17 @@ func IsPortAvailable(port int) bool {
 	return true
 }
 
-// validateDomain validates a domain name: non-empty, valid IDNA conversion,
-// no leading/trailing dots, no empty labels, valid label syntax and length.
+// validateDomain validates a domain name: non-empty, no protocol scheme,
+// valid IDNA conversion, no leading/trailing dots, no empty labels, valid
+// label syntax and length.
 func ValidateDomain(domain string) error {
 	domain = strings.TrimSpace(domain)
 	if domain == "" {
 		return fmt.Errorf("domain is required")
+	}
+
+	if HasScheme(domain) {
+		return fmt.Errorf("invalid domain %q: domain must not include a protocol scheme (e.g. http:// or https://)", domain)
 	}
 
 	ascii, err := idna.Lookup.ToASCII(domain)

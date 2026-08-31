@@ -172,3 +172,57 @@ func TestIsPortAvailable_Available(t *testing.T) {
 		)
 	}
 }
+
+func TestValidateDomain(t *testing.T) {
+	tests := []struct {
+		name    string
+		domain  string
+		wantErr bool
+	}{
+		{"valid domain", "example.com", false},
+		{"valid subdomain", "sub.example.com", false},
+		{"empty", "", true},
+		{"with scheme", "http://example.com", true},
+		{"with uppercase scheme", "HTTPS://example.com", true},
+		{"with ftp scheme", "ftp://example.com", true},
+		{"with path", "example.com/path", true},
+		{"with port", "example.com:443", true},
+		{"leading dot", ".example.com", true},
+		{"trailing dot", "example.com.", true},
+		{"consecutive dots", "example..com", true},
+		{"single label", "example", true},
+		{"label starting with hyphen", "-example.com", true},
+		{"label ending with hyphen", "example-.com", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateDomain(tt.domain)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateDomain(%q) error = %v, wantErr %v", tt.domain, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestHasScheme(t *testing.T) {
+	tests := []struct {
+		value string
+		want  bool
+	}{
+		{"http://example.com", true},
+		{"HTTPS://example.com", true},
+		{"ftp://example.com", true},
+		{"example.com", false},
+		{"example.com/http://x", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			if got := HasScheme(tt.value); got != tt.want {
+				t.Errorf("HasScheme(%q) = %v, want %v", tt.value, got, tt.want)
+			}
+		})
+	}
+}

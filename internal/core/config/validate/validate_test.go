@@ -260,7 +260,8 @@ func TestCheckAndFixHost(t *testing.T) {
 		wantErr  error
 	}{
 		{"valid domain", "google.com", "", nil},
-		{"with scheme", "http://google.com", "", nil},
+		{"with scheme", "http://google.com", "default.com", ErrSchemeNotAllowed},
+		{"with uppercase scheme", "HTTPS://google.com", "default.com", ErrSchemeNotAllowed},
 		{"with port and path", "example.com:8080/api/v1", "", nil},
 		{"invalid domain", "invalid_domain!", "default.com", ErrInvalidDomain},
 		{"empty", "", "default.com", ErrEmpty},
@@ -289,7 +290,8 @@ func TestCheckAndFixSNI(t *testing.T) {
 		wantErr  error
 	}{
 		{"valid domain", "google.com", "", nil},
-		{"with scheme stripped", "https://google.com", "", nil},
+		{"with scheme", "https://google.com", "default.com", ErrSchemeNotAllowed},
+		{"with uppercase scheme", "HTTP://google.com", "default.com", ErrSchemeNotAllowed},
 		{"with path", "google.com/path", "default.com", ErrPathOrPort},
 		{"with port", "google.com:443", "default.com", ErrPathOrPort},
 		{"empty is valid", "", "", nil},
@@ -319,7 +321,8 @@ func TestCheckAndFixDomain(t *testing.T) {
 		wantErr  error
 	}{
 		{"valid domain", "google.com", "", nil},
-		{"with scheme stripped", "https://google.com", "", nil},
+		{"with scheme", "https://google.com", "default.com", ErrSchemeNotAllowed},
+		{"with uppercase scheme", "Http://google.com", "default.com", ErrSchemeNotAllowed},
 		{"with path", "google.com/path", "default.com", ErrPathOrPort},
 		{"with port", "google.com:443", "default.com", ErrPathOrPort},
 		{"empty is not valid", "", "", ErrEmpty},

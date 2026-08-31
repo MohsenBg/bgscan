@@ -37,6 +37,8 @@ var (
 	ErrMalformedURL = errors.New("malformed URL")
 	// ErrPathOrPort indicates a domain includes a path or port.
 	ErrPathOrPort = errors.New("domain must not contain path or port")
+	// ErrSchemeNotAllowed indicates a value includes a URL scheme such as http:// or https://.
+	ErrSchemeNotAllowed = errors.New("value must not include a protocol scheme")
 	// ErrInvalidStatusCode indicates a status code is outside the HTTP range.
 	ErrInvalidStatusCode = errors.New("invalid HTTP status code")
 	// ErrInvalidPubKey indicates a public key is not a 64-character hexadecimal value.
@@ -166,13 +168,24 @@ func checkDirectoryName(field, name string) error {
 	return nil
 }
 
+// schemeRegex matches a leading URL scheme such as http://, https://, or
+// ftp:// in any letter case.
+var schemeRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*://`)
+
+// hasScheme reports whether the value starts with a URL scheme like http://.
+func hasScheme(v string) bool {
+	return schemeRegex.MatchString(v)
+}
+
 func checkHost(field, host string) error {
 	if strings.TrimSpace(host) == "" {
 		return fmt.Errorf("%s must not be empty: %w", field, ErrEmpty)
 	}
 
-	host = strings.TrimPrefix(host, "http://")
-	host = strings.TrimPrefix(host, "https://")
+	if hasScheme(host) {
+		return fmt.Errorf("%s must not include a protocol scheme (e.g. http:// or https://): %w",
+			field, ErrSchemeNotAllowed)
+	}
 
 	u, err := url.Parse("http://" + host)
 	if err != nil {
@@ -202,8 +215,10 @@ func checkSNI(field, sni string) error {
 		return nil
 	}
 
-	sni = strings.TrimPrefix(sni, "http://")
-	sni = strings.TrimPrefix(sni, "https://")
+	if hasScheme(sni) {
+		return fmt.Errorf("%s must not include a protocol scheme (e.g. http:// or https://): %w",
+			field, ErrSchemeNotAllowed)
+	}
 
 	if strings.Contains(sni, "/") || strings.Contains(sni, ":") {
 		return fmt.Errorf("%s must be a strict domain without paths or ports: %s: %w",

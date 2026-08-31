@@ -141,7 +141,6 @@ download_builder() {
     exit 1
   fi
 
-  chmod +x "$TMP_DIR/bgscan-builder"
   BUILDER="$TMP_DIR/bgscan-builder"
 }
 
@@ -151,4 +150,8 @@ if ! resolve_builder; then
   download_builder
 fi
 
-"$BUILDER" install --version "$VERSION" --dir "$DEST_DIR"
+if [ -r /dev/tty ]; then
+    "$BUILDER" install --version "$VERSION" --dir "$DEST_DIR" < /dev/tty
+else
+    "$BUILDER" install --version "$VERSION" --dir "$DEST_DIR"
+fi

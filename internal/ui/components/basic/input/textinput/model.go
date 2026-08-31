@@ -1,6 +1,8 @@
 package textinput
 
 import (
+	"strings"
+
 	"bgscan/internal/ui/components/basic/input"
 	"bgscan/internal/ui/shared/env"
 	"bgscan/internal/ui/shared/layout"
@@ -205,24 +207,27 @@ func (m *Model) setReadOnly(ro bool) {
 	}
 }
 
-// validation runs the configured validation function against the
-// current value and returns an error if validation fails.
-func (m *Model) validation() error {
+// validation runs the configured validation function against the given
+// value and returns an error if validation fails.
+func (m *Model) validation(value string) error {
 	if m.validationFunc == nil {
 		return nil
 	}
-	return m.validationFunc(m.Value())
+	return m.validationFunc(value)
 }
 
-// submit validates the current value and, if valid, invokes onSubmit.
+// submit trims whitespace from the current value, validates the trimmed
+// value and, if valid, invokes onSubmit with it.
 func (m *Model) submit() tea.Cmd {
-	if err := m.validation(); err != nil {
+	value := strings.TrimSpace(m.Value())
+	m.SetValue(value)
+	if err := m.validation(value); err != nil {
 		m.errorMsg = err.Error()
 		return nil
 	}
 	m.errorMsg = ""
 	if m.onSubmit != nil {
-		return m.onSubmit(m.Value())
+		return m.onSubmit(value)
 	}
 	return nil
 }

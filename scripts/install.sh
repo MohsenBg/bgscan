@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # ==============================================================================
 #  bgscan installer
 #  https://github.com/MohsenBg/bgscan
@@ -10,15 +10,14 @@
 #
 #  This script is fully standalone and safe to pipe:
 #
-#    curl -fsSL <raw-url> | bash
-#    curl -fsSL <raw-url> | bash -s -- --version v2.10.0
-#    curl -fsSL <raw-url> | bash -s -- --dir ./bgscan-dev
+#    curl -fsSL <raw-url> | sh
+#    curl -fsSL <raw-url> | sh -s -- --version v2.10.0
+#    curl -fsSL <raw-url> | sh -s -- --dir ./bgscan-dev
 # ==============================================================================
-set -euo pipefail
+set -eu
 
 REPOSITORY_OWNER="MohsenBg"
 REPOSITORY_NAME="bgscan-builder"
-
 VERSION="latest"
 DEST_DIR="${DEST_DIR:-./bgscan}"
 
@@ -26,35 +25,35 @@ usage() {
   echo "Usage: install.sh [--version <tag|latest>] [--dir <path>]" >&2
   echo "" >&2
   echo "Examples:" >&2
-  echo "  curl -fsSL <raw-url> | bash " >&2
-  echo "  curl -fsSL <raw-url> | bash -s -- --version v2.10.0" >&2
+  echo "  curl -fsSL <raw-url> | sh" >&2
+  echo "  curl -fsSL <raw-url> | sh -s -- --version v2.10.0" >&2
   exit 1
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --version)
-      VERSION="${2:-}"
-      [ -n "$VERSION" ] || usage
-      shift 2
-      ;;
-    --dir)
-      DEST_DIR="${2:-}"
-      [ -n "$DEST_DIR" ] || usage
-      shift 2
-      ;;
-    --)
-      shift
-      ;;
-    *)
-      usage
-      ;;
+  --version)
+    VERSION="${2:-}"
+    [ -n "$VERSION" ] || usage
+    shift 2
+    ;;
+  --dir)
+    DEST_DIR="${2:-}"
+    [ -n "$DEST_DIR" ] || usage
+    shift 2
+    ;;
+  --)
+    shift
+    ;;
+  *)
+    usage
+    ;;
   esac
 done
 
 resolve_builder() {
-  local cmd
-  if cmd="$(command -v bgscan-builder 2>/dev/null)"; then
+  cmd="$(command -v bgscan-builder 2>/dev/null || true)"
+  if [ -n "$cmd" ]; then
     BUILDER="$cmd"
     return 0
   fi
@@ -63,25 +62,24 @@ resolve_builder() {
 }
 
 download_builder() {
-  local os arch asset url
   case "$(uname -s)" in
-    Linux*) os="linux" ;;
-    Darwin*) os="macos" ;;
-    *)
-      echo "error: unsupported system for the builder: $(uname -s)" >&2
-      exit 1
-      ;;
+  Linux*) os="linux" ;;
+  Darwin*) os="macos" ;;
+  *)
+    echo "error: unsupported system for the builder: $(uname -s)" >&2
+    exit 1
+    ;;
   esac
 
   case "$(uname -m)" in
-    x86_64) arch="64" ;;
-    aarch64 | arm64) arch="arm64" ;;
-    armv7l | armv7) arch="arm32-v7a" ;;
-    i386 | i686) arch="32" ;;
-    *)
-      echo "error: unsupported architecture: $(uname -m)" >&2
-      exit 1
-      ;;
+  x86_64) arch="64" ;;
+  aarch64 | arm64) arch="arm64" ;;
+  armv7l | armv7) arch="arm32-v7a" ;;
+  i386 | i686) arch="32" ;;
+  *)
+    echo "error: unsupported architecture: $(uname -m)" >&2
+    exit 1
+    ;;
   esac
 
   asset="bgscan-builder-${os}-${arch}"
@@ -91,10 +89,11 @@ download_builder() {
   trap 'rm -rf "$TMP_DIR"' EXIT
 
   echo "downloading ${REPOSITORY_NAME} (${asset}) ..." >&2
-  curl -fsSL --location "$url" -o "$TMP_DIR/bgscan-builder" || {
+  if ! curl -fsSL --location "$url" -o "$TMP_DIR/bgscan-builder"; then
     echo "error: failed to download ${REPOSITORY_NAME} from ${url}" >&2
     exit 1
-  }
+  fi
+
   chmod +x "$TMP_DIR/bgscan-builder"
   BUILDER="$TMP_DIR/bgscan-builder"
 }

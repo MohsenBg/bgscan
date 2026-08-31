@@ -98,7 +98,12 @@ func RunScan(ctx context.Context, input string, cfg ScanConfig) {
 		callback:  cfg.Hooks.OnProgress,
 	}
 
-	go runProgressReporter(ctx, cfg.ProgressInterval, progress)
+	progressDone := make(chan struct{})
+	var progressWG sync.WaitGroup
+
+	progressWG.Go(func() {
+		runProgressReporter(ctx, cfg.ProgressInterval, progress, progressDone)
+	})
 
 	var workerWG sync.WaitGroup
 	workerWG.Add(workers)
@@ -129,6 +134,9 @@ func RunScan(ctx context.Context, input string, cfg ScanConfig) {
 	close(results)
 
 	writerWG.Wait()
+
+	close(progressDone)
+	progressWG.Wait()
 }
 
 // runProgressReporter periodically publishes scan statistics.
@@ -136,6 +144,7 @@ func runProgressReporter(
 	ctx context.Context,
 	interval time.Duration,
 	p scanProgress,
+	progressDone <-chan struct{},
 ) {
 	if p.callback == nil || interval <= 0 {
 		return
@@ -147,6 +156,9 @@ func runProgressReporter(
 	for {
 		select {
 		case <-ctx.Done():
+			return
+
+		case <-progressDone:
 			return
 
 		case <-ticker.C:

@@ -88,15 +88,10 @@ func executeStreamingPipeline(ctx context.Context, input string, cfg ChainConfig
 			stage.Hooks.callOnError(err)
 			return
 		}
+		defer exec.cleanup()
 
 		executors = append(executors, exec)
 	}
-
-	defer func() {
-		for _, e := range executors {
-			e.cleanup()
-		}
-	}()
 
 	var wg sync.WaitGroup
 

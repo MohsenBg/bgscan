@@ -11,7 +11,10 @@ bookCollapseSection: true
 
 برای اطلاعات دقیق‌تر درباره بخش‌های مختلف سیستم اسکن، صفحات زیر را بررسی کنید:
 
-- [انواع اسکن (Scan Types)](./scan-types/)
-- [لیست‌های آی‌پی - ورودی (IP Lists)](./ip-files/)
-- [فایل‌های نتایج - خروجی (Result Files)](./result-files/)
-- [خط لوله اسکن (Scan Pipeline)](./scan-pipeline/)
+- [منبع اسکن (Scan Source)](./scan-source/) — هدف‌ها از کجا می‌آیند
+- [انواع اسکن (Scan Types)](./scan-types/) — هر پروب چه کاری می‌کند
+- [خط لوله اسکن (Scan Pipeline)](./scan-pipeline/) — چطور مرحله‌ها به هم زنجیر می‌شوند
+- [لیست‌های آی‌پی - ورودی (IP Lists)](./ip-files/) — فایل‌های ورودی
+- [فایل‌های نتایج - خروجی (Result Files)](./result-files/) — فایل‌های خروجی
+- [اوت‌باندهای ایکس‌ری (Xray Outbounds)](./xray-outbound/) — قالب‌های Outbound برای اسکن Xray
+- [تونل DNS (DNS Tunneling)](./dns-tunneling/) — تنظیمات پروتکل‌های تونل

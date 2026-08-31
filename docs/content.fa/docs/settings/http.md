@@ -14,19 +14,20 @@ weight: 7
 ## خلاصهٔ گزینه‌ها
 
 | گزینه | پیش‌فرض | توضیح |
-|---|---:|---|
-| `workers` | `50` | درخواست هم‌زمان، ۱ تا ۵۰۰۰ |
+|---|---|---|
+| `workers` | وابسته به سیستم | درخواست هم‌زمان، ۱ تا ۱۰۰۰ |
 | `host` | `"example.com"` | Host درخواست؛ می‌تواند Path هم داشته باشد |
 | `server_name` | `""` | SNI دلخواه؛ خالی یعنی از `host` گرفته شود |
 | `port` | `443` | پورت هدف، ۱ تا ۶۵۵۳۵ |
 | `protocol` | `"https"` | `http` یا `https` |
 | `version` | `"h1,h2"` | نسخهٔ HTTP برای مذاکره |
+| `fingerprint` | `""` | اثر انگشت uTLS ClientHello؛ خالی یعنی کتابخانهٔ استاندارد |
 | `tls_validation` | `true` | بررسی اعتبار Certificate |
 | `min_tls_version` | `"tls1.1"` | کمترین نسخهٔ TLS |
 | `max_tls_version` | `"tls1.3"` | بیشترین نسخهٔ TLS |
-| `timeout` | `4000` | زمان درخواست، میلی‌ثانیه |
+| `timeout` | وابسته به سیستم | زمان درخواست، میلی‌ثانیه |
 | `accepted_status_codes` | `[]` | کدهای وضعیت قابل قبول؛ خالی یعنی همه |
-| `prefix_output` | `"http_"` | پیشوند فایل نتیجه |
+| `output_prefix` | `"http_"` | پیشوند فایل نتیجه |
 
 ## Workers
 
@@ -100,6 +101,23 @@ max_tls_version = "tls1.3"
 
 حد پایین و بالای TLS برای Handshake هستند. مقدارهای مجاز `tls1.0`، `tls1.1`، `tls1.2` و `tls1.3` است و مقدار پایین نباید از مقدار بالا بزرگ‌تر باشد. در حالت `h3` نادیده گرفته می‌شوند.
 
+## TLS Fingerprint
+
+```toml
+fingerprint = ""
+```
+
+اثر انگشت uTLS ClientHello برای Handshake پروتکل TLS است. وقتی این مقدار تنظیم شود، پروب به‌جای ClientHello کتابخانهٔ استاندارد، پروفایل مرورگر انتخاب‌شده را شبیه‌سازی می‌کند؛ این کار برای عبور از فیلترینگ و مکانیزم‌های تشخیص TLS Fingerprint (که معمولاً پشت DPI استفاده می‌شوند) مفید است. برچسب‌ها نسبت به کوچک و بزرگ بودن حروف حساس نیستند.
+
+| دسته‌بندی | برچسب‌ها |
+|---|---|
+| Chrome | `Chrome`, `Chrome_58`, `Chrome_62`, `Chrome_70`, `Chrome_72`, `Chrome_83`, `Chrome_87`, `Chrome_96`, `Chrome_100`, `Chrome_102`, `Chrome_120` |
+| Firefox | `Firefox`, `Firefox_55`, `Firefox_56`, `Firefox_63`, `Firefox_65`, `Firefox_99`, `Firefox_102`, `Firefox_105`, `Firefox_120` |
+| iOS | `iOS`, `iOS_11_1`, `iOS_12_1`, `iOS_13`, `iOS_14` |
+| Other | `random` |
+
+مقدار خالی (پیش‌فرض) از ClientHello استاندارد `crypto/tls` در Go استفاده می‌کند. پروتکل HTTP/3 روی QUIC از uTLS استفاده نمی‌کند؛ و برای `version = "h3"` همیشه از اثر انگشت خالی استفاده می‌شود.
+
 ## Server Name Indication
 
 ```toml
@@ -120,10 +138,10 @@ accepted_status_codes = []
 accepted_status_codes = [200, 204, 301, 302, 307, 308]
 ```
 
-## Prefix Output
+## Output Prefix
 
 ```toml
-prefix_output = "http_"
+output_prefix = "http_"
 ```
 
 پیشوند فایل‌های نتیجهٔ این پروب است. فایل‌ها داخل `result/http/` ذخیره می‌شوند.

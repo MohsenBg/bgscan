@@ -5,7 +5,7 @@ weight: 2
 
 # معماری پروژه
 
-bgscan چند لایهٔ مشخص دارد. `main` اول Schemaهای نتیجه را ثبت می‌کند، تنظیمات را می‌خواند و بررسی‌های اولیه را انجام می‌دهد. بعد TUI را بالا می‌آورد. TUI اسکنر را می‌سازد و اسکنر با چند Stage، Probe و Writer کار می‌کند.
+bgscan چند لایهٔ مشخص دارد. `main` اول Theme را راه می‌اندازد و TUI را بالا می‌آورد؛ همین. TUI سه مرحله دارد: Splash، Startup و Workspace. مرحلهٔ Startup لاگرها را آماده می‌کند، Schemaهای نتیجه را ثبت می‌کند، تنظیمات را می‌خواند و باینری‌های لازم را بررسی می‌کند. بعد Workspace اسکنر را می‌سازد و اسکنر با چند Stage، Probe و Writer کار می‌کند.
 
 ## مسیرهای مهم
 
@@ -18,8 +18,8 @@ bgscan چند لایهٔ مشخص دارد. `main` اول Schemaهای نتیج�
 | `internal/core/scanner/probe` | قرارداد Probe و پیاده‌سازی هر پروتکل |
 | `internal/core/result` | Schema، Writer، خواندن و ادغام CSV |
 | `internal/ui` | TUI، منوها، جدول‌ها، Dialogها و Theme |
-| `internal/startup` | بررسی تنظیمات و باینری‌های لازم هنگام شروع |
-| `assets` | Xray و Clientهای DNSTT و Slipstream |
+| `internal/ui/main/startup` | بررسی تنظیمات و باینری‌های لازم هنگام شروع، داخل TUI |
+| `assets` | Xray، باینری Slipstream و فایل‌های Config تونل DNS |
 | `ips` | فهرست‌های آمادهٔ IP |
 | `settings` | فایل‌های TOML در حال استفاده |
 
@@ -27,20 +27,26 @@ bgscan چند لایهٔ مشخص دارد. `main` اول Schemaهای نتیج�
 
 ```text
 main
- ├─ core.Init()                 Schemaهای نتیجه را ثبت می‌کند
- ├─ Store.Load()                تنظیمات را می‌خواند
- ├─ RunHealthChecks()           config و باینری‌ها را بررسی می‌کند
- └─ TUI
-     └─ Run Scan
-         ├─ Scanner و Stageها
-         ├─ یک Stage: RunScan
-         └─ چند Stage: Sequential / Streaming / Batch
-             └─ Writer → فایل CSV
+ ├─ theme.Init()                پالت رنگی را تعیین می‌کند
+ └─ TUI (BubbleTea)
+     ├─ Splash                  انیمیشن لوگو و نسخه
+     ├─ Startup                 بررسی‌های اولیه، داخل TUI
+     │   ├─ لاگرها + core.Init()   ثبت Schemaهای نتیجه
+     │   ├─ Store.Load()        تنظیمات را می‌خواند و Validate می‌کند
+     │   └─ باینری‌ها            Xray، Slipstream و Configهای تونل
+     └─ Workspace
+         └─ Run Scan
+             ├─ Scanner و Stageها
+             ├─ یک Stage: RunScan
+             └─ چند Stage: Sequential / Streaming / Batch
+                 └─ Writer → فایل CSV
 ```
 
 ## چند تصمیم مهم
 
-تنظیمات Global نیستند. `main` یک `ScannerConfig` می‌سازد و همان را از راه `AppState` به TUI و Scanner می‌دهد.
+تنظیمات Global نیستند. مرحلهٔ Startup یک `Store` می‌سازد و Config را بارگذاری می‌کند و همان را از راه `AppState` به همهٔ کامپوننت‌ها و Scanner می‌رساند.
+
+Config خراب خودش را ترمیم می‌کند. `NormalizeAll` مقدارهای خارج از محدوده را به پیش‌فرض برمی‌گرداند و اصلاحات را گزارش می‌کند؛ پس یک ویرایش اشتباه برنامه را از کار نمی‌اندازد.
 
 هر Probe مستقل است و فقط باید `Init`، `Run`، `Schema` و `Close` را پیاده کند. `Run` یک `netip.Addr` می‌گیرد، پس IPv4 و IPv6 مسیر جدا ندارند.
 

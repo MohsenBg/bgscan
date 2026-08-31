@@ -13,7 +13,7 @@ bgscan روی Linux، macOS، Windows و Android (Termux) اجرا می‌شود
 **Linux / macOS**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
 ```
 
 **Windows (PowerShell)**
@@ -25,10 +25,10 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 **Android (Termux)**
 
 ```bash
-pkg update -y && pkg install bash curl unzip -y && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | bash
+{ command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
 ```
 
-نصب‌کننده آخرین نسخه را دانلود می‌کند، آن را داخل پوشهٔ `bgscan/` باز می‌کند و برنامه را آمادهٔ اجرا می‌کند. اگر نسخه‌ای از قبل نصب شده باشد، از شما می‌پرسد که آن را جایگزین کند یا با نام `bgscan_old` از آن پشتیبان بگیرد.
+نصب‌کننده ابزار `bgscan-builder` را دانلود می‌کند که نسخهٔ مناسب پلتفرم شما را دریافت کرده، چک‌سام آن را بررسی می‌کند و bgscan را داخل پوشهٔ `bgscan/` نصب می‌کند. اگر از قبل نسخه‌ای نصب شده باشد، از شما می‌پرسد که چگونه ادامه دهید: به‌روزرسانی در همان محل (که پوشه‌های `ips/`، `assets/` و `settings/` شما را حفظ می‌کند)، نصب تمیز، یا پشتیبان‌گیری از نسخهٔ قبلی در یک پوشه با مهر زمانی به نام `bgscan_bck_*`.
 
 ## نصب دستی
 
@@ -42,11 +42,11 @@ pkg update -y && pkg install bash curl unzip -y && curl -fsSL https://raw.github
 
 ## ساخت از سورس
 
-> **نکته:** bgscan را نمی‌توان با `go install` نصب کرد. برای ساخت برنامه باید از ابزار `bgscan-builder` که داخل مخزن قرار دارد استفاده کنید.
+> **نکته:** bgscan را نمی‌توان با `go install` نصب کرد چون برنامه به باینری‌های خارجی (Xray، Slipstream) وابسته است. برای ساخت آن باید از ابزار همراه **`bgscan-builder`** استفاده کنید.
 
 ### پیش‌نیازها
 
-- Go نسخهٔ 1.26.3 یا جدیدتر
+- Go نسخهٔ 1.27 یا جدیدتر
 - Git
 
 ### دریافت سورس و ساخت برنامه
@@ -63,14 +63,20 @@ curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scr
 # Windows (PowerShell)
 irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install-builder.ps1 | iex
 
-# ساخت برای سیستم فعلی
-./bg-builder
+# دریافت وابستگی‌های پلتفرم شما (Xray، Slipstream و فهرست‌های IP پیش‌فرض)
+# Linux / macOS
+./scripts/install-deps.sh
+# Windows (PowerShell)
+./scripts/install-deps.ps1
 
-# یا ساخت برای یک سیستم مشخص
-./bg-builder --os linux --arch amd64
-./bg-builder --os windows --arch amd64
-./bg-builder --os darwin --arch arm64
-./bg-builder --os android --arch arm64
+# اجرا در محیط توسعه
+go run ./cmd/bgscan/
+
+# یا ساخت خروجی نهایی برای یک پلتفرم خاص
+./bgscan-builder release -os linux -arch amd64
+./bgscan-builder release -os windows -arch amd64
+./bgscan-builder release -os macos -arch arm64
+./bgscan-builder release -os android -arch arm64 -ndk-dir /opt/android-ndk
 ```
 
 ## ارتقا
@@ -86,6 +92,6 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 ## نیازمندی‌ها
 
 - **سیستم‌عامل:** Linux، macOS، Windows 10 یا جدیدتر، یا Android 7.0 یا جدیدتر (Termux)
-- **ابزارها:** `curl`، `unzip` و `bash`؛ نصب‌کننده در بیشتر سیستم‌ها وابستگی‌های لازم را خودش آماده می‌کند
+- **ابزارها:** `curl`؛ نصب‌کننده در بیشتر سیستم‌ها وابستگی‌های لازم را خودش آماده می‌کند
 - **Windows:** PowerShell نسخهٔ 5.1 یا جدیدتر
 - **Termux:** نسخهٔ F-Droid را نصب کنید؛ نسخهٔ Play Store قدیمی است

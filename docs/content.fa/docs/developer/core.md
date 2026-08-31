@@ -21,7 +21,9 @@ weight: 3
 | `scanner/portmgr` | استخر پورت‌های محلی موقت برای Probeهایی که کلاینت تانل اجرا می‌کنند |
 | `result` | `Writer`، ادغام فایل‌های CSV، ثبت Schema، بارگذاری و شمارنده‌ها |
 | `iplist` | ورود CSV لیست IPها، پارس کردن، ثبت، Shuffle و الاستریم |
-| `dns` | توابع کمکی کوئری DNS، پارس Transport، کلاینت‌های DNSTT و SlipStream و SOCKS5 |
+| `dns` | توابع کمکی کوئری DNS، پارس Transport، سرویس‌های Config مربوط به DNSTT/VayDNS/Slipstream و مدیریت تونل |
+| `socks` | کلاینت SOCKS5 برای اعتبارسنجی تونل |
+| `ssh` | کلاینت SSH برای اتصال‌های تونل‌شده از طریق Proxyهای SSH |
 | `xray` | اجراکننده Xray، کانفیگ Inbound/Outbound، پارس لینک و تست سرعت |
 | `speedtest` | سنجش Latency، دانلود و آپلود برای استفاده در Probe مربوط به Xray |
 | `netutil` | نرمال‌سازی Host، پارس نسخه TLS و استخراج SNI برای Probeهای HTTP |
@@ -39,23 +41,25 @@ type Scanner interface {
 
     GetStages() []StageConfig
     AddStage(StageConfig)
+    UpdateStageHooks(index int, hooks engine.ScanHooks) error
 
     Pause()
     Resume()
     IsPaused() bool
     PausedDuration() time.Duration
 
-    BuildICMPStage(context.Context) (StageConfig, error)
-    BuildTCPStage(context.Context) (StageConfig, error)
-    BuildHTTPStage(context.Context) (StageConfig, error)
-    BuildXrayStage(context.Context, string) (StageConfig, error)
-    BuildResolveStage(context.Context) (StageConfig, error)
-    BuildDNSTTStage(context.Context) (StageConfig, error)
-    BuildSlipStreamStage(context.Context) (StageConfig, error)
+    BuildICMPStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+    BuildTCPStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+    BuildHTTPStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+    BuildXrayStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildResolveStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+    BuildDNSTTStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildSlipStreamStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildVayDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 }
 ```
 
-متد `BuildXrayStage` نام قالب Outbound انتخاب‌شده در UI را می‌گیرد. بقیه Builderها فقط یک `context` دریافت می‌کنند.
+متدهای `BuildXrayStage`، `BuildDNSTTStage`، `BuildSlipStreamStage` و `BuildVayDNSStage` نام Config را می‌گیرند و یک اسلایس Stage برمی‌گردانند (مرحلهٔ پیش‌اسکن Resolver اختیاری به‌علاوهٔ مرحلهٔ اصلی). بقیه Builderها فقط یک Stage برمی‌گردانند. همهٔ Builderها آرگومان‌های variadic اختیاری `ScanHooks` می‌پذیرند.
 
 ساختار یک Stage:
 
@@ -191,6 +195,7 @@ type Probe interface {
 | `httpprobe` | HTTP/3 روی QUIC | `NewHTTP3Probe(req, acceptedCodes)` |
 | `resolveprobe` | ریزالور DNS همراه با بررسی DPI | `NewResolverProbe(*DNSRequest)` |
 | `dnsttprobe` | اعتبارسنجی تانل DNSTT | `NewDNSTTProbe(config, portMgr)` |
+| `vaydnsprobe` | اعتبارسنجی تانل VayDNS | `NewVayDNSProbe(config, portMgr)` |
 | `slipstreamprobe` | اعتبارسنجی تانل SlipStream | `NewSlipstreamProbe(workers, config, portMgr)` |
 | `xrayprobe` | اتصال و پهنای باند Xray | `NewXrayProbe(cfg, template, portMgr)` |
 
@@ -226,7 +231,7 @@ type ResultSchema struct {
 ```go
 result.DefaultRegistry.Register(icmpprobe.Schema)
 result.DefaultRegistry.Register(tcpprobe.Schema)
-// http, resolve, dnstt, slipstream, xray
+// http, resolve, dnstt, vaydns, slipstream, xray
 ```
 
 این Registry نام دایرکتوری را به Schema نگاشت می‌دهد؛ بدین ترتیب مرورگر فایل نتایج متوجه می‌شود که چگونه یک فایل روی دیسک را پارس کرده و نمایش دهد.
@@ -266,7 +271,7 @@ type WriterOptions struct {
 
 ## تنظیمات (Config)
 
-هیچ Singleton یا دسترسی‌دهنده سراسری (Package-level) برای تنظیمات وجود ندارد. متد `main` یک `Store` می‌سازد، مقدار `ScannerConfig` را بارگذاری کرده و اشاره‌گر آن را به UI و Scanner پاس می‌دهد.
+هیچ Singleton یا دسترسی‌دهنده سراسری (Package-level) برای تنظیمات وجود ندارد. مرحلهٔ Startup داخل TUI یک `Store` می‌سازد، مقدار `ScannerConfig` را بارگذاری کرده و هر دو را در `ui.AppState` قرار می‌دهد تا کامپوننت‌ها و Scanner از آن‌ها بخوانند.
 
 ```go
 type ScannerConfig struct {
@@ -303,7 +308,7 @@ type AppState struct {
 
 پکیج `config/validate` به ازای هر بخش یک فایل دارد. توابع `ValidateXxx` نگاشتی از خطاهای فیلدها را برمی‌گردانند و چیزی را تغییر نمی‌دهند. توابع `NormalizeXxx` فیلدهای نامعتبر را به مقادیر پیش‌فرض تغییر داده و برای هر تصحیح یک `Warning` برمی‌گردانند. فایل `aggregate.go` این‌ها را در `ValidateAll` و `NormalizeAll` ترکیب می‌کند.
 
-در زمان Startup، تابع `NormalizeAll` فراخوانی شده، تمام اصلاحات چاپ می‌شوند و سپس بخش‌های اصلاح‌شده روی دیسک نوشته می‌شوند تا TOML روی دیسک همواره با آنچه Scanner استفاده می‌کند مطابقت داشته باشد.
+در زمان Startup، تابع `NormalizeAll` فراخوانی می‌شود و هر اصلاح در نوار وضعیت بررسی اولیه گزارش می‌گردد. مقدارهای اصلاح‌شده در حافظه می‌مانند تا وقتی کاربر بخشی را از Inspector ذخیره کند.
 
 ## فهرست‌های IP (IP Lists)
 
@@ -317,9 +322,11 @@ type AppState struct {
 ## زیرسیستم DNS
 
 - فایل `query.go` کوئری‌ها را ساخته و روی UDP، TCP و DoT ارسال می‌کند.
-- فایل `type.go` انواع Transport و Rcodeها را پارس می‌کند. حالت DoH با موفقیت پارس می‌شود اما به DoT تبدیل می‌گردد زیرا اسکنر ریزالورها را با IP هدف قرار می‌دهد.
-- فایل‌های `dnstt.go` و `slipstream.go` برنامه‌های اجرایی کلاینت خارجی را Wrapper کرده و انتخاب Transport را به Flagهای کلاینت تبدیل می‌کنند.
-- فایل `socks5.go` یک کلاینت ساده SOCKS5 است که برای اعتبارسنجی تانل پس از بالا آمدن استفاده می‌شود.
+- فایل `type.go` انواع Transport، Rcodeها و نوع پروتکل‌ها را پارس می‌کند. حالت DoH با موفقیت پارس می‌شود اما به DoT تبدیل می‌گردد زیرا اسکنر ریزالورها را با IP هدف قرار می‌دهد.
+- فایل‌های `dnstt.go`، `vaydns.go` و `slipstream.go` ساختارهای Config، اینترفیس‌های سرویس (`DNSTTService`، `VayDNSService` و `SlipstreamService`) و مدیریت فایل‌های Config تونل زیر `assets/dns-tunneling/` را تعریف می‌کنند.
+- فایل `shared.go` نرمال‌سازی نام Config، اعتبارسنجی Public key و تجمیع‌گر `GetAllDNSTunsFile` را ارائه می‌دهد که Configهای هر سه سرویس را با هم ادغام می‌کند.
+- پوشهٔ `socks/` یک کلاینت SOCKS5 است که برای اعتبارسنجی تونل پس از بالا آمدن استفاده می‌شود.
+- پوشهٔ `ssh/` یک کلاینت SSH برای اتصال‌های تونل‌شده از طریق Proxyهای SSH است.
 
 ## یکپارچه‌سازی Xray
 
@@ -346,22 +353,25 @@ type AppState struct {
 
 ## راه‌اندازی (Startup)
 
-تابع `startup.RunHealthChecks(&cfg, &store)` بعد از بارگذاری کانفیگ و قبل از شروع TUI اجرا می‌شود:
+مرحلهٔ راه‌اندازی داخل TUI و در مسیر `internal/ui/main/startup` قرار دارد. این مرحله بعد از انیمیشن Splash و قبل از Workspace اجرا می‌شود و هر قدم را زنده در نوار وضعیت کناری نشان می‌دهد.
+
+بررسی‌ها توابع خصوصی داخل `checklist.go` هستند و به‌ترتیب در یک گوروتین اجرا می‌شوند:
 
 ```text
-1. checkLoggerHealth()      باز کردن فایل‌های لاگ و شروع سیستم چرخش
-2. theme.Init()             اعمال پالت رنگی
-3. checkConfigHealth()      اجرای NormalizeAll و ذخیره بخش‌های اصلاح‌شده
-4. checkXrayHealth()        پیدا کردن فایل اجرایی Xray و قالب‌ها
-5. checkDNSTTHealth()       پیدا کردن dnstt-client
-6. checkSlipstreamHealth()  پیدا کردن slipstream-client
+1. Logger      راه‌اندازی لاگرهای core و UI و debug؛ سپس core.Init()
+               برای ثبت Schemaهای نتیجه
+2. Config      store.Load() و سپس validate.NormalizeAll برای
+               گزارش مقدارهای خارج از محدوده
+3. Xray        پیدا کردن باینری، قابل‌اجرا کردن و بررسی نسخه
+4. DNSTT       اعتبارسنجی فایل‌های Config
+5. Slipstream  پیدا کردن باینری، تأیید و اعتبارسنجی Configها
+6. Vaydns      اعتبارسنجی فایل‌های Config
+7. App         انتظار برای زدن Enter
 ```
 
-بررسی‌ها بین فایل‌های `checks_logger.go`، `checks_config.go`، `checks_xray.go` و `checks_dns.go` تقسیم شده‌اند. عدم وجود یک فایل اجرایی اختیاری، فقط یک هشدار چاپ کرده و همان نوع اسکن را غیرفعال می‌کند. این مرحله با پیام فشردن کلید Enter پایان می‌یابد.
+هر بررسی وضعیت خود را از طریق `reporter` گزارش می‌کند که پیام‌های `[INFO]`، `[SUCCESS]`، `[WARN]` یا `[ERROR]` صادر می‌کند. خطاهای بحرانی بررسی‌های بعدی را متوقف می‌کنند. نبودِ یک فایل اجرایی اختیاری فقط هشدار می‌دهد و همان نوع اسکن را غیرفعال می‌کند. بعد از پاس‌شدن همهٔ بررسی‌ها و زدن Enter، برنامه به مرحلهٔ Workspace می‌رود.
 
-توجه داشته باشید که خطاهای کانفیگ زودتر رخ می‌دهند: فراخوانی `store.Load()` در `main` در صورت نامعتبر بودن TOML بلافاصله اجرای برنامه را متوقف می‌کند (قبل از اینکه بررسی‌های سلامت اجرا شوند).
-
-می‌توانید ثابت `fastboot` را در فایل `health.go` برابر `true` قرار دهید تا مکث‌های ۵۰۰ میلی‌ثانیه‌ای بین بررسی‌ها هنگام دیباگ حذف شوند.
+برخلاف طراحی قبلی، `main.go` نه Config را بارگذاری می‌کند و نه بررسی‌ای اجرا می‌کند — فقط `theme.Init()` را صدا می‌زند، برنامه را می‌سازد و BubbleTea را اجرا می‌کند. بارگذاری Config، ثبت Schema و بررسی باینری‌ها همه به‌صورت قدم‌های قابل‌مشاهده در UI انجام می‌شوند. مقدارهای اصلاح‌شده در حافظه می‌مانند تا کاربر بخش مربوطه را از Inspector ذخیره کند.
 
 ## صفحات مرتبط
 

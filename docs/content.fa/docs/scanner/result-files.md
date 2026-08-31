@@ -31,7 +31,7 @@ weight: 5
 
 #### بازکردن فایل نتیجه
 
-با زدن `Enter` روی هر فایل، IP Viewer باز می‌شود. در این بخش هدف‌های پیدا‌شده و ستون‌هایی را می‌بینید که Schema همان نوع اسکن تعریف کرده است. نتیجه‌های ICMP، TCP، HTTP، DNS، DNSTT و Slipstream زمان پاسخ و اطلاعات مخصوص خودشان را نشان می‌دهند. نتیجه‌های Xray علاوه بر این‌ها سرعت دانلود و آپلود را هم دارند.
+با زدن `Enter` روی هر فایل، IP Viewer باز می‌شود. در این بخش هدف‌های پیدا‌شده و ستون‌هایی را می‌بینید که Schema همان نوع اسکن تعریف کرده است. نتیجه‌های ICMP، TCP، HTTP، DNS، DNSTT، VayDNS و Slipstream زمان پاسخ و اطلاعات مخصوص خودشان را نشان می‌دهند. نتیجه‌های Xray علاوه بر این‌ها سرعت دانلود و آپلود را هم دارند.
 
 ## محل ذخیره
 
@@ -46,6 +46,7 @@ weight: 5
     ├── xray/
     ├── dns_resolver/
     ├── dnstt/
+    ├── vaydns/
     └── slipstream/
 ```
 
@@ -67,9 +68,10 @@ weight: 5
 | TCP | `tcp_` | `tcp_20240711_143022.csv` |
 | HTTP | `http_` | `http_20240711_143022.csv` |
 | Xray | `xray_` | `xray_20240711_143022.csv` |
-| DNS Resolver | `dns_resolver_` | `dns_resolver_20240711_143022.csv` |
-| DNSTT | `dns_dnstt_` | `dns_dnstt_20240711_143022.csv` |
-| Slipstream | `dns_slipstream_` | `dns_slipstream_20240711_143022.csv` |
+| DNS Resolver | `dns_` | `dns_20240711_143022.csv` |
+| DNSTT | `dns_tun_` | `dns_tun_20240711_143022.csv` |
+| VayDNS | `dns_tun_` | `dns_tun_20240711_143022.csv` |
+| Slipstream | `dns_tun_` | `dns_tun_20240711_143022.csv` |
 
 پیشوند هر اسکن در فایل تنظیمات خودش مشخص می‌شود. برای اطلاعات بیشتر [نمای کلی تنظیمات](../settings/overview.md) را ببینید.
 
@@ -84,8 +86,9 @@ weight: 5
 | HTTP | `ip, latency, status, version, tls` |
 | Xray | `ip, latency, download, upload` |
 | DNS Resolver | `ip, latency, record_type, tries, rcode, dpi_check` |
-| DNSTT | `ip, latency, transport, port` |
-| Slipstream | `ip, latency, port` |
+| DNSTT | `ip, latency, transport, port, auth, proxy` |
+| VayDNS | `ip, latency, transport, port, auth, proxy` |
+| Slipstream | `ip, latency, port, auth, proxy` |
 
 - `ip` — آدرس IPv4 یا IPv6 که پاسخ داده است.
 - `latency` — زمان رفت‌وبرگشت یا زمان اتصال، مثل `123ms`.
@@ -95,6 +98,7 @@ weight: 5
 - `mode` — نوع Socket در ICMP (`raw` یا `udp`).
 - `rcode` و `dpi_check` — کد پاسخ DNS و نتیجهٔ بررسی ضد Hijacking.
 - `transport` و `port` — روش انتقال DNS و پورت محلی SOCKS5 که برای پروب‌های تونل اختصاص داده شده است.
+- `auth` و `proxy` — روش احراز هویت و نوع Proxyای که برای پروب تونل تنظیم شده است.
 
 #### نمونهٔ HTTP
 
@@ -116,7 +120,7 @@ weight: 5
 
 IPهای هر فایل بر اساس امتیاز کیفیت مخصوص همان Schema مرتب می‌شوند؛ امتیاز بالاتر یعنی نتیجه بهتر است. هر نوع اسکن تابع `Score()` خودش را دارد:
 
-- **ICMP، TCP، HTTP، DNS، DNSTT و Slipstream:** امتیاز از معکوس زمان پاسخ (`1000 / latency_ms`) به دست می‌آید؛ بنابراین IPهای کم‌تأخیرتر بالاتر قرار می‌گیرند.
+- **ICMP، TCP، HTTP، DNS، DNSTT، VayDNS و Slipstream:** امتیاز از معکوس زمان پاسخ (`1000 / latency_ms`) به دست می‌آید؛ بنابراین IPهای کم‌تأخیرتر بالاتر قرار می‌گیرند.
 - **Xray:** امتیاز ترکیبی از تأخیر (۱۰٪)، سرعت دانلود (۶۰٪) و سرعت آپلود (۳۰٪) است. اگر تست سرعت خاموش باشد، سهم آن صفر می‌شود و اسکن فقط بر اساس تأخیر مرتب می‌شود.
 
 هنگام ادغام نتیجه‌های جدید با فایل قبلی، فایل‌نویس آن‌ها را دوباره بر اساس امتیاز مرتب می‌کند و برای IP تکراری، نتیجهٔ جدیدتر را نگه می‌دارد. اگر امتیازها برابر باشند، ترتیب قبلی حفظ می‌شود.

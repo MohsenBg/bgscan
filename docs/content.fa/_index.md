@@ -402,7 +402,7 @@ body.dark .lp,
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-badge">v2.9.1 · حالا در دسترس است</div>
+  <div class="hero-badge">v2.10.0 · حالا در دسترس است</div>
   <h1>همه‌چیز را اسکن کن.<br>با بیشترین سرعت.</h1>
   <p>bgscan یک اسکنر سریع شبکه است که با Go ساخته شده و چند پروتکل را در یک موتور زنجیره‌ای و یک رابط سادهٔ ترمینالی کنار هم می‌آورد.</p>
   <div class="hero-actions">
@@ -439,7 +439,7 @@ body.dark .lp,
   <div class="feature"><div class="fi">🔗</div><h3>موتور زنجیره‌ای</h3><p>مراحل اسکن را با حالت‌های Stream، Sequential یا Batch به هم وصل کنید.</p></div>
   <div class="feature"><div class="fi">🖥️</div><h3>رابط ترمینالی ساده</h3><p>با رابط Bubble Tea اسکن کنید، وضعیت را ببینید و نتیجه‌ها را همان لحظه بررسی کنید؛ بدون مرورگر.</p></div>
   <div class="feature"><div class="fi">💾</div><h3>ذخیره و اجرای دوباره</h3><p>نتیجه‌ها را ذخیره کنید و بعداً اسکن‌های جدید را روی همان داده‌ها اجرا کنید. مدیریت Outboundهای Xray هم داخل برنامه هست.</p></div>
-  <div class="feature"><div class="fi">🌐</div><h3>DNS پیشرفته</h3><p>از DNS Tunnel و روش جایگزین داخلی آن برای شرایطی که DNS معمولی جواب نمی‌دهد استفاده کنید.</p></div>
+  <div class="feature"><div class="fi">🌐</div><h3>DNS پیشرفته</h3><p>اسکن ریزالورهای DNS همراه با بررسی ضد هجکینگ و سه پروتکل تونل: DNSTT، VayDNS و Slipstream.</p></div>
   <div class="feature"><div class="fi">🛰️</div><h3>اتصال به Xray</h3><p>Outboundهای Xray را مستقیم داخل اسکنر ذخیره کنید، مدیریت کنید و اتصالشان را بررسی کنید.</p></div>
 </div>
 
@@ -453,10 +453,10 @@ body.dark .lp,
     <div class="proto-card"><span class="ptag">L3</span><div><p class="pname">ICMP</p><p class="pdesc">پیداکردن میزبان و Ping</p></div></div>
     <div class="proto-card"><span class="ptag">L4</span><div><p class="pname">TCP</p><p class="pdesc">اتصال و Handshake</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">HTTP</p><p class="pdesc">HTTP/1.1 · HTTP/2 · QUIC</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">TLS</p><p class="pdesc">TLS 1.0 تا 1.3</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNS</p><p class="pdesc">پرس‌وجوی پیشرفته + Fallback</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNSTT</p><p class="pdesc">بررسی DNS Tunnel</p></div></div>
-    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Slipstream</p><p class="pdesc">بررسی با SOCKS</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNSTT</p><p class="pdesc">اعتبارسنجی با SOCKS و SSH</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">VayDNS</p><p class="pdesc">اعتبارسنجی با SOCKS و SSH</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Slipstream</p><p class="pdesc">اعتبارسنجی با SOCKS و SSH</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Xray</p><p class="pdesc">تست Outboundها</p></div></div>
   </div>
 </div>
@@ -487,7 +487,7 @@ body.dark .lp,
     </div>
     <div id="tab-android" class="tab-pane">
       <div class="install-cmd">
-        <code>pkg update -y && pkg install bash curl unzip -y && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | bash</code>
+        <code>{ command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh</code>
         <button class="copy-btn" onclick="cpCmd(this)">کپی</button>
       </div>
     </div>

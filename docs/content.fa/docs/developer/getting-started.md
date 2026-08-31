@@ -11,7 +11,7 @@ weight: 1
 
 ## چیزهایی که لازم دارید
 
-- [Go](https://go.dev/) نسخهٔ 1.26.3 یا جدیدتر
+- [Go](https://go.dev/) نسخهٔ 1.27 یا جدیدتر
 - Git
 - اگر برای Android Build می‌گیرید: [Android NDK](https://developer.android.com/ndk)
 
@@ -44,7 +44,7 @@ bgscan برای گرفتن وابستگی‌های مخصوص هر سیستم، 
 ./scripts/install-deps.ps1
 ```
 
-این اسکریپت `bgscan-builder` را به ریشهٔ پروژه می‌آورد و وابستگی مناسب OS و معماری فعلی را دانلود می‌کند.
+این اسکریپت `bgscan-builder` را به ریشهٔ پروژه می‌آورد و با `setup-dev` وابستگی مناسب OS و معماری فعلی را دانلود می‌کند.
 
 ## اجرا
 
@@ -53,7 +53,7 @@ go mod tidy
 go run ./cmd/bgscan/
 ```
 
-قبل از بازشدن TUI، برنامه چند بررسی اولیه انجام می‌دهد. اگر همه‌چیز درست بود، `Enter` بزنید.
+برنامه اول [بررسی‌های اولیه](../core/) را داخل TUI نشان می‌دهد. اگر همه‌چیز درست بود، `Enter` بزنید.
 
 ## ساخت Release
 
@@ -80,9 +80,11 @@ bgscan-builder release -os all -arch all -dest ./dist
 | Flag | کار |
 | --- | --- |
 | `-arch` | معماری هدف: `amd64`، `arm64`، `arm32`، `amd32` یا `all` |
-| `-dep-version` | نسخهٔ وابستگی‌ها؛ پیش‌فرض `v1.0` |
 | `-dest` | پوشهٔ خروجی؛ پیش‌فرض `./dist` |
+| `-dir` | پوشهٔ نصب bgscan برای install و update؛ پیش‌فرض `bgscan` |
 | `-ndk-dir` | مسیر Android NDK |
 | `-os` | OS هدف: `linux`، `windows`، `macos`، `android` یا `all` |
-| `-project-dir` | مسیر پروژه |
+| `-project-dir` | مسیر پروژه برای setup-dev |
+| `-verbose` | نمایش مرحله‌به‌مرحلهٔ کارها |
+| `-version` | تگ Release برای install و update؛ در release نسخهٔ داخل باینری |
 | `-xray-version` | نسخهٔ Xray؛ پیش‌فرض `v26.3.27` |

@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // XrayConfig defines configuration for Xray connectivity testing.

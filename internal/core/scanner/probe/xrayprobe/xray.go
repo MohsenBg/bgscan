@@ -9,14 +9,14 @@ import (
 	"os"
 	"time"
 
-	"bgscan/internal/core/config"
-	"bgscan/internal/core/process"
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/portmgr"
-	"bgscan/internal/core/scanner/probe"
-	"bgscan/internal/core/speedtest"
-	"bgscan/internal/core/xray"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/process"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/portmgr"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/xray"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 const bytesPerKbpsSecond float64 = 1000.0 / 8.0

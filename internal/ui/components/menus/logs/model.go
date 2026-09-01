@@ -1,11 +1,11 @@
 package logs
 
 import (
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/components/basic/logview"
-	"bgscan/internal/ui/components/basic/menu"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/logview"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

@@ -7,17 +7,17 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/scanner"
-	"bgscan/internal/core/xray"
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/components/basic/menu"
-	"bgscan/internal/ui/components/basic/notice"
-	scannerUi "bgscan/internal/ui/components/scanner"
-	"bgscan/internal/ui/components/tables/dnstun"
-	"bgscan/internal/ui/components/tables/outbounds"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/scanner"
+	"github.com/MohsenBg/bgscan/internal/core/xray"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
+	scannerUi "github.com/MohsenBg/bgscan/internal/ui/components/scanner"
+	"github.com/MohsenBg/bgscan/internal/ui/components/tables/dnstun"
+	"github.com/MohsenBg/bgscan/internal/ui/components/tables/outbounds"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
 // ScanType selects the scan mode.

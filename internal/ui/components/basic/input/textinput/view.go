@@ -1,7 +1,7 @@
 package textinput
 
 import (
-	"bgscan/internal/ui/components/basic/input"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 
 	"charm.land/lipgloss/v2"
 )

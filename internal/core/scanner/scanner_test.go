@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/config"
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/process"
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/engine"
-	"bgscan/internal/core/scanner/portmgr"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/process"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/engine"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/portmgr"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 func TestMain(m *testing.M) {

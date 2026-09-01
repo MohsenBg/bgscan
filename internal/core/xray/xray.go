@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 )
 
 // GenerateConfig builds a complete Xray configuration from a template

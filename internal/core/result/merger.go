@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 )
 
 // mergeResults merges a batch of results into the main result file.

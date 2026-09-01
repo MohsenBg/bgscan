@@ -3,8 +3,8 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"bgscan/internal/core/config"
-	"bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 )
 
 // Program is the subset of *tea.Program that AppState needs.

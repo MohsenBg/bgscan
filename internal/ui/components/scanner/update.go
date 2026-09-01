@@ -1,10 +1,10 @@
 package scanner
 
 import (
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/components/basic/confirm"
-	"bgscan/internal/ui/components/basic/progress"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/progress"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

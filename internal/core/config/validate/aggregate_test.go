@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
 func defaultScannerConfig() config.ScannerConfig {

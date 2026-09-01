@@ -1,10 +1,10 @@
 package crud
 
 import (
-	"bgscan/internal/ui/components/basic/table"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

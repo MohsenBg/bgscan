@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/speedtest"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 func FormatInt(v any) string {

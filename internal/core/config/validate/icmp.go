@@ -3,7 +3,7 @@ package validate
 import (
 	"time"
 
-	"bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
 const (

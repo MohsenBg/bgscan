@@ -1,6 +1,6 @@
 package startup
 
-import "bgscan/internal/core/config"
+import "github.com/MohsenBg/bgscan/internal/core/config"
 
 // categoryStartMsg marks a category as having begun running.
 type categoryStartMsg struct {

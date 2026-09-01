@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // WriterConfig defines configuration for the result writer subsystem.

@@ -3,7 +3,7 @@ package result
 import (
 	"os"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // replaceFile atomically replaces the destination file with the source file.

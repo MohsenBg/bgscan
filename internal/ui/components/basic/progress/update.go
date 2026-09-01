@@ -1,7 +1,7 @@
 package progress
 
 import (
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"

@@ -1,10 +1,10 @@
 package progress
 
 import (
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
-	"bgscan/internal/ui/theme"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"

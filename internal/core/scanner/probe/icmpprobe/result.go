@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 // Schema defines the result schema for ICMP probes.

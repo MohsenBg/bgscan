@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 func TestMain(m *testing.M) {

@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // GeneralConfig defines global scanner behavior and execution settings.

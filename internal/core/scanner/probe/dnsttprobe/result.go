@@ -5,8 +5,8 @@ import (
 	"net/netip"
 	"time"
 
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 // Schema defines the database layout and parsing rules for DNSTT probe outcomes.

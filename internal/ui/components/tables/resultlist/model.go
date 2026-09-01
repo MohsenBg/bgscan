@@ -3,12 +3,12 @@ package resultlist
 import (
 	"fmt"
 
-	"bgscan/internal/core/result"
-	"bgscan/internal/ui/components/basic/crud"
-	"bgscan/internal/ui/components/basic/notice"
-	ipviewer "bgscan/internal/ui/components/tables/ipviewer"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
+	ipviewer "github.com/MohsenBg/bgscan/internal/ui/components/tables/ipviewer"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

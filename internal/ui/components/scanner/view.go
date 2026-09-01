@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"bgscan/internal/core/scanner/engine"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/engine"
 
 	"charm.land/lipgloss/v2"
 )

@@ -2,16 +2,16 @@
 package entry
 
 import (
-	"bgscan/internal/ui/components/basic/menu"
-	"bgscan/internal/ui/components/menus/logs"
-	"bgscan/internal/ui/components/menus/settings"
-	"bgscan/internal/ui/components/menus/targetsource"
-	"bgscan/internal/ui/components/tables/dnstun"
-	"bgscan/internal/ui/components/tables/iplist"
-	"bgscan/internal/ui/components/tables/outbounds"
-	"bgscan/internal/ui/components/tables/resultlist"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
+	"github.com/MohsenBg/bgscan/internal/ui/components/menus/logs"
+	"github.com/MohsenBg/bgscan/internal/ui/components/menus/settings"
+	"github.com/MohsenBg/bgscan/internal/ui/components/menus/targetsource"
+	"github.com/MohsenBg/bgscan/internal/ui/components/tables/dnstun"
+	"github.com/MohsenBg/bgscan/internal/ui/components/tables/iplist"
+	"github.com/MohsenBg/bgscan/internal/ui/components/tables/outbounds"
+	"github.com/MohsenBg/bgscan/internal/ui/components/tables/resultlist"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

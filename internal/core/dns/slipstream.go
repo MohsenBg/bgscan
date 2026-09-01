@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/fileutil"
-	"bgscan/internal/core/netutil"
-	"bgscan/internal/core/process"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
+	"github.com/MohsenBg/bgscan/internal/core/process"
 )
 
 const slipstreamDir = "assets/dns-tunneling/slipstream/"

@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // TextStreamConfig configures tokenization and buffer limits for StreamTextFile.

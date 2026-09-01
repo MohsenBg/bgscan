@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 )
 
 // IPListDir Directory where IP list files are stored.

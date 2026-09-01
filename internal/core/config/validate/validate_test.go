@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
 func TestWarningString(t *testing.T) {

@@ -1,6 +1,6 @@
 package validate
 
-import "bgscan/internal/core/config"
+import "github.com/MohsenBg/bgscan/internal/core/config"
 
 // AllWarnings groups normalization warnings by configuration section.
 type AllWarnings struct {

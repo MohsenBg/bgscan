@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 func TestKeyType_String(t *testing.T) {

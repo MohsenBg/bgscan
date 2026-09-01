@@ -1,6 +1,6 @@
 package inspector
 
-import "bgscan/internal/ui/components/basic/input"
+import "github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 
 // fieldInputAdapter adapts a typed input.Input[T] to FieldInput by
 // widening Value() T / SetValue(T) to Value() any / SetValue(any).

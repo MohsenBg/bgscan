@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/netutil"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // Files larger than ~5M lines will cause peak memory to exceed ~325MB during

@@ -5,8 +5,8 @@ import (
 	"net/netip"
 	"time"
 
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/speedtest"
 )
 
 // Schema defines the output format and parsing logic for Xray probe results.

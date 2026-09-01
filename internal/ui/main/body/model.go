@@ -1,9 +1,9 @@
 package body
 
 import (
-	mainMenu "bgscan/internal/ui/components/menus/entry"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
+	mainMenu "github.com/MohsenBg/bgscan/internal/ui/components/menus/entry"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

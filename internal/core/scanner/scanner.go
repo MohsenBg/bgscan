@@ -9,14 +9,14 @@ import (
 	"sync"
 	"time"
 
-	"bgscan/internal/core/config"
-	"bgscan/internal/core/config/validate"
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/engine"
-	"bgscan/internal/core/scanner/portmgr"
-	"bgscan/internal/core/scanner/probe"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config/validate"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/engine"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/portmgr"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/logger"
 
 	"golang.org/x/time/rate"
 )

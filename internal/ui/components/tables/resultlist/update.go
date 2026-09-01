@@ -1,9 +1,9 @@
 package resultlist
 
 import (
-	"bgscan/internal/core/result"
-	"bgscan/internal/ui/components/basic/crud"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

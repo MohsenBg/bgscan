@@ -1,7 +1,7 @@
 package tabs
 
 import (
-	"bgscan/internal/ui/theme"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/lipgloss/v2"
 )

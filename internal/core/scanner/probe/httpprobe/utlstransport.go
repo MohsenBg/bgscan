@@ -13,7 +13,7 @@ import (
 	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/http2"
 
-	"bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
 // utlsDialContext connects to addr using uTLS and forces the connection

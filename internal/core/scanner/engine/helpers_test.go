@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 type mockResult struct {

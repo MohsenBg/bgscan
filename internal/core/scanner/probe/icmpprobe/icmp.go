@@ -15,8 +15,8 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 
-	"bgscan/internal/core/netutil"
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 const (

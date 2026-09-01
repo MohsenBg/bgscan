@@ -1,7 +1,7 @@
 package startup
 
 import (
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	"charm.land/bubbles/v2/progress"
 	"charm.land/bubbles/v2/spinner"

@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 )
 
 // AppVersion is the current application version fill by main app.

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // CSVConfig controls CSV reader and writer behavior.

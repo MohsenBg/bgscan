@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/speedtest"
 )
 
 func TestXrayResult_Key(t *testing.T) {

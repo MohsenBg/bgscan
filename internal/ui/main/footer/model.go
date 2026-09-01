@@ -1,10 +1,10 @@
 package footer
 
 import (
-	"bgscan/internal/core/config"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"runtime"
 	"time"
 

@@ -3,10 +3,10 @@ package inspector
 import (
 	"fmt"
 
-	"bgscan/internal/ui/components/basic/input"
-	"bgscan/internal/ui/components/basic/notice"
-	"bgscan/internal/ui/shared/dialog"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

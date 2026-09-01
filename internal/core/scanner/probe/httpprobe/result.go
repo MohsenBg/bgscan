@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 // Schema defines the output format and parsing logic for HTTP probe results.

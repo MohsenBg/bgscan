@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/config"
-	"bgscan/internal/core/process"
-	"bgscan/internal/core/speedtest"
-	"bgscan/internal/core/xray"
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/process"
+	"github.com/MohsenBg/bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/xray"
 )
 
 type fakePortManager struct {

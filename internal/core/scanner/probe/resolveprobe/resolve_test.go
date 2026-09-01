@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
 )
 
 var testIP = netip.MustParseAddr("1.2.3.4")

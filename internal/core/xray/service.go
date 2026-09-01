@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/fileutil"
-	"bgscan/internal/core/process"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/process"
 )
 
 // XrayService creates, validates, and starts Xray configurations.

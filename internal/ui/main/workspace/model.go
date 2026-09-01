@@ -1,12 +1,12 @@
 package workspace
 
 import (
-	"bgscan/internal/ui/main/body"
-	"bgscan/internal/ui/main/footer"
-	"bgscan/internal/ui/main/header"
-	"bgscan/internal/ui/shared/dialog"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/main/body"
+	"github.com/MohsenBg/bgscan/internal/ui/main/footer"
+	"github.com/MohsenBg/bgscan/internal/ui/main/header"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

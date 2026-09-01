@@ -1,7 +1,7 @@
 package crud
 
 import (
-	"bgscan/internal/ui/components/basic/table"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
 
 	tea "charm.land/bubbletea/v2"
 )

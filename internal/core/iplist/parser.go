@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 )
 
 // DefaultCSVConfig defines the canonical format for CSV inputs.

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 func mustAddr(t *testing.T, s string) netip.Addr {

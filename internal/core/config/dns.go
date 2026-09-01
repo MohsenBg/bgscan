@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // DNSConfig defines configuration for DNS resolver and DNS tunneling tests.

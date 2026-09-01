@@ -3,7 +3,7 @@ package validation
 import (
 	"errors"
 
-	"bgscan/internal/core/xray"
+	"github.com/MohsenBg/bgscan/internal/core/xray"
 )
 
 // ValidateXrayLink returns an error if the provided link is empty or cannot be

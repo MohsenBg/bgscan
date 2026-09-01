@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 
 	"github.com/pelletier/go-toml/v2"
 )

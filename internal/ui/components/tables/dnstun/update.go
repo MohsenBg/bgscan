@@ -1,10 +1,10 @@
 package dnstun
 
 import (
-	"bgscan/internal/core/dns"
-	"bgscan/internal/ui/components/basic/crud"
-	"bgscan/internal/ui/components/menus/dnstunmenu"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
+	"github.com/MohsenBg/bgscan/internal/ui/components/menus/dnstunmenu"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

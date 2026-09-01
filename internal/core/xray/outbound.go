@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strings"
 
-	"bgscan/internal/core/fileutil"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // replacePlaceholders recursively walks a decoded JSON structure and replaces

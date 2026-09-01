@@ -4,14 +4,14 @@ import (
 	"errors"
 	"fmt"
 
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/components/basic/confirm"
-	"bgscan/internal/ui/components/basic/input"
-	"bgscan/internal/ui/components/basic/input/textinput"
-	"bgscan/internal/ui/components/basic/notice"
-	"bgscan/internal/ui/components/basic/table"
-	"bgscan/internal/ui/shared/ui"
-	"bgscan/internal/ui/shared/validation"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/validation"
 
 	tea "charm.land/bubbletea/v2"
 )

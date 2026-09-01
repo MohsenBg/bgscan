@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
 type mockResult struct {

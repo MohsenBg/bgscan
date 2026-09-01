@@ -3,10 +3,10 @@ package ipviewer
 import (
 	"fmt"
 
-	"bgscan/internal/ui/components/basic/notice"
-	"bgscan/internal/ui/components/basic/table"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"

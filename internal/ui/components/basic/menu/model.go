@@ -5,10 +5,10 @@ import (
 	"io"
 	"strings"
 
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"

@@ -5,16 +5,16 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"bgscan/internal/core/iplist"
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/components/basic/crud"
-	"bgscan/internal/ui/components/basic/input"
-	"bgscan/internal/ui/components/basic/input/textinput"
-	"bgscan/internal/ui/components/basic/notice"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
-	"bgscan/internal/ui/shared/validation"
+	"github.com/MohsenBg/bgscan/internal/core/iplist"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/validation"
 )
 
 // Model wraps the generic CRUD table for managing IP list files.

@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"bgscan/internal/core/iplist"
-	"bgscan/internal/core/result"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/iplist"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 type scanProgress struct {

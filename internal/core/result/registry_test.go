@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
 func TestNewResultRegistry_Empty(t *testing.T) {

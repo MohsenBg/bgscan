@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	"bgscan/internal/core/netutil"
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/probe"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // TCPProbe verifies Layer-4 reachability and measures handshake RTT without

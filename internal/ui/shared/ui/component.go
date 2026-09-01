@@ -3,7 +3,7 @@ package ui
 import (
 	"uuid"
 
-	"bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 
 	tea "charm.land/bubbletea/v2"
 )

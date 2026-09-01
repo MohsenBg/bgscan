@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 // mockRoundTripCloser implements http.RoundTripper and io.Closer for testing HTTP/3 probes.

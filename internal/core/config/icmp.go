@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // ICMPConfig defines configuration for ICMP probing.

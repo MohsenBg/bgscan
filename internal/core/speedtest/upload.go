@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 const cloudflareUpURL = "https://speed.cloudflare.com/__up"

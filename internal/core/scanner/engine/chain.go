@@ -5,8 +5,8 @@ import (
 	"net/netip"
 	"sync"
 
-	"bgscan/internal/core/iplist"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/iplist"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 const (

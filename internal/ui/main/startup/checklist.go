@@ -1,13 +1,13 @@
 package startup
 
 import (
-	"bgscan/internal/core"
-	"bgscan/internal/core/config"
-	"bgscan/internal/core/config/validate"
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/process"
-	"bgscan/internal/core/xray"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core"
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config/validate"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/process"
+	"github.com/MohsenBg/bgscan/internal/core/xray"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 func checkConfigHealth(r *reporter) (*config.ScannerConfig, *config.Store) {

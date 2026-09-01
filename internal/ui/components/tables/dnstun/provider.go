@@ -4,12 +4,12 @@ import (
 	"os"
 	"slices"
 
-	"bgscan/internal/core/dns"
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/components/basic/crud"
-	"bgscan/internal/ui/components/basic/notice"
-	"bgscan/internal/ui/components/basic/table"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

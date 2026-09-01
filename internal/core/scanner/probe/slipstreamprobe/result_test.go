@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 // mustParseIP parses an IP address string, failing the test if invalid.

@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 
 	"golang.org/x/time/rate"
 )

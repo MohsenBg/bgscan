@@ -1,8 +1,8 @@
 package result
 
 import (
-	"bgscan/internal/core/fileutil"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 var csvConfig = fileutil.CSVConfig{Comma: ','}

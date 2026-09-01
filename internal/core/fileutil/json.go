@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // WriteJSONFile encodes value as JSON and writes it to path.

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/config"
-	"bgscan/internal/core/netutil"
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
 )
 
 // totalHTTPStatusCodes is the approximate number of recognized HTTP status codes.

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
 func newWriterForTest(t *testing.T, ctx context.Context, cfg config.WriterConfig) Writer {

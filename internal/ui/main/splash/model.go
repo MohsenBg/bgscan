@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
-	"bgscan/internal/ui/theme"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )

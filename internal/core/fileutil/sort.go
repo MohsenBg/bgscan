@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 const (

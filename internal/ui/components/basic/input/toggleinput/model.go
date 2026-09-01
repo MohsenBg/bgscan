@@ -1,11 +1,11 @@
 package toggleinput
 
 import (
-	"bgscan/internal/ui/components/basic/input"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
-	"bgscan/internal/ui/theme"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"

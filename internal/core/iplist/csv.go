@@ -1,6 +1,6 @@
 package iplist
 
-import "bgscan/internal/core/fileutil"
+import "github.com/MohsenBg/bgscan/internal/core/fileutil"
 
 // WriteCSV writes a stream of IPList entries to a CSV file.
 // The provided callback receives a writer function that writes a single row.

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 func TestRunScan_EmptyInput(t *testing.T) {

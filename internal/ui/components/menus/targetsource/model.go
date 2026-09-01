@@ -2,14 +2,14 @@
 package targetsource
 
 import (
-	"bgscan/internal/core/iplist"
-	"bgscan/internal/core/result"
-	"bgscan/internal/ui/components/basic/menu"
-	"bgscan/internal/ui/components/menus/scantype"
-	iplistTable "bgscan/internal/ui/components/tables/iplist"
-	resultlistTable "bgscan/internal/ui/components/tables/resultlist"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/core/iplist"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
+	"github.com/MohsenBg/bgscan/internal/ui/components/menus/scantype"
+	iplistTable "github.com/MohsenBg/bgscan/internal/ui/components/tables/iplist"
+	resultlistTable "github.com/MohsenBg/bgscan/internal/ui/components/tables/resultlist"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

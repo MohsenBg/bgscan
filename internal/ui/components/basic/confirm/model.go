@@ -1,8 +1,8 @@
 package confirm
 
 import (
-	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

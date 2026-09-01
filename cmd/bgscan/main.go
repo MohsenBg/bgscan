@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"bgscan/internal/core/config"
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/main/app"
-	"bgscan/internal/ui/theme"
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/main/app"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )

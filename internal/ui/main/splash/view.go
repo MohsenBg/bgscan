@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"strings"
 
-	"bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config"
 
 	lipgloss "charm.land/lipgloss/v2"
 )

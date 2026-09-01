@@ -9,13 +9,13 @@ import (
 	"strconv"
 	"time"
 
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/probe"
-	"bgscan/internal/core/socks"
-	"bgscan/internal/core/speedtest"
-	"bgscan/internal/core/ssh"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/socks"
+	"github.com/MohsenBg/bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/ssh"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // DNSTTProbe verifies connectivity through a DNSTT tunnel.

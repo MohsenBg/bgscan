@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 
 	"github.com/miekg/dns"
 )

@@ -1,4 +1,4 @@
-module bgscan
+module github.com/MohsenBg/bgscan
 
 go 1.27
 
@@ -13,7 +13,7 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/net2share/vaydns v0.2.8
 	github.com/pelletier/go-toml/v2 v2.4.3
-	github.com/quic-go/quic-go v0.61.0
+	github.com/quic-go/quic-go v0.62.0
 	github.com/refraction-networking/utls v1.8.2
 	github.com/rmhubbert/bubbletea-overlay v0.6.9
 	golang.org/x/crypto v0.55.0
@@ -30,7 +30,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/lipgloss v1.1.0 // indirect
-	github.com/charmbracelet/ultraviolet v0.0.0-20260812204455-68fa937c71be // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20260901015450-d60c34963517 // indirect
 	github.com/charmbracelet/x/ansi v0.11.8 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
 	github.com/charmbracelet/x/exp/ordered v0.1.0 // indirect

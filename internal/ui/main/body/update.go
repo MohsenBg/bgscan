@@ -1,11 +1,11 @@
 package body
 
 import (
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/components/basic/confirm"
-	"bgscan/internal/ui/main/footer"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
+	"github.com/MohsenBg/bgscan/internal/ui/main/footer"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"os"
 
-	"bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 )
 
 // ImportOption controls the behaviour of ImportIPList.

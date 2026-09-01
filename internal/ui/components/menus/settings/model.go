@@ -2,15 +2,15 @@
 package settings
 
 import (
-	"bgscan/internal/ui/components/basic/menu"
-	"bgscan/internal/ui/components/inspector/dns"
-	"bgscan/internal/ui/components/inspector/general"
-	"bgscan/internal/ui/components/inspector/http"
-	"bgscan/internal/ui/components/inspector/icmp"
-	"bgscan/internal/ui/components/inspector/tcp"
-	"bgscan/internal/ui/components/inspector/xray"
-	"bgscan/internal/ui/shared/env"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
+	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/dns"
+	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/general"
+	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/http"
+	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/icmp"
+	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/tcp"
+	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/xray"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

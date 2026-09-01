@@ -5,7 +5,7 @@ import (
 	"context"
 	"net/netip"
 
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 // Probe defines the interface for all active scanning primitives.

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
 func TestTCPConfig(t *testing.T) {

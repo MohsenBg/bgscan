@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
 var allowedProtocols = []string{

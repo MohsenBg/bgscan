@@ -1,8 +1,8 @@
 package picker
 
 import (
-	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/theme"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/lipgloss/v2"
 )

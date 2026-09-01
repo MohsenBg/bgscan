@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
 // queryExecutor abstracts DNS query execution, primarily to allow

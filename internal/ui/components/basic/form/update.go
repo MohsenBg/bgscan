@@ -1,9 +1,9 @@
 package form
 
 import (
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/components/basic/inspector"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

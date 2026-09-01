@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/netutil"
-	"bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
+	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
 // mustParseAddr parses an IP address string, failing the test if invalid.

@@ -1,11 +1,11 @@
 package app
 
 import (
-	"bgscan/internal/ui/main/splash"
-	"bgscan/internal/ui/main/startup"
-	"bgscan/internal/ui/main/workspace"
-	"bgscan/internal/ui/shared/layout"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/main/splash"
+	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
+	"github.com/MohsenBg/bgscan/internal/ui/main/workspace"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

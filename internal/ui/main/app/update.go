@@ -5,10 +5,10 @@ import (
 	"runtime"
 	"strings"
 
-	"bgscan/internal/logger"
-	"bgscan/internal/ui/main/splash"
-	"bgscan/internal/ui/main/startup"
-	"bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/main/splash"
+	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 
 	tea "charm.land/bubbletea/v2"
 )

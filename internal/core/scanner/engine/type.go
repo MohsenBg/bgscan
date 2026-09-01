@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 
 	"golang.org/x/time/rate"
 )

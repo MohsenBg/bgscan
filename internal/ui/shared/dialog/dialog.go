@@ -1,7 +1,7 @@
 package dialog
 
 import (
-	ui "bgscan/internal/ui/shared/ui"
+	ui "github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 	bubbleTeaOverlay "github.com/rmhubbert/bubbletea-overlay"

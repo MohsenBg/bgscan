@@ -3,7 +3,7 @@ package confirm
 import (
 	"strings"
 
-	"bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 
 	"charm.land/lipgloss/v2"
 )

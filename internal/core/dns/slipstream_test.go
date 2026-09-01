@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/process"
+	"github.com/MohsenBg/bgscan/internal/core/process"
 )
 
 type mockProcess struct {

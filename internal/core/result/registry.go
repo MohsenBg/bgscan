@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"bgscan/internal/core/config"
-	"bgscan/internal/core/config/validate"
-	"bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/config/validate"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 )
 
 const (

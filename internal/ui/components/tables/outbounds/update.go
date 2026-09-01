@@ -1,11 +1,11 @@
 package outbounds
 
 import (
-	"bgscan/internal/core/xray"
-	"bgscan/internal/ui/components/basic/crud"
-	"bgscan/internal/ui/components/basic/picker"
-	"bgscan/internal/ui/components/menus/outboundmenu"
-	"bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/core/xray"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/picker"
+	"github.com/MohsenBg/bgscan/internal/ui/components/menus/outboundmenu"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

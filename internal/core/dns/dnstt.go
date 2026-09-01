@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/fileutil"
-	"bgscan/internal/core/netutil"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
 
 	vaydns "github.com/net2share/vaydns/client"
 )

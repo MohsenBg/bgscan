@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"bgscan/internal/core/result"
-	"bgscan/internal/core/scanner/probe"
-	"bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 type httpClientResult struct {

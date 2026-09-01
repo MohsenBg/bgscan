@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"bgscan/internal/core/dns"
-	"bgscan/internal/core/process"
-	"bgscan/internal/core/socks"
-	"bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/process"
+	"github.com/MohsenBg/bgscan/internal/core/socks"
+	"github.com/MohsenBg/bgscan/internal/core/speedtest"
 )
 
 type fakePortManager struct {

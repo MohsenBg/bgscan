@@ -4,10 +4,10 @@
  bgscan installer (Windows)
  https://github.com/MohsenBg/bgscan
 ------------------------------------------------------------------------------
- Installs bgscan with the native Go installer (bgscan-builder). The builder is
- resolved from PATH or downloaded from its GitHub release, then hands off to
- `bgscan-builder install`, which resolves the latest (or a pinned) release,
- verifies its SHA-256 checksum, and installs into .\bgscan.
+ Installs bgscan via the native Rust installer (bgscan-installer). The
+ installer is resolved from PATH or downloaded from its GitHub release, then
+ delegates to `bgscan-installer install`, which resolves the latest (or a
+ pinned) release and verifies its SHA-256 checksum.
 
  This script is fully standalone and safe to pipe:
 
@@ -16,16 +16,14 @@
  Usage:
    powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
    powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 --version v2.10.0
-   powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 --dir .\bgscan-dev
 ==============================================================================
 #>
 $ErrorActionPreference = 'Stop'
 
 $RepositoryOwner = 'MohsenBg'
-$RepositoryName  = 'bgscan-builder'
+$RepositoryName  = 'bgscan-installer'
 
 $Version = 'latest'
-$Dir     = './bgscan'
 
 # Manual argument parsing so the script works both as a file and piped via
 # `iex`, matching install.sh semantics.
@@ -37,11 +35,6 @@ while ($i -lt $args.Count) {
             $Version = $args[$i + 1]
             $i += 2
         }
-        { $_ -eq '--dir' -or $_ -eq '-dir' } {
-            if ($i + 1 -ge $args.Count) { throw '--dir requires a value' }
-            $Dir = $args[$i + 1]
-            $i += 2
-        }
         default {
             throw "Unknown argument: $($args[$i])"
         }
@@ -49,7 +42,7 @@ while ($i -lt $args.Count) {
 }
 
 function Get-BuilderFromPath {
-    $cmd = Get-Command bgscan-builder -ErrorAction SilentlyContinue
+    $cmd = Get-Command bgscan-installer -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
     return $null
 }
@@ -67,13 +60,13 @@ function Get-WindowsArch {
 }
 
 function Install-Builder {
-    $asset = "bgscan-builder-windows-$(Get-WindowsArch).exe"
+    $asset = "bgscan-installer-windows-$(Get-WindowsArch).exe"
     $url = "https://github.com/$RepositoryOwner/$RepositoryName/releases/latest/download/$asset"
 
-    $tmpDir = Join-Path $env:TEMP ("bgscan-builder-" + [guid]::NewGuid().ToString('N'))
+    $tmpDir = Join-Path $env:TEMP ("bgscan-installer-" + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $tmpDir | Out-Null
 
-    $builderPath = Join-Path $tmpDir 'bgscan-builder.exe'
+    $builderPath = Join-Path $tmpDir 'bgscan-installer.exe'
 
     Write-Host "Downloading $RepositoryName ($asset) ..." -ForegroundColor DarkGray
     try {
@@ -90,13 +83,13 @@ function Install-Builder {
 $builderPath = Get-BuilderFromPath
 $downloadedTemp = $false
 if (-not $builderPath) {
-    Write-Host 'bgscan-builder not found on PATH; downloading it ...' -ForegroundColor DarkGray
+    Write-Host 'bgscan-installer not found on PATH; downloading it ...' -ForegroundColor DarkGray
     $builderPath = Install-Builder
     $downloadedTemp = $true
 }
 
 try {
-    & $builderPath install --version $Version --dir $Dir
+    & $builderPath install --version $Version
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 finally {

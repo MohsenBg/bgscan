@@ -6,12 +6,11 @@
 #  Installs bgscan via the native rust installer (bgscan-installer). The builder
 #  is resolved from PATH or downloaded from its GitHub release, then delegates
 #  to `bgscan-installer install`, which resolves the latest (or a pinned)
-#  release, verifies its SHA-256 checksum, and installs into DEST_DIR.
+#  release, verifies its SHA-256 checksum.
 #
 #  Usage (pipe-safe):
 #    curl -fsSL <raw-url> | sh
 #    curl -fsSL <raw-url> | sh -s -- --version v2.10.0
-#    curl -fsSL <raw-url> | sh -s -- --dir ./bgscan-dev
 # ==============================================================================
 set -eu
 
@@ -19,7 +18,6 @@ set -eu
 REPOSITORY_OWNER="MohsenBg"
 REPOSITORY_NAME="bgscan-installer"
 VERSION="latest"
-DEST_DIR="${DEST_DIR:-./bgscan}"
 BUILDER=""
 TMP_DIR=""
 
@@ -37,16 +35,14 @@ die() {
 
 usage() {
   cat >&2 <<EOF
-Usage: install.sh [--version <tag|latest>] [--dir <path>]
+Usage: install.sh [--version <tag|latest>]
 
 Options:
   --version <tag|latest>   bgscan version to install (default: latest)
-  --dir     <path>         installation directory    (default: ./bgscan)
 
 Examples:
   curl -fsSL <raw-url> | sh
   curl -fsSL <raw-url> | sh -s -- --version v2.10.0
-  curl -fsSL <raw-url> | sh -s -- --dir ./bgscan-dev
 EOF
   exit 1
 }
@@ -57,11 +53,6 @@ while [ $# -gt 0 ]; do
   --version)
     VERSION="${2:-}"
     [ -n "$VERSION" ] || usage
-    shift 2
-    ;;
-  --dir)
-    DEST_DIR="${2:-}"
-    [ -n "$DEST_DIR" ] || usage
     shift 2
     ;;
   --)
@@ -139,7 +130,7 @@ if ! resolve_builder; then
 fi
 
 if [ -r /dev/tty ]; then
-  "$BUILDER" install --version "$VERSION" --dir "$DEST_DIR" </dev/tty
+  "$BUILDER" install --version "$VERSION" </dev/tty
 else
-  "$BUILDER" install --version "$VERSION" --dir "$DEST_DIR"
+  "$BUILDER" install --version "$VERSION"
 fi

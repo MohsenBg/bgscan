@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
-	"github.com/MohsenBg/bgscan/internal/core/process"
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
 	"github.com/MohsenBg/bgscan/internal/core/xray"
 )
@@ -34,39 +33,14 @@ func (m *fakePortManager) WaitOpen(context.Context, string, time.Duration) error
 	return m.waitOpenErr
 }
 
-type fakeProcess struct {
-	killed  bool
-	killErr error
+type fakeInstance struct {
+	closed   bool
+	closeErr error
 }
 
-func (*fakeProcess) StopGracefully(time.Duration) error { return nil }
-
-func (p *fakeProcess) Kill() error {
-	p.killed = true
-	return p.killErr
-}
-
-func (*fakeProcess) Wait() error { return nil }
-
-type fakeProcessTracker struct {
-	started         bool
-	registerErr     error
-	unregisterErr   error
-	registeredID    string
-	unregisteredIDs []string
-}
-
-func (t *fakeProcessTracker) Start(context.Context) {
-	t.started = true
-}
-
-func (t *fakeProcessTracker) Register(context.Context, process.Killable) (string, error) {
-	return t.registeredID, t.registerErr
-}
-
-func (t *fakeProcessTracker) Unregister(_ context.Context, id string) error {
-	t.unregisteredIDs = append(t.unregisteredIDs, id)
-	return t.unregisterErr
+func (i *fakeInstance) Close() error {
+	i.closed = true
+	return i.closeErr
 }
 
 type fakeXrayService struct {
@@ -75,8 +49,7 @@ type fakeXrayService struct {
 	validateErr error
 	startErr    error
 
-	configPath string
-	process    process.Process
+	instance *fakeInstance
 }
 
 func (s *fakeXrayService) GetOutboundTemplateByName(string) (*xray.XrayOutboundsFile, error) {
@@ -87,24 +60,24 @@ func (s *fakeXrayService) GetOutboundTemplateByName(string) (*xray.XrayOutbounds
 	return &xray.XrayOutboundsFile{}, nil
 }
 
-func (s *fakeXrayService) GenerateConfig(string, netip.Addr, uint16) (string, error) {
+func (s *fakeXrayService) GenerateConfig(string, netip.Addr, uint16) (*xray.XrayConfig, error) {
 	if s.generateErr != nil {
-		return "", s.generateErr
+		return nil, s.generateErr
 	}
 
-	return s.configPath, nil
+	return &xray.XrayConfig{}, nil
 }
 
-func (s *fakeXrayService) ValidateConfig(context.Context, string) error {
+func (s *fakeXrayService) ValidateConfig(context.Context, *xray.XrayConfig) error {
 	return s.validateErr
 }
 
-func (s *fakeXrayService) Start(context.Context, string) (process.Process, error) {
+func (s *fakeXrayService) Start(context.Context, *xray.XrayConfig) (Instance, error) {
 	if s.startErr != nil {
 		return nil, s.startErr
 	}
 
-	return s.process, nil
+	return s.instance, nil
 }
 
 type fakeSpeedTester struct {
@@ -142,13 +115,9 @@ func testIP() netip.Addr {
 	return netip.MustParseAddr("1.2.3.4")
 }
 
-func newTestProbe(mode config.ConnectivityTest) (*XrayProbe, *fakePortManager, *fakeProcessTracker, *fakeXrayService, *fakeSpeedTester) {
+func newTestProbe(mode config.ConnectivityTest) (*XrayProbe, *fakePortManager, *fakeXrayService, *fakeSpeedTester) {
 	pm := &fakePortManager{port: 1080}
-	tracker := &fakeProcessTracker{registeredID: "process-1"}
-	service := &fakeXrayService{
-		configPath: "/tmp/xray.json",
-		process:    &fakeProcess{},
-	}
+	service := &fakeXrayService{instance: &fakeInstance{}}
 	speed := &fakeSpeedTester{
 		latencyResult:  speedtest.LatencyResult{RTT: 25 * time.Millisecond},
 		downloadResult: speedtest.SpeedResult{Speed: 50 * speedtest.Mbps},
@@ -157,7 +126,6 @@ func newTestProbe(mode config.ConnectivityTest) (*XrayProbe, *fakePortManager, *
 
 	p := &XrayProbe{
 		pm:              pm,
-		processTracker:  tracker,
 		xray:            service,
 		speed:           speed,
 		outbound:        "test-outbound",
@@ -168,10 +136,9 @@ func newTestProbe(mode config.ConnectivityTest) (*XrayProbe, *fakePortManager, *
 		uploadBytes:     512,
 		minDownload:     1000,
 		minUpload:       500,
-		remove:          func(string) error { return nil },
 	}
 
-	return p, pm, tracker, service, speed
+	return p, pm, service, speed
 }
 
 func TestNewXrayProbeValidation(t *testing.T) {
@@ -217,7 +184,6 @@ func TestNewXrayProbeAppliesOptionsAndCalculatesTransferSizes(t *testing.T) {
 	cfg.ConnectivityTestType = config.Both
 
 	pm := &fakePortManager{}
-	tracker := &fakeProcessTracker{}
 	service := &fakeXrayService{}
 	speed := &fakeSpeedTester{}
 
@@ -225,7 +191,6 @@ func TestNewXrayProbeAppliesOptionsAndCalculatesTransferSizes(t *testing.T) {
 		cfg,
 		"outbound",
 		pm,
-		WithProcessTracker(tracker),
 		WithXrayService(service),
 		WithSpeedTester(speed),
 	)
@@ -235,7 +200,7 @@ func TestNewXrayProbeAppliesOptionsAndCalculatesTransferSizes(t *testing.T) {
 
 	p := got.(*XrayProbe)
 
-	if p.processTracker != tracker || p.xray != service || p.speed != speed {
+	if p.xray != XrayService(service) || p.speed != speed {
 		t.Fatal("injected dependency was not applied")
 	}
 
@@ -248,15 +213,15 @@ func TestNewXrayProbeAppliesOptionsAndCalculatesTransferSizes(t *testing.T) {
 	}
 }
 
-func TestInitStartsProcessTracker(t *testing.T) {
-	p, _, tracker, _, _ := newTestProbe(config.ConnectivityOnly)
+func TestInitValidatesTemplate(t *testing.T) {
+	p, pm, _, _ := newTestProbe(config.ConnectivityOnly)
 
 	if err := p.Init(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
-	if !tracker.started {
-		t.Fatal("process tracker was not started")
+	if got := pm.released; len(got) != 1 || got[0] != 1080 {
+		t.Fatalf("released ports = %v, want [1080]", got)
 	}
 }
 
@@ -264,7 +229,7 @@ func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	p, pm, _, _, _ := newTestProbe(config.ConnectivityOnly)
+	p, pm, _, _ := newTestProbe(config.ConnectivityOnly)
 
 	_, err := p.Run(ctx, testIP())
 	if !errors.Is(err, context.Canceled) {
@@ -277,7 +242,7 @@ func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
 }
 
 func TestRunReleasesPortWhenConfigGenerationFails(t *testing.T) {
-	p, pm, _, service, _ := newTestProbe(config.ConnectivityOnly)
+	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 	service.generateErr = errors.New("generation failed")
 
 	_, err := p.Run(context.Background(), testIP())
@@ -290,23 +255,13 @@ func TestRunReleasesPortWhenConfigGenerationFails(t *testing.T) {
 	}
 }
 
-func TestInitRemovesConfigAfterValidationFailure(t *testing.T) {
-	p, pm, _, service, _ := newTestProbe(config.ConnectivityOnly)
-	service.validateErr = errors.New("invalid config")
+func TestRunReleasesPortWhenStartFails(t *testing.T) {
+	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
+	service.startErr = errors.New("start failed")
 
-	var removed string
-	p.remove = func(path string) error {
-		removed = path
-		return nil
-	}
-
-	err := p.Init(context.Background())
+	_, err := p.Run(context.Background(), testIP())
 	if err == nil {
 		t.Fatal("expected an error")
-	}
-
-	if removed != "/tmp/xray.json" {
-		t.Fatalf("removed path = %q, want /tmp/xray.json", removed)
 	}
 
 	if got := pm.released; len(got) != 1 || got[0] != 1080 {
@@ -314,39 +269,31 @@ func TestInitRemovesConfigAfterValidationFailure(t *testing.T) {
 	}
 }
 
-func TestRunKillsProcessWhenRegistrationFails(t *testing.T) {
-	p, _, tracker, service, _ := newTestProbe(config.ConnectivityOnly)
-	tracker.registerErr = errors.New("registry full")
+func TestInitFailsOnValidationError(t *testing.T) {
+	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
+	service.validateErr = errors.New("invalid config")
 
-	process := service.process.(*fakeProcess)
-
-	_, err := p.Run(context.Background(), testIP())
+	err := p.Init(context.Background())
 	if err == nil {
 		t.Fatal("expected an error")
 	}
 
-	if !process.killed {
-		t.Fatal("process was not killed")
+	if got := pm.released; len(got) != 1 || got[0] != 1080 {
+		t.Fatalf("released ports = %v, want [1080]", got)
 	}
 }
 
-func TestRunCleansUpAfterWaitOpenFailure(t *testing.T) {
-	p, pm, tracker, service, _ := newTestProbe(config.ConnectivityOnly)
+func TestRunClosesInstanceAfterWaitOpenFailure(t *testing.T) {
+	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 	pm.waitOpenErr = errors.New("proxy did not open")
-
-	process := service.process.(*fakeProcess)
 
 	_, err := p.Run(context.Background(), testIP())
 	if err == nil {
 		t.Fatal("expected an error")
 	}
 
-	if !process.killed {
-		t.Fatal("process was not killed")
-	}
-
-	if got := tracker.unregisteredIDs; len(got) != 1 || got[0] != "process-1" {
-		t.Fatalf("unregistered IDs = %v, want [process-1]", got)
+	if !service.instance.closed {
+		t.Fatal("instance was not closed")
 	}
 
 	if got := pm.released; len(got) != 1 || got[0] != 1080 {
@@ -355,7 +302,7 @@ func TestRunCleansUpAfterWaitOpenFailure(t *testing.T) {
 }
 
 func TestRunConnectivityOnly(t *testing.T) {
-	p, pm, tracker, service, _ := newTestProbe(config.ConnectivityOnly)
+	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 
 	result, err := p.Run(context.Background(), testIP())
 	if err != nil {
@@ -371,17 +318,17 @@ func TestRunConnectivityOnly(t *testing.T) {
 		t.Fatalf("unexpected result: %#v", got)
 	}
 
-	if !service.process.(*fakeProcess).killed {
-		t.Fatal("process was not killed")
+	if !service.instance.closed {
+		t.Fatal("instance was not closed")
 	}
 
-	if len(tracker.unregisteredIDs) != 1 || len(pm.released) != 1 {
-		t.Fatal("process and port cleanup did not occur")
+	if len(pm.released) != 1 {
+		t.Fatal("port was not released")
 	}
 }
 
 func TestRunBoth(t *testing.T) {
-	p, _, _, _, _ := newTestProbe(config.Both)
+	p, _, _, _ := newTestProbe(config.Both)
 
 	result, err := p.Run(context.Background(), testIP())
 	if err != nil {
@@ -400,7 +347,7 @@ func TestRunBoth(t *testing.T) {
 }
 
 func TestRunReturnsSpeedTestError(t *testing.T) {
-	p, _, _, _, speed := newTestProbe(config.DownloadSpeedOnly)
+	p, _, _, speed := newTestProbe(config.DownloadSpeedOnly)
 	speed.downloadErr = errors.New("speed below minimum")
 
 	_, err := p.Run(context.Background(), testIP())

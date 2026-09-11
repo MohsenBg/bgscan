@@ -6,11 +6,9 @@ import (
 	"math"
 	"net"
 	"net/netip"
-	"os"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
-	"github.com/MohsenBg/bgscan/internal/core/process"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/portmgr"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
@@ -21,21 +19,45 @@ import (
 
 const bytesPerKbpsSecond float64 = 1000.0 / 8.0
 
-// XrayService creates, validates, and starts Xray configurations.
+type Instance interface {
+	Close() error
+}
+
+// XrayService is the probe's view of xray.XrayService.
 type XrayService interface {
 	GetOutboundTemplateByName(string) (*xray.XrayOutboundsFile, error)
-	GenerateConfig(outbound string, ip netip.Addr, port uint16) (string, error)
-	ValidateConfig(context.Context, string) error
-	Start(context.Context, string) (process.Process, error)
+	GenerateConfig(outbound string, ip netip.Addr, port uint16) (*xray.XrayConfig, error)
+	ValidateConfig(context.Context, *xray.XrayConfig) error
+	Start(context.Context, *xray.XrayConfig) (Instance, error)
+}
+
+// xrayServiceAdapter plugs the real xray service into the probe-local shape.
+type xrayServiceAdapter struct {
+	svc xray.XrayService
+}
+
+func (a *xrayServiceAdapter) GetOutboundTemplateByName(name string) (*xray.XrayOutboundsFile, error) {
+	return a.svc.GetOutboundTemplateByName(name)
+}
+
+func (a *xrayServiceAdapter) GenerateConfig(outbound string, ip netip.Addr, port uint16) (*xray.XrayConfig, error) {
+	return a.svc.GenerateConfig(outbound, ip, port)
+}
+
+func (a *xrayServiceAdapter) ValidateConfig(ctx context.Context, cfg *xray.XrayConfig) error {
+	return a.svc.ValidateConfig(ctx, cfg)
+}
+
+func (a *xrayServiceAdapter) Start(ctx context.Context, cfg *xray.XrayConfig) (Instance, error) {
+	return a.svc.Start(ctx, cfg)
 }
 
 // XrayProbe validates connectivity and performance through a temporary local
 // Xray SOCKS proxy configured for a target IP.
 type XrayProbe struct {
-	pm             portmgr.Manager
-	processTracker process.ProcessTracker
-	xray           XrayService
-	speed          speedtest.Service
+	pm    portmgr.Manager
+	xray  XrayService
+	speed speedtest.Service
 
 	outbound        string
 	latencyTimeout  time.Duration
@@ -45,23 +67,12 @@ type XrayProbe struct {
 	uploadBytes     int64
 	minDownload     speedtest.BitsPerSec
 	minUpload       speedtest.BitsPerSec
-
-	remove func(string) error
 }
 
 // Option configures an XrayProbe.
 type Option func(*XrayProbe)
 
-// WithProcessTracker uses tracker to manage started Xray processes.
-func WithProcessTracker(tracker process.ProcessTracker) Option {
-	return func(p *XrayProbe) {
-		if tracker != nil {
-			p.processTracker = tracker
-		}
-	}
-}
-
-// WithXrayService uses service for Xray configuration and process operations.
+// WithXrayService uses service for Xray configuration and instance operations.
 func WithXrayService(service XrayService) Option {
 	return func(p *XrayProbe) {
 		if service != nil {
@@ -113,9 +124,8 @@ func NewXrayProbe(
 	uploadBytes := math.Round(float64(cfg.UploadSpeed) * byteFactor)
 
 	p := &XrayProbe{
-		pm:             pm,
-		processTracker: process.NewProcessTracker(),
-		speed:          speedtest.NewService(),
+		pm:    pm,
+		speed: speedtest.NewService(),
 
 		outbound:        outboundName,
 		latencyTimeout:  timeout,
@@ -125,8 +135,6 @@ func NewXrayProbe(
 		uploadBytes:     int64(uploadBytes),
 		minDownload:     speedtest.BitsPerSec(cfg.DownloadSpeed) * speedtest.Kbps,
 		minUpload:       speedtest.BitsPerSec(cfg.UploadSpeed) * speedtest.Kbps,
-
-		remove: os.Remove,
 	}
 
 	for _, opt := range opts {
@@ -134,11 +142,7 @@ func NewXrayProbe(
 	}
 
 	if p.xray == nil {
-		svc, err := xray.NewXrayService()
-		if err != nil {
-			return nil, fmt.Errorf("create Xray service: %w", err)
-		}
-		p.xray = svc
+		p.xray = &xrayServiceAdapter{svc: xray.NewXrayService()}
 	}
 
 	if _, err := p.xray.GetOutboundTemplateByName(outboundName); err != nil {
@@ -153,15 +157,9 @@ func (p *XrayProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init starts process tracking and validates the outbound template once.
-//
-// The per-IP configs generated in Run differ from this template only by the
-// substituted target address, so a single validation covers the whole scan.
-// Run therefore skips per-target validation, which halves the number of
-// Xray process spawns per scanned IP.
+// Init validates the outbound template once; per-IP configs only swap the
+// address, so Run skips per-target validation.
 func (p *XrayProbe) Init(ctx context.Context) error {
-	p.processTracker.Start(ctx)
-
 	port, err := p.pm.Get(ctx)
 	if err != nil {
 		return fmt.Errorf("lease port for Xray config validation: %w", err)
@@ -170,25 +168,19 @@ func (p *XrayProbe) Init(ctx context.Context) error {
 
 	loopback := netip.AddrFrom4([4]byte{127, 0, 0, 1})
 
-	configPath, err := p.xray.GenerateConfig(p.outbound, loopback, port)
+	cfg, err := p.xray.GenerateConfig(p.outbound, loopback, port)
 	if err != nil {
 		return fmt.Errorf("generate Xray config for validation: %w", err)
 	}
 
-	defer func() {
-		if err := p.remove(configPath); err != nil {
-			logger.CoreError("remove Xray config file: %v", err)
-		}
-	}()
-
-	if err := p.xray.ValidateConfig(ctx, configPath); err != nil {
+	if err := p.xray.ValidateConfig(ctx, cfg); err != nil {
 		return fmt.Errorf("outbound template %q is invalid: %w", p.outbound, err)
 	}
 
 	return nil
 }
 
-// Run starts a temporary Xray proxy for ip and performs the configured
+// Run starts a temporary Xray instance for ip and performs the configured
 // connectivity, download, and upload checks.
 func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
@@ -201,39 +193,20 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	}
 	defer p.pm.Release(port)
 
-	configPath, err := p.xray.GenerateConfig(p.outbound, ip, port)
+	cfg, err := p.xray.GenerateConfig(p.outbound, ip, port)
 	if err != nil {
 		return nil, fmt.Errorf("generate Xray config: %w", err)
 	}
-	defer func() {
-		if err := p.remove(configPath); err != nil {
-			logger.CoreError("remove Xray config file: %v", err)
-		}
-	}()
 
-	proc, err := p.xray.Start(ctx, configPath)
+	inst, err := p.xray.Start(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("start Xray: %w", err)
 	}
 
-	// Covers registration failures as well as all later failures.
+	// Always closed via defer below.
 	defer func() {
-		if err := proc.Kill(); err != nil {
+		if err := inst.Close(); err != nil {
 			logger.CoreError("terminate Xray: %v", err)
-		}
-	}()
-
-	id, err := p.processTracker.Register(ctx, proc)
-	if err != nil {
-		return nil, fmt.Errorf("register Xray process: %w", err)
-	}
-
-	defer func() {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		if err := p.processTracker.Unregister(cleanupCtx, id); err != nil {
-			logger.CoreError("unregister Xray process %s: %s", id, err)
 		}
 	}()
 
@@ -321,7 +294,7 @@ func (p *XrayProbe) measureUpload(
 	})
 }
 
-// Close releases no shared resources. Each Run cleans up its own Xray process.
+// Close releases no shared resources. Each Run cleans up its own Xray instance.
 func (p *XrayProbe) Close() error {
 	return nil
 }

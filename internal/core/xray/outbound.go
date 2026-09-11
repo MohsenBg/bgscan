@@ -217,26 +217,17 @@ func RenameOutboundTemplate(oldName, newName string) (*XrayOutboundsFile, error)
 	return loadOutboundFileMetadata(dst)
 }
 
-// ValidateOutbound generates a validation testbed frame to run Xray logic testing.
+// ValidateOutbound checks a saved template by building a throwaway loopback config.
 func ValidateOutbound(outbound string) error {
-	svc, err := NewXrayService()
-	if err != nil {
-		return err
-	}
+	svc := NewXrayService()
 
 	loopback := netip.AddrFrom4([4]byte{127, 0, 0, 1})
-	configPath, err := GenerateConfig(outbound, loopback, 40443)
+	cfg, err := svc.GenerateConfig(outbound, loopback, 40443)
 	if err != nil {
 		return err
 	}
 
-	defer func() {
-		if err := os.Remove(configPath); err != nil {
-			logger.CoreError("failed to remove config file: %v", err)
-		}
-	}()
-
-	return svc.ValidateConfig(context.Background(), configPath)
+	return svc.ValidateConfig(context.Background(), cfg)
 }
 
 // loadOutboundFileMetadata reads an outbound template and extracts

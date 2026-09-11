@@ -1,129 +1,169 @@
 package xray
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/netip"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
-	"github.com/MohsenBg/bgscan/internal/core/process"
+	core "github.com/xtls/xray-core/core"
+
+	// Registers all proxies/transports, otherwise the core rejects
+	// configs with "proxy not registered".
+	_ "github.com/xtls/xray-core/main/distro/all"
+	// Registers the JSON config loader (core only ships protobuf).
+	_ "github.com/xtls/xray-core/main/json"
 )
 
-// XrayService creates, validates, and starts Xray configurations.
+// XrayService builds scan configs and runs them on the embedded Xray core,
+// all in-process. Callers must Close started instances.
 type XrayService interface {
-	// Binary returns the path of the located Xray executable.
-	Binary() string
-	// Version returns the Xray version string reported by the binary.
-	Version() (string, error)
-	// GetOutboundTemplateByName returns the named outbound template.
+	// Version reports the embedded core version.
+	Version() string
+
+	// GetOutboundTemplateByName finds a saved outbound template (".json" optional).
 	GetOutboundTemplateByName(string) (*XrayOutboundsFile, error)
-	// GenerateConfig builds a per-target Xray configuration file.
-	GenerateConfig(outbound string, ip netip.Addr, port uint16) (string, error)
-	// ValidateConfig verifies a configuration file with the located binary.
-	ValidateConfig(context.Context, string) error
-	// Start runs an Xray process with the given configuration file.
-	Start(context.Context, string) (process.Process, error)
+
+	// GenerateConfig pairs an outbound template with a local SOCKS inbound.
+	GenerateConfig(outbound string, ip netip.Addr, port uint16) (*XrayConfig, error)
+
+	// ValidateConfig builds (without starting) an instance to check the config.
+	ValidateConfig(context.Context, *XrayConfig) error
+
+	// Start launches a live instance. The caller owns it and must Close it.
+	Start(context.Context, *XrayConfig) (*core.Instance, error)
 }
 
 // xrayService is the default XrayService implementation.
-type xrayService struct {
-	bin string
+type xrayService struct{}
+
+// NewXrayService creates an XrayService wired to the embedded core.
+func NewXrayService() XrayService {
+	return &xrayService{}
 }
 
-// NewXrayService creates an Xray service.
-//
-// It locates the Xray binary before returning; a missing binary is an
-// error rather than a per-call lookup later.
-func NewXrayService() (XrayService, error) {
-	bin, err := FindXrayBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	return &xrayService{bin: bin}, nil
+// Version reports the embedded core version.
+func (s *xrayService) Version() string {
+	return core.Version()
 }
 
-// Binary returns the path of the located Xray executable.
-func (s *xrayService) Binary() string {
-	return s.bin
-}
-
-// Version returns the Xray version string reported by the binary.
-func (s *xrayService) Version() (string, error) {
-	cmd := exec.Command(s.bin, "-version")
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("xray version check failed: %w\n%s", err, output)
-	}
-
-	return strings.TrimSpace(string(output)), nil
-}
-
+// GetOutboundTemplateByName finds a saved outbound template by name.
 func (s *xrayService) GetOutboundTemplateByName(name string) (*XrayOutboundsFile, error) {
 	return GetOutboundTemplateByName(name)
 }
 
-func (s *xrayService) GenerateConfig(outbound string, ip netip.Addr, port uint16) (string, error) {
-	return GenerateConfig(outbound, ip, port)
+// GenerateConfig fills the named outbound template with the target IP and
+// pairs it with a localhost SOCKS inbound.
+func (s *xrayService) GenerateConfig(outboundName string, ip netip.Addr, port uint16) (*XrayConfig, error) {
+	if !ip.IsValid() {
+		return nil, fmt.Errorf("invalid IP: %s", ip)
+	}
+
+	template, err := GetOutboundTemplateByName(outboundName)
+	if err != nil {
+		return nil, err
+	}
+
+	outbound, err := applyOutboundTemplate(template.Path, ip)
+	if err != nil {
+		return nil, err
+	}
+
+	return &XrayConfig{
+		Inbound:  []Inbound{getInbound(port)},
+		Outbound: []any{outbound},
+		Log:      &xrayLogConfig{Loglevel: "none"},
+	}, nil
 }
 
-// ValidateConfig verifies a configuration file by executing:
-//
-//	xray -c <config> --test
-//
-// If the configuration is invalid, the error contains the full output
-// produced by Xray to help diagnose the issue.
-func (s *xrayService) ValidateConfig(ctx context.Context, configPath string) error {
-	if !fileutil.CheckFileExists(configPath) {
-		return fmt.Errorf("config file does not exist: %s", configPath)
+// toCoreJSON marshals the config to the JSON bytes the core loader reads.
+func toCoreJSON(config *XrayConfig) ([]byte, error) {
+	configBytes, err := json.Marshal(config)
+	if err != nil {
+		return nil, fmt.Errorf("marshal config: %w", err)
+	}
+
+	return configBytes, nil
+}
+
+// ValidateConfig checks the config by building (not starting) a core instance.
+func (s *xrayService) ValidateConfig(ctx context.Context, config *XrayConfig) error {
+	if config == nil {
+		return fmt.Errorf("xray config is nil")
+	}
+	if len(config.Inbound) == 0 {
+		return fmt.Errorf("xray config has no inbounds")
+	}
+	if len(config.Outbound) == 0 {
+		return fmt.Errorf("xray config has no outbounds")
+	}
+
+	configBytes, err := toCoreJSON(config)
+	if err != nil {
+		return err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, s.bin, "-c", configPath, "--test")
-	output, err := cmd.CombinedOutput()
+	cfg, err := core.LoadConfig("json", bytes.NewReader(configBytes))
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("xray config validation timed out after 10s (partial output: %s)", string(output))
-		}
-		return fmt.Errorf("xray config validation failed: %s", string(output))
+		return fmt.Errorf("parse xray config: %w", err)
 	}
+
+	instance, err := core.NewWithContext(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("xray core rejected config: %w", err)
+	}
+	defer instance.Close()
 
 	return nil
 }
 
-// Start runs an Xray process with the given configuration file.
-//
-// The provided context controls the lifetime of the process: if the context
-// is canceled, the Xray process is terminated automatically.
-func (s *xrayService) Start(ctx context.Context, configPath string) (process.Process, error) {
-	if !fileutil.CheckFileExists(configPath) {
-		return nil, fmt.Errorf("config file does not exist: %s", configPath)
+// Start launches a live instance. Close it when done or it leaks.
+func (s *xrayService) Start(ctx context.Context, config *XrayConfig) (*core.Instance, error) {
+	if config == nil {
+		return nil, fmt.Errorf("xray config is nil")
+	}
+	if len(config.Inbound) == 0 {
+		return nil, fmt.Errorf("xray config has no inbounds")
+	}
+	if len(config.Outbound) == 0 {
+		return nil, fmt.Errorf("xray config has no outbounds")
 	}
 
-	return process.Start(ctx, s.bin, "-c", configPath)
+	configBytes, err := toCoreJSON(config)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	instance, err := core.StartInstance("json", configBytes)
+	if err != nil {
+		return nil, fmt.Errorf("start xray instance: %w", err)
+	}
+
+	return instance, nil
 }
 
-// FindXrayBinary attempts to locate the Xray executable.
-func FindXrayBinary() (string, error) {
-	return process.FindBinaryInPaths("xray", getXrayPaths())
-}
-
-func getXrayPaths() []string {
+// getAssetsPath joins parts onto the app base directory.
+func getAssetsPath(parts ...string) string {
 	base, err := fileutil.BasePath()
 	if err != nil {
-		return []string{"assets/xray", "xray", ""}
+		return filepath.Join(parts...)
 	}
 
-	return []string{
-		filepath.Join(base, "assets", "xray"),
-		filepath.Join(base, "xray"),
-		base,
-	}
+	return filepath.Join(append([]string{base}, parts...)...)
+}
+
+// templateDir is the on-disk folder of saved outbound templates.
+func templateDir() string {
+	return getAssetsPath("assets", "xray", "outbounds")
 }

@@ -1,6 +1,8 @@
 package startup
 
 import (
+	"fmt"
+
 	"github.com/MohsenBg/bgscan/internal/core"
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/config/validate"
@@ -163,29 +165,16 @@ func checkLoggerHealth(r *reporter) {
 }
 
 func checkXrayHealth(r *reporter) {
-	r.info("Finding Xray binary...")
-	svc, err := xray.NewXrayService()
-	if err != nil {
-		r.binaryMissing("Xray", "xray")
-		r.errMsg("Binary lookup error", err)
-		return
-	}
-	r.successf("Xray found at: %s", svc.Binary())
+	r.info("Checking embedded Xray core...")
+	svc := xray.NewXrayService()
 
-	r.info("Ensuring Xray binary is executable...")
-	if err := process.EnsureExecutable(svc.Binary()); err != nil {
-		r.errMsg("Failed to set executable bit for Xray binary", err)
+	r.info("Checking Xray core version...")
+	version := svc.Version()
+	if version == "" {
+		r.errMsg("Failed to retrieve Xray version", fmt.Errorf("empty version string"))
 		return
 	}
-	r.success("Xray binary is executable")
-
-	r.info("Checking Xray version...")
-	version, err := svc.Version()
-	if err != nil {
-		r.errMsg("Failed to retrieve Xray version", err)
-		return
-	}
-	r.successf("Xray version: %s", version)
+	r.successf("Xray core version: %s", version)
 
 	r.info("Searching for configuration templates...")
 	outbounds, err := xray.ListOutboundTemplates()
@@ -204,12 +193,6 @@ func checkXrayHealth(r *reporter) {
 		}
 
 		r.successf("%s OK", outbound.Name)
-	}
-
-	r.info("Cleaning up generated template configs...")
-	if err := xray.RemoveTmpCfg(); err != nil {
-		r.errMsg("Failed to clean up template configs", err)
-		return
 	}
 
 	r.success("Health check completed successfully")

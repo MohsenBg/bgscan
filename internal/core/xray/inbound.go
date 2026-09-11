@@ -1,15 +1,7 @@
 package xray
 
-// getInbound constructs the default inbound SOCKS configuration used
-// by bgscan when launching a temporary Xray instance.
-//
-// The inbound listens on localhost (127.0.0.1) and exposes a SOCKS
-// proxy that bgscan probes can route traffic through. Authentication
-// is disabled since the proxy is only intended for local use.
-//
-// Sniffing is enabled with HTTP and TLS destination overrides so that
-// Xray can correctly detect protocols even when the target service
-// does not explicitly specify them.
+// getInbound builds the localhost SOCKS inbound probes dial through.
+// Auth is off (local use only); sniffing is on for http/tls detection.
 func getInbound(port uint16) Inbound {
 	return Inbound{
 		Port:     port,

@@ -10,14 +10,18 @@ import (
 	"github.com/miekg/dns"
 )
 
+// DNSTunProtocol identifies a DNS tunnel protocol.
 type DNSTunProtocol string
 
 const (
 	DNSTunProtocolVayDNS     DNSTunProtocol = "vaydns"
 	DNSTunProtocolDNSTT      DNSTunProtocol = "dnstt"
 	DNSTunProtocolSlipstream DNSTunProtocol = "slipstream"
+	DNSTunProtocolMasterDNS  DNSTunProtocol = "masterdns"
+	DNSTunProtocolStormDNS   DNSTunProtocol = "stormdns"
 )
 
+// DNSTunConfigFile is a protocol-agnostic view of a tunnel config file.
 type DNSTunConfigFile struct {
 	Name      string
 	Path      string
@@ -27,6 +31,8 @@ type DNSTunConfigFile struct {
 	Config    any
 }
 
+// ConfigValidationResult reports the validation errors of a single
+// configuration file.
 type ConfigValidationResult struct {
 	File   fileutil.FileEntry
 	Errors map[string]error
@@ -209,6 +215,7 @@ func ParseAuthMethod(s string) AuthMethod {
 	}
 }
 
+// ResolverProxyType identifies the proxy type in front of a resolver.
 type ResolverProxyType string
 
 const (
@@ -233,5 +240,57 @@ func ParseResolverProxyType(s string) ResolverProxyType {
 		return ResolverProxySSH
 	default:
 		return ""
+	}
+}
+
+// EncMethod identifies the data encryption method used by the embedded
+// MasterDNS/StormDNS clients. Both vendors share the same numeric IDs.
+type EncMethod int
+
+const (
+	EncNone EncMethod = iota
+	EncXOR
+	EncChaCha20
+	EncAES128GCM
+	EncAES192GCM
+	EncAES256GCM
+)
+
+func (e EncMethod) String() string {
+	switch e {
+	case EncNone:
+		return "None"
+	case EncXOR:
+		return "XOR"
+	case EncChaCha20:
+		return "ChaCha20"
+	case EncAES128GCM:
+		return "AES-128-GCM"
+	case EncAES192GCM:
+		return "AES-192-GCM"
+	case EncAES256GCM:
+		return "AES-256-GCM"
+	default:
+		return "Unknown"
+	}
+}
+
+// ParseEncMethod parses an encryption method label (case-insensitive,
+// ignoring surrounding whitespace). Unknown values default to EncXOR,
+// the MasterDNS/StormDNS default.
+func ParseEncMethod(s string) EncMethod {
+	switch strings.ToUpper(strings.TrimSpace(s)) {
+	case "NONE":
+		return EncNone
+	case "CHACHA20":
+		return EncChaCha20
+	case "AES-128-GCM":
+		return EncAES128GCM
+	case "AES-192-GCM":
+		return EncAES192GCM
+	case "AES-256-GCM":
+		return EncAES256GCM
+	default:
+		return EncXOR
 	}
 }

@@ -604,9 +604,11 @@ func TestGetAllConfigFilesIgnoresNonTOML(t *testing.T) {
 }
 
 func TestConfigPathNormalizesExtension(t *testing.T) {
-	service := &slipstreamService{dir: "/cfg"}
+	service := &slipstreamService{
+		configs: newConfigStore[SlipstreamConfig]("/cfg", "Slipstream"),
+	}
 
-	got := service.configPath("test.toml")
+	got := service.configs.configPath("test.toml")
 	want := filepath.Join("/cfg", "test.toml")
 
 	if got != want {
@@ -619,9 +621,11 @@ func TestConfigPathNormalizesExtension(t *testing.T) {
 }
 
 func TestConfigPathAddsExtension(t *testing.T) {
-	service := &slipstreamService{dir: "/cfg"}
+	service := &slipstreamService{
+		configs: newConfigStore[SlipstreamConfig]("/cfg", "Slipstream"),
+	}
 
-	got := service.configPath("test")
+	got := service.configs.configPath("test")
 	want := filepath.Join("/cfg", "test.toml")
 
 	if got != want {
@@ -702,7 +706,7 @@ func assertArgs(
 func resolvedSlipstreamDir(t *testing.T) string {
 	t.Helper()
 
-	dir := getSlipstreamDir()
+	dir := tunnelConfigDir("slipstream")
 
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf(

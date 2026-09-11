@@ -86,7 +86,7 @@ func TestNormalizeConfigName(t *testing.T) {
 
 func TestConfigPath(t *testing.T) {
 	service := &vayDNSService{
-		dir: "/tmp/vaydns",
+		configs: newConfigStore[VayDNSConfig]("/tmp/vaydns", "VayDNS"),
 	}
 
 	tests := []struct {
@@ -117,7 +117,7 @@ func TestConfigPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := service.configPath(tt.name); got != tt.want {
+			if got := service.configs.configPath(tt.name); got != tt.want {
 				t.Fatalf(
 					"configPath(%q) = %q, want %q",
 					tt.name,
@@ -131,15 +131,15 @@ func TestConfigPath(t *testing.T) {
 
 func TestWithVayDNSDir(t *testing.T) {
 	service := &vayDNSService{
-		dir: "/original",
+		configs: newConfigStore[VayDNSConfig]("/original", "VayDNS"),
 	}
 
 	WithVayDNSDir("/custom")(service)
 
-	if service.dir != "/custom" {
+	if service.configs.dir != "/custom" {
 		t.Fatalf(
 			"WithVayDNSDir() set dir to %q, want %q",
-			service.dir,
+			service.configs.dir,
 			"/custom",
 		)
 	}
@@ -147,15 +147,15 @@ func TestWithVayDNSDir(t *testing.T) {
 
 func TestWithVayDNSDirEmpty(t *testing.T) {
 	service := &vayDNSService{
-		dir: "/original",
+		configs: newConfigStore[VayDNSConfig]("/original", "VayDNS"),
 	}
 
 	WithVayDNSDir("")(service)
 
-	if service.dir != "/original" {
+	if service.configs.dir != "/original" {
 		t.Fatalf(
 			"WithVayDNSDir(\"\") changed dir to %q, want %q",
-			service.dir,
+			service.configs.dir,
 			"/original",
 		)
 	}
@@ -178,10 +178,10 @@ func TestNewVayDNSService(t *testing.T) {
 		)
 	}
 
-	if concrete.dir != "/custom/vaydns" {
+	if concrete.configs.dir != "/custom/vaydns" {
 		t.Fatalf(
 			"service.dir = %q, want %q",
-			concrete.dir,
+			concrete.configs.dir,
 			"/custom/vaydns",
 		)
 	}

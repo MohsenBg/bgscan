@@ -3,26 +3,23 @@ package dns
 import (
 	"context"
 	"fmt"
-	"math"
 	"net"
 	"net/netip"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
-
-	"github.com/MohsenBg/bgscan/internal/core/fileutil"
-	"github.com/MohsenBg/bgscan/internal/core/netutil"
 
 	vaydns "github.com/net2share/vaydns/client"
+
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
 )
 
-const vaydnsDir = "assets/dns-tunneling/vaydns/"
+const vaydnsDir = "vaydns"
+
+// VayDNSConfigFile pairs a VayDNS configuration with its on-disk identity.
+type VayDNSConfigFile = ConfigFile[VayDNSConfig]
 
 // VayDNSConfig contains the configuration required to create a VayDNS tunnel.
 //
-// ResolverAddr is intentionally absent: the resolver address is provided
-// at runtime per target via NewTunnel, not stored in the config.
+// The resolver address is provided at runtime per target via NewTunnel,
+// not stored in the config.
 type VayDNSConfig struct {
 	Domain       string
 	PubKey       string
@@ -44,13 +41,6 @@ type VayDNSConfig struct {
 	Password       string
 	PrivateKey     string
 	KnownHostsFile string
-}
-
-type VayDNSConfigFile struct {
-	Name      string
-	Path      string
-	CreatedAt time.Time
-	Config    VayDNSConfig
 }
 
 // DefaultVayDNSConfig returns a VayDNS configuration with recommended defaults.
@@ -110,8 +100,8 @@ func (c VayDNSConfig) Validate() map[string]error {
 		errs["mtu"] = fmt.Errorf("must be between 0 and 1452")
 	}
 
-	if math.IsNaN(c.RPS) || math.IsInf(c.RPS, 0) || c.RPS < 0 || c.RPS > 500 {
-		errs["rps"] = fmt.Errorf("must be between 0 and 500")
+	if err := validateRPS(c.RPS); err != nil {
+		errs["rps"] = err
 	}
 
 	if !c.RecordType.IsValid() {
@@ -126,53 +116,15 @@ func (c VayDNSConfig) Validate() map[string]error {
 		errs["resolver_port"] = fmt.Errorf("must be greater than zero")
 	}
 
-	fingerprint := strings.TrimSpace(c.Fingerprint)
-	if fingerprint == "" {
-		errs["fingerprint"] = fmt.Errorf("TLS fingerprint is required")
-	} else if _, err := parseClientHelloID(fingerprint); err != nil {
-		errs["fingerprint"] = fmt.Errorf("invalid TLS fingerprint: %w", err)
+	if err := validateFingerprint(c.Fingerprint); err != nil {
+		errs["fingerprint"] = err
 	}
 
-	if c.ProxyType != "" {
-		if c.ProxyPort == 0 {
-			errs["proxy_port"] = fmt.Errorf("proxy port must be greater than zero")
-		}
-
-		switch c.ProxyType {
-		case ResolverProxySSH:
-			if c.AuthMethod == AuthNone {
-				errs["auth_method"] = fmt.Errorf("authentication is required for SSH proxy")
-			}
-		case ResolverProxySOCKS:
-			if c.AuthMethod == AuthKey {
-				errs["auth_method"] = fmt.Errorf("key auth is not supported for SOCKS proxy")
-			}
-		default:
-			errs["proxy_type"] = fmt.Errorf("proxy type must be socks or ssh")
-		}
-	}
-
-	if c.AuthMethod == AuthPassword {
-		if strings.TrimSpace(c.Username) == "" {
-			errs["username"] = fmt.Errorf("username is required for password auth")
-		}
-		if strings.TrimSpace(c.Password) == "" {
-			errs["password"] = fmt.Errorf("password is required for password auth")
-		}
-	}
-
-	if c.AuthMethod == AuthKey {
-		if strings.TrimSpace(c.Username) == "" {
-			errs["username"] = fmt.Errorf("username is required for key auth")
-		}
-		if err := validatePrivateKey(c.PrivateKey); err != nil {
-			errs["private_key"] = err
-		}
-		if c.KnownHostsFile != "" {
-			if err := validateKnownHostsFile(c.KnownHostsFile); err != nil {
-				errs["known_hosts_file"] = err
-			}
-		}
+	for field, err := range validateProxyAuth(
+		c.ProxyType, c.ProxyPort, c.AuthMethod,
+		c.Username, c.Password, c.PrivateKey, c.KnownHostsFile,
+	) {
+		errs[field] = err
 	}
 
 	return errs
@@ -190,7 +142,7 @@ type VayDNSService interface {
 }
 
 type vayDNSService struct {
-	dir string
+	configs configStore[VayDNSConfig]
 }
 
 // VayDNSServiceOption configures a VayDNSService.
@@ -200,14 +152,16 @@ type VayDNSServiceOption func(*vayDNSService)
 func WithVayDNSDir(dir string) VayDNSServiceOption {
 	return func(service *vayDNSService) {
 		if dir != "" {
-			service.dir = dir
+			service.configs.dir = dir
 		}
 	}
 }
 
 // NewVayDNSService creates a VayDNS service.
 func NewVayDNSService(options ...VayDNSServiceOption) VayDNSService {
-	service := &vayDNSService{dir: getVayDNSDir()}
+	service := &vayDNSService{
+		configs: newConfigStore[VayDNSConfig](tunnelConfigDir(vaydnsDir), "VayDNS"),
+	}
 
 	for _, option := range options {
 		option(service)
@@ -216,157 +170,37 @@ func NewVayDNSService(options ...VayDNSServiceOption) VayDNSService {
 	return service
 }
 
-// getVayDNSDir returns the default directory used to store VayDNS configs.
-func getVayDNSDir() string {
-	base, err := fileutil.BasePath()
-	if err != nil {
-		return vaydnsDir
-	}
-
-	return filepath.Join(base, vaydnsDir)
-}
-
-// SaveConfig validates and saves a VayDNS configuration to disk.
-// It returns an error if a config with the given name already exists.
 func (s *vayDNSService) SaveConfig(config VayDNSConfig, name string) error {
-	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("config name is required")
-	}
-
-	path := s.configPath(name)
-
-	if fileutil.CheckFileExists(path) {
-		return fmt.Errorf("config %q already exists", name)
-	}
-
-	if errs := config.Validate(); len(errs) > 0 {
-		return fmt.Errorf("invalid VayDNS config: %v", errs)
-	}
-
-	if err := fileutil.WriteTOMLFile(path, config); err != nil {
-		return fmt.Errorf("save VayDNS config %q: %w", name, err)
-	}
-
-	return nil
+	return s.configs.SaveConfig(config, name)
 }
 
-// EditConfig updates an existing VayDNS configuration identified by originalName.
 func (s *vayDNSService) EditConfig(config VayDNSConfig, originalName string) error {
-	if strings.TrimSpace(originalName) == "" {
-		return fmt.Errorf("original config name is required")
-	}
-
-	path := s.configPath(originalName)
-
-	if _, err := os.Stat(path); err != nil {
-		return fmt.Errorf("config %q does not exist", originalName)
-	}
-
-	if errs := config.Validate(); len(errs) > 0 {
-		return fmt.Errorf("invalid VayDNS config: %v", errs)
-	}
-
-	if err := fileutil.WriteTOMLFile(path, config); err != nil {
-		return fmt.Errorf("edit VayDNS config %q: %w", originalName, err)
-	}
-
-	return nil
+	return s.configs.EditConfig(config, originalName)
 }
 
-// LoadConfig loads a VayDNS configuration from disk.
 func (s *vayDNSService) LoadConfig(name string) (VayDNSConfig, error) {
-	config, err := fileutil.ReadTOMLFile[VayDNSConfig](s.configPath(name))
-	if err != nil {
-		return VayDNSConfig{}, fmt.Errorf("load VayDNS config %q: %w", name, err)
-	}
-
-	return config, nil
+	return s.configs.LoadConfig(name)
 }
 
-// GetAllConfigFiles returns valid VayDNS TOML configuration files.
 func (s *vayDNSService) GetAllConfigFiles() ([]VayDNSConfigFile, error) {
-	if err := fileutil.EnsureDir(s.dir); err != nil {
-		return nil, err
-	}
-	files, err := fileutil.ListFiles(s.dir, func(name string, _ os.FileInfo) bool {
-		return strings.EqualFold(filepath.Ext(name), ".toml")
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	configs := make([]VayDNSConfigFile, 0, len(files))
-
-	for _, file := range files {
-		cfg, err := s.LoadConfig(file.Name)
-		if err != nil {
-			continue
-		}
-
-		configs = append(configs, VayDNSConfigFile{
-			Name:      strings.TrimSuffix(file.Name, filepath.Ext(file.Name)),
-			Path:      file.Path,
-			CreatedAt: file.Info.ModTime(),
-			Config:    cfg,
-		})
-	}
-
-	return configs, nil
+	return s.configs.GetAllConfigFiles()
 }
 
 func (s *vayDNSService) ValidateAllConfigs() ([]ConfigValidationResult, error) {
-	if err := fileutil.EnsureDir(s.dir); err != nil {
-		return nil, err
-	}
-	files, err := fileutil.ListFiles(s.dir, func(name string, _ os.FileInfo) bool {
-		return strings.EqualFold(filepath.Ext(name), ".toml")
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	results := make([]ConfigValidationResult, 0, len(files))
-
-	for _, file := range files {
-		cfg, err := s.LoadConfig(file.Name)
-		if err != nil {
-			results = append(results, ConfigValidationResult{
-				File:   file,
-				Errors: map[string]error{},
-			})
-			continue
-		}
-
-		validationErrors := cfg.Validate()
-		if len(validationErrors) == 0 {
-			continue
-		}
-
-		results = append(results, ConfigValidationResult{
-			File:   file,
-			Errors: validationErrors,
-		})
-	}
-
-	return results, nil
+	return s.configs.ValidateAllConfigs()
 }
 
-// vayDNSConn wraps the smux stream returned by an established VayDNS tunnel
-type vayDNSConn struct {
-	net.Conn
-	tunnel *vaydns.Tunnel
+func (s *vayDNSService) RenameConfig(oldName, newName string) error {
+	return s.configs.RenameConfig(oldName, newName)
 }
 
-func (c *vayDNSConn) Close() error {
-	var tunnelErr error
-	if c.tunnel != nil {
-		tunnelErr = c.tunnel.Close()
-	}
-
-	return tunnelErr
-}
-
-func (s *vayDNSService) NewTunnel(ctx context.Context, config VayDNSConfig, resolverAddr netip.Addr) (net.Conn, error) {
+// NewTunnel creates and initializes a VayDNS tunnel to the given resolver
+// address.
+func (s *vayDNSService) NewTunnel(
+	ctx context.Context,
+	config VayDNSConfig,
+	resolverAddr netip.Addr,
+) (net.Conn, error) {
 	if errs := config.Validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("invalid VayDNS config: %v", errs)
 	}
@@ -375,97 +209,27 @@ func (s *vayDNSService) NewTunnel(ctx context.Context, config VayDNSConfig, reso
 		return nil, fmt.Errorf("context canceled before tunnel setup: %w", err)
 	}
 
-	resolver, err := newVayDNSResolver(config, resolverAddr)
+	resolver, err := newVayDNSResolver(
+		config.ResolverType,
+		config.ResolverPort,
+		config.Fingerprint,
+		resolverAddr,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	tunnelServer, err := newVayDNSTunnelServer(config)
+	server, err := newVayDNSTunnelServer(config)
 	if err != nil {
 		return nil, err
 	}
 
-	tunnel, err := vaydns.NewTunnel(*resolver, *tunnelServer)
+	tunnel, err := vaydns.NewTunnel(*resolver, *server)
 	if err != nil {
 		return nil, fmt.Errorf("create tunnel: %w", err)
 	}
 
-	if err := ctx.Err(); err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("context canceled before resolver connection: %w", err)
-	}
-	if err := tunnel.InitiateResolverConnection(ctx); err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("initiate resolver connection: %w", err)
-	}
-
-	if err := ctx.Err(); err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("context canceled before DNS packet conn: %w", err)
-	}
-	if err := tunnel.InitiateDNSPacketConn(ctx, tunnelServer.Addr); err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("initiate DNS packet connection: %w", err)
-	}
-
-	if err := ctx.Err(); err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("context canceled before KCP connection: %w", err)
-	}
-	if err := tunnel.InitiateKCPConn(tunnelServer.MTU); err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("initiate KCP connection: %w", err)
-	}
-
-	if err := ctx.Err(); err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("context canceled before Noise channel: %w", err)
-	}
-	if err := tunnel.InitiateNoiseChannel(ctx); err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("initiate Noise channel: %w", err)
-	}
-
-	if err := ctx.Err(); err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("context canceled before smux session: %w", err)
-	}
-	if err := tunnel.InitiateSmuxSession(); err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("initiate smux session: %w", err)
-	}
-
-	stream, err := tunnel.OpenStream()
-	if err != nil {
-		_ = tunnel.Close()
-		return nil, fmt.Errorf("open tunnel stream: %w", err)
-	}
-
-	// tunnel is wrapped alongside stream so Close() releases the full
-	// stack (see vayDNSConn.Close), not just this one smux stream.
-	return &vayDNSConn{Conn: stream, tunnel: tunnel}, nil
-}
-
-func newVayDNSResolver(config VayDNSConfig, resolverAddr netip.Addr) (*vaydns.Resolver, error) {
-	addr := netip.AddrPortFrom(resolverAddr, config.ResolverPort).String()
-
-	resolver, err := vaydns.NewResolver(
-		toVayDNSResolverType(config.ResolverType),
-		addr,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create resolver: %w", err)
-	}
-
-	clientHelloID, err := parseClientHelloID(config.Fingerprint)
-	if err != nil {
-		return nil, fmt.Errorf("parse TLS fingerprint: %w", err)
-	}
-
-	resolver.UTLSClientHelloID = &clientHelloID
-	resolver.UDPSharedSocket = true
-
-	return &resolver, nil
+	return establishTunnelStream(ctx, tunnel, server)
 }
 
 func newVayDNSTunnelServer(config VayDNSConfig) (*vaydns.TunnelServer, error) {
@@ -484,40 +248,107 @@ func newVayDNSTunnelServer(config VayDNSConfig) (*vaydns.TunnelServer, error) {
 	return &server, nil
 }
 
-func (s *vayDNSService) configPath(name string) string {
-	return filepath.Join(s.dir, normalizeConfigName(name)+".toml")
-}
-
 func toVayDNSResolverType(t ResolverType) vaydns.ResolverType {
 	switch t {
 	case ResolverTypeTCP:
 		return vaydns.ResolverTypeTCP
 	case ResolverTypeDOT:
 		return vaydns.ResolverTypeDOT
-	case ResolverTypeUDP:
-		return vaydns.ResolverTypeUDP
 	default:
 		return vaydns.ResolverTypeUDP
 	}
 }
 
-func (s *vayDNSService) RenameConfig(oldName, newName string) error {
-	oldPath := s.configPath(oldName)
-	newPath := s.configPath(newName)
+// Shared helpers for the protocols built on the vaydns client library
+// (VayDNS itself and DNSTT compatibility mode).
 
-	if _, err := os.Stat(oldPath); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("config %q does not exist", oldName)
+// tunnelConn wraps a tunnel stream so closing it releases the whole
+// tunnel stack, not just the single smux stream.
+type tunnelConn struct {
+	net.Conn
+	tunnel *vaydns.Tunnel
+}
+
+func (c *tunnelConn) Close() error {
+	if c.tunnel != nil {
+		return c.tunnel.Close()
+	}
+
+	return nil
+}
+
+// newVayDNSResolver builds a vaydns resolver for the given endpoint,
+// configured with the TLS fingerprint and a shared UDP socket.
+func newVayDNSResolver(
+	resolverType ResolverType,
+	resolverPort uint16,
+	fingerprint string,
+	resolverAddr netip.Addr,
+) (*vaydns.Resolver, error) {
+	addr := netip.AddrPortFrom(resolverAddr, resolverPort).String()
+
+	resolver, err := vaydns.NewResolver(
+		toVayDNSResolverType(resolverType),
+		addr,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create resolver: %w", err)
+	}
+
+	clientHelloID, err := parseClientHelloID(fingerprint)
+	if err != nil {
+		return nil, fmt.Errorf("parse TLS fingerprint: %w", err)
+	}
+
+	resolver.UTLSClientHelloID = &clientHelloID
+	resolver.UDPSharedSocket = true
+
+	return &resolver, nil
+}
+
+// establishTunnelStream runs the tunnel handshake sequence and opens a
+// stream. From the first step on, the tunnel owns resources: every
+// failure path closes it. The returned net.Conn must be closed by the
+// caller.
+func establishTunnelStream(
+	ctx context.Context,
+	tunnel *vaydns.Tunnel,
+	server *vaydns.TunnelServer,
+) (net.Conn, error) {
+	fail := func(msg string, err error) (net.Conn, error) {
+		_ = tunnel.Close()
+		return nil, fmt.Errorf("%s: %w", msg, err)
+	}
+
+	steps := []struct {
+		name string
+		run  func() error
+	}{
+		{"resolver connection", func() error { return tunnel.InitiateResolverConnection(ctx) }},
+		{"DNS packet connection", func() error { return tunnel.InitiateDNSPacketConn(ctx, server.Addr) }},
+		{"KCP connection", func() error { return tunnel.InitiateKCPConn(server.MTU) }},
+		{"Noise channel", func() error { return tunnel.InitiateNoiseChannel(ctx) }},
+		{"smux session", tunnel.InitiateSmuxSession},
+	}
+
+	for _, step := range steps {
+		if err := ctx.Err(); err != nil {
+			return fail("context canceled before "+step.name, err)
 		}
 
-		return fmt.Errorf("check current config: %w", err)
+		if err := step.run(); err != nil {
+			return fail("initiate "+step.name, err)
+		}
 	}
 
-	if _, err := os.Stat(newPath); err == nil {
-		return fmt.Errorf("config %q already exists", newName)
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("check destination config: %w", err)
+	if err := ctx.Err(); err != nil {
+		return fail("context canceled before opening stream", err)
 	}
 
-	return fileutil.RenameFile(oldPath, newPath)
+	stream, err := tunnel.OpenStream()
+	if err != nil {
+		return fail("open tunnel stream", err)
+	}
+
+	return &tunnelConn{Conn: stream, tunnel: tunnel}, nil
 }

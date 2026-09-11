@@ -49,21 +49,21 @@ func (r *defaultResolver) Query(ctx context.Context, q Query) (*Msg, error) {
 
 	req := q.buildQuery()
 
-	resp, err := q.exchange(ctx, req)
+	resp, err := q.exchange(ctx, req, transportNetwork(q.Transport))
 	if err != nil {
 		return nil, err
 	}
 
 	// Some resolvers reject requests containing EDNS.
-	if q.hasEDNS(req) && resp.Rcode != dns.RcodeSuccess {
-		if retry, err := q.retryWithoutEDNS(ctx, req); err == nil && retry != nil {
+	if req.IsEdns0() != nil && resp.Rcode != dns.RcodeSuccess {
+		if retry, err := q.exchange(ctx, withoutEDNS(req), transportNetwork(q.Transport)); err == nil && retry != nil {
 			resp = retry
 		}
 	}
 
 	// Retry truncated UDP responses over TCP.
 	if q.Transport == ResolverTypeUDP && resp != nil && resp.Truncated {
-		return q.exchangeTCP(ctx, req)
+		return q.exchange(ctx, req, "tcp")
 	}
 
 	return resp, nil
@@ -86,9 +86,9 @@ func (q Query) buildQuery() *Msg {
 	return m
 }
 
-func (q Query) exchange(ctx context.Context, msg *Msg) (*Msg, error) {
+func (q Query) exchange(ctx context.Context, msg *Msg, network string) (*Msg, error) {
 	client := &dns.Client{
-		Net:     transportNetwork(q.Transport),
+		Net:     network,
 		Timeout: q.Timeout,
 	}
 
@@ -96,31 +96,10 @@ func (q Query) exchange(ctx context.Context, msg *Msg) (*Msg, error) {
 	return resp, err
 }
 
-func (q Query) exchangeTCP(ctx context.Context, msg *Msg) (*Msg, error) {
-	client := &dns.Client{
-		Net:     "tcp",
-		Timeout: q.Timeout,
-	}
-
-	resp, _, err := client.ExchangeContext(ctx, msg, q.address())
-	return resp, err
-}
-
-func (q Query) retryWithoutEDNS(ctx context.Context, msg *Msg) (*Msg, error) {
+func withoutEDNS(msg *Msg) *Msg {
 	clone := msg.Copy()
 	clone.Extra = nil
-
-	return q.exchange(ctx, clone)
-}
-
-func (q Query) hasEDNS(msg *Msg) bool {
-	for _, rr := range msg.Extra {
-		if rr.Header().Rrtype == dns.TypeOPT {
-			return true
-		}
-	}
-
-	return false
+	return clone
 }
 
 func (q Query) address() string {
@@ -155,8 +134,6 @@ func transportNetwork(t ResolverType) string {
 		return "tcp"
 	case ResolverTypeDOT:
 		return "tcp-tls"
-	case ResolverTypeUDP:
-		return "udp"
 	default:
 		return "udp"
 	}

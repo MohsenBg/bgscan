@@ -291,15 +291,15 @@ func TestQuery_Address(t *testing.T) {
 
 func TestQuery_HasEDNS_WithOPT(t *testing.T) {
 	q := Query{Domain: "example.com", RecordType: TypeA, EDNSBufSize: 1232}
-	if !q.hasEDNS(q.buildQuery()) {
-		t.Error("hasEDNS should return true when OPT record is present")
+	if q.buildQuery().IsEdns0() == nil {
+		t.Error("IsEdns0 should return the OPT record when present")
 	}
 }
 
 func TestQuery_HasEDNS_WithoutOPT(t *testing.T) {
 	q := Query{Domain: "example.com", RecordType: TypeA}
-	if q.hasEDNS(q.buildQuery()) {
-		t.Error("hasEDNS should return false when no OPT record")
+	if q.buildQuery().IsEdns0() != nil {
+		t.Error("IsEdns0 should return nil when no OPT record")
 	}
 }
 

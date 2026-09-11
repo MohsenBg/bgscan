@@ -258,3 +258,94 @@ func TestParseAuthMethod(t *testing.T) {
 		})
 	}
 }
+
+func TestResolverProxyTypeIsValid(t *testing.T) {
+	tests := []struct {
+		input ResolverProxyType
+		want  bool
+	}{
+		{ResolverProxySOCKS, true},
+		{ResolverProxySSH, true},
+		{"SOCKS", true},
+		{" ssh ", true},
+		{"http", false},
+		{"", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.input), func(t *testing.T) {
+			if got := tc.input.IsValid(); got != tc.want {
+				t.Errorf("ResolverProxyType(%q).IsValid() = %v; want %v", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseResolverProxyType(t *testing.T) {
+	tests := []struct {
+		input string
+		want  ResolverProxyType
+	}{
+		{"socks", ResolverProxySOCKS},
+		{"SOCKS", ResolverProxySOCKS},
+		{" Socks ", ResolverProxySOCKS},
+		{"ssh", ResolverProxySSH},
+		{"SSH", ResolverProxySSH},
+		{"ssh ", ResolverProxySSH},
+		{"http", ""},
+		{"", ""},
+		{"unknown", ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			if got := ParseResolverProxyType(tc.input); got != tc.want {
+				t.Errorf("ParseResolverProxyType(%q) = %q; want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestEncMethodString(t *testing.T) {
+	tests := []struct {
+		method EncMethod
+		want   string
+	}{
+		{EncNone, "None"},
+		{EncXOR, "XOR"},
+		{EncChaCha20, "ChaCha20"},
+		{EncAES128GCM, "AES-128-GCM"},
+		{EncAES192GCM, "AES-192-GCM"},
+		{EncAES256GCM, "AES-256-GCM"},
+		{EncMethod(6), "Unknown"},
+		{EncMethod(-1), "Unknown"},
+	}
+
+	for _, tc := range tests {
+		if got := tc.method.String(); got != tc.want {
+			t.Errorf("EncMethod(%d).String() = %q, want %q", int(tc.method), got, tc.want)
+		}
+	}
+}
+
+func TestParseEncMethod(t *testing.T) {
+	tests := []struct {
+		input string
+		want  EncMethod
+	}{
+		{"XOR", EncXOR},
+		{"xor", EncXOR},
+		{" None ", EncNone},
+		{"ChaCha20", EncChaCha20},
+		{"AES-128-GCM", EncAES128GCM},
+		{"aes-256-gcm", EncAES256GCM},
+		{"unknown", EncXOR},
+		{"", EncXOR},
+	}
+
+	for _, tc := range tests {
+		if got := ParseEncMethod(tc.input); got != tc.want {
+			t.Errorf("ParseEncMethod(%q) = %v, want %v", tc.input, got, tc.want)
+		}
+	}
+}

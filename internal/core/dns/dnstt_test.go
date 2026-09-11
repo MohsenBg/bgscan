@@ -196,10 +196,10 @@ func TestWithDNSTTDir(t *testing.T) {
 	option := WithDNSTTDir(want)
 	option(dnsttService)
 
-	if dnsttService.dir != want {
+	if dnsttService.configs.dir != want {
 		t.Fatalf(
 			"dir = %q, want %q",
-			dnsttService.dir,
+			dnsttService.configs.dir,
 			want,
 		)
 	}
@@ -209,22 +209,22 @@ func TestWithDNSTTDirEmpty(t *testing.T) {
 	service := NewDNSTTService()
 
 	dnsttService := service.(*dnsttService)
-	original := dnsttService.dir
+	original := dnsttService.configs.dir
 
 	WithDNSTTDir("")(dnsttService)
 
-	if dnsttService.dir != original {
+	if dnsttService.configs.dir != original {
 		t.Fatalf(
 			"empty directory changed dir from %q to %q",
 			original,
-			dnsttService.dir,
+			dnsttService.configs.dir,
 		)
 	}
 }
 
 func TestDNSTTServiceConfigPath(t *testing.T) {
 	service := &dnsttService{
-		dir: "/tmp/dnstt",
+		configs: newConfigStore[DNSTTConfig]("/tmp/dnstt", "DNSTT"),
 	}
 
 	tests := []struct {
@@ -247,7 +247,7 @@ func TestDNSTTServiceConfigPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := service.configPath(tt.name)
+			got := service.configs.configPath(tt.name)
 
 			if got != tt.want {
 				t.Fatalf(
@@ -511,16 +511,21 @@ func TestNewDNSTTTunnelServerInvalidConfig(t *testing.T) {
 func TestNewDNSTTResolver(t *testing.T) {
 	config := validDNSTTConfig()
 
-	resolver, err := newDNSTTResolver(config, netip.MustParseAddr("8.8.8.8"))
+	resolver, err := newVayDNSResolver(
+		config.ResolverType,
+		config.ResolverPort,
+		config.Fingerprint,
+		netip.MustParseAddr("8.8.8.8"),
+	)
 	if err != nil {
 		t.Fatalf(
-			"newDNSTTResolver() error = %v",
+			"newVayDNSResolver() error = %v",
 			err,
 		)
 	}
 
 	if resolver == nil {
-		t.Fatal("newDNSTTResolver() returned nil resolver")
+		t.Fatal("newVayDNSResolver() returned nil resolver")
 	}
 
 	if resolver.UTLSClientHelloID == nil {
@@ -534,10 +539,15 @@ func TestNewDNSTTResolverInvalidFingerprint(t *testing.T) {
 	config := validDNSTTConfig()
 	config.Fingerprint = "invalid-fingerprint"
 
-	_, err := newDNSTTResolver(config, netip.MustParseAddr("8.8.8.8"))
+	_, err := newVayDNSResolver(
+		config.ResolverType,
+		config.ResolverPort,
+		config.Fingerprint,
+		netip.MustParseAddr("8.8.8.8"),
+	)
 	if err == nil {
 		t.Fatal(
-			"newDNSTTResolver() expected fingerprint error",
+			"newVayDNSResolver() expected fingerprint error",
 		)
 	}
 }

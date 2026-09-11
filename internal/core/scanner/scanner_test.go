@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
 	"net"
 	"net/netip"
@@ -108,6 +109,78 @@ func (m *mockSlipstreamService) RenameConfig(oldName, newName string) error {
 }
 
 func (m *mockSlipstreamService) RunTunnel(ctx context.Context, cfg dns.SlipstreamConfig, resolverIP string, listenPort uint16) (process.Process, error) {
+	return nil, nil
+}
+
+// mockMasterDNSService implements dns.MasterDNSService.
+type mockMasterDNSService struct {
+	loadFunc func(name string) (dns.MasterDNSConfig, error)
+}
+
+func (m *mockMasterDNSService) SaveConfig(cfg dns.MasterDNSConfig, name string) error {
+	return nil
+}
+
+func (m *mockMasterDNSService) EditConfig(config dns.MasterDNSConfig, originalName string) error {
+	return nil
+}
+
+func (m *mockMasterDNSService) LoadConfig(name string) (dns.MasterDNSConfig, error) {
+	if m.loadFunc != nil {
+		return m.loadFunc(name)
+	}
+	return dns.DefaultMasterDNSConfig(), nil
+}
+
+func (m *mockMasterDNSService) GetAllConfigFiles() ([]dns.MasterDNSConfigFile, error) {
+	return nil, nil
+}
+
+func (m *mockMasterDNSService) ValidateAllConfigs() ([]dns.ConfigValidationResult, error) {
+	return nil, nil
+}
+
+func (m *mockMasterDNSService) RenameConfig(oldName, newName string) error {
+	return nil
+}
+
+func (m *mockMasterDNSService) RunTunnel(ctx context.Context, cfg dns.MasterDNSConfig, resolverIP string, listenPort uint16) (io.Closer, error) {
+	return nil, nil
+}
+
+// mockStormDNSService implements dns.StormDNSService.
+type mockStormDNSService struct {
+	loadFunc func(name string) (dns.StormDNSConfig, error)
+}
+
+func (m *mockStormDNSService) SaveConfig(cfg dns.StormDNSConfig, name string) error {
+	return nil
+}
+
+func (m *mockStormDNSService) EditConfig(config dns.StormDNSConfig, originalName string) error {
+	return nil
+}
+
+func (m *mockStormDNSService) LoadConfig(name string) (dns.StormDNSConfig, error) {
+	if m.loadFunc != nil {
+		return m.loadFunc(name)
+	}
+	return dns.DefaultStormDNSConfig(), nil
+}
+
+func (m *mockStormDNSService) GetAllConfigFiles() ([]dns.StormDNSConfigFile, error) {
+	return nil, nil
+}
+
+func (m *mockStormDNSService) ValidateAllConfigs() ([]dns.ConfigValidationResult, error) {
+	return nil, nil
+}
+
+func (m *mockStormDNSService) RenameConfig(oldName, newName string) error {
+	return nil
+}
+
+func (m *mockStormDNSService) RunTunnel(ctx context.Context, cfg dns.StormDNSConfig, resolverIP string, listenPort uint16) (io.Closer, error) {
 	return nil, nil
 }
 
@@ -1354,6 +1427,104 @@ func TestBuildVayDNSStage(t *testing.T) {
 	stages, err := s.BuildVayDNSStage(context.Background(), "vay-config")
 	if err != nil {
 		t.Fatalf("BuildVayDNSStage error: %v", err)
+	}
+
+	if len(stages) != 2 {
+		t.Fatalf("expected 2 stages, got %d", len(stages))
+	}
+	if stages[0].Writer == nil || stages[1].Writer == nil {
+		t.Error("writer missing in one of the stages")
+	}
+}
+
+func TestBuildMasterDNSStage(t *testing.T) {
+	mock := &mockMasterDNSService{
+		loadFunc: func(name string) (dns.MasterDNSConfig, error) {
+			if name != "master-config" {
+				return dns.MasterDNSConfig{}, errors.New("unexpected config name")
+			}
+			cfg := dns.DefaultMasterDNSConfig()
+			cfg.Domain = "test.example"
+			cfg.EncryptionKey = "testkey"
+			return cfg, nil
+		},
+	}
+
+	cfg := config.ScannerConfig{
+		DNS: config.DNSConfig{
+			DNSTunneling: config.DNSTunneling{
+				CheckDNSResolver: true,
+				Timeout:          config.NewDurationMS(2 * time.Second),
+				OutputPrefix:     "master_out",
+				Workers:          2,
+			},
+			Resolver: config.ResolverConfig{
+				Domain: "example.com",
+			},
+		},
+	}
+
+	s, err := newTestScanner(t, WithConfig(cfg), WithMasterDNSService(mock))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	defer func() {
+		_ = s.Close()
+	}()
+
+	stages, err := s.BuildMasterDNSStage(context.Background(), "master-config")
+	if err != nil {
+		t.Fatalf("BuildMasterDNSStage error: %v", err)
+	}
+
+	if len(stages) != 2 {
+		t.Fatalf("expected 2 stages, got %d", len(stages))
+	}
+	if stages[0].Writer == nil || stages[1].Writer == nil {
+		t.Error("writer missing in one of the stages")
+	}
+}
+
+func TestBuildStormDNSStage(t *testing.T) {
+	mock := &mockStormDNSService{
+		loadFunc: func(name string) (dns.StormDNSConfig, error) {
+			if name != "storm-config" {
+				return dns.StormDNSConfig{}, errors.New("unexpected config name")
+			}
+			cfg := dns.DefaultStormDNSConfig()
+			cfg.Domain = "test.example"
+			cfg.EncryptionKey = "testkey"
+			return cfg, nil
+		},
+	}
+
+	cfg := config.ScannerConfig{
+		DNS: config.DNSConfig{
+			DNSTunneling: config.DNSTunneling{
+				CheckDNSResolver: true,
+				Timeout:          config.NewDurationMS(2 * time.Second),
+				OutputPrefix:     "storm_out",
+				Workers:          2,
+			},
+			Resolver: config.ResolverConfig{
+				Domain: "example.com",
+			},
+		},
+	}
+
+	s, err := newTestScanner(t, WithConfig(cfg), WithStormDNSService(mock))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	defer func() {
+		_ = s.Close()
+	}()
+
+	stages, err := s.BuildStormDNSStage(context.Background(), "storm-config")
+	if err != nil {
+		t.Fatalf("BuildStormDNSStage error: %v", err)
 	}
 
 	if len(stages) != 2 {

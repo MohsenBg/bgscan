@@ -13,8 +13,10 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/dnsttprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/httpprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/icmpprobe"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/masterdnsprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/resolveprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/slipstreamprobe"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/stormdnsprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/tcpprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/vaydnsprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/xrayprobe"
@@ -430,6 +432,128 @@ func (s *scanner) BuildVayDNSStage(
 		ctx,
 		tunCfg.OutputPrefix,
 		vaydnsprobe.Schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	stages = append(
+		stages,
+		s.newStage(tunCfg.Workers, prb, writer, hooks...),
+	)
+
+	return stages, nil
+}
+
+// BuildMasterDNSStage creates the stages required for a MasterDNS scan.
+func (s *scanner) BuildMasterDNSStage(
+	ctx context.Context,
+	configName string,
+	hooks ...engine.ScanHooks,
+) ([]StageConfig, error) {
+	tunCfg := s.config.DNS.DNSTunneling
+
+	masterCfg, err := s.masterDNSService.LoadConfig(configName)
+	if err != nil {
+		return nil, fmt.Errorf("load MasterDNS config: %w", err)
+	}
+
+	stages := make([]StageConfig, 0, 2)
+
+	if tunCfg.CheckDNSResolver {
+		resolverCfg := s.config.DNS.Resolver
+		if tunCfg.AdaptiveResolver {
+			resolverCfg.Port = uint16(masterCfg.ResolverPort)
+			resolverCfg.Transport = string(dns.ResolverTypeUDP)
+			resolverCfg.Domain = masterCfg.Domain
+		}
+
+		stage, err := s.buildResolverStage(
+			ctx,
+			resolverCfg,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		stages = append(stages, stage)
+	}
+
+	prb, err := masterdnsprobe.NewMasterDNSProbe(
+		masterCfg,
+		tunCfg.Timeout.Duration(),
+		s.pm,
+		masterdnsprobe.WithMasterDNSService(s.masterDNSService),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create MasterDNS probe: %w", err)
+	}
+
+	writer, err := s.newWriter(
+		ctx,
+		tunCfg.OutputPrefix,
+		masterdnsprobe.Schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	stages = append(
+		stages,
+		s.newStage(tunCfg.Workers, prb, writer, hooks...),
+	)
+
+	return stages, nil
+}
+
+// BuildStormDNSStage creates the stages required for a StormDNS scan.
+func (s *scanner) BuildStormDNSStage(
+	ctx context.Context,
+	configName string,
+	hooks ...engine.ScanHooks,
+) ([]StageConfig, error) {
+	tunCfg := s.config.DNS.DNSTunneling
+
+	stormCfg, err := s.stormDNSService.LoadConfig(configName)
+	if err != nil {
+		return nil, fmt.Errorf("load StormDNS config: %w", err)
+	}
+
+	stages := make([]StageConfig, 0, 2)
+
+	if tunCfg.CheckDNSResolver {
+		resolverCfg := s.config.DNS.Resolver
+		if tunCfg.AdaptiveResolver {
+			resolverCfg.Port = uint16(stormCfg.ResolverPort)
+			resolverCfg.Transport = string(dns.ResolverTypeUDP)
+			resolverCfg.Domain = stormCfg.Domain
+		}
+
+		stage, err := s.buildResolverStage(
+			ctx,
+			resolverCfg,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		stages = append(stages, stage)
+	}
+
+	prb, err := stormdnsprobe.NewStormDNSProbe(
+		stormCfg,
+		tunCfg.Timeout.Duration(),
+		s.pm,
+		stormdnsprobe.WithStormDNSService(s.stormDNSService),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create StormDNS probe: %w", err)
+	}
+
+	writer, err := s.newWriter(
+		ctx,
+		tunCfg.OutputPrefix,
+		stormdnsprobe.Schema,
 	)
 	if err != nil {
 		return nil, err

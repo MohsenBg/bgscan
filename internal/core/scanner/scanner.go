@@ -64,6 +64,8 @@ type Scanner interface {
 	BuildDNSTTStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 	BuildSlipStreamStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 	BuildVayDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+	BuildMasterDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+	BuildStormDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 }
 
 // WriterFactory creates a result writer for a stage.
@@ -114,6 +116,8 @@ type scanner struct {
 	dnsttService      dns.DNSTTService
 	slipstreamService dns.SlipstreamService
 	vaydnsService     dns.VayDNSService
+	masterDNSService  dns.MasterDNSService
+	stormDNSService   dns.StormDNSService
 }
 
 // ScannerOption configures a Scanner.
@@ -180,6 +184,24 @@ func WithVayDNSService(service dns.VayDNSService) ScannerOption {
 	}
 }
 
+// WithMasterDNSService uses service to load MasterDNS configurations.
+func WithMasterDNSService(service dns.MasterDNSService) ScannerOption {
+	return func(s *scanner) {
+		if service != nil {
+			s.masterDNSService = service
+		}
+	}
+}
+
+// WithStormDNSService uses service to load StormDNS configurations.
+func WithStormDNSService(service dns.StormDNSService) ScannerOption {
+	return func(s *scanner) {
+		if service != nil {
+			s.stormDNSService = service
+		}
+	}
+}
+
 // withScanRunner replaces engine execution in scanner tests.
 func withScanRunner(runner scanRunner) ScannerOption {
 	return func(s *scanner) {
@@ -240,6 +262,14 @@ func NewScanner(
 
 	if s.vaydnsService == nil {
 		s.vaydnsService = dns.NewVayDNSService()
+	}
+
+	if s.masterDNSService == nil {
+		s.masterDNSService = dns.NewMasterDNSService()
+	}
+
+	if s.stormDNSService == nil {
+		s.stormDNSService = dns.NewStormDNSService()
 	}
 
 	return s, nil

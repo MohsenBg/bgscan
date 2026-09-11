@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/main/app"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 var Version = "dev"

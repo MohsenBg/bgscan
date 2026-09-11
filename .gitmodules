@@ -4,3 +4,9 @@
 [submodule "third_party/vaydns"]
 	path = third_party/vaydns
 	url = https://github.com/MohsenBg/vaydns.git
+[submodule "third_party/masterdns"]
+	path = third_party/masterdns
+	url = https://github.com/MohsenBg/MasterDnsVPN.git
+[submodule "third_party/stormdns"]
+	path = third_party/stormdns
+	url = https://github.com/MohsenBg/StormDNS.git

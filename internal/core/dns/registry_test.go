@@ -51,11 +51,14 @@ func TestDNSTunProtocolConstants(t *testing.T) {
 }
 
 func TestConfigFileAliases(t *testing.T) {
-	// Compile-time: every per-protocol alias must be the generic
-	// ConfigFile type the shared store emits.
-	var _ ConfigFile[VayDNSConfig] = VayDNSConfigFile{}
-	var _ ConfigFile[DNSTTConfig] = DNSTTConfigFile{}
-	var _ ConfigFile[SlipstreamConfig] = SlipstreamConfigFile{}
-	var _ ConfigFile[MasterDNSConfig] = MasterDNSConfigFile{}
-	var _ ConfigFile[StormDNSConfig] = StormDNSConfigFile{}
+	// Passing an alias value where ConfigFile[C] is expected only
+	// compiles when the alias is identical to the generic type, so
+	// this pins every per-protocol alias to the shared store's shape.
+	assertConfigFileAlias(VayDNSConfigFile{})
+	assertConfigFileAlias(DNSTTConfigFile{})
+	assertConfigFileAlias(SlipstreamConfigFile{})
+	assertConfigFileAlias(MasterDNSConfigFile{})
+	assertConfigFileAlias(StormDNSConfigFile{})
 }
+
+func assertConfigFileAlias[C any](_ ConfigFile[C]) {}

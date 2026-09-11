@@ -119,7 +119,7 @@ func (s *xrayService) ValidateConfig(ctx context.Context, config *XrayConfig) er
 	if err != nil {
 		return fmt.Errorf("xray core rejected config: %w", err)
 	}
-	defer instance.Close()
+	defer func() { _ = instance.Close() }()
 
 	return nil
 }

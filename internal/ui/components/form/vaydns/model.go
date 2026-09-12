@@ -2,73 +2,37 @@ package vaydns
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
-	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/dns"
-	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/form"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textarea"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/components/form/formkit"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/validation"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 )
 
 const (
-	maxFormWidth  = 55
-	maxFormHeight = 40
-	formPadding   = 2
-)
-
-const (
-	groupConnection = "Connection"
-	groupAdvanced   = "Advanced"
-	groupProxyAuth  = "Proxy & Auth"
-)
-
-const (
-	descDomain       = "The target domain name for the VayDNS tunnel."
-	descPubKey       = "The public key for encryption."
 	descClientIDSize = "Client ID size in bytes (1-8)."
 	descMaxQnameLen  = "Maximum QNAME length (0-253)."
 	descMaxNumLabels = "Maximum number of labels (0-4, 0=unlimited)."
 	descMTU          = "Maximum Transmission Unit (0-1452)."
-	descRPS          = "Requests per second (0 = unlimited)."
 	descRecordType   = "DNS record type for queries."
-	descResolverType = "The DNS resolver type: UDP, TCP, or DOT."
-	descResolverPort = "The DNS resolver port (typically 53)."
-	descFingerprint  = "The TLS fingerprint for the resolver."
-	descProxyType    = "The proxy type: SOCKS or SSH."
-	descProxyPort    = "The proxy port number."
-	descAuthMethod   = "The authentication method: none, password, or key."
-	descUsername     = "The username for authentication."
-	descPassword     = "The password for password authentication."
-	descPrivateKey   = "The SSH private key used for authentication."
 )
 
+// Model is the VayDNS tunnel configuration form.
 type Model struct {
-	id           ui.ComponentID
-	layout       *layout.Layout
-	state        *ui.AppState
-	form         *form.Model
-	inspector    *inspector.Model
-	cfg          *dns.VayDNSConfig
-	name         string
-	originalName string
-	width        int
-	height       int
+	formkit.Base
+	cfg *dns.VayDNSConfig
 }
 
+// New creates the VayDNS config form, either for a new config or to edit an
+// existing one described by original.
 func New(
 	l *layout.Layout,
 	state *ui.AppState,
@@ -86,242 +50,42 @@ func New(
 		}
 	}
 
-	m := &Model{
-		id:           ui.NewComponentID(),
-		layout:       l,
-		state:        state,
-		cfg:          &cfg,
-		name:         name,
-		originalName: originalName,
-	}
-
-	m.calculateSize()
+	m := &Model{cfg: &cfg}
+	m.Base = formkit.NewBase(l, state, name, originalName)
 	m.buildForm(original)
 
 	return m, nil
 }
 
-func (m *Model) calculateSize() {
-	w := m.layout.BodyContentWidth() - formPadding
-	h := m.layout.BodyContentHeight() - formPadding
-
-	m.width = min(w, maxFormWidth)
-	m.height = min(h, maxFormHeight)
-}
-
 func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
-	m.inspector = m.buildInspector()
-
 	title := "New VayDNS Config"
 	if original != nil {
-		title = fmt.Sprintf("Edit %s", m.name)
+		title = fmt.Sprintf("Edit %s", m.Name())
 	}
 
-	m.form = form.New(
-		m.layout,
-		m.inspector,
-		form.WithName(title),
-		form.WithWidth(m.width),
-		form.WithHeight(m.height),
-		form.WithValidation(func(fm *form.Model) error {
-			errs := m.cfg.Validate()
-			if len(errs) == 0 {
-				return nil
-			}
-			return fmt.Errorf("%s", form.FormatValidationErrors(errs))
-		}),
-		form.WithSave(confirm.ConfirmCmd(
-			m.layout,
-			"Save configuration?",
-			m.saveConfig,
-			true,
-		)),
-		form.WithCancel(m.cancel),
+	m.BuildForm(
+		title,
+		m.buildInspector(),
+		func() map[string]error { return m.cfg.Validate() },
+		m.saveConfig,
 	)
 }
 
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
-	l := m.layout
+	l := m.Layout()
 
-	configName := textinput.New(
-		l, "Enter config name",
-		textinput.WithValue(m.name),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			if err := validation.ValidateFilename(v); err != nil {
-				return err
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			m.name = strings.TrimSpace(v)
-			return nil
-		}),
+	configName := formkit.ConfigNameField(l, m.Name(), m.SetName)
+	domain := formkit.StringField(
+		l, cfg, "Enter domain", "domain",
+		func(c dns.VayDNSConfig) string { return c.Domain },
+		func(c *dns.VayDNSConfig, v string) { c.Domain = strings.TrimSpace(v) },
 	)
-
-	domain := textinput.New(
-		l, "Enter domain",
-		textinput.WithValue(cfg.Domain),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			tmp := *cfg
-			tmp.Domain = v
-			errs := tmp.Validate()
-			if e, ok := errs["domain"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.Domain = strings.TrimSpace(v)
-			return nil
-		}),
-	)
-
-	pubKey := textarea.New(
-		l, "Enter public key",
-		textarea.WithValue(cfg.PubKey),
-		textarea.WithFocus(),
+	pubKey := formkit.SecretField(
+		l, cfg, "Enter public key", "pub_key",
+		func(c dns.VayDNSConfig) string { return c.PubKey },
+		func(c *dns.VayDNSConfig, v string) { c.PubKey = v },
 		textarea.WithNewlines(false),
-		textarea.WithValidation(func(v string) error {
-			tmp := *cfg
-			tmp.PubKey = v
-			errs := tmp.Validate()
-			if e, ok := errs["pub_key"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textarea.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.PubKey = v
-			return nil
-		}),
-	)
-
-	clientIDSize := textinput.New(
-		l, "Enter client ID size",
-		textinput.WithValue(strconv.Itoa(int(cfg.ClientIDSize))),
-		textinput.WithFocus(),
-		textinput.WithPlaceholder("1-8"),
-		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 16)
-			if err != nil {
-				return err
-			}
-			tmp := *cfg
-			tmp.ClientIDSize = uint16(n)
-			errs := tmp.Validate()
-			if e, ok := errs["client_id_size"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseUint(v, 10, 16)
-			cfg.ClientIDSize = uint16(n)
-			return nil
-		}),
-	)
-
-	maxQnameLen := textinput.New(
-		l, "Enter max QNAME length",
-		textinput.WithValue(strconv.Itoa(int(cfg.MaxQnameLen))),
-		textinput.WithFocus(),
-		textinput.WithPlaceholder("0-253"),
-		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 8)
-			if err != nil {
-				return err
-			}
-			tmp := *cfg
-			tmp.MaxQnameLen = uint8(n)
-			errs := tmp.Validate()
-			if e, ok := errs["max_qname_len"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseUint(v, 10, 8)
-			cfg.MaxQnameLen = uint8(n)
-			return nil
-		}),
-	)
-
-	maxNumLabels := textinput.New(
-		l, "Enter max labels",
-		textinput.WithValue(strconv.Itoa(int(cfg.MaxNumLabels))),
-		textinput.WithPlaceholder("0-4, 0=auto"),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 8)
-			if err != nil {
-				return err
-			}
-			tmp := *cfg
-			tmp.MaxNumLabels = uint8(n)
-			errs := tmp.Validate()
-			if e, ok := errs["max_num_labels"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseUint(v, 10, 8)
-			cfg.MaxNumLabels = uint8(n)
-			return nil
-		}),
-	)
-
-	mtu := textinput.New(
-		l, "Enter MTU",
-		textinput.WithValue(strconv.Itoa(int(cfg.MTU))),
-		textinput.WithFocus(),
-		textinput.WithPlaceholder("0-1452 (0 - auto)"),
-		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 16)
-			if err != nil {
-				return err
-			}
-			tmp := *cfg
-			tmp.MTU = uint16(n)
-			errs := tmp.Validate()
-			if e, ok := errs["mtu"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseUint(v, 10, 16)
-			cfg.MTU = uint16(n)
-			return nil
-		}),
-	)
-
-	rps := textinput.New(
-		l, "Enter requests per second",
-		textinput.WithValue(strconv.FormatFloat(cfg.RPS, 'f', -1, 64)),
-		textinput.WithPlaceholder("0 = unlimited"),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseFloat(v, 64)
-			if err != nil {
-				return err
-			}
-			tmp := *cfg
-			tmp.RPS = n
-			errs := tmp.Validate()
-			if e, ok := errs["rps"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseFloat(v, 64)
-			cfg.RPS = n
-			return nil
-		}),
 	)
 
 	recordType := selectinput.New(
@@ -339,354 +103,107 @@ func (m *Model) buildInspector() *inspector.Model {
 			huh.NewOption("NULL", "NULL"),
 			huh.NewOption("CAA", "CAA"),
 		),
+		selectinput.WithValidation(func(v string) error {
+			tmp := *cfg
+			tmp.RecordType = dns.RecordType(v)
+			if e, ok := tmp.Validate()["record_type"]; ok {
+				return e
+			}
+			return nil
+		}),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.RecordType = dns.RecordType(v)
 			return nil
 		}),
 	)
 
-	resolverPort := textinput.New(
-		l, "Enter resolver port",
-		textinput.WithValue(strconv.Itoa(int(cfg.ResolverPort))),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 16)
-			if err != nil {
-				return err
-			}
-			tmp := *cfg
-			tmp.ResolverPort = uint16(n)
-			errs := tmp.Validate()
-			if e, ok := errs["resolver_port"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseUint(v, 10, 16)
-			cfg.ResolverPort = uint16(n)
-			return nil
-		}),
+	resType, resPort := formkit.ResolverTypePort(
+		l, cfg, m.Refresh,
+		func(c dns.VayDNSConfig) dns.ResolverType { return c.ResolverType },
+		func(c *dns.VayDNSConfig, v dns.ResolverType) { c.ResolverType = v },
+		func(c dns.VayDNSConfig) uint16 { return c.ResolverPort },
+		func(c *dns.VayDNSConfig, v uint16) { c.ResolverPort = v },
+	)
+	fingerprint := formkit.FingerprintField(
+		l, cfg,
+		func(c dns.VayDNSConfig) string { return c.Fingerprint },
+		func(c *dns.VayDNSConfig, v string) { c.Fingerprint = v },
 	)
 
-	resolverType := selectinput.New(
-		l, "Select resolver type",
-		selectinput.WithValue(string(cfg.ResolverType)),
-		selectinput.WithFocus[string](),
-		selectinput.WithOptions(
-			huh.NewOption("UDP", "udp"),
-			huh.NewOption("TCP", "tcp"),
-			huh.NewOption("DOT", "dot"),
-		),
-		selectinput.WithOnSubmit(func(v string) tea.Cmd {
-			rt := dns.ResolverType(v)
-			if rt == cfg.ResolverType {
-				return nil
-			}
-			cfg.ResolverType = rt
-			if rt == dns.ResolverTypeDOT {
-				cfg.ResolverPort = 853
-				resolverPort.SetValue("853")
-			} else {
-				cfg.ResolverPort = 53
-				resolverPort.SetValue("53")
-			}
-			return m.refresh()
-		}),
+	clientIDSize := formkit.Uint16Field(
+		l, cfg, "Enter client ID size", "client_id_size",
+		func(c dns.VayDNSConfig) uint16 { return c.ClientIDSize },
+		func(c *dns.VayDNSConfig, v uint16) { c.ClientIDSize = v },
+		textinput.WithPlaceholder("1-8"),
+	)
+	maxQnameLen := formkit.Uint8Field(
+		l, cfg, "Enter max QNAME length", "max_qname_len",
+		func(c dns.VayDNSConfig) uint8 { return c.MaxQnameLen },
+		func(c *dns.VayDNSConfig, v uint8) { c.MaxQnameLen = v },
+		textinput.WithPlaceholder("0-253"),
+	)
+	maxNumLabels := formkit.Uint8Field(
+		l, cfg, "Enter max labels", "max_num_labels",
+		func(c dns.VayDNSConfig) uint8 { return c.MaxNumLabels },
+		func(c *dns.VayDNSConfig, v uint8) { c.MaxNumLabels = v },
+		textinput.WithPlaceholder("0-4, 0=auto"),
+	)
+	mtu := formkit.Uint16Field(
+		l, cfg, "Enter MTU", "mtu",
+		func(c dns.VayDNSConfig) uint16 { return c.MTU },
+		func(c *dns.VayDNSConfig, v uint16) { c.MTU = v },
+		textinput.WithPlaceholder("0-1452 (0 - auto)"),
+	)
+	rps := formkit.FloatField(
+		l, cfg, "Enter requests per second", "rps",
+		func(c dns.VayDNSConfig) float64 { return c.RPS },
+		func(c *dns.VayDNSConfig, v float64) { c.RPS = v },
+		textinput.WithPlaceholder("0 = unlimited"),
 	)
 
-	fingerprintOptions := make([]huh.Option[string], 0, len(config.FingerprintLabels()))
-	for _, label := range config.FingerprintLabels() {
-		fingerprintOptions = append(fingerprintOptions, huh.NewOption(label, label))
-	}
-
-	fingerprint := selectinput.New(
-		l, "Select TLS fingerprint",
-		selectinput.WithValue(cfg.Fingerprint),
-		selectinput.WithFocus[string](),
-		selectinput.WithOptions(fingerprintOptions...),
-		selectinput.WithValidation(func(v string) error {
-			tmp := *cfg
-			tmp.Fingerprint = v
-			errs := tmp.Validate()
-			if e, ok := errs["fingerprint"]; ok {
-				return e
-			}
-			return nil
-		}),
-		selectinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.Fingerprint = v
-			return nil
-		}),
+	proxy, vis := formkit.BuildProxy(
+		l, cfg, m.Refresh,
+		func(c dns.VayDNSConfig) dns.ResolverProxyType { return c.ProxyType },
+		func(c *dns.VayDNSConfig, v dns.ResolverProxyType) { c.ProxyType = v },
+		func(c dns.VayDNSConfig) uint16 { return c.ProxyPort },
+		func(c *dns.VayDNSConfig, v uint16) { c.ProxyPort = v },
+		func(c dns.VayDNSConfig) dns.AuthMethod { return c.AuthMethod },
+		func(c *dns.VayDNSConfig, v dns.AuthMethod) { c.AuthMethod = v },
+		func(c dns.VayDNSConfig) string { return c.Username },
+		func(c *dns.VayDNSConfig, v string) { c.Username = v },
+		func(c dns.VayDNSConfig) string { return c.Password },
+		func(c *dns.VayDNSConfig, v string) { c.Password = v },
+		func(c dns.VayDNSConfig) string { return c.PrivateKey },
+		func(c *dns.VayDNSConfig, v string) { c.PrivateKey = v },
 	)
-
-	proxyPort := textinput.New(
-		l, "Enter proxy port",
-		textinput.WithValue(strconv.Itoa(int(cfg.ProxyPort))),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 16)
-			if err != nil {
-				return err
-			}
-			tmp := *cfg
-			tmp.ProxyPort = uint16(n)
-			errs := tmp.Validate()
-			if e, ok := errs["proxy_port"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseUint(v, 10, 16)
-			cfg.ProxyPort = uint16(n)
-			return nil
-		}),
-	)
-
-	proxyType := selectinput.New(
-		l, "Select proxy type",
-		selectinput.WithValue(string(cfg.ProxyType)),
-		selectinput.WithFocus[string](),
-		selectinput.WithOptions(
-			huh.NewOption("SOCKS", "socks"),
-			huh.NewOption("SSH", "ssh"),
-		),
-		selectinput.WithOnSubmit(func(v string) tea.Cmd {
-			pt := dns.ResolverProxyType(v)
-			if pt == cfg.ProxyType {
-				return nil
-			}
-			cfg.ProxyType = pt
-			if cfg.ProxyType == dns.ResolverProxySOCKS {
-				cfg.ProxyPort = 1080
-				proxyPort.SetValue("1080")
-			} else {
-				cfg.ProxyPort = 22
-				proxyPort.SetValue("22")
-			}
-
-			return m.refresh()
-		}),
-	)
-
-	authMethod := selectinput.New(
-		l, "Select authentication method",
-		selectinput.WithValue(string(cfg.AuthMethod)),
-		selectinput.WithFocus[string](),
-		selectinput.WithOptions(
-			huh.NewOption("None", "none"),
-			huh.NewOption("Password", "password"),
-			huh.NewOption("Key", "key"),
-		),
-		selectinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.AuthMethod = dns.AuthMethod(v)
-			return nil
-		}),
-	)
-
-	username := textinput.New(
-		l, "Enter username",
-		textinput.WithValue(cfg.Username),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			tmp := *cfg
-			tmp.Username = v
-			errs := tmp.Validate()
-			if e, ok := errs["username"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.Username = v
-			return nil
-		}),
-	)
-
-	password := textinput.New(
-		l, "Enter password",
-		textinput.WithFocus(),
-		textinput.WithValue(cfg.Password),
-		textinput.WithValidation(func(v string) error {
-			tmp := *cfg
-			tmp.Password = v
-			errs := tmp.Validate()
-			if e, ok := errs["password"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.Password = v
-			return nil
-		}),
-	)
-
-	privateKey := textarea.New(
-		l, "Enter private key",
-		textarea.WithValue(cfg.PrivateKey),
-		textarea.WithFocus(),
-		textarea.WithHeight(6),
-		textarea.WithPlaceholder("-----BEGIN OPENSSH PRIVATE KEY----- ..."),
-		textarea.WithValidation(func(v string) error {
-			tmp := *cfg
-			tmp.PrivateKey = v
-			errs := tmp.Validate()
-			if e, ok := errs["private_key"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textarea.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.PrivateKey = v
-			return nil
-		}),
-	)
-
-	proxyVisible := func() bool {
-		return cfg.ProxyType != ""
-	}
-
-	authVisible := func() bool {
-		return cfg.AuthMethod != dns.AuthNone
-	}
-
-	passwordVisible := func() bool {
-		return cfg.AuthMethod == dns.AuthPassword
-	}
-
-	keyVisible := func() bool {
-		return cfg.AuthMethod == dns.AuthKey
-	}
 
 	fields := []inspector.Field{
-		{Name: "Config Name", Description: "The name of the configuration file.", Group: groupConnection, Input: inspector.Adapt(configName), Visible: alwaysVisible, Format: inspector.FormatEmptyString},
-		{Name: "Domain", Description: descDomain, Group: groupConnection, Input: inspector.Adapt(domain), Visible: alwaysVisible, Format: inspector.FormatEmptyString},
-		{Name: "Public Key", Description: descPubKey, Group: groupConnection, Input: inspector.Adapt(pubKey), Visible: alwaysVisible, Format: inspector.FormatPublicKey},
-		{Name: "Resolver Type", Description: descResolverType, Group: groupConnection, Input: inspector.Adapt(resolverType), Visible: alwaysVisible},
-		{Name: "Resolver Port", Description: descResolverPort, Group: groupConnection, Input: inspector.Adapt(resolverPort), Visible: alwaysVisible},
-		{Name: "TLS Fingerprint", Description: descFingerprint, Group: groupConnection, Input: inspector.Adapt(fingerprint), Visible: alwaysVisible},
-		{Name: "Record Type", Description: descRecordType, Group: groupConnection, Input: inspector.Adapt(recordType), Visible: alwaysVisible},
+		{Name: "Config Name", Description: formkit.DescConfigName, Group: formkit.GroupConnection, Input: inspector.Adapt(configName), Visible: formkit.AlwaysVisible, Format: inspector.FormatEmptyString},
+		{Name: "Domain", Description: formkit.DescDomain, Group: formkit.GroupConnection, Input: inspector.Adapt(domain), Visible: formkit.AlwaysVisible, Format: inspector.FormatEmptyString},
+		{Name: "Public Key", Description: formkit.DescPubKey, Group: formkit.GroupConnection, Input: inspector.Adapt(pubKey), Visible: formkit.AlwaysVisible, Format: inspector.FormatPublicKey},
+		{Name: "Resolver Type", Description: formkit.DescResolverType, Group: formkit.GroupConnection, Input: inspector.Adapt(resType), Visible: formkit.AlwaysVisible},
+		{Name: "Resolver Port", Description: formkit.DescResolverPort, Group: formkit.GroupConnection, Input: inspector.Adapt(resPort), Visible: formkit.AlwaysVisible},
+		{Name: "TLS Fingerprint", Description: formkit.DescFingerprint, Group: formkit.GroupConnection, Input: inspector.Adapt(fingerprint), Visible: formkit.AlwaysVisible},
+		{Name: "Record Type", Description: descRecordType, Group: formkit.GroupConnection, Input: inspector.Adapt(recordType), Visible: formkit.AlwaysVisible},
 
-		{Name: "Client ID Size", Description: descClientIDSize, Group: groupAdvanced, Input: inspector.Adapt(clientIDSize), Visible: alwaysVisible},
-		{Name: "Max QNAME Len", Description: descMaxQnameLen, Group: groupAdvanced, Input: inspector.Adapt(maxQnameLen), Visible: alwaysVisible, Format: inspector.FormatZeroAsAuto},
-		{Name: "Max Labels", Description: descMaxNumLabels, Group: groupAdvanced, Input: inspector.Adapt(maxNumLabels), Visible: alwaysVisible, Format: inspector.FormatZeroAsAuto},
-		{Name: "MTU", Description: descMTU, Group: groupAdvanced, Input: inspector.Adapt(mtu), Visible: alwaysVisible, Format: inspector.FormatZeroAsAuto},
-		{Name: "RPS", Description: descRPS, Group: groupAdvanced, Input: inspector.Adapt(rps), Visible: alwaysVisible, Format: inspector.FormatZeroAsAuto},
+		{Name: "Client ID Size", Description: descClientIDSize, Group: formkit.GroupAdvanced, Input: inspector.Adapt(clientIDSize), Visible: formkit.AlwaysVisible},
+		{Name: "Max QNAME Len", Description: descMaxQnameLen, Group: formkit.GroupAdvanced, Input: inspector.Adapt(maxQnameLen), Visible: formkit.AlwaysVisible, Format: inspector.FormatZeroAsAuto},
+		{Name: "Max Labels", Description: descMaxNumLabels, Group: formkit.GroupAdvanced, Input: inspector.Adapt(maxNumLabels), Visible: formkit.AlwaysVisible, Format: inspector.FormatZeroAsAuto},
+		{Name: "MTU", Description: descMTU, Group: formkit.GroupAdvanced, Input: inspector.Adapt(mtu), Visible: formkit.AlwaysVisible, Format: inspector.FormatZeroAsAuto},
+		{Name: "RPS", Description: formkit.DescRPS, Group: formkit.GroupAdvanced, Input: inspector.Adapt(rps), Visible: formkit.AlwaysVisible, Format: inspector.FormatZeroAsAuto},
 
-		{Name: "Proxy Type", Description: descProxyType, Group: groupProxyAuth, Input: inspector.Adapt(proxyType), Visible: alwaysVisible},
-		{Name: "Proxy Port", Description: descProxyPort, Group: groupProxyAuth, Input: inspector.Adapt(proxyPort), Visible: proxyVisible},
+		{Name: "Proxy Type", Description: formkit.DescProxyType, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Type), Visible: formkit.AlwaysVisible},
+		{Name: "Proxy Port", Description: formkit.DescProxyPort, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Port), Visible: vis.Proxy},
 
-		{Name: "Auth Method", Description: descAuthMethod, Group: groupProxyAuth, Input: inspector.Adapt(authMethod), Visible: alwaysVisible},
-		{Name: "Username", Description: descUsername, Group: groupProxyAuth, Input: inspector.Adapt(username), Visible: authVisible, Format: inspector.FormatEmptyString},
-		{Name: "Password", Description: descPassword, Group: groupProxyAuth, Input: inspector.Adapt(password), Visible: passwordVisible, Format: inspector.FormatEmptyString},
-		{Name: "Private Key", Description: descPrivateKey, Group: groupProxyAuth, Input: inspector.Adapt(privateKey), Visible: keyVisible, Format: inspector.FormatPrivateKey},
+		{Name: "Auth Method", Description: formkit.DescAuthMethod, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Auth), Visible: formkit.AlwaysVisible},
+		{Name: "Username", Description: formkit.DescUsername, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Username), Visible: vis.Auth, Format: inspector.FormatEmptyString},
+		{Name: "Password", Description: formkit.DescPassword, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Password), Visible: vis.Password, Format: inspector.FormatEmptyString},
+		{Name: "Private Key", Description: formkit.DescPrivateKey, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.PrivateKey), Visible: vis.Key, Format: inspector.FormatPrivateKey},
 	}
 
 	return inspector.New(l, "vaydns config", fields)
 }
 
-func alwaysVisible() bool { return true }
-
-func (m *Model) ID() ui.ComponentID {
-	return m.id
-}
-
-func (m *Model) Name() string {
-	return m.name
-}
-
-func (m *Model) Init() tea.Cmd {
-	if m.form == nil {
-		return nil
-	}
-	return m.form.Init()
-}
-
-func (m *Model) Mode() env.Mode {
-	return env.ManagedMode
-}
-
-func (m *Model) OnClose() tea.Cmd {
-	if m.form == nil {
-		return nil
-	}
-	return m.form.OnClose()
-}
-
 func (m *Model) saveConfig() tea.Msg {
-	srv := dns.NewVayDNSService()
-
-	name := strings.TrimSpace(m.name)
-	if name == "" {
-		return notice.NewNoticeCmd(
-			m.layout,
-			"Error",
-			"config name is required",
-			notice.NOTICE_ERROR,
-		)()
-	}
-
-	if m.originalName != "" {
-		if err := srv.EditConfig(*m.cfg, m.originalName); err != nil {
-			logger.UIError("Failed to edit VayDNS config: %v", err)
-			return notice.NewNoticeCmd(
-				m.layout,
-				"Edit Failed",
-				err.Error(),
-				notice.NOTICE_ERROR,
-			)()
-		}
-
-		if m.originalName != name {
-			if err := srv.RenameConfig(m.originalName, name); err != nil {
-				logger.UIError("Failed to rename VayDNS config: %v", err)
-				return notice.NewNoticeCmd(
-					m.layout,
-					"Rename Failed",
-					err.Error(),
-					notice.NOTICE_ERROR,
-				)()
-			}
-		}
-	} else if err := srv.SaveConfig(*m.cfg, name); err != nil {
-		logger.UIError("Failed to save VayDNS config: %v", err)
-		return notice.NewNoticeCmd(
-			m.layout,
-			"Save Failed",
-			err.Error(),
-			notice.NOTICE_ERROR,
-		)()
-	}
-
-	return tea.Sequence(
-		notice.NewNoticeCmd(
-			m.layout,
-			"Saved",
-			"VayDNS config saved",
-			notice.NOTICE_SUCCESS,
-		),
-		func() tea.Msg {
-			return ui.CloseComponentMsg{ID: m.ID()}
-		},
-	)()
-}
-
-func (m *Model) cancel() tea.Msg {
-	return confirm.ConfirmCmd(
-		m.layout,
-		"Discard unsaved changes?",
-		func() tea.Msg {
-			return ui.CloseComponentMsg{ID: m.ID()}
-		},
-		false,
-	)()
-}
-
-func (m *Model) refresh() tea.Cmd {
-	if m.inspector != nil {
-		return m.inspector.Refresh()
-	}
-	return nil
+	return formkit.Save(&m.Base, "VayDNS", dns.NewVayDNSService(), m.cfg)
 }

@@ -1,4 +1,4 @@
-package dnstt
+package stormdns
 
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"

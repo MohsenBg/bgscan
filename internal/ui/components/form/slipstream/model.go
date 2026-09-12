@@ -2,64 +2,30 @@ package slipstream
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
-	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/form"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textarea"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/components/form/formkit"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/validation"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/huh/v2"
 )
 
 const (
-	maxFormWidth  = 55
-	maxFormHeight = 35
-	formPadding   = 2
+	descCertPath = "Optional path to a custom TLS certificate file."
 )
 
-const (
-	groupConnection = "Connection"
-	groupProxyAuth  = "Proxy & Auth"
-)
-
-const (
-	descDomain       = "The target domain name for the Slipstream DNS tunnel."
-	descResolverPort = "The DNS resolver port (typically 53)."
-	descCertPath     = "Optional path to a custom TLS certificate file."
-	descProxyType    = "The proxy type used for the resolver connection."
-	descProxyPort    = "The proxy port number."
-	descAuthMethod   = "The authentication method: none, password, or key."
-	descUsername     = "The username for authentication."
-	descPassword     = "The password for password authentication."
-	descPrivateKey   = "The SSH private key used for authentication."
-)
-
+// Model is the Slipstream tunnel configuration form.
 type Model struct {
-	id            ui.ComponentID
-	layout        *layout.Layout
-	state         *ui.AppState
-	form          *form.Model
-	inspector     *inspector.Model
+	formkit.Base
 	cfg           *dns.SlipstreamConfig
-	slipstreamSrv *dns.SlipstreamService
-	name          string
-	originalName  string
-	width         int
-	height        int
+	slipstreamSrv dns.SlipstreamService
 }
 
+// New creates the Slipstream config form, either for a new config or to edit
+// an existing one described by original.
 func New(
 	l *layout.Layout,
 	state *ui.AppState,
@@ -83,386 +49,84 @@ func New(
 	}
 
 	m := &Model{
-		id:            ui.NewComponentID(),
-		layout:        l,
-		state:         state,
 		cfg:           &cfg,
-		name:          name,
-		originalName:  originalName,
-		slipstreamSrv: &srv,
+		slipstreamSrv: srv,
 	}
-
-	m.calculateSize()
+	m.Base = formkit.NewBase(l, state, name, originalName)
 	m.buildForm(original)
 
 	return m, nil
 }
 
-func (m *Model) calculateSize() {
-	w := m.layout.BodyContentWidth() - formPadding
-	h := m.layout.BodyContentHeight() - formPadding
-
-	m.width = min(w, maxFormWidth)
-	m.height = min(h, maxFormHeight)
-}
-
 func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
-	m.inspector = m.buildInspector()
-
 	title := "New Slipstream Config"
 	if original != nil {
-		title = fmt.Sprintf("Edit %s", m.name)
+		title = fmt.Sprintf("Edit %s", m.Name())
 	}
 
-	m.form = form.New(
-		m.layout,
-		m.inspector,
-		form.WithName(title),
-		form.WithWidth(m.width),
-		form.WithHeight(m.height),
-		form.WithValidation(func(fm *form.Model) error {
-			errs := m.cfg.Validate()
-			if len(errs) == 0 {
-				return nil
-			}
-			return fmt.Errorf("%s", form.FormatValidationErrors(errs))
-		}),
-		form.WithSave(confirm.ConfirmCmd(
-			m.layout,
-			"Save configuration?",
-			m.saveConfig,
-			true,
-		)),
-		form.WithCancel(m.cancel),
+	m.BuildForm(
+		title,
+		m.buildInspector(),
+		func() map[string]error { return m.cfg.Validate() },
+		m.saveConfig,
 	)
 }
 
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
-	l := m.layout
+	l := m.Layout()
 
-	configName := textinput.New(
-		l, "Enter config name",
-		textinput.WithValue(m.name),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			if err := validation.ValidateFilename(v); err != nil {
-				return err
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			m.name = strings.TrimSpace(v)
-			return nil
-		}),
+	configName := formkit.ConfigNameField(l, m.Name(), m.SetName)
+	domain := formkit.StringField(
+		l, cfg, "Enter domain", "domain",
+		func(c dns.SlipstreamConfig) string { return c.Domain },
+		func(c *dns.SlipstreamConfig, v string) { c.Domain = strings.TrimSpace(v) },
+	)
+	resPort := formkit.Uint16Field(
+		l, cfg, "Enter resolver port", "resolver_port",
+		func(c dns.SlipstreamConfig) uint16 { return c.ResolverPort },
+		func(c *dns.SlipstreamConfig, v uint16) { c.ResolverPort = v },
+	)
+	certPath := formkit.StringField(
+		l, cfg, "Enter certificate path", "cert_path",
+		func(c dns.SlipstreamConfig) string { return c.CertPath },
+		func(c *dns.SlipstreamConfig, v string) { c.CertPath = strings.TrimSpace(v) },
 	)
 
-	domain := textinput.New(
-		l, "Enter domain",
-		textinput.WithValue(cfg.Domain),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			tmp := *cfg
-			tmp.Domain = v
-			errs := tmp.Validate()
-			if e, ok := errs["domain"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.Domain = strings.TrimSpace(v)
-			return nil
-		}),
+	proxy, vis := formkit.BuildProxy(
+		l, cfg, m.Refresh,
+		func(c dns.SlipstreamConfig) dns.ResolverProxyType { return c.ProxyType },
+		func(c *dns.SlipstreamConfig, v dns.ResolverProxyType) { c.ProxyType = v },
+		func(c dns.SlipstreamConfig) uint16 { return c.ProxyPort },
+		func(c *dns.SlipstreamConfig, v uint16) { c.ProxyPort = v },
+		func(c dns.SlipstreamConfig) dns.AuthMethod { return c.AuthMethod },
+		func(c *dns.SlipstreamConfig, v dns.AuthMethod) { c.AuthMethod = v },
+		func(c dns.SlipstreamConfig) string { return c.Username },
+		func(c *dns.SlipstreamConfig, v string) { c.Username = v },
+		func(c dns.SlipstreamConfig) string { return c.Password },
+		func(c *dns.SlipstreamConfig, v string) { c.Password = v },
+		func(c dns.SlipstreamConfig) string { return c.PrivateKey },
+		func(c *dns.SlipstreamConfig, v string) { c.PrivateKey = v },
 	)
-
-	resolverPort := textinput.New(
-		l, "Enter resolver port",
-		textinput.WithValue(strconv.Itoa(int(cfg.ResolverPort))),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 16)
-			if err != nil {
-				return err
-			}
-			tmp := *cfg
-			tmp.ResolverPort = uint16(n)
-			errs := tmp.Validate()
-			if e, ok := errs["dns_port"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseUint(v, 10, 16)
-			cfg.ResolverPort = uint16(n)
-			return nil
-		}),
-	)
-
-	certPath := textinput.New(
-		l, "Enter certificate path",
-		textinput.WithValue(cfg.CertPath),
-		textinput.WithFocus(),
-		textinput.WithPlaceholder("(optional)"),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.CertPath = strings.TrimSpace(v)
-			return nil
-		}),
-	)
-
-	proxyPort := textinput.New(
-		l, "Enter proxy port",
-		textinput.WithValue(strconv.Itoa(int(cfg.ProxyPort))),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			n, err := strconv.ParseUint(v, 10, 16)
-			if err != nil {
-				return err
-			}
-			tmp := *cfg
-			tmp.ProxyPort = uint16(n)
-			errs := tmp.Validate()
-			if e, ok := errs["proxy_port"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, _ := strconv.ParseUint(v, 10, 16)
-			cfg.ProxyPort = uint16(n)
-			return nil
-		}),
-	)
-
-	proxyType := selectinput.New(
-		l, "Select proxy type",
-		selectinput.WithValue(string(cfg.ProxyType)),
-		selectinput.WithFocus[string](),
-		selectinput.WithOptions(
-			huh.NewOption("SOCKS", "socks"),
-			huh.NewOption("SSH", "ssh"),
-		),
-		selectinput.WithOnSubmit(func(v string) tea.Cmd {
-			pt := dns.ResolverProxyType(v)
-			if pt == cfg.ProxyType {
-				return nil
-			}
-			cfg.ProxyType = pt
-			if cfg.ProxyType == dns.ResolverProxySOCKS {
-				cfg.ProxyPort = 1080
-				proxyPort.SetValue("1080")
-			} else {
-				cfg.ProxyPort = 22
-				proxyPort.SetValue("22")
-			}
-
-			return m.refresh()
-		}),
-	)
-
-	authMethod := selectinput.New(
-		l, "Select authentication method",
-		selectinput.WithValue(string(cfg.AuthMethod)),
-		selectinput.WithFocus[string](),
-		selectinput.WithOptions(
-			huh.NewOption("None", "none"),
-			huh.NewOption("Password", "password"),
-			huh.NewOption("Key", "key"),
-		),
-		selectinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.AuthMethod = dns.AuthMethod(v)
-			return nil
-		}),
-	)
-
-	username := textinput.New(
-		l, "Enter username",
-		textinput.WithValue(cfg.Username),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			tmp := *cfg
-			tmp.Username = v
-			errs := tmp.Validate()
-			if e, ok := errs["username"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.Username = v
-			return nil
-		}),
-	)
-
-	password := textinput.New(
-		l, "Enter password",
-		textinput.WithValue(cfg.Password),
-		textinput.WithFocus(),
-		textinput.WithValidation(func(v string) error {
-			tmp := *cfg
-			tmp.Password = v
-			errs := tmp.Validate()
-			if e, ok := errs["password"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.Password = v
-			return nil
-		}),
-	)
-
-	privateKey := textarea.New(
-		l, "Enter private key",
-		textarea.WithValue(cfg.PrivateKey),
-		textarea.WithFocus(),
-		textarea.WithHeight(6),
-		textarea.WithPlaceholder("-----BEGIN OPENSSH PRIVATE KEY----- ..."),
-		textarea.WithValidation(func(v string) error {
-			tmp := *cfg
-			tmp.PrivateKey = v
-			errs := tmp.Validate()
-			if e, ok := errs["private_key"]; ok {
-				return e
-			}
-			return nil
-		}),
-		textarea.WithOnSubmit(func(v string) tea.Cmd {
-			cfg.PrivateKey = v
-			return nil
-		}),
-	)
-
-	authVisible := func() bool {
-		return cfg.AuthMethod != dns.AuthNone
-	}
-
-	passwordVisible := func() bool {
-		return cfg.AuthMethod == dns.AuthPassword
-	}
-
-	keyVisible := func() bool {
-		return cfg.AuthMethod == dns.AuthKey
-	}
 
 	fields := []inspector.Field{
-		{Name: "Config Name", Description: "The name of the configuration file.", Group: groupConnection, Input: inspector.Adapt(configName), Visible: alwaysVisible, Format: inspector.FormatEmptyString},
-		{Name: "Domain", Description: descDomain, Group: groupConnection, Input: inspector.Adapt(domain), Visible: alwaysVisible, Format: inspector.FormatEmptyString},
-		{Name: "Resolver Port", Description: descResolverPort, Group: groupConnection, Input: inspector.Adapt(resolverPort), Visible: alwaysVisible},
-		{Name: "Cert Path", Description: descCertPath, Group: groupConnection, Input: inspector.Adapt(certPath), Visible: alwaysVisible, Format: inspector.FormatEmptyString},
+		{Name: "Config Name", Description: formkit.DescConfigName, Group: formkit.GroupConnection, Input: inspector.Adapt(configName), Visible: formkit.AlwaysVisible, Format: inspector.FormatEmptyString},
+		{Name: "Domain", Description: formkit.DescDomain, Group: formkit.GroupConnection, Input: inspector.Adapt(domain), Visible: formkit.AlwaysVisible, Format: inspector.FormatEmptyString},
+		{Name: "Resolver Port", Description: formkit.DescResolverPort, Group: formkit.GroupConnection, Input: inspector.Adapt(resPort), Visible: formkit.AlwaysVisible},
+		{Name: "Cert Path", Description: descCertPath, Group: formkit.GroupConnection, Input: inspector.Adapt(certPath), Visible: formkit.AlwaysVisible, Format: inspector.FormatEmptyString},
 
-		{Name: "Proxy Type", Description: descProxyType, Group: groupProxyAuth, Input: inspector.Adapt(proxyType), Visible: alwaysVisible},
-		{Name: "Proxy Port", Description: descProxyPort, Group: groupProxyAuth, Input: inspector.Adapt(proxyPort), Visible: alwaysVisible},
+		{Name: "Proxy Type", Description: formkit.DescProxyType, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Type), Visible: formkit.AlwaysVisible},
+		{Name: "Proxy Port", Description: formkit.DescProxyPort, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Port), Visible: vis.Proxy},
 
-		{Name: "Auth Method", Description: descAuthMethod, Group: groupProxyAuth, Input: inspector.Adapt(authMethod), Visible: alwaysVisible},
-		{Name: "Username", Description: descUsername, Group: groupProxyAuth, Input: inspector.Adapt(username), Visible: authVisible, Format: inspector.FormatEmptyString},
-		{Name: "Password", Description: descPassword, Group: groupProxyAuth, Input: inspector.Adapt(password), Visible: passwordVisible, Format: inspector.FormatEmptyString},
-		{Name: "Private Key", Description: descPrivateKey, Group: groupProxyAuth, Input: inspector.Adapt(privateKey), Visible: keyVisible, Format: inspector.FormatPrivateKey},
+		{Name: "Auth Method", Description: formkit.DescAuthMethod, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Auth), Visible: formkit.AlwaysVisible},
+		{Name: "Username", Description: formkit.DescUsername, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Username), Visible: vis.Auth, Format: inspector.FormatEmptyString},
+		{Name: "Password", Description: formkit.DescPassword, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Password), Visible: vis.Password, Format: inspector.FormatEmptyString},
+		{Name: "Private Key", Description: formkit.DescPrivateKey, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.PrivateKey), Visible: vis.Key, Format: inspector.FormatPrivateKey},
 	}
 
 	return inspector.New(l, "slipstream config", fields)
 }
 
-func alwaysVisible() bool { return true }
-
-func (m *Model) ID() ui.ComponentID {
-	return m.id
-}
-
-func (m *Model) Name() string {
-	return m.name
-}
-
-func (m *Model) Init() tea.Cmd {
-	if m.form == nil {
-		return nil
-	}
-	return m.form.Init()
-}
-
-func (m *Model) Mode() env.Mode {
-	return env.ManagedMode
-}
-
-func (m *Model) OnClose() tea.Cmd {
-	if m.form == nil {
-		return nil
-	}
-	return m.form.OnClose()
-}
-
 func (m *Model) saveConfig() tea.Msg {
-	name := strings.TrimSpace(m.name)
-	if name == "" {
-		return notice.NewNoticeCmd(
-			m.layout,
-			"Error",
-			"config name is required",
-			notice.NOTICE_ERROR,
-		)()
-	}
-
-	if m.originalName != "" {
-		if err := (*m.slipstreamSrv).EditConfig(*m.cfg, m.originalName); err != nil {
-			logger.UIError("Failed to edit Slipstream config: %v", err)
-			return notice.NewNoticeCmd(
-				m.layout,
-				"Edit Failed",
-				err.Error(),
-				notice.NOTICE_ERROR,
-			)()
-		}
-
-		if m.originalName != name {
-			if err := (*m.slipstreamSrv).RenameConfig(m.originalName, name); err != nil {
-				logger.UIError("Failed to rename Slipstream config: %v", err)
-				return notice.NewNoticeCmd(
-					m.layout,
-					"Rename Failed",
-					err.Error(),
-					notice.NOTICE_ERROR,
-				)()
-			}
-		}
-	} else if err := (*m.slipstreamSrv).SaveConfig(*m.cfg, name); err != nil {
-		logger.UIError("Failed to save Slipstream config: %v", err)
-		return notice.NewNoticeCmd(
-			m.layout,
-			"Save Failed",
-			err.Error(),
-			notice.NOTICE_ERROR,
-		)()
-	}
-
-	return tea.Sequence(
-		notice.NewNoticeCmd(
-			m.layout,
-			"Saved",
-			"Slipstream config saved",
-			notice.NOTICE_SUCCESS,
-		),
-		func() tea.Msg {
-			return ui.CloseComponentMsg{ID: m.ID()}
-		},
-	)()
-}
-
-func (m *Model) cancel() tea.Msg {
-	return confirm.ConfirmCmd(
-		m.layout,
-		"Discard unsaved changes?",
-		func() tea.Msg {
-			return ui.CloseComponentMsg{ID: m.ID()}
-		},
-		false,
-	)()
-}
-
-func (m *Model) refresh() tea.Cmd {
-	if m.inspector != nil {
-		return m.inspector.Refresh()
-	}
-	return nil
+	return formkit.Save(&m.Base, "Slipstream", m.slipstreamSrv, m.cfg)
 }

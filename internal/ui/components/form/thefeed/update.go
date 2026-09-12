@@ -1,4 +1,4 @@
-package dnstt
+package thefeed
 
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"

@@ -1,4 +1,4 @@
-package dnstt
+package stormdns
 
 func (m *Model) View() string {
 	return m.Base.View()

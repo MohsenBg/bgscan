@@ -224,6 +224,21 @@ func FormatUTLS(v any) string {
 }
 
 func FormatEmptyString(v any) string {
+	if s, ok := v.(string); ok {
+		if s == "" {
+			return "<empty>"
+		}
+		return s
+	}
+
+	if s, ok := v.(fmt.Stringer); ok {
+		return s.String()
+	}
+
+	return ""
+}
+
+func FormatSeconds(v any) string {
 	s, ok := v.(string)
 	if !ok {
 		return ""
@@ -232,5 +247,21 @@ func FormatEmptyString(v any) string {
 	if s == "" {
 		return "<empty>"
 	}
-	return s
+
+	var err error
+	seconds, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return ""
+	}
+
+	if seconds < 0 {
+		return ""
+	}
+
+	d := time.Duration(seconds * float64(time.Second))
+	if d < 0 {
+		return ""
+	}
+
+	return d.Round(time.Millisecond).String()
 }

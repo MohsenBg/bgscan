@@ -10,3 +10,6 @@
 [submodule "third_party/stormdns"]
 	path = third_party/stormdns
 	url = https://github.com/MohsenBg/StormDNS.git
+[submodule "third_party/thefeed"]
+	path = third_party/thefeed
+	url = https://github.com/MohsenBg/thefeed.git

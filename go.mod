@@ -16,6 +16,7 @@ require (
 	github.com/quic-go/quic-go v0.62.0
 	github.com/refraction-networking/utls v1.8.3-0.20260301010127-aa6edf4b11af
 	github.com/rmhubbert/bubbletea-overlay v0.6.9
+	github.com/sartoopjj/thefeed v0.0.0
 	github.com/xtls/xray-core v1.260327.1-0.20260728075948-5ca6f4b7d4dc
 	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.59.0
@@ -106,3 +107,5 @@ replace github.com/net2share/vaydns => ./third_party/vaydns
 replace masterdnsvpn-go => ./third_party/masterdns
 
 replace stormdns-go => ./third_party/stormdns
+
+replace github.com/sartoopjj/thefeed => ./third_party/thefeed

@@ -19,6 +19,7 @@ const (
 	DNSTunProtocolSlipstream DNSTunProtocol = "slipstream"
 	DNSTunProtocolMasterDNS  DNSTunProtocol = "masterdns"
 	DNSTunProtocolStormDNS   DNSTunProtocol = "stormdns"
+	DNSTunProtocolTheFeed    DNSTunProtocol = "thefeed"
 )
 
 // DNSTunConfigFile is a protocol-agnostic view of a tunnel config file.

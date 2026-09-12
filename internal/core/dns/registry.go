@@ -38,9 +38,14 @@ func GetAllDNSTunsFile() ([]DNSTunConfigFile, error) {
 		return nil, err
 	}
 
+	thefeedCfg, err := NewTheFeedService().GetAllConfigFiles()
+	if err != nil {
+		return nil, err
+	}
+
 	configs := make(
 		[]DNSTunConfigFile, 0,
-		len(vaydnsCfg)+len(dnsttCfg)+len(slipstreamCfg)+len(masterdnsCfg)+len(stormdnsCfg),
+		len(vaydnsCfg)+len(dnsttCfg)+len(slipstreamCfg)+len(masterdnsCfg)+len(stormdnsCfg)+len(thefeedCfg),
 	)
 
 	for _, file := range vaydnsCfg {
@@ -98,6 +103,17 @@ func GetAllDNSTunsFile() ([]DNSTunConfigFile, error) {
 		})
 	}
 
+	for _, file := range thefeedCfg {
+		configs = append(configs, DNSTunConfigFile{
+			Name:      file.Name,
+			Path:      file.Path,
+			CreatedAt: file.CreatedAt,
+			Protocol:  DNSTunProtocolTheFeed,
+			Proxy:     "socks-" + file.Config.QueryMode,
+			Config:    file.Config,
+		})
+	}
+
 	slices.SortFunc(configs, func(a, b DNSTunConfigFile) int {
 		return b.CreatedAt.Compare(a.CreatedAt)
 	})
@@ -128,6 +144,9 @@ func RenameDNSTunConfigFile(file DNSTunConfigFile, newName string) error {
 
 	case DNSTunProtocolStormDNS:
 		return NewStormDNSService().RenameConfig(file.Name, newName)
+
+	case DNSTunProtocolTheFeed:
+		return NewTheFeedService().RenameConfig(file.Name, newName)
 
 	default:
 		return fmt.Errorf("unsupported DNS tunnel protocol: %q", file.Protocol)

@@ -18,6 +18,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/slipstreamprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/stormdnsprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/tcpprobe"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/thefeedprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/vaydnsprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/xrayprobe"
 )
@@ -554,6 +555,66 @@ func (s *scanner) BuildStormDNSStage(
 		ctx,
 		tunCfg.OutputPrefix,
 		stormdnsprobe.Schema,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	stages = append(
+		stages,
+		s.newStage(tunCfg.Workers, prb, writer, hooks...),
+	)
+
+	return stages, nil
+}
+
+// BuildTheFeedStage creates the stages required for a TheFeed scan.
+func (s *scanner) BuildTheFeedStage(
+	ctx context.Context,
+	configName string,
+	hooks ...engine.ScanHooks,
+) ([]StageConfig, error) {
+	tunCfg := s.config.DNS.DNSTunneling
+
+	thefeedCfg, err := s.thefeedService.LoadConfig(configName)
+	if err != nil {
+		return nil, fmt.Errorf("load TheFeed config: %w", err)
+	}
+
+	stages := make([]StageConfig, 0, 2)
+
+	if tunCfg.CheckDNSResolver {
+		resolverCfg := s.config.DNS.Resolver
+		if tunCfg.AdaptiveResolver {
+			resolverCfg.Port = thefeedCfg.ResolverPort
+			resolverCfg.Transport = string(thefeedCfg.ResolverType)
+			resolverCfg.Domain = thefeedCfg.Domain
+		}
+
+		stage, err := s.buildResolverStage(
+			ctx,
+			resolverCfg,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		stages = append(stages, stage)
+	}
+
+	prb, err := thefeedprobe.NewTheFeedProbe(
+		thefeedCfg,
+		tunCfg.Timeout.Duration(),
+		thefeedprobe.WithTheFeedService(s.thefeedService),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create TheFeed probe: %w", err)
+	}
+
+	writer, err := s.newWriter(
+		ctx,
+		tunCfg.OutputPrefix,
+		thefeedprobe.Schema,
 	)
 	if err != nil {
 		return nil, err

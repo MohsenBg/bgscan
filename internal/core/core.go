@@ -10,6 +10,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/resolveprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/slipstreamprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/tcpprobe"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/thefeedprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/vaydnsprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/xrayprobe"
 )
@@ -41,6 +42,10 @@ func Init() error {
 	}
 
 	if err := result.DefaultRegistry.Register(slipstreamprobe.Schema); err != nil {
+		return err
+	}
+
+	if err := result.DefaultRegistry.Register(thefeedprobe.Schema); err != nil {
 		return err
 	}
 

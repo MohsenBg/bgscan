@@ -66,6 +66,7 @@ type Scanner interface {
 	BuildVayDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 	BuildMasterDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 	BuildStormDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+	BuildTheFeedStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 }
 
 // WriterFactory creates a result writer for a stage.
@@ -118,6 +119,7 @@ type scanner struct {
 	vaydnsService     dns.VayDNSService
 	masterDNSService  dns.MasterDNSService
 	stormDNSService   dns.StormDNSService
+	thefeedService    dns.TheFeedService
 }
 
 // ScannerOption configures a Scanner.
@@ -202,6 +204,15 @@ func WithStormDNSService(service dns.StormDNSService) ScannerOption {
 	}
 }
 
+// WithTheFeedService uses service to load TheFeed configurations.
+func WithTheFeedService(service dns.TheFeedService) ScannerOption {
+	return func(s *scanner) {
+		if service != nil {
+			s.thefeedService = service
+		}
+	}
+}
+
 // withScanRunner replaces engine execution in scanner tests.
 func withScanRunner(runner scanRunner) ScannerOption {
 	return func(s *scanner) {
@@ -270,6 +281,10 @@ func NewScanner(
 
 	if s.stormDNSService == nil {
 		s.stormDNSService = dns.NewStormDNSService()
+	}
+
+	if s.thefeedService == nil {
+		s.thefeedService = dns.NewTheFeedService()
 	}
 
 	return s, nil

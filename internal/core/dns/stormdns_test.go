@@ -8,7 +8,7 @@ import (
 func validStormConfig() StormDNSConfig {
 	cfg := DefaultStormDNSConfig()
 	cfg.Domain = "c1.example.net"
-	cfg.EncryptionKey = "testkey"
+	cfg.EncryptionKey = "cd6d78e954f48f62cb74cdcf8a2459d3"
 	return cfg
 }
 

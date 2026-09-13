@@ -30,27 +30,27 @@ type StormDNSConfigFile = ConfigFile[StormDNSConfig]
 //
 // The resolver address and listen port are provided at runtime by RunTunnel.
 type StormDNSConfig struct {
-	Domain        string
-	DataEncMethod EncMethod
-	EncryptionKey string
-	ResolverPort  int
+	Domain        string    `toml:"domain" comment:"StormDNS tunnel server domain."`
+	DataEncMethod EncMethod `toml:"data_enc_method" comment:"Data encryption method. 0=None, 1=XOR, 2=ChaCha20, 3=AES-128-GCM, 4=AES-192-GCM, 5=AES-256-GCM."`
+	EncryptionKey string    `toml:"encryption_key" comment:"Tunnel encryption key. Must match the server config."`
+	ResolverPort  uint16    `toml:"resolver_port" comment:"Resolver port. Standard DNS uses 53."`
 
 	// DNSQueryType selects the tunnel query shape: TXT, NS, CNAME or
 	// ROTATE. Empty means TXT. NS/CNAME/ROTATE require a server running
 	// the same feature version.
-	DNSQueryType string
+	DNSQueryType string `toml:"dns_query_type" comment:"Tunnel query shape: TXT, NS, CNAME, or ROTATE. Empty = TXT."`
 
-	MTUTestTimeoutSec      float64
-	MTUTestRetries         int
-	SessionInitRetryMaxSec float64
+	MTUTestTimeoutSec      float64 `toml:"mtu_test_timeout_sec" comment:"MTU test timeout in seconds."`
+	MTUTestRetries         uint8   `toml:"mtu_test_retries" comment:"MTU test retry attempts."`
+	SessionInitRetryMaxSec float64 `toml:"session_init_retry_max_sec" comment:"Maximum session init retry window in seconds."`
 
-	MinUploadMTU   int
-	MaxUploadMTU   int
-	MinDownloadMTU int
-	MaxDownloadMTU int
+	MinUploadMTU   uint16 `toml:"min_upload_mtu" comment:"Minimum upload MTU."`
+	MaxUploadMTU   uint16 `toml:"max_upload_mtu" comment:"Maximum upload MTU."`
+	MinDownloadMTU uint16 `toml:"min_download_mtu" comment:"Minimum download MTU."`
+	MaxDownloadMTU uint16 `toml:"max_download_mtu" comment:"Maximum download MTU."`
 
-	MTUParallelism int
-	RxTxWorkers    int
+	MTUParallelism uint8 `toml:"mtu_parallelism" comment:"Number of parallel MTU test workers."`
+	RxTxWorkers    uint8 `toml:"rx_tx_workers" comment:"Number of RX/TX worker goroutines."`
 }
 
 // DefaultStormDNSConfig returns a StormDNS configuration with recommended
@@ -85,22 +85,60 @@ func (c StormDNSConfig) Validate() map[string]error {
 		errs["domain"] = err
 	}
 
-	if strings.TrimSpace(c.EncryptionKey) == "" {
-		errs["encryption_key"] = fmt.Errorf("encryption key is required")
-	}
-
 	if c.DataEncMethod < 0 || c.DataEncMethod > 5 {
 		errs["enc_method"] = fmt.Errorf("must be between 0 and 5")
 	}
 
+	if c.DataEncMethod != 0 {
+		if err := validateEncryptionKey(c.EncryptionKey); err != nil {
+			errs["encryption_key"] = err
+		}
+	}
+
 	if c.ResolverPort == 0 {
-		errs["resolver_port"] = fmt.Errorf("must be greater than zero")
+		errs["resolver_port"] = fmt.Errorf("must be between 1 and 65535")
 	}
 
 	switch strings.ToUpper(strings.TrimSpace(c.DNSQueryType)) {
 	case "", StormDNSQueryTXT, StormDNSQueryNS, StormDNSQueryCNAME, StormDNSQueryRotate:
 	default:
 		errs["dns_query_type"] = fmt.Errorf("must be TXT, NS, CNAME or ROTATE")
+	}
+
+	if c.MTUTestTimeoutSec < 0 || c.MTUTestTimeoutSec > 60 {
+		errs["mtu_test_timeout_sec"] = fmt.Errorf("must be 0 (default) or between 1 and 60")
+	}
+
+	if c.MTUTestRetries > 50 {
+		errs["mtu_test_retries"] = fmt.Errorf("must be between 0 and 50")
+	}
+
+	if c.SessionInitRetryMaxSec < 0 || c.SessionInitRetryMaxSec > 3600 {
+		errs["session_init_retry_max_sec"] = fmt.Errorf("must be between 0 and 3600")
+	}
+
+	if c.MinUploadMTU < 10 || c.MinUploadMTU > c.MaxUploadMTU {
+		errs["min_upload_mtu"] = fmt.Errorf("must be between 10 and max_upload_mtu")
+	}
+
+	if c.MaxUploadMTU < 1 || c.MaxUploadMTU > 255 {
+		errs["max_upload_mtu"] = fmt.Errorf("must be between 1 and 255")
+	}
+
+	if c.MinDownloadMTU < 1 || c.MinDownloadMTU > c.MaxDownloadMTU {
+		errs["min_download_mtu"] = fmt.Errorf("must be between 1 and max_download_mtu")
+	}
+
+	if c.MaxDownloadMTU < 1 {
+		errs["max_download_mtu"] = fmt.Errorf("must be between 1 and 65535")
+	}
+
+	if c.MTUParallelism < 1 || c.MTUParallelism > 100 {
+		errs["mtu_parallelism"] = fmt.Errorf("must be between 1 and 100")
+	}
+
+	if c.RxTxWorkers < 1 || c.RxTxWorkers > 64 {
+		errs["rx_tx_workers"] = fmt.Errorf("must be between 1 and 64")
 	}
 
 	return errs
@@ -221,29 +259,27 @@ func startStormTunnel(
 
 	stormCfg.Resolvers = []stormtunnel.ResolverAddress{{
 		IP:   resolverIP.String(),
-		Port: cfg.ResolverPort,
+		Port: int(cfg.ResolverPort),
 	}}
 
 	// Embedded use always scans the given resolver; the vendor bootstrap
 	// resolves these into the active MTU test parameters.
 	stormCfg.StartupMode = "resolvers"
 	stormCfg.MTUTestTimeoutResolvers = cfg.MTUTestTimeoutSec
-	stormCfg.MTUTestRetriesResolvers = cfg.MTUTestRetries
+	stormCfg.MTUTestRetriesResolvers = int(cfg.MTUTestRetries)
 
 	stormCfg.SessionInitRetryMaxSeconds = cfg.SessionInitRetryMaxSec
 
-	stormCfg.MinUploadMTU = cfg.MinUploadMTU
-	stormCfg.MaxUploadMTU = cfg.MaxUploadMTU
-	stormCfg.MinDownloadMTU = cfg.MinDownloadMTU
-	stormCfg.MaxDownloadMTU = cfg.MaxDownloadMTU
+	stormCfg.MinUploadMTU = int(cfg.MinUploadMTU)
+	stormCfg.MaxUploadMTU = int(cfg.MaxUploadMTU)
+	stormCfg.MinDownloadMTU = int(cfg.MinDownloadMTU)
+	stormCfg.MaxDownloadMTU = int(cfg.MaxDownloadMTU)
 
-	// Only override vendor worker defaults when explicitly set, so a
-	// zero value never clobbers the sane upstream defaults.
 	if cfg.MTUParallelism > 0 {
-		stormCfg.MTUTestParallelismResolvers = cfg.MTUParallelism
+		stormCfg.MTUTestParallelismResolvers = int(cfg.MTUParallelism)
 	}
 	if cfg.RxTxWorkers > 0 {
-		stormCfg.RX_TX_Workers = cfg.RxTxWorkers
+		stormCfg.RX_TX_Workers = int(cfg.RxTxWorkers)
 	}
 
 	stormCfg.DNSQueryType = strings.ToUpper(strings.TrimSpace(cfg.DNSQueryType))

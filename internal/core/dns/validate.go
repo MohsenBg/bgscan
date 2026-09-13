@@ -72,6 +72,22 @@ func validatePubKey(pubKey string) error {
 	return nil
 }
 
+func validateEncryptionKey(encryptionKey string) error {
+	encryptionKey = strings.TrimSpace(encryptionKey)
+	if encryptionKey == "" {
+		return fmt.Errorf("encryption key is required")
+	}
+
+	if len(encryptionKey) != 32 {
+		return fmt.Errorf("encryption key must be 32 hexadecimal characters")
+	}
+
+	if _, err := hex.DecodeString(encryptionKey); err != nil {
+		return fmt.Errorf("public key must be hexadecimal")
+	}
+	return nil
+}
+
 // validatePrivateKey validates an SSH private key (PEM-encoded).
 func validatePrivateKey(privateKey string) error {
 	pemBlock := strings.TrimSpace(privateKey)

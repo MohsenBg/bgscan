@@ -1445,7 +1445,7 @@ func TestBuildMasterDNSStage(t *testing.T) {
 			}
 			cfg := dns.DefaultMasterDNSConfig()
 			cfg.Domain = "test.example"
-			cfg.EncryptionKey = "testkey"
+			cfg.EncryptionKey = "cd6d78e954f48f62cb74cdcf8a2459d3"
 			return cfg, nil
 		},
 	}
@@ -1494,7 +1494,7 @@ func TestBuildStormDNSStage(t *testing.T) {
 			}
 			cfg := dns.DefaultStormDNSConfig()
 			cfg.Domain = "test.example"
-			cfg.EncryptionKey = "testkey"
+			cfg.EncryptionKey = "cd6d78e954f48f62cb74cdcf8a2459d3"
 			return cfg, nil
 		},
 	}

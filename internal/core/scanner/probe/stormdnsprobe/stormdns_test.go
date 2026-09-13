@@ -138,7 +138,7 @@ func (f *fakeSpeedtestService) MeasureUploadSpeed(context.Context, speedtest.Upl
 func validConfig() dns.StormDNSConfig {
 	cfg := dns.DefaultStormDNSConfig()
 	cfg.Domain = "tunnel.example.com"
-	cfg.EncryptionKey = "testkey"
+	cfg.EncryptionKey = "cd6d78e954f48f62cb74cdcf8a2459d3"
 	return cfg
 }
 

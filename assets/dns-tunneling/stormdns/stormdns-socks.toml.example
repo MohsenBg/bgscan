@@ -1,0 +1,57 @@
+# StormDNS tunnel server domain.
+# Replace this with the domain configured for your StormDNS server.
+domain = 'example.com'
+
+# Data encryption method used to protect tunnel traffic.
+# 0 = None, 1 = XOR, 2 = ChaCha20, 3 = AES-128-GCM, 4 = AES-192-GCM, 5 = AES-256-GCM.
+# XOR is the StormDNS default; AES is recommended for better security.
+data_enc_method = 1
+
+# Tunnel encryption key (32 hexadecimal characters).
+# This must match the key configured on the StormDNS server.
+encryption_key = 'cd6d78e954f48f62cb74cdcf8a2459d3'
+
+# Port of the DNS resolver.
+# Standard DNS uses port 53.
+resolver_port = 53
+
+# DNS query type used to hide the tunnel traffic.
+# Supported values: 'TXT', 'NS', 'CNAME' or 'ROTATE'. Empty means TXT.
+# NS/CNAME/ROTATE require a server running the same feature version.
+dns_query_type = 'TXT'
+
+# MTU test timeout in seconds.
+# How long to wait for each MTU probe packet to arrive.
+mtu_test_timeout_sec = 2.0
+
+# MTU test retry attempts.
+# Number of times each MTU size is probed before trying the next size.
+mtu_test_retries = 3
+
+# Maximum session init retry window in seconds.
+# After this timeout, the session is abandoned and retried from scratch.
+session_init_retry_max_sec = 60.0
+
+# Minimum upload MTU (bytes).
+# The smallest packet size the client will test for upload.
+min_upload_mtu = 100
+
+# Maximum upload MTU (bytes).
+# The largest packet size the client will test for upload.
+max_upload_mtu = 200
+
+# Minimum download MTU (bytes).
+# The smallest packet size the client will test for download.
+min_download_mtu = 1000
+
+# Maximum download MTU (bytes).
+# The largest packet size the client will test for download.
+max_download_mtu = 4000
+
+# Number of parallel MTU test workers.
+# Higher values speed up MTU discovery.
+mtu_parallelism = 16
+
+# Number of RX/TX worker goroutines.
+# Controls how many concurrent tunnel data streams are processed.
+rx_tx_workers = 4

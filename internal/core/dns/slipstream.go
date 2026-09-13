@@ -22,17 +22,17 @@ type SlipstreamConfigFile = ConfigFile[SlipstreamConfig]
 // SlipstreamConfig contains the configuration required by the
 // Slipstream DNS client.
 type SlipstreamConfig struct {
-	Domain       string
-	ResolverPort uint16
-	CertPath     string
+	Domain       string `toml:"domain" comment:"Slipstream server domain."`
+	ResolverPort uint16 `toml:"resolver_port" comment:"Resolver port. Standard DNS uses 53."`
+	CertPath     string `toml:"cert_path" comment:"Path to the CA certificate used to verify the server. Empty = system pool."`
 
-	ProxyType      ResolverProxyType
-	ProxyPort      uint16
-	AuthMethod     AuthMethod
-	Username       string
-	Password       string
-	PrivateKey     string
-	KnownHostsFile string
+	ProxyType      ResolverProxyType `toml:"proxy_type" comment:"Proxy type in front of the resolver: socks or ssh."`
+	ProxyPort      uint16            `toml:"proxy_port" comment:"Proxy port on the resolver host."`
+	AuthMethod     AuthMethod        `toml:"auth_method" comment:"Proxy authentication method: none, password, or key."`
+	Username       string            `toml:"username" comment:"Proxy authentication username."`
+	Password       string            `toml:"password" comment:"Proxy authentication password."`
+	PrivateKey     string            `toml:"private_key" comment:"SSH private key (PEM) for key authentication."`
+	KnownHostsFile string            `toml:"known_hosts_file" comment:"Path to the SSH known_hosts file."`
 }
 
 // DefaultSlipstreamConfig returns a Slipstream configuration

@@ -1,0 +1,24 @@
+# TheFeed server domain.
+# This is the DNS sub-domain that answers feed queries (e.g. t.example.com).
+domain = 't.example.com'
+
+# Encryption passphrase.
+# The same passphrase configured on the thefeed server. It is used to derive
+# the AES-256 keys that encrypt DNS queries and responses (HKDF).
+passphrase = 'your-passphrase'
+
+# Port of the DNS resolver.
+# Standard DNS uses port 53; thefeed servers are often deployed on 5300.
+resolver_port = 53
+
+# DNS transport used for the probe.
+# Supported values: 'udp', 'tcp', or 'dot' (DNS over TLS).
+resolver_type = 'udp'
+
+# DNS query encoding mode.
+# 'single' = one base32 label (stealthier, default).
+# 'double' = multi-label hex (looks more like ordinary DNS).
+query_mode = 'single'
+
+# The probe timeout is not stored here: it comes from the global DNS tunnel
+# settings (dns_settings.toml -> dns_tunneling.timeout).

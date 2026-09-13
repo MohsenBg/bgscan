@@ -1,32 +1,37 @@
 # Slipstream server domain.
 # Replace this with the domain configured for your Slipstream server.
-Domain = 'example.com'
+domain = 'example.com'
 
 # Port of the DNS resolver.
 # Standard DNS uses port 53.
-ResolverPort = 53
+resolver_port = 53
 
 # Path to the CA certificate used to verify the server certificate.
 # Leave empty to use the system certificate pool.
-CertPath = ''
+cert_path = ''
 
 # Proxy protocol used for the tunnel connection.
-# 'ssh' configures a ssh proxy.
-ProxyType = 'ssh'
+# Supported values: 'socks' or 'ssh'.
+proxy_type = 'ssh'
 
-# Local proxy server port.
-ProxyPort = 22
+# SSH proxy port on the resolver host.
+proxy_port = 22
 
 # Proxy authentication method.
-# Supported values: 'password' or 'key'.
-AuthMethod = 'password'
+# Supported values: 'none', 'password' or 'key'.
+# 'socks' proxy supports 'none' and 'password'; 'ssh' proxy supports 'password' and 'key'.
+auth_method = 'password'
 
-# Username used when AuthMethod is 'password'.
-Username = 'your-username'
+# Username used when auth_method is 'password' or 'key'.
+username = 'your-username'
 
-# Password used when AuthMethod is 'password'.
-Password = 'your-password'
+# Password used when auth_method is 'password'.
+password = 'your-password'
 
-# Client private key used for key-based authentication.
+# SSH private key used for key-based authentication.
 # Leave empty when private-key authentication is not configured.
-PrivateKey = ''
+private_key = ''
+
+# Path to the SSH known_hosts file.
+# Only used when auth_method is 'key'. Leave empty to skip host verification.
+known_hosts_file = ''

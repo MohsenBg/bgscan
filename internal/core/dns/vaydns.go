@@ -21,26 +21,26 @@ type VayDNSConfigFile = ConfigFile[VayDNSConfig]
 // The resolver address is provided at runtime per target via NewTunnel,
 // not stored in the config.
 type VayDNSConfig struct {
-	Domain       string
-	PubKey       string
-	ClientIDSize uint16
-	MaxQnameLen  uint8
-	MaxNumLabels uint8
-	MTU          uint16
-	RPS          float64
-	RecordType   RecordType
+	Domain       string     `toml:"domain" comment:"VayDNS tunnel server domain."`
+	PubKey       string     `toml:"pub_key" comment:"VayDNS server public key (64 hex chars)."`
+	ClientIDSize uint16     `toml:"client_id_size" comment:"Client ID size in bytes. Range: 1-8."`
+	MaxQnameLen  uint8      `toml:"max_qname_len" comment:"Maximum DNS QNAME length. 0 = auto. Range: 0-253."`
+	MaxNumLabels uint8      `toml:"max_num_labels" comment:"Maximum DNS labels. 0 = auto. Range: 0-4."`
+	MTU          uint16     `toml:"mtu" comment:"Tunnel MTU. 0 = auto. Range: 0-1452."`
+	RPS          float64    `toml:"rps" comment:"Max DNS requests per second. 0 = unlimited. Range: 0-500."`
+	RecordType   RecordType `toml:"record_type" comment:"DNS record type used by the tunnel (e.g. TXT, A, AAAA)."`
 
-	ResolverType ResolverType
-	ResolverPort uint16
-	Fingerprint  string
+	ResolverType ResolverType `toml:"resolver_type" comment:"Resolver transport: udp, tcp, or dot (DNS over TLS)."`
+	ResolverPort uint16       `toml:"resolver_port" comment:"Resolver port. 53 for DNS, 853 for DoT."`
+	Fingerprint  string       `toml:"fingerprint" comment:"uTLS client fingerprint for DoT (e.g. Chrome, Firefox, random)."`
 
-	ProxyType      ResolverProxyType
-	ProxyPort      uint16
-	AuthMethod     AuthMethod
-	Username       string
-	Password       string
-	PrivateKey     string
-	KnownHostsFile string
+	ProxyType      ResolverProxyType `toml:"proxy_type" comment:"Proxy type in front of the resolver: socks or ssh."`
+	ProxyPort      uint16            `toml:"proxy_port" comment:"Proxy port on the resolver host."`
+	AuthMethod     AuthMethod        `toml:"auth_method" comment:"Proxy authentication method: none, password, or key."`
+	Username       string            `toml:"username" comment:"Proxy authentication username."`
+	Password       string            `toml:"password" comment:"Proxy authentication password."`
+	PrivateKey     string            `toml:"private_key" comment:"SSH private key (PEM) for key authentication."`
+	KnownHostsFile string            `toml:"known_hosts_file" comment:"Path to the SSH known_hosts file."`
 }
 
 // DefaultVayDNSConfig returns a VayDNS configuration with recommended defaults.

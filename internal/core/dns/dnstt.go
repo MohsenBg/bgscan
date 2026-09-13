@@ -21,20 +21,20 @@ type DNSTTConfigFile = ConfigFile[DNSTTConfig]
 // The resolver address is provided at runtime per target via NewTunnel,
 // not stored in the config.
 type DNSTTConfig struct {
-	Domain       string
-	PubKey       string
-	ResolverType ResolverType
-	ResolverPort uint16
-	Fingerprint  string
-	RPS          float64
+	Domain       string       `toml:"domain" comment:"DNS tunnel server domain."`
+	PubKey       string       `toml:"pub_key" comment:"Server public key (64 hex chars)."`
+	ResolverType ResolverType `toml:"resolver_type" comment:"Resolver transport: udp, tcp, or dot (DNS over TLS)."`
+	ResolverPort uint16       `toml:"resolver_port" comment:"Resolver port. 53 for DNS, 853 for DoT."`
+	Fingerprint  string       `toml:"fingerprint" comment:"uTLS client fingerprint for DoT (e.g. Chrome, Firefox, random)."`
+	RPS          float64      `toml:"rps" comment:"Max DNS requests per second. 0 = unlimited. Range: 0-500."`
 
-	ProxyType      ResolverProxyType
-	ProxyPort      uint16
-	AuthMethod     AuthMethod
-	Username       string
-	Password       string
-	PrivateKey     string
-	KnownHostsFile string
+	ProxyType      ResolverProxyType `toml:"proxy_type" comment:"Proxy type in front of the resolver: socks or ssh."`
+	ProxyPort      uint16            `toml:"proxy_port" comment:"Proxy port on the resolver host."`
+	AuthMethod     AuthMethod        `toml:"auth_method" comment:"Proxy authentication method: none, password, or key."`
+	Username       string            `toml:"username" comment:"Proxy authentication username."`
+	Password       string            `toml:"password" comment:"Proxy authentication password."`
+	PrivateKey     string            `toml:"private_key" comment:"SSH private key (PEM) for key authentication."`
+	KnownHostsFile string            `toml:"known_hosts_file" comment:"Path to the SSH known_hosts file."`
 }
 
 // DefaultDNSTTConfig returns a DNSTT configuration with recommended defaults.

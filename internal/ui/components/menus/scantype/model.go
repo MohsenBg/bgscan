@@ -229,6 +229,14 @@ func (m *Model) buildDNSTunScanner(ctx context.Context, scn scanner.Scanner) (sc
 
 		stages = append(stages, stage...)
 
+	case dns.DNSTunProtocolTheFeed:
+		stage, err := scn.BuildTheFeedStage(ctx, m.dnsTunCfg.Name)
+		if err != nil {
+			return nil, fmt.Errorf("build TheFeed stage: %w", err)
+		}
+
+		stages = append(stages, stage...)
+
 	default:
 		return nil, fmt.Errorf(
 			"unsupported DNS tunnel protocol: %q",

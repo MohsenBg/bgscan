@@ -34,6 +34,21 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 					m.closeDNSTunMenu(),
 					m.openVayDNSForm(nil),
 				)
+			case dns.DNSTunProtocolMasterDNS:
+				return m, tea.Sequence(
+					m.closeDNSTunMenu(),
+					m.openMasterDNSForm(nil),
+				)
+			case dns.DNSTunProtocolStormDNS:
+				return m, tea.Sequence(
+					m.closeDNSTunMenu(),
+					m.openStormDNSForm(nil),
+				)
+			case dns.DNSTunProtocolTheFeed:
+				return m, tea.Sequence(
+					m.closeDNSTunMenu(),
+					m.openTheFeedForm(nil),
+				)
 			default:
 				return m, m.closeDNSTunMenu()
 			}

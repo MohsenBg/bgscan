@@ -5,7 +5,10 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/dnstt"
+	"github.com/MohsenBg/bgscan/internal/ui/components/form/masterdns"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/slipstream"
+	"github.com/MohsenBg/bgscan/internal/ui/components/form/stormdns"
+	"github.com/MohsenBg/bgscan/internal/ui/components/form/thefeed"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/vaydns"
 	"github.com/MohsenBg/bgscan/internal/ui/components/menus/dnstunmenu"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
@@ -99,6 +102,36 @@ func (m *Model) openVayDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	}
 }
 
+func (m *Model) openMasterDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
+	return func() tea.Msg {
+		frm, err := masterdns.New(m.state.Layout, m.state, original)
+		if err != nil {
+			return notice.NewNoticeCmd(m.state.Layout, "Error", err.Error(), notice.NOTICE_ERROR)
+		}
+		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+	}
+}
+
+func (m *Model) openStormDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
+	return func() tea.Msg {
+		frm, err := stormdns.New(m.state.Layout, m.state, original)
+		if err != nil {
+			return notice.NewNoticeCmd(m.state.Layout, "Error", err.Error(), notice.NOTICE_ERROR)
+		}
+		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+	}
+}
+
+func (m *Model) openTheFeedForm(original *dns.DNSTunConfigFile) tea.Cmd {
+	return func() tea.Msg {
+		frm, err := thefeed.New(m.state.Layout, m.state, original)
+		if err != nil {
+			return notice.NewNoticeCmd(m.state.Layout, "Error", err.Error(), notice.NOTICE_ERROR)
+		}
+		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+	}
+}
+
 func (m *Model) openDNSTunForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
 		var (
@@ -111,6 +144,12 @@ func (m *Model) openDNSTunForm(original *dns.DNSTunConfigFile) tea.Cmd {
 			frm, err = dnstt.New(m.state.Layout, m.state, original)
 		case dns.DNSTunProtocolVayDNS:
 			frm, err = vaydns.New(m.state.Layout, m.state, original)
+		case dns.DNSTunProtocolMasterDNS:
+			frm, err = masterdns.New(m.state.Layout, m.state, original)
+		case dns.DNSTunProtocolStormDNS:
+			frm, err = stormdns.New(m.state.Layout, m.state, original)
+		case dns.DNSTunProtocolTheFeed:
+			frm, err = thefeed.New(m.state.Layout, m.state, original)
 		default:
 			frm, err = slipstream.New(m.state.Layout, m.state, original)
 		}

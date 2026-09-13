@@ -81,11 +81,35 @@ func newMenu(layout *layout.Layout) *menu.Model {
 				return MsgSelectProtocol{Protocol: dns.DNSTunProtocolVayDNS}
 			},
 		),
+		menu.NewMenuItem(
+			"◈",
+			"MasterDNS",
+			"m",
+			func() tea.Msg {
+				return MsgSelectProtocol{Protocol: dns.DNSTunProtocolMasterDNS}
+			},
+		),
+		menu.NewMenuItem(
+			"◇",
+			"StormDNS",
+			"t",
+			func() tea.Msg {
+				return MsgSelectProtocol{Protocol: dns.DNSTunProtocolStormDNS}
+			},
+		),
+		menu.NewMenuItem(
+			"♨",
+			"TheFeed",
+			"f",
+			func() tea.Msg {
+				return MsgSelectProtocol{Protocol: dns.DNSTunProtocolTheFeed}
+			},
+		),
 	}
 
 	return menu.New(
 		items, "Select Protocol", layout,
-		menu.WithHeight(14),
+		menu.WithHeight(20),
 		menu.WithWidth(40),
 	)
 }

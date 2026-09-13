@@ -33,7 +33,7 @@ type category struct {
 }
 
 const (
-	sidebarWidth     = 15
+	sidebarWidth     = 18
 	titleHeight      = 2
 	progressHeight   = 1
 	helpHeight       = 2
@@ -104,6 +104,9 @@ func New(state *ui.AppState) ui.Component {
 			{id: "dnstt", label: "DNSTT"},
 			{id: "slipstream", label: "Slipstream"},
 			{id: "vaydns", label: "Vaydns"},
+			{id: "masterdns", label: "MasterDNS"},
+			{id: "stormdns", label: "StormDNS"},
+			{id: "thefeed", label: "TheFeed"},
 			{id: "app", label: "App"},
 		},
 	}
@@ -180,6 +183,15 @@ func (m *model) Init() tea.Cmd {
 			return
 		}
 		if !m.runCheck("vaydns", &abort, checkVayDNSHealth) {
+			return
+		}
+		if !m.runCheck("masterdns", &abort, checkMasterDNSHealth) {
+			return
+		}
+		if !m.runCheck("stormdns", &abort, checkStormDNSHealth) {
+			return
+		}
+		if !m.runCheck("thefeed", &abort, checkTheFeedHealth) {
 			return
 		}
 		m.runCheck("app", &abort, checkAppHealth)

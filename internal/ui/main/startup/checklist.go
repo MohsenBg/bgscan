@@ -93,6 +93,48 @@ func checkVayDNSHealth(r *reporter) {
 	r.success("Health check completed successfully")
 }
 
+func checkMasterDNSHealth(r *reporter) {
+	r.info("Checking MasterDNS client...")
+
+	r.info("Validating MasterDNS config files...")
+	results, err := dns.NewMasterDNSService().ValidateAllConfigs()
+	if err != nil {
+		r.errMsg("Failed to validate MasterDNS configs", err)
+		return
+	}
+	printConfigValidationResults(r, "MasterDNS", results)
+
+	r.success("Health check completed successfully")
+}
+
+func checkStormDNSHealth(r *reporter) {
+	r.info("Checking StormDNS client...")
+
+	r.info("Validating StormDNS config files...")
+	results, err := dns.NewStormDNSService().ValidateAllConfigs()
+	if err != nil {
+		r.errMsg("Failed to validate StormDNS configs", err)
+		return
+	}
+	printConfigValidationResults(r, "StormDNS", results)
+
+	r.success("Health check completed successfully")
+}
+
+func checkTheFeedHealth(r *reporter) {
+	r.info("Checking TheFeed client...")
+
+	r.info("Validating TheFeed config files...")
+	results, err := dns.NewTheFeedService().ValidateAllConfigs()
+	if err != nil {
+		r.errMsg("Failed to validate TheFeed configs", err)
+		return
+	}
+	printConfigValidationResults(r, "TheFeed", results)
+
+	r.success("Health check completed successfully")
+}
+
 func checkSlipstreamHealth(r *reporter) {
 	r.info("Finding Slipstream client...")
 	path, err := dns.FindSlipstreamClient()

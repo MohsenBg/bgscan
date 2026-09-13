@@ -12,8 +12,8 @@ import (
 const EnableReportDelay = true
 
 const (
-	minReportDelay = 200 * time.Millisecond
-	maxReportDelay = 300 * time.Millisecond
+	minReportDelay = 100 * time.Millisecond
+	maxReportDelay = 200 * time.Millisecond
 )
 
 type logMsg struct {

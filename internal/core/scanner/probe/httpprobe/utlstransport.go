@@ -248,16 +248,17 @@ func (rt *utlsRoundTripper) newHTTP1Transport(
 
 func (rt *utlsRoundTripper) newHTTP2Transport(
 	dialTLSContext func(context.Context, string, string) (net.Conn, error),
-) *http2.Transport {
-	return &http2.Transport{
-		DialTLSContext: func(
-			ctx context.Context,
-			network, addr string,
-			_ *tls.Config,
-		) (net.Conn, error) {
-			return dialTLSContext(ctx, network, addr)
-		},
-	}
+) *http.Transport {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+
+	// Enforce HTTP/2 only on this standard transport
+	tr.Protocols = &http.Protocols{}
+	tr.Protocols.SetHTTP2(true)
+	tr.Protocols.SetHTTP1(false)
+
+	tr.DialTLSContext = dialTLSContext
+
+	return tr
 }
 
 // utlsHTTPClientFactory creates an HTTP client that uses uTLS for HTTPS

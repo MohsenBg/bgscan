@@ -10,7 +10,7 @@ import (
 func getValidGeneralConfig() config.GeneralConfig {
 	return config.GeneralConfig{
 		StatusInterval:   config.NewDurationMS(5 * time.Second),
-		StopAfterFound:   10,
+		MaxSuccessfulIPs: 10,
 		MaxIPsToTest:     100,
 		MaxIPsPerStage:   1000,
 		BatchSize:        500,
@@ -47,11 +47,11 @@ func TestValidateGeneral(t *testing.T) {
 			wantErrKeys: []string{"StatusInterval"},
 		},
 		{
-			name: "StopAfterFound negative",
+			name: "MaxSuccessfulIPs negative",
 			mutateCfg: func(c *config.GeneralConfig) {
-				c.StopAfterFound = -1
+				c.MaxSuccessfulIPs = -1
 			},
-			wantErrKeys: []string{"StopAfterFound"},
+			wantErrKeys: []string{"MaxSuccessfulIPs"},
 		},
 		{
 			name: "MaxIPsToTest negative",

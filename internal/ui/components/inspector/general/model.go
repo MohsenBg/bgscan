@@ -35,7 +35,7 @@ const (
 
 const (
 	descStatusInterval     = "The interval in milliseconds for pushing status updates to the UI."
-	descStopAfterFound     = "The maximum number of successful results before halting the scan. Set to 0 to scan all targets."
+	descMaxSuccessfulIPs   = "The maximum number of successful results before halting the scan. Set to 0 to scan all targets."
 	descMaxIPsToTest       = "The maximum number of IPs to read from the input source. Set to 0 to read all available IPs."
 	descShuffled           = "Randomizes the target IP order before scanning to prevent subnet slamming and reduce firewall alerts."
 	descMinProbeDuration   = "The minimum duration between probes to control scan speed and reduce target/network overload."
@@ -131,17 +131,17 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(d time.Duration) { cfg.General.StatusInterval = config.NewDurationMS(d) }, saveGeneralCmd)
 
-	stopAfterFound := intInput(state, "Enter Stop After Found (0 = unlimited)", cfg.General.StopAfterFound,
+	maxSuccessfulIPs := intInput(state, "Enter Max Successful IPs (0 = unlimited)", cfg.General.MaxSuccessfulIPs,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
 				return err
 			}
 			tmp := cfg.General
-			tmp.StopAfterFound = n
-			return fieldErr(validate.ValidateGeneral(tmp), "StopAfterFound")
+			tmp.MaxSuccessfulIPs = n
+			return fieldErr(validate.ValidateGeneral(tmp), "MaxSuccessfulIPs")
 		},
-		func(n int) { cfg.General.StopAfterFound = n }, saveGeneralCmd)
+		func(n int) { cfg.General.MaxSuccessfulIPs = n }, saveGeneralCmd)
 
 	maxIPsToTest := intInput(state, "Enter Max IPs To Test (0 = unlimited)", cfg.General.MaxIPsToTest,
 		func(v string) error {
@@ -322,7 +322,7 @@ func New(state *ui.AppState, name string) *Model {
 
 	fields := []inspector.Field{
 		{Name: "Status Interval", Description: descStatusInterval, Group: groupGeneral, Input: inspector.Adapt(statusInterval), Visible: alwaysVisible, Format: inspector.FormatDurationMS},
-		{Name: "Stop After Found", Description: descStopAfterFound, Group: groupGeneral, Input: inspector.Adapt(stopAfterFound), Visible: alwaysVisible, Format: inspector.FormatIntOrUnlimited},
+		{Name: "Max Successful IPs", Description: descMaxSuccessfulIPs, Group: groupGeneral, Input: inspector.Adapt(maxSuccessfulIPs), Visible: alwaysVisible, Format: inspector.FormatIntOrUnlimited},
 		{Name: "Max IPs To Test", Description: descMaxIPsToTest, Group: groupGeneral, Input: inspector.Adapt(maxIPsToTest), Visible: alwaysVisible, Format: inspector.FormatIntOrUnlimited},
 		{Name: "Shuffled", Description: descShuffled, Group: groupGeneral, Input: inspector.Adapt(shuffled), Visible: alwaysVisible, Format: inspector.FormatBool},
 		{Name: "Minimum Probe Duration", Description: descMinProbeDuration, Group: groupGeneral, Input: inspector.Adapt(minProbeDuration), Visible: alwaysVisible, Format: inspector.FormatDurationMS},

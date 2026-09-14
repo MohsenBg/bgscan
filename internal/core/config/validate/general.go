@@ -24,8 +24,8 @@ const (
 
 const (
 	// Counter limits
-	MinGeneralStopAfterFound = 0
-	MinGeneralMaxIPsToTest   = 0
+	MinGeneralMaxSuccessfulIPs = 0
+	MinGeneralMaxIPsToTest     = 0
 )
 
 const (
@@ -65,8 +65,8 @@ func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
 		errs["StatusInterval"] = err
 	}
 
-	if cfg.StopAfterFound < MinGeneralStopAfterFound {
-		errs["StopAfterFound"] = fmt.Errorf("must be non-negative")
+	if cfg.MaxSuccessfulIPs < MinGeneralMaxSuccessfulIPs {
+		errs["MaxSuccessfulIPs"] = fmt.Errorf("must be non-negative")
 	}
 
 	if cfg.MaxIPsToTest < MinGeneralMaxIPsToTest {
@@ -143,15 +143,15 @@ func NormalizeGeneral(cfg *config.GeneralConfig) []Warning {
 		&warns,
 	)
 
-	if cfg.StopAfterFound < MinGeneralStopAfterFound {
+	if cfg.MaxSuccessfulIPs < MinGeneralMaxSuccessfulIPs {
 		warns = append(warns, Warning{
-			Field:  "StopAfterFound",
-			OldVal: cfg.StopAfterFound,
-			NewVal: def.StopAfterFound,
+			Field:  "MaxSuccessfulIPs",
+			OldVal: cfg.MaxSuccessfulIPs,
+			NewVal: def.MaxSuccessfulIPs,
 			Reason: "negative → default",
 		})
 
-		cfg.StopAfterFound = def.StopAfterFound
+		cfg.MaxSuccessfulIPs = def.MaxSuccessfulIPs
 	}
 
 	if cfg.MaxIPsToTest < MinGeneralMaxIPsToTest {

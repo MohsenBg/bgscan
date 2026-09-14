@@ -58,6 +58,10 @@ type ChainConfig struct {
 
 	// RateLimiter throttles the rate of outgoing probes, if set.
 	RateLimiter *rate.Limiter
+
+	// MaxSuccessfulIPs caps the number of successful IPs to find.
+	// The scan stops once this limit is reached.
+	MaxSuccessfulIPs uint64
 }
 
 // ScanConfig controls the execution of a single, standalone scan.
@@ -91,6 +95,10 @@ type ScanConfig struct {
 
 	// RateLimiter throttles the rate of outgoing probes, if set.
 	RateLimiter *rate.Limiter
+
+	// MaxSuccessfulIPs caps the number of successful IPs to find.
+	// The scan stops once this limit is reached.
+	MaxSuccessfulIPs uint64
 }
 
 // StageConfig defines settings and dependencies for a single scan stage.

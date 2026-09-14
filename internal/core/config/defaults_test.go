@@ -86,8 +86,8 @@ func TestGeneralDefaultsServerHighValues(t *testing.T) {
 	if cfg.StatusInterval != NewDurationMS(1*time.Second) {
 		t.Errorf("StatusInterval = %v, want 1s", cfg.StatusInterval)
 	}
-	if cfg.StopAfterFound != 0 {
-		t.Errorf("StopAfterFound = %d, want 0", cfg.StopAfterFound)
+	if cfg.MaxSuccessfulIPs != 0 {
+		t.Errorf("MaxSuccessfulIPs = %d, want 0", cfg.MaxSuccessfulIPs)
 	}
 	if cfg.MaxIPsToTest != 0 {
 		t.Errorf("MaxIPsToTest = %d, want 0", cfg.MaxIPsToTest)

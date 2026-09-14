@@ -428,6 +428,7 @@ func (s *scanner) runSingle(stage StageConfig) {
 	s.runner.RunSingle(s.ctx, s.input, engine.ScanConfig{
 		Workers:          stage.Workers,
 		MaxIPsToTest:     uint64(max(general.MaxIPsToTest, 0)),
+		MaxSuccessfulIPs: uint64(max(general.MaxSuccessfulIPs, 0)),
 		Probe:            stage.Probe,
 		Writer:           stage.Writer,
 		MinProbeDuration: general.MinProbeDuration.Duration(),
@@ -456,6 +457,7 @@ func (s *scanner) runChain(stages []StageConfig) {
 
 	s.runner.RunChain(s.ctx, s.input, engine.ChainConfig{
 		MaxIPsToTest:     uint64(max(general.MaxIPsToTest, 0)),
+		MaxSuccessfulIPs: uint64(max(general.MaxSuccessfulIPs, 0)),
 		Mode:             engine.ParsePipelineMode(general.PipelineMode),
 		Stages:           engineStages,
 		Pause:            s.pause,

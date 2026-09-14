@@ -19,37 +19,13 @@ import (
 
 const bytesPerKbpsSecond float64 = 1000.0 / 8.0
 
-type Instance interface {
-	Close() error
-}
-
 // XrayService is the probe's view of xray.XrayService.
 type XrayService interface {
 	GetOutboundTemplateByName(string) (*xray.XrayOutboundsFile, error)
 	GenerateConfig(outbound string, ip netip.Addr, port uint16) (*xray.XrayConfig, error)
 	ValidateConfig(context.Context, *xray.XrayConfig) error
-	Start(context.Context, *xray.XrayConfig) (Instance, error)
-}
-
-// xrayServiceAdapter plugs the real xray service into the probe-local shape.
-type xrayServiceAdapter struct {
-	svc xray.XrayService
-}
-
-func (a *xrayServiceAdapter) GetOutboundTemplateByName(name string) (*xray.XrayOutboundsFile, error) {
-	return a.svc.GetOutboundTemplateByName(name)
-}
-
-func (a *xrayServiceAdapter) GenerateConfig(outbound string, ip netip.Addr, port uint16) (*xray.XrayConfig, error) {
-	return a.svc.GenerateConfig(outbound, ip, port)
-}
-
-func (a *xrayServiceAdapter) ValidateConfig(ctx context.Context, cfg *xray.XrayConfig) error {
-	return a.svc.ValidateConfig(ctx, cfg)
-}
-
-func (a *xrayServiceAdapter) Start(ctx context.Context, cfg *xray.XrayConfig) (Instance, error) {
-	return a.svc.Start(ctx, cfg)
+	Start(context.Context, *xray.XrayConfig) (xray.Instance, error)
+	CleanupResources() error
 }
 
 // XrayProbe validates connectivity and performance through a temporary local
@@ -142,7 +118,7 @@ func NewXrayProbe(
 	}
 
 	if p.xray == nil {
-		p.xray = &xrayServiceAdapter{svc: xray.NewXrayService()}
+		p.xray = xray.NewXrayService()
 	}
 
 	if _, err := p.xray.GetOutboundTemplateByName(outboundName); err != nil {
@@ -294,7 +270,12 @@ func (p *XrayProbe) measureUpload(
 	})
 }
 
-// Close releases no shared resources. Each Run cleans up its own Xray instance.
+// Close intentionally drains the XHTTP global pool.
+// Run's defer inst.Close() per IP is not enough: globalDialerMap + H1 pool stay for 300s/GC.
+// This makes cleanup intentional and immediate after a scan (no concurrent Run).
 func (p *XrayProbe) Close() error {
+	if p.xray != nil {
+		return p.xray.CleanupResources()
+	}
 	return nil
 }

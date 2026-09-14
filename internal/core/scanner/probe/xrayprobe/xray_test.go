@@ -72,13 +72,15 @@ func (s *fakeXrayService) ValidateConfig(context.Context, *xray.XrayConfig) erro
 	return s.validateErr
 }
 
-func (s *fakeXrayService) Start(context.Context, *xray.XrayConfig) (Instance, error) {
+func (s *fakeXrayService) Start(context.Context, *xray.XrayConfig) (xray.Instance, error) {
 	if s.startErr != nil {
 		return nil, s.startErr
 	}
 
 	return s.instance, nil
 }
+
+func (s *fakeXrayService) CleanupResources() error { return nil }
 
 type fakeSpeedTester struct {
 	latencyResult  speedtest.LatencyResult

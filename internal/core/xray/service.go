@@ -11,11 +11,11 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 	core "github.com/xtls/xray-core/core"
+	"github.com/xtls/xray-core/transport/internet/splithttp"
 
 	// Registers all proxies/transports, otherwise the core rejects
 	// configs with "proxy not registered".
 	_ "github.com/xtls/xray-core/main/distro/all"
-	// Registers the JSON config loader (core only ships protobuf).
 	_ "github.com/xtls/xray-core/main/json"
 )
 
@@ -35,7 +35,13 @@ type XrayService interface {
 	ValidateConfig(context.Context, *XrayConfig) error
 
 	// Start launches a live instance. The caller owns it and must Close it.
-	Start(context.Context, *XrayConfig) (*core.Instance, error)
+	Start(context.Context, *XrayConfig) (Instance, error)
+
+	CleanupResources() error
+}
+
+type Instance interface {
+	Close() error
 }
 
 // xrayService is the default XrayService implementation.
@@ -125,7 +131,7 @@ func (s *xrayService) ValidateConfig(ctx context.Context, config *XrayConfig) er
 }
 
 // Start launches a live instance. Close it when done or it leaks.
-func (s *xrayService) Start(ctx context.Context, config *XrayConfig) (*core.Instance, error) {
+func (s *xrayService) Start(ctx context.Context, config *XrayConfig) (Instance, error) {
 	if config == nil {
 		return nil, fmt.Errorf("xray config is nil")
 	}
@@ -161,6 +167,10 @@ func getAssetsPath(parts ...string) string {
 	}
 
 	return filepath.Join(append([]string{base}, parts...)...)
+}
+
+func (s *xrayService) CleanupResources() error {
+	return splithttp.CloseAll()
 }
 
 // templateDir is the on-disk folder of saved outbound templates.

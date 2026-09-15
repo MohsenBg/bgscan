@@ -193,18 +193,18 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	return &ProxyInputs{
-			Type:       proxyType,
-			Port:       port,
-			Auth:       authMethod,
-			Username:   username,
-			Password:   password,
-			PrivateKey: privateKey,
-		}, &ProxyVisibility{
-			Proxy: func() bool { return getType(*cfg) != "" },
-			Auth:  func() bool { return getAuth(*cfg) != dns.AuthNone },
-			Password: func() bool {
-				return getAuth(*cfg) == dns.AuthPassword
-			},
-			Key: func() bool { return getAuth(*cfg) == dns.AuthKey },
-		}
+		Type:       proxyType,
+		Port:       port,
+		Auth:       authMethod,
+		Username:   username,
+		Password:   password,
+		PrivateKey: privateKey,
+	}, &ProxyVisibility{
+		Proxy: func() bool { return getType(*cfg) != "" },
+		Auth:  func() bool { return getAuth(*cfg) != dns.AuthNone },
+		Password: func() bool {
+			return getAuth(*cfg) == dns.AuthPassword
+		},
+		Key: func() bool { return getAuth(*cfg) == dns.AuthKey },
+	}
 }

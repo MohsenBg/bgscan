@@ -1,7 +1,6 @@
 package form
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
@@ -23,7 +22,6 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 		case "esc", "b", "q":
 			cmd = m.Cancel()
-			logger.DebugInfo("Form cancelled")
 		}
 	}
 

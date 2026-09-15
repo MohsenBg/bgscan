@@ -21,7 +21,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/thefeedprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/vaydnsprobe"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/xrayprobe"
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // BuildICMPStage creates an ICMP scan stage.
@@ -590,7 +589,6 @@ func (s *scanner) BuildTheFeedStage(
 			resolverCfg.Port = thefeedCfg.ResolverPort
 			resolverCfg.Transport = string(thefeedCfg.ResolverType)
 			resolverCfg.Domain = thefeedCfg.Domain
-			logger.DebugDump("domain", thefeedCfg.Domain)
 		}
 
 		stage, err := s.buildResolverStage(

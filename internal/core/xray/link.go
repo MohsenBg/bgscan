@@ -121,11 +121,19 @@ func parseVmess(link string) (*ParseResult, error) {
 
 	if security == "tls" {
 		tls := stream["tlsSettings"].(map[string]any)
-		tls["serverName"] = getString(j, "sni", "")
+		sni := getString(j, "sni", "")
+		if sni == "" {
+			sni = getString(j, "host", "")
+		}
+		if sni == "" {
+			sni = getString(j, "authority", "")
+		}
+		tls["serverName"] = sni
 		tls["fingerprint"] = getString(j, "fp", "")
 		if alpn := getString(j, "alpn", ""); alpn != "" {
 			tls["alpn"] = splitComma(alpn)
 		}
+		normalizeWSALPN(stream)
 	}
 
 	port := num(j["port"])
@@ -577,22 +585,132 @@ func applySecurity(stream map[string]any, p url.Values) {
 	switch sec {
 	case "tls":
 		tls := stream["tlsSettings"].(map[string]any)
-		tls["serverName"] = p.Get("sni")
+		tls["serverName"] = firstNonEmpty(p.Get("sni"), p.Get("host"), p.Get("authority"))
 		tls["fingerprint"] = p.Get("fp")
 		if alpn := p.Get("alpn"); alpn != "" {
 			tls["alpn"] = splitComma(alpn)
 		}
 		tls["echConfigList"] = p.Get("ech")
 		tls["pinnedPeerCertSha256"] = p.Get("pcs")
+		normalizeWSALPN(stream)
 	case "reality":
 		re := stream["realitySettings"].(map[string]any)
-		re["serverName"] = p.Get("sni")
+		re["serverName"] = firstNonEmpty(p.Get("sni"), p.Get("host"), p.Get("authority"))
 		re["fingerprint"] = firstNonEmpty(p.Get("fp"), "chrome")
 		re["publicKey"] = p.Get("pbk")
 		re["shortId"] = p.Get("sid")
 		re["spiderX"] = p.Get("spx")
 		re["mldsa65Verify"] = p.Get("pqv")
 	}
+}
+
+// normalizeWSALPN forces ALPN to http/1.1 for ws/httpupgrade over TLS when
+// the config carries h2. Xray >= 26.4 (16568314) preserves an explicit
+// ["h2","http/1.1"] in WebsocketHandshakeContext, the server then negotiates
+// h2 and the WS upgrade (which needs http/1.1) fails. Older cores always
+// forced http/1.1, so panel defaults with h2,http/1.1 used to work.
+func normalizeWSALPN(stream map[string]any) {
+	net, _ := stream["network"].(string)
+	if net != "ws" && net != "httpupgrade" {
+		return
+	}
+	if sec, _ := stream["security"].(string); sec != "tls" {
+		return
+	}
+	tls, ok := stream["tlsSettings"].(map[string]any)
+	if !ok {
+		return
+	}
+	raw, ok := tls["alpn"]
+	if !ok {
+		return
+	}
+	var vals []string
+	switch v := raw.(type) {
+	case []string:
+		vals = v
+	case []any:
+		for _, e := range v {
+			if s, ok := e.(string); ok {
+				vals = append(vals, s)
+			}
+		}
+	case string:
+		if v == "" {
+			return
+		}
+		vals = splitComma(v)
+	default:
+		return
+	}
+	for _, s := range vals {
+		if s == "h2" {
+			tls["alpn"] = []string{"http/1.1"}
+			return
+		}
+	}
+}
+
+// NormalizeOutboundALPN applies normalizeWSALPN to a decoded outbound object
+// (link parser output or a JSON template file). Safe to call on any shape.
+func NormalizeOutboundALPN(outbound any) {
+	m, ok := outbound.(map[string]any)
+	if !ok {
+		return
+	}
+	stream, ok := m["streamSettings"].(map[string]any)
+	if !ok {
+		return
+	}
+	normalizeWSALPN(stream)
+	normalizeTLSServerName(stream)
+}
+
+// normalizeTLSServerName fills an empty tls/reality serverName from the
+// transport host (ws/httpupgrade/xhttp host or grpc authority). Without SNI
+// Xray falls back to the dial destination IP (the scanned IP in bgscan),
+// which breaks TLS verification against the real domain cert.
+func normalizeTLSServerName(stream map[string]any) {
+	sec, _ := stream["security"].(string)
+	if sec != "tls" && sec != "reality" {
+		return
+	}
+	var settings map[string]any
+	var key string
+	if sec == "tls" {
+		settings, _ = stream["tlsSettings"].(map[string]any)
+		key = "serverName"
+	} else {
+		settings, _ = stream["realitySettings"].(map[string]any)
+		key = "serverName"
+	}
+	if settings == nil {
+		return
+	}
+	if s, _ := settings[key].(string); s != "" {
+		return
+	}
+	host := ""
+	if ws, ok := stream["wsSettings"].(map[string]any); ok {
+		host = firstNonEmpty(host, stringFromAny(ws["host"]))
+	}
+	if hu, ok := stream["httpupgradeSettings"].(map[string]any); ok {
+		host = firstNonEmpty(host, stringFromAny(hu["host"]))
+	}
+	if xh, ok := stream["xhttpSettings"].(map[string]any); ok {
+		host = firstNonEmpty(host, stringFromAny(xh["host"]))
+	}
+	if gs, ok := stream["grpcSettings"].(map[string]any); ok {
+		host = firstNonEmpty(host, stringFromAny(gs["authority"]))
+	}
+	if host != "" {
+		settings[key] = host
+	}
+}
+
+func stringFromAny(v any) string {
+	s, _ := v.(string)
+	return s
 }
 
 func applyFinalMask(stream map[string]any, p url.Values) {
@@ -604,11 +722,13 @@ func applyFinalMask(stream map[string]any, p url.Values) {
 	}
 }
 
-func firstNonEmpty(a, b string) string {
-	if a != "" {
-		return a
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
 	}
-	return b
+	return ""
 }
 
 func firstParam(p url.Values, keys ...string) string {

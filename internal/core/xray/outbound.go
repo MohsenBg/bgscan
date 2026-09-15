@@ -58,9 +58,12 @@ func applyOutboundTemplate(templatePath string, ip netip.Addr) (any, error) {
 		return nil, fmt.Errorf("failed to parse outbound template JSON: %w", err)
 	}
 
-	return replacePlaceholders(parsed, map[string]string{
+	parsed = replacePlaceholders(parsed, map[string]string{
 		addressPlaceholder: ip.String(),
-	}), nil
+	})
+	NormalizeOutboundALPN(parsed)
+
+	return parsed, nil
 }
 
 // SaveOutboundFromFile validates and stores a new outbound template from a disk source file.
@@ -99,7 +102,14 @@ func SaveOutboundFromFile(src, name string) (*XrayOutboundsFile, error) {
 		return nil, fmt.Errorf("outbound template missing required placeholder: %q", addressPlaceholder)
 	}
 
-	if err := os.WriteFile(dst, data, 0o644); err != nil {
+	NormalizeOutboundALPN(jsonData)
+
+	normalized, err := json.MarshalIndent(jsonData, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to normalize outbound template JSON: %w", err)
+	}
+
+	if err := os.WriteFile(dst, normalized, 0o644); err != nil {
 		return nil, fmt.Errorf("failed to save outbound template: %w", err)
 	}
 

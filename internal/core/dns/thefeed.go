@@ -11,6 +11,7 @@ import (
 	"github.com/sartoopjj/thefeed/pkg/protocol"
 
 	"github.com/MohsenBg/bgscan/internal/core/netutil"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 const thefeedDir = "thefeed"
@@ -180,6 +181,7 @@ func (s *thefeedService) RunTunnel(
 	var txtConcat strings.Builder
 	for _, ans := range resp.Answer {
 		if txt, ok := ans.(*dns.TXT); ok {
+			logger.DebugDump("txt", txt)
 			for _, t := range txt.Txt {
 				txtConcat.WriteString(t)
 			}
@@ -191,7 +193,7 @@ func (s *thefeedService) RunTunnel(
 	}
 
 	_, decodeErr := protocol.DecodeResponse(responseKey, txtConcat.String())
-	if decodeErr == nil {
+	if decodeErr != nil {
 		return fmt.Errorf("response decode: %w", decodeErr)
 	}
 

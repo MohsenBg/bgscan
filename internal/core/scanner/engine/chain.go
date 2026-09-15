@@ -47,9 +47,16 @@ func executeSequentialChain(ctx context.Context, input string, cfg ChainConfig) 
 		}
 
 		logger.CoreInfo("stage %d/%d starting", i+1, len(cfg.Stages))
+		// MaxSuccessfulIPs applies to the last stage only: earlier stages
+		// must run fully so downstream stages still get their input.
+		var maxSuccessful uint64
+		if i == len(cfg.Stages)-1 {
+			maxSuccessful = cfg.MaxSuccessfulIPs
+		}
 		RunScan(ctx, currentInput, ScanConfig{
 			Workers:          stage.Workers,
 			MaxIPsToTest:     cfg.MaxIPsToTest,
+			MaxSuccessfulIPs: maxSuccessful,
 			Probe:            stage.Probe,
 			Writer:           stage.Writer,
 			MinProbeDuration: cfg.MinProbeDuration,
@@ -74,6 +81,11 @@ func executeStreamingPipeline(ctx context.Context, input string, cfg ChainConfig
 
 	logger.CoreInfo("stream pipeline started: stages=%d ips=%d", len(cfg.Stages), totalIPs)
 
+	// Shared cancellable ctx so the last stage can stop the whole pipeline
+	// once MaxSuccessfulIPs is reached.
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
+
 	channels := createStageChannels(cfg)
 	executors := make([]*stageExecutor, 0, len(cfg.Stages))
 
@@ -91,6 +103,12 @@ func executeStreamingPipeline(ctx context.Context, input string, cfg ChainConfig
 		defer exec.cleanup()
 
 		executors = append(executors, exec)
+	}
+
+	// MaxSuccessfulIPs applies to the last stage only.
+	if n := len(executors); n > 0 && cfg.MaxSuccessfulIPs > 0 {
+		executors[n-1].maxSuccessful = cfg.MaxSuccessfulIPs
+		executors[n-1].stop = stop
 	}
 
 	var wg sync.WaitGroup
@@ -173,6 +191,11 @@ func executeBatchPipeline(ctx context.Context, input string, cfg ChainConfig) {
 	batchSize := calculateBatchSize(cfg)
 	logger.CoreInfo("batch pipeline started: batch=%d ips=%d", batchSize, totalIPs)
 
+	// Shared cancellable ctx so the last stage can stop the whole pipeline
+	// once MaxSuccessfulIPs is reached.
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
+
 	stream := streamIPsFromFile(ctx, input, cfg.Shuffled, cfg.MaxIPsToTest, batchSize)
 
 	executors := make([]*stageExecutor, 0, len(cfg.Stages))
@@ -196,6 +219,12 @@ func executeBatchPipeline(ctx context.Context, input string, cfg ChainConfig) {
 		}
 
 		executors = append(executors, exec)
+	}
+
+	// MaxSuccessfulIPs applies to the last stage only.
+	if n := len(executors); n > 0 && cfg.MaxSuccessfulIPs > 0 {
+		executors[n-1].maxSuccessful = cfg.MaxSuccessfulIPs
+		executors[n-1].stop = stop
 	}
 
 	for batch := range stream {

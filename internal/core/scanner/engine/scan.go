@@ -39,6 +39,15 @@ func RunScan(ctx context.Context, input string, cfg ScanConfig) {
 		workers = 1
 	}
 
+	// MaxSuccessfulIPs stops the scan once enough successes are found.
+	// A cancellable child ctx lets workers and the IP feeder exit promptly.
+	limit := cfg.MaxSuccessfulIPs
+	var stop context.CancelFunc
+	if limit > 0 {
+		ctx, stop = context.WithCancel(ctx)
+		defer stop()
+	}
+
 	ips := make(chan netip.Addr, workers*2)
 	results := make(chan result.Result, workers*4)
 
@@ -113,7 +122,14 @@ func RunScan(ctx context.Context, input string, cfg ScanConfig) {
 			defer workerWG.Done()
 
 			runWorker(ctx, cfg.Pause, ips, func(ip netip.Addr) {
+				if limit > 0 && success.Load() >= limit {
+					stop()
+					return
+				}
 				runProbe(ctx, ip, cfg, &processed, &success, results)
+				if limit > 0 && success.Load() >= limit {
+					stop()
+				}
 			})
 		}()
 	}

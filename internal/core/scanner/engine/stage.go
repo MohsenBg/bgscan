@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"net/netip"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -17,6 +18,12 @@ type stageExecutor struct {
 	pause            PauseController
 	rateLimiter      *rate.Limiter
 	minProbeDuration time.Duration
+
+	// maxSuccessful stops the whole chain once the LAST stage reaches it.
+	// Zero means unlimited. Only set on the last stage executor.
+	maxSuccessful uint64
+	stop          context.CancelFunc
+	stopOnce      sync.Once
 
 	start        time.Time
 	total        atomic.Uint64
@@ -104,6 +111,11 @@ func (e *stageExecutor) cleanup() {
 // probe duration to prevent socket bursts on limited devices such as Android/Termux.
 // Returns true if the probe matched.
 func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) bool {
+	if e.maxSuccessful > 0 && e.succeed.Load() >= e.maxSuccessful {
+		e.requestStop()
+		return false
+	}
+
 	if e.rateLimiter != nil {
 		if err := e.rateLimiter.Wait(ctx); err != nil {
 			return false
@@ -123,12 +135,23 @@ func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) bool {
 		return false
 	}
 
-	e.succeed.Add(1)
+	if e.succeed.Add(1) >= e.maxSuccessful && e.maxSuccessful > 0 {
+		e.requestStop()
+	}
 	e.stage.Hooks.callOnSuccess(res)
 	e.stage.Writer.Write(res)
 
 	e.enforceMinProbeDuration(ctx, probeStart)
 	return true
+}
+
+// requestStop cancels the shared chain ctx once the last stage has enough successes.
+func (e *stageExecutor) requestStop() {
+	e.stopOnce.Do(func() {
+		if e.stop != nil {
+			e.stop()
+		}
+	})
 }
 
 // enforceMinProbeDuration sleeps for the remainder of MinProbeDuration if the

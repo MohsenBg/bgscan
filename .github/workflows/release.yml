@@ -21,11 +21,8 @@ concurrency:
   group: release-${{ github.event.inputs.version || github.ref_name }}
   cancel-in-progress: true
 
-# ==============================================================================
 jobs:
-  # ==============================================================================
-  # JOB 1: RESOLVE TAG
-  # ==============================================================================
+  # JOB 1 RESOLVE TAG
   context:
     name: Resolve Release Context
     runs-on: ubuntu-latest
@@ -58,9 +55,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
-  # ==============================================================================
-  # JOB 2: BUILD
-  # ==============================================================================
+  # JOB 2 BUILD
   build-assets:
     name: Build All Targets
     needs: [context]
@@ -116,9 +111,7 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  # ==============================================================================
-  # JOB 3: RELEASE PACKAGE
-  # ==============================================================================
+  # JOB 3 RELEASE PACKAGE
   publish-release:
     name: Publish GitHub Release
     needs: [context, build-assets]

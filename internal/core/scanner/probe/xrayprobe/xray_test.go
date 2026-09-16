@@ -80,7 +80,7 @@ func (s *fakeXrayService) Start(context.Context, *xray.XrayConfig) (xray.Instanc
 	return s.instance, nil
 }
 
-func (s *fakeXrayService) CleanupResources() error { return nil }
+func (s *fakeXrayService) CloseShared() error { return nil }
 
 type fakeSpeedTester struct {
 	latencyResult  speedtest.LatencyResult

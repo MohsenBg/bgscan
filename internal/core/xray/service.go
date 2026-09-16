@@ -11,7 +11,7 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 	core "github.com/xtls/xray-core/core"
-	"github.com/xtls/xray-core/transport/internet/splithttp"
+	"github.com/xtls/xray-core/shared"
 
 	// Registers all proxies/transports, otherwise the core rejects
 	// configs with "proxy not registered".
@@ -37,7 +37,11 @@ type XrayService interface {
 	// Start launches a live instance. The caller owns it and must Close it.
 	Start(context.Context, *XrayConfig) (Instance, error)
 
-	CleanupResources() error
+	// CloseShared releases process-global transport state shared by all
+	// instances: pooled XHTTP/gRPC dialers and stuck in-flight dials.
+	// Instance Close alone cannot reach these. Call once per scan end,
+	// when no instance is running.
+	CloseShared() error
 }
 
 type Instance interface {
@@ -47,8 +51,22 @@ type Instance interface {
 // xrayService is the default XrayService implementation.
 type xrayService struct{}
 
+// ServiceOption tunes the embedded core at creation.
+type ServiceOption func()
+
+// WithScanTuning installs scanner-friendly transport limits process-wide
+// (dial timeout, concurrent-dial roof, outbound retry attempts). Zero
+// values leave the corresponding upstream default untouched. Callers must
+// pass it before any scan runs; safe to call once at service creation.
+func WithScanTuning(t shared.ScanTuning) ServiceOption {
+	return func() { shared.ApplyScanTuning(t) }
+}
+
 // NewXrayService creates an XrayService wired to the embedded core.
-func NewXrayService() XrayService {
+func NewXrayService(opts ...ServiceOption) XrayService {
+	for _, opt := range opts {
+		opt()
+	}
 	return &xrayService{}
 }
 
@@ -169,8 +187,10 @@ func getAssetsPath(parts ...string) string {
 	return filepath.Join(append([]string{base}, parts...)...)
 }
 
-func (s *xrayService) CleanupResources() error {
-	return splithttp.CloseAll()
+// CloseShared releases process-global transport state shared by all
+// instances. See the interface docs for when to call it.
+func (s *xrayService) CloseShared() error {
+	return shared.CloseAll()
 }
 
 // templateDir is the on-disk folder of saved outbound templates.

@@ -15,6 +15,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
 	"github.com/MohsenBg/bgscan/internal/core/xray"
 	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/xtls/xray-core/shared"
 )
 
 const bytesPerKbpsSecond float64 = 1000.0 / 8.0
@@ -25,7 +26,7 @@ type XrayService interface {
 	GenerateConfig(outbound string, ip netip.Addr, port uint16) (*xray.XrayConfig, error)
 	ValidateConfig(context.Context, *xray.XrayConfig) error
 	Start(context.Context, *xray.XrayConfig) (xray.Instance, error)
-	CleanupResources() error
+	CloseShared() error
 }
 
 // XrayProbe validates connectivity and performance through a temporary local
@@ -118,7 +119,14 @@ func NewXrayProbe(
 	}
 
 	if p.xray == nil {
-		p.xray = xray.NewXrayService()
+		// Scanner tuning, applied once process-wide at creation. The
+		// connect cap follows the latency timeout from settings, so a
+		// user retune can never strand dials beyond the check budget.
+		p.xray = xray.NewXrayService(xray.WithScanTuning(shared.ScanTuning{
+			DialTimeout:        timeout,
+			MaxConcurrentDials: cfg.MaxConcurrentDials,
+			DialMaxAttempts:    cfg.DialMaxAttempts,
+		}))
 	}
 
 	if _, err := p.xray.GetOutboundTemplateByName(outboundName); err != nil {
@@ -270,12 +278,13 @@ func (p *XrayProbe) measureUpload(
 	})
 }
 
-// Close intentionally drains the XHTTP global pool.
-// Run's defer inst.Close() per IP is not enough: globalDialerMap + H1 pool stay for 300s/GC.
-// This makes cleanup intentional and immediate after a scan (no concurrent Run).
+// Close releases process-global transport state shared by all Xray
+// instances (pooled dialers, stuck dials). Run's defer inst.Close() per IP
+// is not enough: globals outlive every instance.
+// Call once after a scan, when no concurrent Run is in flight.
 func (p *XrayProbe) Close() error {
 	if p.xray != nil {
-		return p.xray.CleanupResources()
+		return p.xray.CloseShared()
 	}
 	return nil
 }

@@ -16,6 +16,8 @@ type XrayConfig struct {
 	SpeedTestTimeout     DurationMS       `toml:"speed_test_timeout" comment:"Max wait for download/upload speed test, in ms. Also determines bytes requested: timeout_s * speed_kbps * 1000 / 8. Range: 100-60000."`
 	OutputPrefix         string           `toml:"output_prefix" comment:"Filename prefix for result files."`
 	PreScanType          string           `toml:"pre_scan_type" comment:"Pre-scan test before Xray: tcp, icmp, http, or none (skip pre-scan)."`
+	MaxConcurrentDials   int              `toml:"max_concurrent_dials" comment:"Max concurrent outbound dials process-wide. 0 = unlimited. Range: 0-10000."`
+	DialMaxAttempts      int              `toml:"dial_max_attempts" comment:"Dial attempts per outbound dispatch. Range: 1-10."`
 }
 
 func DefaultXrayConfig() XrayConfig {
@@ -49,28 +51,34 @@ func xrayBase() XrayConfig {
 
 var xrayDefaults = map[Platform]map[Tier]XrayConfig{
 	Server: {
-		Low:  withXray(xrayBase(), 16, 50, 25, 2*time.Second, 6*time.Second),
-		Mid:  withXray(xrayBase(), 32, 100, 50, 2*time.Second, 6*time.Second),
-		High: withXray(xrayBase(), 64, 200, 100, 2*time.Second, 5*time.Second),
+		Low:  withXray(xrayBase(), 16, 50, 25, 2*time.Second, 6*time.Second, 128, 2),
+		Mid:  withXray(xrayBase(), 32, 100, 50, 2*time.Second, 6*time.Second, 256, 3),
+		High: withXray(xrayBase(), 64, 200, 100, 2*time.Second, 5*time.Second, 512, 3),
 	},
 	Desktop: {
-		Low:  withXray(xrayBase(), 8, 50, 25, 3*time.Second, 6*time.Second),
-		Mid:  withXray(xrayBase(), 16, 100, 50, 2*time.Second, 6*time.Second),
-		High: withXray(xrayBase(), 32, 150, 75, 2*time.Second, 5*time.Second),
+		Low:  withXray(xrayBase(), 8, 50, 25, 3*time.Second, 6*time.Second, 64, 2),
+		Mid:  withXray(xrayBase(), 16, 100, 50, 2*time.Second, 6*time.Second, 128, 3),
+		High: withXray(xrayBase(), 32, 150, 75, 2*time.Second, 5*time.Second, 256, 3),
 	},
 	Android: {
-		Low:  withXray(xrayBase(), 4, 20, 10, 3*time.Second, 6*time.Second),
-		Mid:  withXray(xrayBase(), 8, 50, 25, 2*time.Second, 6*time.Second),
-		High: withXray(xrayBase(), 16, 80, 40, 2*time.Second, 6*time.Second),
+		Low:  withXray(xrayBase(), 4, 20, 10, 3*time.Second, 6*time.Second, 32, 2),
+		Mid:  withXray(xrayBase(), 8, 50, 25, 2*time.Second, 6*time.Second, 64, 3),
+		High: withXray(xrayBase(), 16, 80, 40, 2*time.Second, 6*time.Second, 128, 3),
 	},
 }
 
-// withXray returns a copy of base with the platform/tier-varying fields overridden.
-func withXray(base XrayConfig, workers, downloadSpeed, uploadSpeed int, timeout, speedTestTimeout time.Duration) XrayConfig {
+func withXray(
+	base XrayConfig,
+	workers, downloadSpeed, uploadSpeed int,
+	timeout, speedTestTimeout time.Duration,
+	maxConcurrentDials, dialMaxAttempts int,
+) XrayConfig {
 	base.Workers = workers
 	base.DownloadSpeed = downloadSpeed
 	base.UploadSpeed = uploadSpeed
 	base.Timeout = NewDurationMS(timeout)
 	base.SpeedTestTimeout = NewDurationMS(speedTestTimeout)
+	base.MaxConcurrentDials = maxConcurrentDials
+	base.DialMaxAttempts = dialMaxAttempts
 	return base
 }

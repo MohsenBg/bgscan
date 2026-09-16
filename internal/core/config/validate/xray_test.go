@@ -187,6 +187,71 @@ func TestXrayConfig(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "MaxConcurrentDials too low",
+			mutateCfg: func(c *config.XrayConfig) {
+				c.MaxConcurrentDials = MinXrayMaxConcurrentDials - 1
+			},
+			wantErrKeys:   []string{"MaxConcurrentDials"},
+			wantWarnCount: 1,
+			checkFixed: func(t *testing.T, c *config.XrayConfig) {
+				if c.MaxConcurrentDials != def.MaxConcurrentDials {
+					t.Errorf("MaxConcurrentDials = %d, want %d", c.MaxConcurrentDials, def.MaxConcurrentDials)
+				}
+			},
+		},
+		{
+			name: "MaxConcurrentDials too high",
+			mutateCfg: func(c *config.XrayConfig) {
+				c.MaxConcurrentDials = MaxXrayMaxConcurrentDials + 1
+			},
+			wantErrKeys:   []string{"MaxConcurrentDials"},
+			wantWarnCount: 1,
+			checkFixed: func(t *testing.T, c *config.XrayConfig) {
+				if c.MaxConcurrentDials != def.MaxConcurrentDials {
+					t.Errorf("MaxConcurrentDials = %d, want %d", c.MaxConcurrentDials, def.MaxConcurrentDials)
+				}
+			},
+		},
+		{
+			name: "DialMaxAttempts too low",
+			mutateCfg: func(c *config.XrayConfig) {
+				c.DialMaxAttempts = MinXrayDialMaxAttempts - 1
+			},
+			wantErrKeys:   []string{"DialMaxAttempts"},
+			wantWarnCount: 1,
+			checkFixed: func(t *testing.T, c *config.XrayConfig) {
+				if c.DialMaxAttempts != def.DialMaxAttempts {
+					t.Errorf("DialMaxAttempts = %d, want %d", c.DialMaxAttempts, def.DialMaxAttempts)
+				}
+			},
+		},
+		{
+			name: "MaxConcurrentDials zero means unlimited",
+			mutateCfg: func(c *config.XrayConfig) {
+				c.MaxConcurrentDials = 0
+			},
+			wantErrKeys:   nil,
+			wantWarnCount: 0,
+			checkFixed: func(t *testing.T, c *config.XrayConfig) {
+				if c.MaxConcurrentDials != 0 {
+					t.Errorf("MaxConcurrentDials = %d, want 0", c.MaxConcurrentDials)
+				}
+			},
+		},
+		{
+			name: "DialMaxAttempts too high",
+			mutateCfg: func(c *config.XrayConfig) {
+				c.DialMaxAttempts = MaxXrayDialMaxAttempts + 1
+			},
+			wantErrKeys:   []string{"DialMaxAttempts"},
+			wantWarnCount: 1,
+			checkFixed: func(t *testing.T, c *config.XrayConfig) {
+				if c.DialMaxAttempts != def.DialMaxAttempts {
+					t.Errorf("DialMaxAttempts = %d, want %d", c.DialMaxAttempts, def.DialMaxAttempts)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

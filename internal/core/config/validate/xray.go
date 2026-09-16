@@ -23,6 +23,12 @@ const (
 
 	MinXrayUploadSpeed = 0
 	MaxXrayUploadSpeed = 100000
+
+	MinXrayMaxConcurrentDials = 0
+	MaxXrayMaxConcurrentDials = 10000
+
+	MinXrayDialMaxAttempts = 1
+	MaxXrayDialMaxAttempts = 10
 )
 
 const (
@@ -96,6 +102,24 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 		cfg.OutputPrefix,
 	); err != nil {
 		errs["OutputPrefix"] = err
+	}
+
+	if err := checkInt(
+		"MaxConcurrentDials",
+		cfg.MaxConcurrentDials,
+		MinXrayMaxConcurrentDials,
+		MaxXrayMaxConcurrentDials,
+	); err != nil {
+		errs["MaxConcurrentDials"] = err
+	}
+
+	if err := checkInt(
+		"DialMaxAttempts",
+		cfg.DialMaxAttempts,
+		MinXrayDialMaxAttempts,
+		MaxXrayDialMaxAttempts,
+	); err != nil {
+		errs["DialMaxAttempts"] = err
 	}
 
 	return errs
@@ -174,6 +198,24 @@ func NormalizeXray(cfg *config.XrayConfig) []Warning {
 		"OutputPrefix",
 		&cfg.OutputPrefix,
 		def.OutputPrefix,
+		&warns,
+	)
+
+	fixInt(
+		"MaxConcurrentDials",
+		&cfg.MaxConcurrentDials,
+		MinXrayMaxConcurrentDials,
+		MaxXrayMaxConcurrentDials,
+		def.MaxConcurrentDials,
+		&warns,
+	)
+
+	fixInt(
+		"DialMaxAttempts",
+		&cfg.DialMaxAttempts,
+		MinXrayDialMaxAttempts,
+		MaxXrayDialMaxAttempts,
+		def.DialMaxAttempts,
 		&warns,
 	)
 

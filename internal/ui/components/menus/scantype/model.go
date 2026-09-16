@@ -237,6 +237,22 @@ func (m *Model) buildDNSTunScanner(ctx context.Context, scn scanner.Scanner) (sc
 
 		stages = append(stages, stage...)
 
+	case dns.DNSTunProtocolMasterDNS:
+		stage, err := scn.BuildMasterDNSStage(ctx, m.dnsTunCfg.Name)
+		if err != nil {
+			return nil, fmt.Errorf("build MasterDNS stage: %w", err)
+		}
+
+		stages = append(stages, stage...)
+
+	case dns.DNSTunProtocolStormDNS:
+		stage, err := scn.BuildStormDNSStage(ctx, m.dnsTunCfg.Name)
+		if err != nil {
+			return nil, fmt.Errorf("build StormDNS stage: %w", err)
+		}
+
+		stages = append(stages, stage...)
+
 	default:
 		return nil, fmt.Errorf(
 			"unsupported DNS tunnel protocol: %q",

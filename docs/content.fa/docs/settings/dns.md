@@ -221,7 +221,7 @@ adaptive_resolver = true
 output_prefix = "dns_tun_"
 ```
 
-پیشوند فایل‌های نتیجهٔ Tunnel. فایل‌ها بسته به پروتکل داخل `result/dnstt/`، `result/vaydns/`، `result/slipstream/` یا `result/thefeed/` ذخیره می‌شوند.
+پیشوند فایل‌های نتیجهٔ Tunnel. فایل‌ها بسته به پروتکل داخل `result/dnstt/`، `result/vaydns/`، `result/slipstream/`، `result/masterdns/`، `result/stormdns/` یا `result/thefeed/` ذخیره می‌شوند.
 
 ## Configهای Tunnel
 

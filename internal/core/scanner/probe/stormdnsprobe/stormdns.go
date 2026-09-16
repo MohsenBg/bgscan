@@ -182,7 +182,7 @@ func (p *StormDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort ui
 	return StormDNSResult{
 		IP:        ip,
 		Latency:   latency.RTT,
-		Port:      localPort,
+		Port:      p.config.ResolverPort,
 		QueryType: normalizeQueryType(p.config.DNSQueryType),
 		Enc:       p.config.DataEncMethod,
 	}, nil

@@ -26,7 +26,7 @@ DNSTT, VayDNS, MasterDNS, StormDNS, and TheFeed run the tunnel in-process using 
 
 DNSTT, VayDNS, and Slipstream support optional SOCKS5 or SSH proxy routing with password or key authentication. MasterDNS, StormDNS, and TheFeed configs carry no proxy settings.
 
-The scan flow runs DNSTT, VayDNS, Slipstream, and TheFeed configurations. MasterDNS and StormDNS configurations can be created, edited, and validated in the menu, but starting a scan with them is not wired up yet.
+The scan flow runs all six configurations. Pick any saved tunnel config and the matching stage is built automatically, with an optional resolver pre-scan ahead of it.
 
 ## How It Works
 

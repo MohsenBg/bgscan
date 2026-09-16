@@ -109,7 +109,7 @@ func GetAllDNSTunsFile() ([]DNSTunConfigFile, error) {
 			Path:      file.Path,
 			CreatedAt: file.CreatedAt,
 			Protocol:  DNSTunProtocolTheFeed,
-			Proxy:     "socks-" + file.Config.QueryMode,
+			Proxy:     "socks-passphrase",
 			Config:    file.Config,
 		})
 	}

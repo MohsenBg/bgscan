@@ -225,7 +225,7 @@ When `false`, the resolver pre-scan uses the settings from the `[resolver]` sect
 output_prefix = "dns_tun_"
 ```
 
-Filename prefix for tunnel result files. Files land in `result/dnstt/`, `result/vaydns/`, `result/slipstream/`, or `result/thefeed/` depending on the protocol.
+Filename prefix for tunnel result files. Files land in `result/dnstt/`, `result/vaydns/`, `result/slipstream/`, `result/masterdns/`, `result/stormdns/`, or `result/thefeed/` depending on the protocol.
 
 ## Tunnel Configurations
 

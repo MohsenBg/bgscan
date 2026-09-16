@@ -64,15 +64,15 @@ func DefaultStormDNSConfig() StormDNSConfig {
 		DNSQueryType:  StormDNSQueryTXT,
 
 		MTUTestTimeoutSec:      2.0,
-		MTUTestRetries:         3,
-		SessionInitRetryMaxSec: 60.0,
+		MTUTestRetries:         2,
+		SessionInitRetryMaxSec: 2.0,
 
-		MinUploadMTU:   100,
-		MaxUploadMTU:   200,
-		MinDownloadMTU: 1000,
-		MaxDownloadMTU: 4000,
+		MinUploadMTU:   38,
+		MaxUploadMTU:   150,
+		MinDownloadMTU: 100,
+		MaxDownloadMTU: 500,
 
-		MTUParallelism: 16,
+		MTUParallelism: 1,
 		RxTxWorkers:    4,
 	}
 }

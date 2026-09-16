@@ -26,7 +26,7 @@ DNSTT، VayDNS، MasterDNS، StormDNS و TheFeed تونل را با کتابخا
 
 DNSTT، VayDNS و Slipstream از مسیریابی اختیاری Proxy SOCKS5 یا SSH با احراز هویت Password یا Key پشتیبانی می‌کنند. Configهای MasterDNS، StormDNS و TheFeed تنظیمات Proxy ندارند.
 
-اسکن با Configهای DNSTT، VayDNS، Slipstream و TheFeed اجرا می‌شود. Configهای MasterDNS و StormDNS را می‌شود در منو ساخت، ویرایش و اعتبارسنجی کرد، ولی اجرای اسکن با آن‌ها هنوز وصل نشده است.
+اسکن با هر شش Config اجرا می‌شود. هر Config ذخیره‌شده را انتخاب کنید، مرحلهٔ تونل همان پروتکل ساخته می‌شود و در صورت فعال‌بودن، پیش‌اسکن Resolver هم قبل از آن می‌آید.
 
 ## نحوهٔ کار
 

@@ -181,7 +181,7 @@ func (p *MasterDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort u
 	return MasterDNSResult{
 		IP:      ip,
 		Latency: latency.RTT,
-		Port:    localPort,
+		Port:    p.config.ResolverPort,
 		Enc:     p.config.DataEncMethod,
 	}, nil
 }

@@ -14,11 +14,11 @@ weight: 2
 | `h` | **اسکن HTTP** | فرستادن یک درخواست HTTP و ثبت وضعیت، نسخه و TLS | بررسی سرویس وب | [`http_settings.toml`](../settings/http.md) |
 | `x` | **اسکن Xray** | عبور دادن ترافیک از Outbound و اندازه‌گیری آن | بررسی اتصال و سرعت Xray | [`xray_settings.toml`](../settings/xray.md) |
 | `r` | **ریزالور DNS** | امتحان‌کردن هر هدف به‌عنوان Resolver و بررسی هجکینگ DPI | پیدا کردن Resolverهای سالم | [`dns_settings.toml`](../settings/dns.md) |
-| `d` | **تونل DNS** | بررسی این‌که Resolverها می‌توانند تونل DNS را عبور دهند یا نه | تست تونل‌های DNSTT، VayDNS، Slipstream و TheFeed | [`dns_settings.toml`](../settings/dns.md) |
+| `d` | **تونل DNS** | بررسی این‌که Resolverها می‌توانند تونل DNS را عبور دهند یا نه | تست تونل‌های DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed | [`dns_settings.toml`](../settings/dns.md) |
 
 **ریزالور DNS** یک اسکن Resolver مستقل اجرا می‌کند. هر IP هدف به‌عنوان Resolver تست می‌شود و در صورت فعال‌بودن، بررسی ضد هجکینگ (Anti-hijacking) هم انجام می‌شود.
 
-**تونل DNS** اول مرورگر Configها را باز می‌کند. قبل از شروع اسکن، یکی از تونل‌های ذخیره‌شده (DNSTT، VayDNS، Slipstream یا TheFeed) را انتخاب می‌کنید. اگر `check_dns_resolver` در تنظیمات DNS Tunneling فعال باشد، مرحلهٔ تونل یک اسکن Resolver به‌عنوان پیش‌اسکن زنجیر می‌کند.
+**تونل DNS** اول مرورگر Configها را باز می‌کند. قبل از شروع اسکن، یکی از تونل‌های ذخیره‌شده (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS یا TheFeed) را انتخاب می‌کنید. اگر `check_dns_resolver` در تنظیمات DNS Tunneling فعال باشد، مرحلهٔ تونل یک اسکن Resolver به‌عنوان پیش‌اسکن زنجیر می‌کند.
 
 **اسکن Xray** اول می‌پرسد از کدام Outbound Template استفاده شود. اگر `pre_scan_type` روی `icmp`، `tcp` یا `http` باشد، آن مرحله قبل از Xray اجرا می‌شود و هدف‌ها را فیلتر می‌کند. با `none` اسکن Xray مستقیم اجرا می‌شود.
 
@@ -68,13 +68,11 @@ weight: 2
 
 #### تونل DNS
 
-- **پروتکل**: تونل DNS با پروتکل‌های DNSTT، VayDNS، Slipstream و TheFeed
-- **کارکرد**: اول یکی از تونل‌های ذخیره‌شده را از مرورگر Config انتخاب می‌کنید و بعد بررسی می‌شود کدام Resolver می‌تواند آن تونل را عبور دهد. DNSTT و VayDNS تونل را با کتابخانهٔ vaydns داخل خود برنامه اجرا می‌کنند؛ Slipstream به باینری خارجی `slipstream-client` وابسته است و TheFeed هم با کتابخانهٔ داخلی خودش داخل برنامه اجرا می‌شود.
+- **پروتکل**: تونل DNS با هر شش پروتکل DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed
+- **کارکرد**: اول یکی از تونل‌های ذخیره‌شده را از مرورگر Config انتخاب می‌کنید و بعد بررسی می‌شود کدام Resolver می‌تواند آن تونل را عبور دهد. DNSTT و VayDNS تونل را با کتابخانهٔ vaydns داخل خود برنامه اجرا می‌کنند؛ Slipstream به باینری خارجی `slipstream-client` وابسته است و MasterDNS، StormDNS و TheFeed هم با کتابخانهٔ داخلی خودشان داخل برنامه اجرا می‌شوند.
 - **خروجی**: زمان پاسخ‌دهی تونل بعد از برقرارشدن؛ زمان راه‌اندازی تونل حساب نمی‌شود.
 - **تنظیمات کلیدی**: `check_dns_resolver` برای اجرای پیش‌اسکن Resolver و `adaptive_resolver` برای تطبیق خودکار تنظیمات Resolver (روش انتقال، پورت و دامین) با Config تونل.
 - **بهترین کاربرد**: پیدا کردن Resolverهایی که عبور تونل DNS از آن‌ها ممکن است.
-
-Configهای MasterDNS و StormDNS را هم می‌شود در منوی تونل DNS ساخت و مدیریت کرد، ولی اجرای اسکن با آن‌ها هنوز وصل نشده است.
 
 پروب‌های DNSTT، VayDNS و Slipstream برای هر هدف یک پورت محلی SOCKS5 می‌گیرند، پس بسیار کندتر از مرحلهٔ ریزالور هستند. برای تنظیمات هر پروتکل، [تونل DNS](../dns-tunneling/) را ببینید.
 

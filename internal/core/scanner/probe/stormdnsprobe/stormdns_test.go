@@ -362,8 +362,8 @@ func TestRun_Success(t *testing.T) {
 	if gotResult.Latency != 42*time.Millisecond {
 		t.Errorf("Latency = %v, want 42ms", gotResult.Latency)
 	}
-	if gotResult.Port != listenPort {
-		t.Errorf("Port = %d, want %d", gotResult.Port, listenPort)
+	if gotResult.Port != validConfig().ResolverPort {
+		t.Errorf("Port = %d, want resolver port %d", gotResult.Port, validConfig().ResolverPort)
 	}
 	if gotResult.QueryType != "CNAME" {
 		t.Errorf("QueryType = %q, want CNAME (normalized)", gotResult.QueryType)

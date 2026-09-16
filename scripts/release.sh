@@ -109,8 +109,16 @@ validate_project() {
     fail "go.mod not found in $ROOT_DIR"
   success "go.mod located"
 
-  grep -q "module bgscan" "$ROOT_DIR/go.mod" ||
-    fail "Invalid module in go.mod (expected 'bgscan')"
+  MODULE_LINE=$(grep -m1 '^module ' "$ROOT_DIR/go.mod") ||
+    fail "No module declaration found in $ROOT_DIR/go.mod"
+
+  MODULE_PATH="${MODULE_LINE#module }"
+  MODULE_PATH="${MODULE_PATH%%[[:space:]]*}"
+
+  case "$MODULE_PATH" in
+    bgscan|github.com/MohsenBg/bgscan) ;;
+    *) fail "Invalid module in go.mod (expected 'bgscan' or 'github.com/MohsenBg/bgscan', got '$MODULE_PATH')" ;;
+  esac
   success "Module name validated"
 
   info "Creating output directory: $DEST_DIR"

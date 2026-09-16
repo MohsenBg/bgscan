@@ -29,6 +29,7 @@ type StormDNSProbe struct {
 	socksService    socks.Service
 	speedtestSvc    speedtest.Service
 	timeout         time.Duration
+	tries           int
 }
 
 type Option func(*StormDNSProbe)
@@ -57,6 +58,16 @@ func WithSpeedtestService(service speedtest.Service) Option {
 	}
 }
 
+// WithTries sets how many times a failed probe is retried.
+// Values below 1 are ignored; the default is a single attempt.
+func WithTries(n int) Option {
+	return func(p *StormDNSProbe) {
+		if n >= 1 {
+			p.tries = n
+		}
+	}
+}
+
 // NewStormDNSProbe creates a StormDNS probe.
 func NewStormDNSProbe(
 	config dns.StormDNSConfig,
@@ -76,6 +87,7 @@ func NewStormDNSProbe(
 		pm:      pm,
 		config:  config,
 		timeout: timeout,
+		tries:   1,
 	}
 
 	for _, opt := range opts {
@@ -106,7 +118,8 @@ func (p *StormDNSProbe) Init(context.Context) error {
 }
 
 // Run boots the embedded StormDNS client with ip as its DNS resolver
-// and measures latency through its local SOCKS5 listener.
+// and measures latency through its local SOCKS5 listener, retrying
+// failed attempts up to the configured tries.
 func (p *StormDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -118,6 +131,25 @@ func (p *StormDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, 
 	}
 	defer p.pm.Release(localPort)
 
+	tries := p.tries
+	if tries < 1 {
+		tries = 1
+	}
+
+	for attempt := 0; attempt < tries; attempt++ {
+		var res result.Result
+		if res, err = p.runOnce(ctx, ip, localPort); err == nil {
+			return res, nil
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+	}
+
+	return nil, err
+}
+
+func (p *StormDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort uint16) (result.Result, error) {
 	// RunTunnel blocks until the tunnel session is ready.
 	handle, err := p.stormDNSService.RunTunnel(ctx, p.config, ip.String(), localPort)
 	if err != nil {

@@ -26,6 +26,7 @@ type VayDNSProbe struct {
 	socksService     socks.Service
 	speedtestService speedtest.Service
 	timeout          time.Duration
+	tries            int
 }
 
 type Option func(*VayDNSProbe)
@@ -62,6 +63,16 @@ func WithSpeedtestService(service speedtest.Service) Option {
 	}
 }
 
+// WithTries sets how many times a failed probe is retried.
+// Values below 1 are ignored; the default is a single attempt.
+func WithTries(n int) Option {
+	return func(p *VayDNSProbe) {
+		if n >= 1 {
+			p.tries = n
+		}
+	}
+}
+
 // NewVayDNSProbe creates a VayDNS probe.
 func NewVayDNSProbe(
 	config dns.VayDNSConfig,
@@ -79,6 +90,7 @@ func NewVayDNSProbe(
 	p := &VayDNSProbe{
 		cfg:     config,
 		timeout: timeout,
+		tries:   1,
 	}
 
 	for _, opt := range opts {
@@ -111,12 +123,33 @@ func (v *VayDNSProbe) Init(context.Context) error {
 	return nil
 }
 
-// Run tests VayDNS connectivity for ip.
+// Run tests VayDNS connectivity for ip, retrying failed attempts up
+// to the configured tries.
 func (v *VayDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
+	tries := v.tries
+	if tries < 1 {
+		tries = 1
+	}
+
+	var err error
+	for attempt := 0; attempt < tries; attempt++ {
+		var res result.Result
+		if res, err = v.runOnce(ctx, ip); err == nil {
+			return res, nil
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+	}
+
+	return nil, err
+}
+
+func (v *VayDNSProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	// The scanned target acts as the DNS resolver, matching the
 	// Slipstream and DNSTT probes.
 	tunnel, err := v.vaydnsService.NewTunnel(ctx, v.cfg, ip)

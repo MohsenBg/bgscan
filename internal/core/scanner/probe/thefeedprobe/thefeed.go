@@ -20,6 +20,7 @@ type TheFeedProbe struct {
 	config     dns.TheFeedConfig
 	thefeedSvc dns.TheFeedService
 	timeout    time.Duration
+	tries      int
 }
 
 type Option func(*TheFeedProbe)
@@ -28,6 +29,16 @@ func WithTheFeedService(service dns.TheFeedService) Option {
 	return func(p *TheFeedProbe) {
 		if service != nil {
 			p.thefeedSvc = service
+		}
+	}
+}
+
+// WithTries sets how many times a failed probe is retried.
+// Values below 1 are ignored; the default is a single attempt.
+func WithTries(n int) Option {
+	return func(p *TheFeedProbe) {
+		if n >= 1 {
+			p.tries = n
 		}
 	}
 }
@@ -45,6 +56,7 @@ func NewTheFeedProbe(
 	p := &TheFeedProbe{
 		config:  config,
 		timeout: timeout,
+		tries:   1,
 	}
 
 	for _, opt := range opts {
@@ -77,8 +89,32 @@ func (p *TheFeedProbe) Init(context.Context) error {
 }
 
 // Run probes ip as a thefeed DNS resolver and validates the encrypted
-// metadata response.
+// metadata response, retrying failed attempts up to the configured tries.
 func (p *TheFeedProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	tries := p.tries
+	if tries < 1 {
+		tries = 1
+	}
+
+	var err error
+	for attempt := 0; attempt < tries; attempt++ {
+		var res result.Result
+		if res, err = p.runOnce(ctx, ip); err == nil {
+			return res, nil
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+	}
+
+	return nil, err
+}
+
+func (p *TheFeedProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

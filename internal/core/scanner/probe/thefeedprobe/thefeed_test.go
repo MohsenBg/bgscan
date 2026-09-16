@@ -242,3 +242,45 @@ func TestRun_PassesConfig(t *testing.T) {
 		t.Errorf("service query mode = %q, want double", mock.runCfg.QueryMode)
 	}
 }
+
+func TestRun_RetriesUpToTries(t *testing.T) {
+	mock := &mockTheFeedService{runErr: errors.New("boom")}
+	p, err := NewTheFeedProbe(
+		validProbeConfig(),
+		time.Second,
+		WithTheFeedService(mock),
+		WithTries(3),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	ip := netip.MustParseAddr("10.0.0.1")
+	if _, err := p.Run(context.Background(), ip); err == nil {
+		t.Fatal("expected error after exhausting tries, got nil")
+	}
+	if mock.runCalls != 3 {
+		t.Fatalf("runCalls = %d, want 3", mock.runCalls)
+	}
+}
+
+func TestRun_SuccessStopsEarly(t *testing.T) {
+	mock := &mockTheFeedService{}
+	p, err := NewTheFeedProbe(
+		validProbeConfig(),
+		time.Second,
+		WithTheFeedService(mock),
+		WithTries(3),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	ip := netip.MustParseAddr("10.0.0.1")
+	if _, err := p.Run(context.Background(), ip); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mock.runCalls != 1 {
+		t.Fatalf("runCalls = %d, want 1", mock.runCalls)
+	}
+}

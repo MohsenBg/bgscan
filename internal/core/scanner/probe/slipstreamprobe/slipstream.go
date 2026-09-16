@@ -30,6 +30,7 @@ type SlipstreamProbe struct {
 	socksService   socks.Service
 	speedtestSvc   speedtest.Service
 	timeout        time.Duration
+	tries          int
 }
 
 type Option func(*SlipstreamProbe)
@@ -74,6 +75,16 @@ func WithProcessTracker(tracker process.ProcessTracker) Option {
 	}
 }
 
+// WithTries sets how many times a failed probe is retried.
+// Values below 1 are ignored; the default is a single attempt.
+func WithTries(n int) Option {
+	return func(p *SlipstreamProbe) {
+		if n >= 1 {
+			p.tries = n
+		}
+	}
+}
+
 // NewSlipstreamProbe creates a Slipstream tunnel probe.
 func NewSlipstreamProbe(
 	config dns.SlipstreamConfig,
@@ -98,6 +109,7 @@ func NewSlipstreamProbe(
 		config:         config,
 		processTracker: process.NewProcessTracker(),
 		timeout:        timeout,
+		tries:          1,
 	}
 
 	for _, opt := range opts {
@@ -136,7 +148,8 @@ func (s *SlipstreamProbe) Init(ctx context.Context) error {
 }
 
 // Run opens a Slipstream tunnel to ip (via the external slipstream binary)
-// and verifies connectivity through its local proxy listener.
+// and verifies connectivity through its local proxy listener, retrying
+// failed attempts up to the configured tries.
 func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -149,6 +162,25 @@ func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result
 	}
 	defer s.pm.Release(localPort)
 
+	tries := s.tries
+	if tries < 1 {
+		tries = 1
+	}
+
+	for attempt := 0; attempt < tries; attempt++ {
+		var res result.Result
+		if res, err = s.runOnce(ctx, ip, localPort); err == nil {
+			return res, nil
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+	}
+
+	return nil, err
+}
+
+func (s *SlipstreamProbe) runOnce(ctx context.Context, ip netip.Addr, localPort uint16) (result.Result, error) {
 	// Determine resolver IP from the target IP.
 	resolverIP := ip.String()
 

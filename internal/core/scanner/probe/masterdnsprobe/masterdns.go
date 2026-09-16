@@ -28,6 +28,7 @@ type MasterDNSProbe struct {
 	socksService     socks.Service
 	speedtestService speedtest.Service
 	timeout          time.Duration
+	tries            int
 }
 
 type Option func(*MasterDNSProbe)
@@ -56,6 +57,16 @@ func WithSpeedtestService(service speedtest.Service) Option {
 	}
 }
 
+// WithTries sets how many times a failed probe is retried.
+// Values below 1 are ignored; the default is a single attempt.
+func WithTries(n int) Option {
+	return func(p *MasterDNSProbe) {
+		if n >= 1 {
+			p.tries = n
+		}
+	}
+}
+
 // NewMasterDNSProbe creates a MasterDNS probe.
 func NewMasterDNSProbe(
 	config dns.MasterDNSConfig,
@@ -75,6 +86,7 @@ func NewMasterDNSProbe(
 		pm:      pm,
 		config:  config,
 		timeout: timeout,
+		tries:   1,
 	}
 
 	for _, opt := range opts {
@@ -105,7 +117,8 @@ func (p *MasterDNSProbe) Init(context.Context) error {
 }
 
 // Run boots the embedded MasterDNS client with ip as its DNS resolver
-// and measures latency through its local SOCKS5 listener.
+// and measures latency through its local SOCKS5 listener, retrying
+// failed attempts up to the configured tries.
 func (p *MasterDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -117,6 +130,25 @@ func (p *MasterDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result,
 	}
 	defer p.pm.Release(localPort)
 
+	tries := p.tries
+	if tries < 1 {
+		tries = 1
+	}
+
+	for attempt := 0; attempt < tries; attempt++ {
+		var res result.Result
+		if res, err = p.runOnce(ctx, ip, localPort); err == nil {
+			return res, nil
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+	}
+
+	return nil, err
+}
+
+func (p *MasterDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort uint16) (result.Result, error) {
 	// RunTunnel blocks until the tunnel session is ready.
 	handle, err := p.masterDNSService.RunTunnel(ctx, p.config, ip.String(), localPort)
 	if err != nil {

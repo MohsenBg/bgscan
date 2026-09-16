@@ -26,6 +26,7 @@ type DNSTTProbe struct {
 	socksService     socks.Service
 	speedtestService speedtest.Service
 	timeout          time.Duration
+	tries            int
 }
 
 type Option func(*DNSTTProbe)
@@ -62,6 +63,16 @@ func WithSpeedtestService(service speedtest.Service) Option {
 	}
 }
 
+// WithTries sets how many times a failed probe is retried.
+// Values below 1 are ignored; the default is a single attempt.
+func WithTries(n int) Option {
+	return func(p *DNSTTProbe) {
+		if n >= 1 {
+			p.tries = n
+		}
+	}
+}
+
 // NewDNSTTProbe creates a DNSTT probe.
 func NewDNSTTProbe(
 	config dns.DNSTTConfig,
@@ -79,6 +90,7 @@ func NewDNSTTProbe(
 	p := &DNSTTProbe{
 		cfg:     config,
 		timeout: timeout,
+		tries:   1,
 	}
 
 	for _, opt := range opts {
@@ -111,12 +123,33 @@ func (d *DNSTTProbe) Init(context.Context) error {
 	return nil
 }
 
-// Run tests DNSTT connectivity for ip.
+// Run tests DNSTT connectivity for ip, retrying failed attempts up
+// to the configured tries.
 func (d *DNSTTProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
+	tries := d.tries
+	if tries < 1 {
+		tries = 1
+	}
+
+	var err error
+	for attempt := 0; attempt < tries; attempt++ {
+		var res result.Result
+		if res, err = d.runOnce(ctx, ip); err == nil {
+			return res, nil
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+	}
+
+	return nil, err
+}
+
+func (d *DNSTTProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	cfg := d.cfg
 	tunnel, err := d.dnsttService.NewTunnel(ctx, cfg, ip)
 	if err != nil {

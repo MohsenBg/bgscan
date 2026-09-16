@@ -263,6 +263,7 @@ func (s *scanner) BuildDNSTTStage(
 	prb, err := dnsttprobe.NewDNSTTProbe(
 		dnsttCfg,
 		tunCfg.Timeout.Duration(),
+		dnsttprobe.WithTries(tunCfg.Tries),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create DNSTT probe: %w", err)
@@ -364,6 +365,7 @@ func (s *scanner) BuildSlipStreamStage(
 		tunCfg.Timeout.Duration(),
 		s.pm,
 		slipstreamprobe.WithSlipstreamService(s.slipstreamService),
+		slipstreamprobe.WithTries(tunCfg.Tries),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create Slipstream probe: %w", err)
@@ -424,6 +426,7 @@ func (s *scanner) BuildVayDNSStage(
 		vaydnsCfg,
 		tunCfg.Timeout.Duration(),
 		vaydnsprobe.WithVayDNSService(s.vaydnsService),
+		vaydnsprobe.WithTries(tunCfg.Tries),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create VayDNS probe: %w", err)
@@ -485,6 +488,7 @@ func (s *scanner) BuildMasterDNSStage(
 		tunCfg.Timeout.Duration(),
 		s.pm,
 		masterdnsprobe.WithMasterDNSService(s.masterDNSService),
+		masterdnsprobe.WithTries(tunCfg.Tries),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create MasterDNS probe: %w", err)
@@ -546,6 +550,7 @@ func (s *scanner) BuildStormDNSStage(
 		tunCfg.Timeout.Duration(),
 		s.pm,
 		stormdnsprobe.WithStormDNSService(s.stormDNSService),
+		stormdnsprobe.WithTries(tunCfg.Tries),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create StormDNS probe: %w", err)
@@ -606,6 +611,7 @@ func (s *scanner) BuildTheFeedStage(
 		thefeedCfg,
 		tunCfg.Timeout.Duration(),
 		thefeedprobe.WithTheFeedService(s.thefeedService),
+		thefeedprobe.WithTries(tunCfg.Tries),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create TheFeed probe: %w", err)

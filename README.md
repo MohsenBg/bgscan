@@ -13,7 +13,7 @@ Blazing-fast multi-protocol IP scanner with modular chain architecture
 ---
 
 [![Go Version](https://img.shields.io/badge/Go-1.27+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/)
-[![License](https://img.shields.io/badge/License-MIT-6366f1?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPL--3.0-6366f1?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20|%20Windows%20|%20macOS%20|%20Termux-64748b?style=flat-square)](https://github.com/MohsenBg/bgscan/releases)
 [![UI](https://img.shields.io/badge/UI-BubbleTea%20TUI-ec4899?style=flat-square)](https://github.com/charmbracelet/bubbletea)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-22c55e?style=flat-square)](https://github.com/MohsenBg/bgscan/releases/latest)
@@ -304,7 +304,7 @@ By submitting a contribution to bgscan, you grant permission for your contributi
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2026 Mohsen Bagheri
+[GPL-3.0](LICENSE) — Copyright (c) 2026 Mohsen Bagheri
 
 ---
 
@@ -323,6 +323,6 @@ If bgscan has been useful to you, consider supporting its development:
 
 <div align="center">
 
-Built with Go · MIT License
+Built with Go · GPL-3.0 License
 
 </div>

@@ -426,7 +426,7 @@ body.dark .lp,
   <div class="stat-item"><span class="stat-num">۱۱</span><span class="stat-label">پروتکل‌ها</span></div>
   <div class="stat-item"><span class="stat-num">100%</span><span class="stat-label">Go</span></div>
   <div class="stat-item"><span class="stat-num">۴</span><span class="stat-label">پلتفرم‌ها</span></div>
-  <div class="stat-item"><span class="stat-num">MIT</span><span class="stat-label">مجوز</span></div>
+  <div class="stat-item"><span class="stat-num">GPL-3.0</span><span class="stat-label">مجوز</span></div>
 </div>
 
 <!-- FEATURES -->

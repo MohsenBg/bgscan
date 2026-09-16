@@ -431,7 +431,7 @@ body.dark .lp,
   <div class="stat-item"><span class="stat-num">11</span><span class="stat-label">Protocols</span></div>
   <div class="stat-item"><span class="stat-num">100%</span><span class="stat-label">Go</span></div>
   <div class="stat-item"><span class="stat-num">4</span><span class="stat-label">Platforms</span></div>
-  <div class="stat-item"><span class="stat-num">MIT</span><span class="stat-label">License</span></div>
+  <div class="stat-item"><span class="stat-num">GPL-3.0</span><span class="stat-label">License</span></div>
 </div>
 
 <!-- FEATURES -->

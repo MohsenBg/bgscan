@@ -1,6 +1,6 @@
 ---
 title: تنظیمات
-weight: 3
+weight: 4
 bookFlatSection: true
 bookCollapseSection: true
 ---

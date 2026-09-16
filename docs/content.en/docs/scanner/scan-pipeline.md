@@ -64,7 +64,7 @@ Only targets a stage accepts are forwarded. What counts as accepted is the probe
 - TCP: the handshake completed on the configured port
 - HTTP: a response arrived and its status code is in `accepted_status_codes`
 - DNS resolver: the response code is in `accepted_rcodes`, and the DPI check passed when enabled
-- DNSTT, VayDNS, and Slipstream: the tunnel came up and validated through the local SOCKS5 port
+- DNSTT, VayDNS, Slipstream, and TheFeed: the tunnel came up and validated (DNSTT, VayDNS, and Slipstream validate through the local SOCKS5 port)
 - Xray: the proxy connected, and any enabled speed test met its minimum
 
 Each stage writes its own result file regardless of what happens downstream, so intermediate output is always available for a later re-scan.

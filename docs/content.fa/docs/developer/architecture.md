@@ -5,7 +5,7 @@ weight: 2
 
 # معماری پروژه
 
-bgscan چند لایهٔ مشخص دارد. `main` اول Theme را راه می‌اندازد و TUI را بالا می‌آورد؛ همین. TUI سه مرحله دارد: Splash، Startup و Workspace. مرحلهٔ Startup لاگرها را آماده می‌کند، Schemaهای نتیجه را ثبت می‌کند، تنظیمات را می‌خواند و باینری‌های لازم را بررسی می‌کند. بعد Workspace اسکنر را می‌سازد و اسکنر با چند Stage، Probe و Writer کار می‌کند.
+bgscan چند لایهٔ مشخص دارد. `main` اول Theme را راه می‌اندازد و TUI را بالا می‌آورد؛ همین. TUI سه مرحله دارد: Splash، Startup و Workspace. مرحلهٔ Startup لاگرها را آماده می‌کند، Schemaهای نتیجه را ثبت می‌کند، تنظیمات را می‌خواند و باینری جانبی Slipstream را بررسی می‌کند. بعد Workspace اسکنر را می‌سازد و اسکنر با چند Stage، Probe و Writer کار می‌کند.
 
 ## مسیرهای مهم
 
@@ -18,8 +18,8 @@ bgscan چند لایهٔ مشخص دارد. `main` اول Theme را راه می
 | `internal/core/scanner/probe` | قرارداد Probe و پیاده‌سازی هر پروتکل |
 | `internal/core/result` | Schema، Writer، خواندن و ادغام CSV |
 | `internal/ui` | TUI، منوها، جدول‌ها، Dialogها و Theme |
-| `internal/ui/main/startup` | بررسی تنظیمات و باینری‌های لازم هنگام شروع، داخل TUI |
-| `assets` | Xray، باینری Slipstream و فایل‌های Config تونل DNS |
+| `internal/ui/main/startup` | بررسی تنظیمات و باینری جانبی Slipstream هنگام شروع، داخل TUI |
+| `assets` | Configها و داده‌های Xray، باینری Slipstream و فایل‌های Config تونل DNS |
 | `ips` | فهرست‌های آمادهٔ IP |
 | `settings` | فایل‌های TOML در حال استفاده |
 
@@ -31,9 +31,9 @@ main
  └─ TUI (BubbleTea)
      ├─ Splash                  انیمیشن لوگو و نسخه
      ├─ Startup                 بررسی‌های اولیه، داخل TUI
-     │   ├─ لاگرها + core.Init()   ثبت Schemaهای نتیجه
-     │   ├─ Store.Load()        تنظیمات را می‌خواند و Validate می‌کند
-     │   └─ باینری‌ها            Xray، Slipstream و Configهای تونل
+      │   ├─ لاگرها + core.Init()   ثبت Schemaهای نتیجه
+      │   ├─ Store.Load()        تنظیمات را می‌خواند و Validate می‌کند
+      │   └─ بررسی‌ها            نسخهٔ هستهٔ داخلی Xray، باینری Slipstream و Configهای تونل
      └─ Workspace
          └─ Run Scan
              ├─ Scanner و Stageها
@@ -52,4 +52,4 @@ Config خراب خودش را ترمیم می‌کند. `NormalizeAll` مقدا�
 
 هر نوع نتیجه Schema خودش را دارد: پوشهٔ خروجی، ستون‌های CSV و Parser. وقتی Schema در `core.Init()` ثبت شد، Writer و جدول نتیجه بدون تغییر اضافه آن را می‌شناسند.
 
-موتور اسکن کاری به نوع پروتکل ندارد؛ IPها و نتیجه‌ها را بین Stageها جابه‌جا می‌کند. Xray، DNSTT و Slipstream هم اختیاری‌اند؛ نبودشان فقط همان اسکن را غیرفعال می‌کند.
+موتور اسکن کاری به نوع پروتکل ندارد؛ IPها و نتیجه‌ها را بین Stageها جابه‌جا می‌کند. Xray باینری نمی‌خواهد و داخل خود برنامه اجرا می‌شود. تنها باینری خارجی Slipstream است؛ نبودش فقط همان اسکن را غیرفعال می‌کند.

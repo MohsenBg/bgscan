@@ -11,7 +11,7 @@ weight: 8
 
 Configuration file: `settings/dns_settings.toml`
 
-This file has two sections. The **resolver** section controls plain DNS resolver testing. The **dns_tunneling** section controls how DNS tunnel scans are orchestrated — tunnel protocol-specific settings (DNSTT, VayDNS, Slipstream) are stored in separate config files under `assets/dns-tunneling/`.
+This file has two sections. The **resolver** section controls plain DNS resolver testing. The **dns_tunneling** section controls how DNS tunnel scans are orchestrated — tunnel protocol-specific settings (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed) are stored in separate config files under `assets/dns-tunneling/`.
 
 ## Quick Reference
 
@@ -225,11 +225,11 @@ When `false`, the resolver pre-scan uses the settings from the `[resolver]` sect
 output_prefix = "dns_tun_"
 ```
 
-Filename prefix for tunnel result files. Files land in `result/dnstt/`, `result/vaydns/`, or `result/slipstream/` depending on the protocol.
+Filename prefix for tunnel result files. Files land in `result/dnstt/`, `result/vaydns/`, `result/slipstream/`, or `result/thefeed/` depending on the protocol.
 
 ## Tunnel Configurations
 
-DNS tunnel protocols (DNSTT, VayDNS, Slipstream) are configured through separate TOML files stored under `assets/dns-tunneling/`:
+DNS tunnel protocols (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed) are configured through separate TOML files stored under `assets/dns-tunneling/`:
 
 ```
 assets/dns-tunneling/
@@ -239,8 +239,17 @@ assets/dns-tunneling/
 ├── vaydns/
 │   ├── my-vaydns-config.toml
 │   └── ...
-└── slipstream/
-    ├── my-slipstream-config.toml
+├── slipstream/
+│   ├── my-slipstream-config.toml
+│   └── ...
+├── masterdns/
+│   ├── my-masterdns-config.toml
+│   └── ...
+├── stormdns/
+│   ├── my-stormdns-config.toml
+│   └── ...
+└── thefeed/
+    ├── my-thefeed-config.toml
     └── ...
 ```
 

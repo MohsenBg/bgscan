@@ -1,6 +1,6 @@
 ---
 title: "لاگ‌ها"
-weight: 4
+weight: 5
 ---
 
 # لاگ‌ها (Logs)

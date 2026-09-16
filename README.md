@@ -24,7 +24,7 @@ Blazing-fast multi-protocol IP scanner with modular chain architecture
 
 ## Overview
 
-**bgscan** is a terminal-based, multi-protocol network scanner written in Go. It probes IP addresses across ICMP, TCP, HTTP, DNS, Xray, and DNS tunneling (DNSTT, VayDNS, Slipstream), and chains scan stages into pipelines, all through a keyboard-driven TUI.
+**bgscan** is a terminal-based, multi-protocol network scanner written in Go. It probes IP addresses across ICMP, TCP, HTTP, DNS, Xray, and DNS tunneling (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed), and chains scan stages into pipelines, all through a keyboard-driven TUI.
 
 Use it for host discovery, web service testing, DNS resolver analysis, tunneling detection, and Xray proxy validation. Results land on disk and can feed the next scan, so you can run a broad ICMP sweep, then drill into survivors with TCP or HTTP.
 
@@ -38,7 +38,7 @@ It is built for developers and researchers who want speed and a modern terminal 
 
 **Scanning engine**
 
-- Multi-protocol probes: ICMP, TCP, HTTP/1.1, HTTP/2, HTTP/3 (QUIC), DNS, DNSTT, VayDNS, Slipstream, and Xray
+- Multi-protocol probes: ICMP, TCP, HTTP/1.1, HTTP/2, HTTP/3 (QUIC), DNS, DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed, and Xray
 - Pipeline chaining between stages (for example ICMP → TCP → HTTP) in Streaming or Batch mode
 - Per-probe worker pools for concurrent scanning
 - Shuffle and sample: randomize target order and cap the number of IPs to scan
@@ -69,7 +69,7 @@ It is built for developers and researchers who want speed and a modern terminal 
 
 - Most scanners do one protocol well. bgscan chains them: ping a range, connect to survivors, HTTP-probe the open ports, in a single run.
 - The engine is pipeline-agnostic. It feeds IPs, collects results, and flushes to disk. Adding a new scan type means implementing a four-method `Probe` interface (Init, Run, Schema, Close) and registering a stage builder.
-- No runtime clutter. ICMP, TCP, HTTP, and DNS probes use the Go standard library. Xray and Slipstream are optional external binaries validated at startup. Missing ones log a warning and disable only their scan type. DNSTT and VayDNS tunnels run in-process through the bundled vaydns library.
+- No runtime clutter. ICMP, TCP, HTTP, and DNS probes use the Go standard library. Slipstream is the only external binary, validated at startup; when it is missing a warning is logged and only that scan type is disabled. Xray and the DNS tunnels (DNSTT, VayDNS, MasterDNS, StormDNS, TheFeed) run in-process through vendored libraries.
 - All settings live in plain TOML. The in-app inspector reads and writes the same files, so what you see in the TUI is what is on disk.
 - Built for the terminal: keyboard navigation, overlay dialogs, live progress, streaming logs. No browser, no Electron, no web server.
 
@@ -86,6 +86,9 @@ It is built for developers and researchers who want speed and a modern terminal 
 | DNSTT | 7 | DNS tunnel validation with SOCKS and SSH base connections |
 | VayDNS | 7 | DNS tunnel validation with SOCKS and SSH base connections |
 | Slipstream | 7 | DNS tunnel validation with SOCKS and SSH base connections |
+| MasterDNS | 7 | DNS tunnel validation with configurable encryption and MTU discovery |
+| StormDNS | 7 | DNS tunnel validation with configurable encryption and MTU discovery |
+| TheFeed | 7 | Encrypted DNS feed tunnel validation over UDP, TCP, or DNS-over-TLS |
 | Xray | 7 | Xray outbound validation and bandwidth speed testing |
 
 ---
@@ -112,7 +115,13 @@ Android (Termux):
 { command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
 ```
 
-The installer downloads the `bgscan-builder` tool, which resolves the latest release asset for your platform, verifies its checksum, and installs bgscan into `bgscan/`. On re-run it detects an existing install and offers to update in place, do a clean install, or back up the old installation.
+The installer downloads the `bgscan-installer` tool (a small standalone Rust binary from the separate [bgscan-installer](https://github.com/MohsenBg/bgscan-installer) project), which resolves the latest release asset for your platform, verifies its SHA-256 checksum, and installs bgscan into `bgscan/`. On re-run it detects an existing install and offers to update in place (keeps your `ips`, `assets`, and `settings`, replaces the binary and adds missing files), do a clean install, or back up the old installation to a timestamped `bgscan_<timestamp>` directory.
+
+To install a specific version instead of the latest:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh -s -- --version v2.11.0
+```
 
 ### Manual install
 
@@ -126,7 +135,7 @@ The first run creates a `settings/` directory with default TOML config and an `i
 
 ### Build from source
 
-bgscan uses a companion builder tool (`bgscan-builder`) to fetch platform-specific dependencies (Xray and Slipstream binaries, plus bundled IP lists) and build the project.
+bgscan uses a companion build tool (`bgscan-builder`) to fetch the platform-specific Slipstream sidecar binary and bundled IP lists, and to build the project. `bgscan-builder` is build-only; installing and updating releases is handled by the separate [`bgscan-installer`](https://github.com/MohsenBg/bgscan-installer) tool described above. Xray needs no binary: it runs in-process through a vendored library.
 
 ```bash
 git clone https://github.com/MohsenBg/bgscan.git
@@ -148,7 +157,7 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 go run ./cmd/bgscan/
 ```
 
-For release builds targeting a specific platform:
+For release builds targeting a specific platform (see `bgscan-builder release -h` for all flags):
 
 ```bash
 ./bgscan-builder release -os linux -arch amd64
@@ -157,7 +166,7 @@ For release builds targeting a specific platform:
 ./bgscan-builder release -os android -arch arm64 -ndk-dir /opt/android-ndk
 ```
 
-> bgscan cannot be installed via `go install` because it needs platform-specific external binaries (Xray, Slipstream). Use the builder tool or the quick install script.
+> bgscan cannot be installed via `go install` because it needs the platform-specific Slipstream sidecar binary. Use the builder tool or the quick install script.
 
 ---
 
@@ -189,7 +198,8 @@ Full documentation is available at:
 The documentation covers:
 
 - Quick Start: installation, launch, and first scan
-- Scanner: scan types, scan sources, IP lists, result files, scan pipeline, Xray outbounds, DNS tunneling
+- Scanner: scan types, scan sources, IP lists, result files, scan pipeline, Xray outbounds
+- DNS Tunneling: per-protocol configuration guides (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed), scan flow, and platform defaults
 - Settings: every TOML config file explained (general, writer, ICMP, TCP, HTTP, DNS, Xray) and the in-app inspector
 - Logs: three log streams, the log viewer, and rotation policy
 - Developer: architecture, core (engine, probes, config, results), UI (component model, layout, theming), contributing guide, and build instructions
@@ -202,13 +212,13 @@ All configuration lives in plain TOML files in the `settings/` directory next to
 
 | File | Purpose |
 | :--- | :--- |
-| `general_settings.toml` | Pipeline mode, batch size, max IPs per stage, stop-after-found, shuffle, status interval |
+| `general_settings.toml` | Pipeline mode, batch size, max IPs per stage, max successful IPs, shuffle, status interval |
 | `writer_settings.toml` | Result buffering, flush interval, channel and batch size, result directory |
 | `icmp_settings.toml` | ICMP timeout, retries, workers |
 | `tcp_settings.toml` | TCP port, timeout, retries, workers |
 | `http_settings.toml` | HTTP/HTTPS/HTTP3 version, TLS range, uTLS fingerprint, accepted status codes |
 | `dns_settings.toml` | DNS resolver tuning and DNS tunnel scan orchestration |
-| `xray_settings.toml` | Xray connectivity test type, speed test timeout, pre-scan |
+| `xray_settings.toml` | Xray connectivity test type, speed test timeout, concurrent dial limits, pre-scan |
 
 Edit files manually or use the in-app inspector. Both write to the same files, and the inspector saves changes immediately without restarting. See the [Settings documentation](https://mohsenbg.github.io/bgscan/docs/settings/) for every field.
 
@@ -224,7 +234,7 @@ Re-scan a previous result: select **Run Scan → Result List** and pick a saved 
 
 Xray outbound validation: from the main menu, open **Xray Outbounds**, press `a` to add a template from a share link (`vless://`, `vmess://`, `trojan://`, `ss://`, `hysteria2://`, `wireguard://`) or a JSON file. Then run an Xray scan to test connectivity and bandwidth.
 
-DNS tunneling: from the main menu, open **DNS Tunneling** to create DNSTT, VayDNS, or Slipstream configurations, then run the DNS Tunneling scan type to test which resolvers can carry the tunnel.
+DNS tunneling: from the main menu, open **DNS Tunneling** to create DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, or TheFeed configurations, then run the DNS Tunneling scan type to test which resolvers can carry the tunnel.
 
 ---
 
@@ -252,19 +262,19 @@ bgscan/
 │   │   │   └── validate/   # Per-section and aggregate validators
 │   │   ├── scanner/         # Scanner orchestrator and stage builders
 │   │   │   ├── engine/      # Streaming and batch pipeline execution
-│   │   │   ├── portmgr/     # Local port leasing for probes that spawn clients
+│   │   │   ├── portmgr/     # Local port leasing for tunnel and Xray probes
 │   │   │   └── probe/        # Probe interface and per-protocol implementations
 │   │   ├── result/          # Result interface, schema, async writer, CSV merge, loader
 │   │   ├── iplist/           # IP list loader, parser, registry, shuffle
 │   │   ├── netutil/          # netip.Addr helpers and CIDR utilities (IPv4/IPv6)
-│   │   ├── dns/              # DNS queries, DNSTT/VayDNS/Slipstream config services, SOCKS5, SSH
+│   │   ├── dns/              # DNS queries, tunnel config services (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed), SOCKS5, SSH
 │   │   ├── speedtest/        # Xray bandwidth, latency, and transport tests
-│   │   ├── xray/             # Xray runner, outbound/link parsing
-│   │   ├── process/          # Cross-platform process lifecycle
+│   │   ├── xray/             # In-process Xray service (vendored core), outbound/link parsing
+│   │   ├── process/          # Cross-platform process lifecycle (Slipstream sidecar)
 │   │   └── fileutil/         # CSV, JSON, TOML, text, temp-file helpers
 │   ├── logger/              # Leveled logging with lumberjack rotation
 │   └── ui/                  # BubbleTea TUI (splash, startup, workspace, components, theme)
-├── assets/                  # Xray, Slipstream binaries, DNS tunnel configs + outbound templates
+├── assets/                  # Slipstream sidecar binary, Xray configs and data, DNS tunnel configs + outbound templates
 ├── ips/                     # Bundled and imported IP lists (CSV)
 ├── settings/                # Default TOML configuration files
 ├── result/                  # Scan output (CSV, per scan type)

@@ -402,7 +402,7 @@ body.dark .lp,
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-badge">v2.10.0 · حالا در دسترس است</div>
+  <div class="hero-badge">v2.11.0 · حالا در دسترس است</div>
   <h1>همه‌چیز را اسکن کن.<br>با بیشترین سرعت.</h1>
   <p>bgscan یک اسکنر سریع شبکه است که با Go ساخته شده و چند پروتکل را در یک موتور زنجیره‌ای و یک رابط سادهٔ ترمینالی کنار هم می‌آورد.</p>
   <div class="hero-actions">
@@ -423,7 +423,7 @@ body.dark .lp,
 
 <!-- STATS -->
 <div class="stats reveal">
-  <div class="stat-item"><span class="stat-num">۸</span><span class="stat-label">پروتکل‌ها</span></div>
+  <div class="stat-item"><span class="stat-num">۱۱</span><span class="stat-label">پروتکل‌ها</span></div>
   <div class="stat-item"><span class="stat-num">100%</span><span class="stat-label">Go</span></div>
   <div class="stat-item"><span class="stat-num">۴</span><span class="stat-label">پلتفرم‌ها</span></div>
   <div class="stat-item"><span class="stat-num">MIT</span><span class="stat-label">مجوز</span></div>
@@ -439,14 +439,14 @@ body.dark .lp,
   <div class="feature"><div class="fi">🔗</div><h3>موتور زنجیره‌ای</h3><p>مراحل اسکن را با حالت‌های Stream، Sequential یا Batch به هم وصل کنید.</p></div>
   <div class="feature"><div class="fi">🖥️</div><h3>رابط ترمینالی ساده</h3><p>با رابط Bubble Tea اسکن کنید، وضعیت را ببینید و نتیجه‌ها را همان لحظه بررسی کنید؛ بدون مرورگر.</p></div>
   <div class="feature"><div class="fi">💾</div><h3>ذخیره و اجرای دوباره</h3><p>نتیجه‌ها را ذخیره کنید و بعداً اسکن‌های جدید را روی همان داده‌ها اجرا کنید. مدیریت Outboundهای Xray هم داخل برنامه هست.</p></div>
-  <div class="feature"><div class="fi">🌐</div><h3>DNS پیشرفته</h3><p>اسکن ریزالورهای DNS همراه با بررسی ضد هجکینگ و سه پروتکل تونل: DNSTT، VayDNS و Slipstream.</p></div>
+  <div class="feature"><div class="fi">🌐</div><h3>DNS پیشرفته</h3><p>اسکن ریزالورهای DNS همراه با بررسی ضد هجکینگ و شش پروتکل تونل: DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed.</p></div>
   <div class="feature"><div class="fi">🛰️</div><h3>اتصال به Xray</h3><p>Outboundهای Xray را مستقیم داخل اسکنر ذخیره کنید، مدیریت کنید و اتصالشان را بررسی کنید.</p></div>
 </div>
 
 <!-- PROTOCOLS -->
 <div class="proto-section">
   <div class="stitle reveal">
-    <h2>۸ پروتکل، یک ابزار</h2>
+    <h2>۱۱ پروتکل، یک ابزار</h2>
     <p>از لایهٔ ۳ تا لایهٔ ۷؛ پروتکل‌هایی که برای بررسی دقیق شبکه لازم دارید.</p>
   </div>
   <div class="proto-grid reveal">
@@ -457,6 +457,9 @@ body.dark .lp,
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNSTT</p><p class="pdesc">اعتبارسنجی با SOCKS و SSH</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">VayDNS</p><p class="pdesc">اعتبارسنجی با SOCKS و SSH</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Slipstream</p><p class="pdesc">اعتبارسنجی با SOCKS و SSH</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">MasterDNS</p><p class="pdesc">اعتبارسنجی تونل رمزنگاری‌شده</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">StormDNS</p><p class="pdesc">اعتبارسنجی تونل رمزنگاری‌شده</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">TheFeed</p><p class="pdesc">اعتبارسنجی فید رمزنگاری‌شده</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Xray</p><p class="pdesc">تست Outboundها</p></div></div>
   </div>
 </div>

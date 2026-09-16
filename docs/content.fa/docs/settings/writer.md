@@ -54,7 +54,7 @@ batch_size = 4096
 result_directory = "result"
 ```
 
-پوشهٔ پایهٔ نتیجه‌ها، نسبت به باینری bgscan است. برای هر Schema یک زیرپوشه ساخته می‌شود: `result/icmp/`، `result/tcp/`، `result/http/`، `result/xray/`، `result/dns_resolver/`، `result/dnstt/`، `result/vaydns/` و `result/slipstream/`.
+پوشهٔ پایهٔ نتیجه‌ها، نسبت به باینری bgscan است. برای هر Schema یک زیرپوشه ساخته می‌شود: `result/icmp/`، `result/tcp/`، `result/http/`، `result/xray/`، `result/dns_resolver/`، `result/dnstt/`، `result/vaydns/`، `result/slipstream/`، `result/masterdns/`، `result/stormdns/` و `result/thefeed/`.
 
 این مقدار باید فقط نام پوشه باشد، نه یک مسیر.
 

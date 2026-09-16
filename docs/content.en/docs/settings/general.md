@@ -18,7 +18,7 @@ Global scan limits, probe rate limiting, pipeline execution mode, and buffer siz
 | Setting | Default | Description |
 | --------- | --------- | ------------- |
 | `status_interval` | `1000` | Progress update interval in milliseconds |
-| `stop_after_found` | `0` | Reserved; not enforced by the current engine |
+| `max_successful_ips` | `0` | Stop after N successful results (0 = scan all) |
 | `max_ips_to_test` | `0` | Cap on IPs read from the input source |
 | `pipeline_mode` | `"streaming"` | Execution mode for multi-stage scans |
 | `max_ips_per_stage` | platform-dependent | Channel buffer size between streaming stages |
@@ -36,13 +36,13 @@ status_interval = 1000
 
 How often each stage emits a progress snapshot to the UI, in milliseconds. Valid range is 100 ms to 60 s. Lower values give smoother feedback and cost more CPU on very large scans.
 
-## Stop After Found
+## Max Successful IPs
 
 ```toml
-stop_after_found = 0
+max_successful_ips = 0
 ```
 
-Intended to halt a scan after N successful results. The field is loaded, validated, and editable in the inspector, but the scan engine does not act on it yet. Leave it at `0`.
+Halt a scan after N successful results. The scan engine stops once this limit is reached. `0` scans all targets.
 
 ## Max IPs to Test
 

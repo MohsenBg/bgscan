@@ -30,7 +30,7 @@ git checkout -b feature/my-change
 
 ## وابستگی‌ها را آماده کنید
 
-bgscan برای گرفتن وابستگی‌های مخصوص هر سیستم، از `bgscan-builder` استفاده می‌کند.
+bgscan برای گرفتن باینری Slipstream مخصوص هر سیستم و فهرست‌های IP پیش‌فرض، از `bgscan-builder` استفاده می‌کند. (خود Xray باینری نمی‌خواهد و با کتابخانهٔ داخلی xray-core داخل برنامه اجرا می‌شود.)
 
 **Linux / macOS**
 
@@ -44,7 +44,7 @@ bgscan برای گرفتن وابستگی‌های مخصوص هر سیستم، 
 ./scripts/install-deps.ps1
 ```
 
-این اسکریپت `bgscan-builder` را به ریشهٔ پروژه می‌آورد و با `setup-dev` وابستگی مناسب OS و معماری فعلی را دانلود می‌کند.
+این اسکریپت `bgscan-builder` را به ریشهٔ پروژه می‌آورد و با `setup-dev` باینری Slipstream مناسب OS و معماری فعلی را دانلود می‌کند.
 
 ## اجرا
 
@@ -77,14 +77,21 @@ bgscan-builder release -os all -arch all -dest ./dist
 
 برای Android باید مسیر NDK را با `-ndk-dir` بدهید.
 
+## ابزار bgscan-builder
+
+یک ابزار کوچک Go فقط برای ساخت پروژه است و دو ساب‌کامند دارد:
+
+- **setup-dev** — باینری Slipstream مناسب همین سیستم را دانلود می‌کند تا `go run ./cmd/bgscan/` کار کند.
+- **release** — باینری Slipstream را کنار Build می‌گذارد و خروجی Release را برای OS و معماری هدف می‌سازد.
+
+نصب و به‌روزرسانی نسخه‌های منتشرشده کار builder نیست؛ آن را ابزار جداگانهٔ [bgscan-installer](https://github.com/MohsenBg/bgscan-installer) انجام می‌دهد.
+
 | Flag | کار |
 | --- | --- |
 | `-arch` | معماری هدف: `amd64`، `arm64`، `arm32`، `amd32` یا `all` |
 | `-dest` | پوشهٔ خروجی؛ پیش‌فرض `./dist` |
-| `-dir` | پوشهٔ نصب bgscan برای install و update؛ پیش‌فرض `bgscan` |
 | `-ndk-dir` | مسیر Android NDK |
 | `-os` | OS هدف: `linux`، `windows`، `macos`، `android` یا `all` |
-| `-project-dir` | مسیر پروژه برای setup-dev |
+| `-project-dir` | مسیر پروژه برای setup-dev و release |
 | `-verbose` | نمایش مرحله‌به‌مرحلهٔ کارها |
-| `-version` | تگ Release برای install و update؛ در release نسخهٔ داخل باینری |
-| `-xray-version` | نسخهٔ Xray؛ پیش‌فرض `v26.3.27` |
+| `-version` | نسخه‌ای که داخل باینری Release نوشته می‌شود |

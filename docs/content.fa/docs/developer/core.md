@@ -18,16 +18,16 @@ weight: 3
 | `scanner` | اینترفیس `Scanner`، ساخت Stageها و سرهم‌بندی Pipeline |
 | `scanner/engine` | اجرا: اسکن تکی، زنجیره‌ای ترتیبی، Pipeline استریمینگ و Pipeline دسته‌ای (batch) |
 | `scanner/probe` | اینترفیس `Probe` و یک زیرپکیج به ازای هر Probe |
-| `scanner/portmgr` | استخر پورت‌های محلی موقت برای Probeهایی که کلاینت تانل اجرا می‌کنند |
+| `scanner/portmgr` | استخر پورت‌های محلی موقت برای پروب‌های تونل و Xray |
 | `result` | `Writer`، ادغام فایل‌های CSV، ثبت Schema، بارگذاری و شمارنده‌ها |
 | `iplist` | ورود CSV لیست IPها، پارس کردن، ثبت، Shuffle و الاستریم |
-| `dns` | توابع کمکی کوئری DNS، پارس Transport، سرویس‌های Config مربوط به DNSTT/VayDNS/Slipstream و مدیریت تونل |
+| `dns` | توابع کمکی کوئری DNS، پارس Transport، سرویس‌های Config تونل (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed) و مدیریت تونل |
 | `socks` | کلاینت SOCKS5 برای اعتبارسنجی تونل |
 | `ssh` | کلاینت SSH برای اتصال‌های تونل‌شده از طریق Proxyهای SSH |
-| `xray` | اجراکننده Xray، کانفیگ Inbound/Outbound، پارس لینک و تست سرعت |
+| `xray` | سرویس Xray داخل برنامه (کتابخانهٔ داخلی)، کانفیگ Inbound/Outbound، پارس لینک و تست سرعت |
 | `speedtest` | سنجش Latency، دانلود و آپلود برای استفاده در Probe مربوط به Xray |
 | `netutil` | نرمال‌سازی Host، پارس نسخه TLS و استخراج SNI برای Probeهای HTTP |
-| `process` | اجرای Cross-platform و کشتن Processها |
+| `process` | مدیریت Process جانبی Slipstream در چند پلتفرم |
 | `fileutil` | توابع کمکی CSV، JSON، TOML، متن، فایل موقت و Path |
 
 ## Scanner
@@ -56,10 +56,13 @@ type Scanner interface {
     BuildDNSTTStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
     BuildSlipStreamStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
     BuildVayDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildMasterDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildStormDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildTheFeedStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 }
 ```
 
-متدهای `BuildXrayStage`، `BuildDNSTTStage`، `BuildSlipStreamStage` و `BuildVayDNSStage` نام Config را می‌گیرند و یک اسلایس Stage برمی‌گردانند (مرحلهٔ پیش‌اسکن Resolver اختیاری به‌علاوهٔ مرحلهٔ اصلی). بقیه Builderها فقط یک Stage برمی‌گردانند. همهٔ Builderها آرگومان‌های variadic اختیاری `ScanHooks` می‌پذیرند.
+متدهای `BuildXrayStage`، `BuildDNSTTStage`، `BuildSlipStreamStage`، `BuildVayDNSStage`، `BuildMasterDNSStage`، `BuildStormDNSStage` و `BuildTheFeedStage` نام Config را می‌گیرند و یک اسلایس Stage برمی‌گردانند (مرحلهٔ پیش‌اسکن Resolver اختیاری به‌علاوهٔ مرحلهٔ اصلی). بقیه Builderها فقط یک Stage برمی‌گردانند. همهٔ Builderها آرگومان‌های variadic اختیاری `ScanHooks` می‌پذیرند.
 
 ساختار یک Stage:
 
@@ -194,12 +197,15 @@ type Probe interface {
 | `httpprobe` | HTTP/1.1 و HTTP/2 روی ALPN | `NewHTTPProbe(req, acceptedCodes)` |
 | `httpprobe` | HTTP/3 روی QUIC | `NewHTTP3Probe(req, acceptedCodes)` |
 | `resolveprobe` | ریزالور DNS همراه با بررسی DPI | `NewResolverProbe(*DNSRequest)` |
-| `dnsttprobe` | اعتبارسنجی تانل DNSTT | `NewDNSTTProbe(config, portMgr)` |
-| `vaydnsprobe` | اعتبارسنجی تانل VayDNS | `NewVayDNSProbe(config, portMgr)` |
-| `slipstreamprobe` | اعتبارسنجی تانل SlipStream | `NewSlipstreamProbe(workers, config, portMgr)` |
+| `dnsttprobe` | اعتبارسنجی تانل DNSTT | `NewDNSTTProbe(config, timeout, ...)` |
+| `vaydnsprobe` | اعتبارسنجی تانل VayDNS | `NewVayDNSProbe(config, timeout, ...)` |
+| `slipstreamprobe` | اعتبارسنجی تانل SlipStream | `NewSlipstreamProbe(config, timeout, portMgr, ...)` |
+| `masterdnsprobe` | اعتبارسنجی تانل MasterDNS | `NewMasterDNSProbe(config, timeout, portMgr, ...)` |
+| `stormdnsprobe` | اعتبارسنجی تانل StormDNS | `NewStormDNSProbe(config, timeout, portMgr, ...)` |
+| `thefeedprobe` | اعتبارسنجی تانل TheFeed | `NewTheFeedProbe(config, timeout, ...)` |
 | `xrayprobe` | اتصال و پهنای باند Xray | `NewXrayProbe(cfg, template, portMgr)` |
 
-Probeهایی که فایل اجرایی کلاینت را اجرا می‌کنند یک `portmgr.Manager` می‌گیرند و به ازای هر Probe یک پورت محلی اجاره می‌کنند تا Workerهای هم‌روند با هم تداخل پیدا نکنند.
+فقط پروب Slipstream یک پروسهٔ خارجی اجرا می‌کند. پروب‌های تونل و Xray یک `portmgr.Manager` می‌گیرند و به ازای هر Probe یک پورت محلی اجاره می‌کنند تا Workerهای هم‌روند با هم تداخل پیدا نکنند.
 
 ## سیستم نتیجه‌ها (Result System)
 
@@ -322,24 +328,23 @@ type AppState struct {
 ## زیرسیستم DNS
 
 - فایل `query.go` کوئری‌ها را ساخته و روی UDP، TCP و DoT ارسال می‌کند.
-- فایل `type.go` انواع Transport، Rcodeها و نوع پروتکل‌ها را پارس می‌کند. حالت DoH با موفقیت پارس می‌شود اما به DoT تبدیل می‌گردد زیرا اسکنر ریزالورها را با IP هدف قرار می‌دهد.
-- فایل‌های `dnstt.go`، `vaydns.go` و `slipstream.go` ساختارهای Config، اینترفیس‌های سرویس (`DNSTTService`، `VayDNSService` و `SlipstreamService`) و مدیریت فایل‌های Config تونل زیر `assets/dns-tunneling/` را تعریف می‌کنند.
-- فایل `shared.go` نرمال‌سازی نام Config، اعتبارسنجی Public key و تجمیع‌گر `GetAllDNSTunsFile` را ارائه می‌دهد که Configهای هر سه سرویس را با هم ادغام می‌کند.
+- فایل `types.go` انواع Transport، Record typeها، Rcodeها، روش‌های احراز هویت و نام پروتکل‌های تونل را پارس می‌کند.
+- فایل‌های `dnstt.go`، `vaydns.go`، `slipstream.go`، `masterdns.go`، `stormdns.go` و `thefeed.go` ساختارهای Config، اینترفیس‌های سرویس (`DNSTTService`، `VayDNSService`، `SlipstreamService`، `MasterDNSService`، `StormDNSService` و `TheFeedService`) و مدیریت فایل‌های Config تونل زیر `assets/dns-tunneling/` را تعریف می‌کنند.
+- فایل `store.go` انبار عمومی فایل‌های Config است، `registry.go` تجمیع‌گر `GetAllDNSTunsFile` را دارد که Configهای هر شش سرویس را با هم ادغام می‌کند، `validate.go` توابع کمکی اعتبارسنجی مشترک را دارد و `embedded.go` کلاینت‌های داخلی MasterDNS و StormDNS را جمع می‌کند.
 - پوشهٔ `socks/` یک کلاینت SOCKS5 است که برای اعتبارسنجی تونل پس از بالا آمدن استفاده می‌شود.
 - پوشهٔ `ssh/` یک کلاینت SSH برای اتصال‌های تونل‌شده از طریق Proxyهای SSH است.
 
 ## یکپارچه‌سازی Xray
 
-- فایل‌های `xray.go` و `command.go` پروسس را اجرا و کنترل می‌کنند.
-- فایل‌های `inbound.go` و `outbound.go` JSON کانفیگ را تولید می‌کنند.
+- فایل `service.go` نمونه‌های داخل برنامه را از طریق کتابخانهٔ داخلی xray-core اجرا و کنترل می‌کند، و فایل‌های `inbound.go` و `outbound.go` JSON کانفیگ را تولید می‌کنند.
 - فایل `link.go` لینک‌های اشتراکی را پارس می‌کند.
-- فایل `speedtest.go` میزان سرعت (Throughput) را اندازه‌گیری می‌کند.
+- فایل‌های `download.go`، `latency.go` و `upload.go` میزان سرعت (Throughput) را اندازه‌گیری می‌کنند.
 
-پکیج `xrayprobe` کانفیگ Outbound انتخابی را می‌سازد، یک پورت اجاره می‌کند، Xray را اجرا کرده، Latency را از طریق پروکسی محلی می‌سنجد، در صورت تنظیم تست سرعت را اجرا کرده و در نهایت همه چیز را پاکسازی می‌کند.
+پکیج `xrayprobe` کانفیگ Outbound انتخابی را می‌سازد، یک پورت اجاره می‌کند، یک نمونهٔ Xray داخل خود برنامه بالا می‌آورد، Latency را از طریق پروکسی محلی می‌سنجد، در صورت تنظیم تست سرعت را اجرا کرده و در نهایت همه چیز را پاکسازی می‌کند.
 
 ## مدیریت پروسس‌ها (Process Management)
 
-فایل `process.go` اینترفیس را تعریف می‌کند و فایل‌های `process_unix.go` و `process_windows.go` رفتار اختصاصی هر سیستم‌عامل را پیاده‌سازی می‌کنند. تمام Probeهایی که یک فایل اجرایی اجرا می‌کنند از این بخش استفاده می‌نمایند.
+فایل `process.go` اینترفیس را تعریف می‌کند و فایل‌های `process_unix.go` و `process_windows.go` رفتار اختصاصی هر سیستم‌عامل را پیاده‌سازی می‌کنند. فقط باینری جانبی Slipstream به‌صورت Process فرزند اجرا می‌شود.
 
 ## لاگر (Logger)
 
@@ -362,14 +367,18 @@ type AppState struct {
                برای ثبت Schemaهای نتیجه
 2. Config      store.Load() و سپس validate.NormalizeAll برای
                گزارش مقدارهای خارج از محدوده
-3. Xray        پیدا کردن باینری، قابل‌اجرا کردن و بررسی نسخه
+3. Xray        گزارش نسخهٔ هستهٔ داخلی، فهرست و اعتبارسنجی
+                قالب‌های Outbound
 4. DNSTT       اعتبارسنجی فایل‌های Config
 5. Slipstream  پیدا کردن باینری، تأیید و اعتبارسنجی Configها
 6. Vaydns      اعتبارسنجی فایل‌های Config
-7. App         انتظار برای زدن Enter
+7. MasterDNS   اعتبارسنجی فایل‌های Config
+8. StormDNS    اعتبارسنجی فایل‌های Config
+9. TheFeed     اعتبارسنجی فایل‌های Config
+10. App        انتظار برای زدن Enter
 ```
 
-هر بررسی وضعیت خود را از طریق `reporter` گزارش می‌کند که پیام‌های `[INFO]`، `[SUCCESS]`، `[WARN]` یا `[ERROR]` صادر می‌کند. خطاهای بحرانی بررسی‌های بعدی را متوقف می‌کنند. نبودِ یک فایل اجرایی اختیاری فقط هشدار می‌دهد و همان نوع اسکن را غیرفعال می‌کند. بعد از پاس‌شدن همهٔ بررسی‌ها و زدن Enter، برنامه به مرحلهٔ Workspace می‌رود.
+هر بررسی وضعیت خود را از طریق `reporter` گزارش می‌کند که پیام‌های `[INFO]`، `[SUCCESS]`، `[WARN]` یا `[ERROR]` صادر می‌کند. خطاهای بحرانی بررسی‌های بعدی را متوقف می‌کنند. نبودِ باینری Slipstream فقط هشدار می‌دهد و همان اسکن Slipstream را غیرفعال می‌کند. بعد از پاس‌شدن همهٔ بررسی‌ها و زدن Enter، برنامه به مرحلهٔ Workspace می‌رود.
 
 برخلاف طراحی قبلی، `main.go` نه Config را بارگذاری می‌کند و نه بررسی‌ای اجرا می‌کند — فقط `theme.Init()` را صدا می‌زند، برنامه را می‌سازد و BubbleTea را اجرا می‌کند. بارگذاری Config، ثبت Schema و بررسی باینری‌ها همه به‌صورت قدم‌های قابل‌مشاهده در UI انجام می‌شوند. مقدارهای اصلاح‌شده در حافظه می‌مانند تا کاربر بخش مربوطه را از Inspector ذخیره کند.
 

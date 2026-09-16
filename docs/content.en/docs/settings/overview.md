@@ -32,4 +32,4 @@ Defaults are compiled into bgscan. A missing settings file is created with its d
 
 On startup, every loaded config is validated. Out-of-range values are replaced with the default and the correction is logged, so a bad edit degrades to the default instead of failing the run.
 
-DNS tunnel protocol settings (DNSTT, VayDNS, Slipstream) are stored in separate TOML files under `assets/dns-tunneling/`, not in `dns_settings.toml`. These are created and managed through the TUI at **Main Menu → DNS Tunneling**.
+DNS tunnel protocol settings (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed) are stored in separate TOML files under `assets/dns-tunneling/`, not in `dns_settings.toml`. These are created and managed through the TUI at **Main Menu → DNS Tunneling**.

@@ -24,7 +24,7 @@
 
 ## اسکنر bgscan چیست؟
 
-اسکنر **bgscan** یک اسکنر شبکه است که داخل ترمینال اجرا می‌شود و با Go نوشته شده است. با آن می‌توانید IPها را با ICMP، TCP، HTTP، DNS، Xray و تونل DNS (DNSTT، VayDNS و Slipstream) بررسی کنید و چند مرحلهٔ اسکن را پشت سر هم اجرا کنید. همه‌چیز هم از طریق یک رابط متنی و با صفحه‌کلید انجام می‌شود.
+اسکنر **bgscan** یک اسکنر شبکه است که داخل ترمینال اجرا می‌شود و با Go نوشته شده است. با آن می‌توانید IPها را با ICMP، TCP، HTTP، DNS، Xray و تونل DNS (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed) بررسی کنید و چند مرحلهٔ اسکن را پشت سر هم اجرا کنید. همه‌چیز هم از طریق یک رابط متنی و با صفحه‌کلید انجام می‌شود.
 
 با bgscan می‌توانید IPهای فعال را پیدا کنید، سرویس‌های وب را بررسی کنید، Resolverهای DNS را آزمایش کنید، تونل‌ها را بررسی کنید و اتصال Xray را بسنجید. نتیجه‌ها روی دیسک ذخیره می‌شوند و بعداً می‌توانید دوباره از آن‌ها برای اسکن استفاده کنید. مثلاً اول یک محدوده را با ICMP اسکن کنید و بعد فقط IPهایی را که جواب داده‌اند با TCP یا HTTP بررسی کنید.
 
@@ -38,7 +38,7 @@
 
 **موتور اسکن**
 
-- پروب‌های چندپروتکله: ICMP، TCP، HTTP/1.1، HTTP/2، HTTP/3 (QUIC)، DNS، DNSTT، VayDNS، Slipstream و Xray
+- پروب‌های چندپروتکله: ICMP، TCP، HTTP/1.1، HTTP/2، HTTP/3 (QUIC)، DNS، DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS، TheFeed و Xray
 - وصل‌کردن مراحل اسکن، مثلاً ICMP → TCP → HTTP، در حالت‌های Streaming و Batch
 - چند Worker برای هر بخش، تا اسکن‌ها هم‌زمان انجام شوند
 - به‌هم‌زدن ترتیب IPها و محدودکردن تعداد IPهایی که باید اسکن شوند
@@ -67,7 +67,7 @@
 
 - بیشتر اسکنرها فقط یک پروتکل را بلدند. bgscan می‌تواند چند پروتکل را پشت سر هم اجرا کند: یک محدوده را Ping کنید، IPهای جواب‌گو را با TCP بررسی کنید و بعد سراغ HTTP بروید.
 - موتور اسکن به نوع اسکن کاری ندارد؛ IPها را می‌گیرد، نتیجه‌ها را جمع می‌کند و روی دیسک می‌نویسد. برای اضافه‌کردن یک اسکن جدید، کافی است رابط `Probe` را با چهار متد `Init`، `Run`، `Schema` و `Close` پیاده کنید و مرحلهٔ آن را به برنامه اضافه کنید.
-- ICMP، TCP، HTTP و DNS به برنامهٔ دیگری نیاز ندارند. Xray و Slipstream جداگانه نصب می‌شوند و اگر وجود نداشته باشند فقط همان اسکن در دسترس نخواهد بود. تونل‌های DNSTT و VayDNS داخل خود برنامه و با کتابخانهٔ vaydns اجرا می‌شوند.
+- ICMP، TCP، HTTP و DNS به برنامهٔ دیگری نیاز ندارند. تنها باینری خارجی Slipstream است که هنگام اجرا بررسی می‌شود؛ اگر نباشد فقط یک هشدار ثبت می‌شود و همان نوع اسکن غیرفعال می‌ماند. Xray و تونل‌های DNSTT، VayDNS، MasterDNS، StormDNS و TheFeed داخل خود برنامه و با کتابخانه‌های داخلی اجرا می‌شوند.
 - تنظیمات در فایل‌های سادهٔ TOML هستند. می‌توانید آن‌ها را دستی تغییر دهید یا از بخش تنظیمات داخل برنامه استفاده کنید.
 - bgscan برای ترمینال ساخته شده: حرکت با صفحه‌کلید، پنجره‌های ساده، نمایش زندهٔ پیشرفت و لاگ‌ها؛ بدون مرورگر و وب‌سرور.
 
@@ -82,6 +82,9 @@
 | DNSTT | 7 | اعتبارسنجی تونل DNS با اتصال پایهٔ SOCKS و SSH |
 | VayDNS | 7 | اعتبارسنجی تونل DNS با اتصال پایهٔ SOCKS و SSH |
 | Slipstream | 7 | اعتبارسنجی تونل DNS با اتصال پایهٔ SOCKS و SSH |
+| MasterDNS | 7 | اعتبارسنجی تونل DNS با رمزنگاری قابل تنظیم و کشف MTU |
+| StormDNS | 7 | اعتبارسنجی تونل DNS با رمزنگاری قابل تنظیم و کشف MTU |
+| TheFeed | 7 | اعتبارسنجی تونل فید رمزنگاری‌شدهٔ DNS روی UDP، TCP یا DNS-over-TLS |
 | Xray | 7 | اعتبارسنجی Outboundهای Xray و تست سرعت اتصال |
 
 ## نصب
@@ -106,7 +109,13 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 { command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
 ```
 
-نصب‌کننده ابزار `bgscan-builder` را دانلود می‌کند که نسخهٔ مناسب پلتفرم شما را دریافت کرده، چک‌سام آن را بررسی می‌کند و bgscan را داخل پوشهٔ `bgscan/` نصب می‌کند. اگر دوباره اجرا شود، نصب قبلی را پیدا می‌کند و از شما می‌پرسد که آن را در همان محل به‌روزرسانی کنید، نصب تمیز انجام دهید یا اول از نصب قبلی پشتیبان بگیرید.
+نصب‌کننده ابزار `bgscan-installer` را دانلود می‌کند؛ یک باینری کوچک و مستقل که با Rust نوشته شده و پروژهٔ جداگانهٔ خودش را دارد ([bgscan-installer](https://github.com/MohsenBg/bgscan-installer)). این ابزار نسخهٔ مناسب پلتفرم شما را پیدا می‌کند، چک‌سام SHA-256 آن را بررسی می‌کند و bgscan را داخل پوشهٔ `bgscan/` نصب می‌کند. اگر دوباره اجرا شود، نصب قبلی را پیدا می‌کند و از شما می‌پرسد: به‌روزرسانی در همان محل (باینری را عوض می‌کند و فایل‌های جدید را اضافه می‌کند، ولی `ips`، `assets` و `settings` شما دست نمی‌خورد)، نصب تمیز، پشتیبان‌گیری از نصب قبلی در پوشه‌ای با مهر زمانی به نام `bgscan_<timestamp>`، یا انصراف.
+
+برای نصب یک نسخهٔ مشخص به‌جای آخرین نسخه:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh -s -- --version v2.11.0
+```
 
 ### نصب دستی
 
@@ -120,7 +129,7 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 
 ### ساخت از سورس
 
-bgscan برای دریافت وابستگی‌های مخصوص هر پلتفرم، از ابزار همراه `bgscan-builder` استفاده می‌کند. این وابستگی‌ها شامل باینری‌های Xray و Slipstream و فهرست‌های IP پیش‌فرض هستند.
+bgscan برای گرفتن باینری Slipstream مخصوص هر پلتفرم و فهرست‌های IP پیش‌فرض، از ابزار همراه `bgscan-builder` استفاده می‌کند. این ابزار فقط برای ساخت است؛ نصب و به‌روزرسانی نسخه‌ها با ابزار جداگانهٔ [`bgscan-installer`](https://github.com/MohsenBg/bgscan-installer) انجام می‌شود که بالاتر توضیح داده شد. خود Xray باینری نمی‌خواهد و داخل برنامه اجرا می‌شود.
 
 ```bash
 git clone https://github.com/MohsenBg/bgscan.git
@@ -142,7 +151,7 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 go run ./cmd/bgscan/
 ```
 
-برای ساخت Release یک پلتفرم مشخص:
+برای ساخت Release یک پلتفرم مشخص (همهٔ فلگ‌ها را با `bgscan-builder release -h` ببینید):
 
 ```bash
 ./bgscan-builder release -os linux -arch amd64
@@ -151,7 +160,7 @@ go run ./cmd/bgscan/
 ./bgscan-builder release -os android -arch arm64 -ndk-dir /opt/android-ndk
 ```
 
-> bgscan را نمی‌توان با `go install` نصب کرد، چون به باینری‌های خارجی و مخصوص پلتفرم نیاز دارد. برای نصب از ابزار builder یا اسکریپت نصب سریع استفاده کنید.
+> bgscan را نمی‌توان با `go install` نصب کرد، چون به باینری Slipstream مخصوص پلتفرم نیاز دارد. برای نصب از ابزار builder یا اسکریپت نصب سریع استفاده کنید.
 
 ## شروع سریع
 
@@ -174,7 +183,7 @@ go run ./cmd/bgscan/
 - صفحهٔ اصلی: <https://mohsenbg.github.io/bgscan>
 - مستندات کامل: <https://mohsenbg.github.io/bgscan/docs>
 
-مستندات شامل راه‌اندازی سریع، انواع اسکن، منابع اسکن، فهرست‌های IP، فایل‌های نتیجه، Pipeline اسکن، Outboundهای Xray، تونل DNS، تمام فایل‌های تنظیمات TOML، لاگ‌ها و راهنمای توسعه است.
+مستندات شامل راه‌اندازی سریع، انواع اسکن، منابع اسکن، فهرست‌های IP، فایل‌های نتیجه، Pipeline اسکن، Outboundهای Xray، تونل DNS با راهنمای جدا برای هر پروتکل (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed)، تمام فایل‌های تنظیمات TOML، لاگ‌ها و راهنمای توسعه است.
 
 ## تنظیمات
 
@@ -182,13 +191,13 @@ go run ./cmd/bgscan/
 
 | فایل | کاربرد |
 | :--- | :--- |
-| `general_settings.toml` | حالت Pipeline، اندازهٔ Batch، سقف IP هر مرحله، توقف پس از یافتن نتیجه، Shuffle و فاصلهٔ نمایش وضعیت |
+| `general_settings.toml` | حالت Pipeline، اندازهٔ Batch، سقف IP هر مرحله، سقف IPهای موفق، Shuffle و فاصلهٔ نمایش وضعیت |
 | `writer_settings.toml` | Buffer نتیجه، فاصلهٔ Flush، اندازهٔ Channel و Batch و پوشهٔ نتایج |
 | `icmp_settings.toml` | Timeout، تعداد Retry و Workerهای ICMP |
 | `tcp_settings.toml` | پورت، Timeout، Retry و Workerهای TCP |
 | `http_settings.toml` | نسخهٔ HTTP/HTTPS/HTTP3، محدودهٔ TLS، Fingerprint و کدهای وضعیت قابل قبول |
 | `dns_settings.toml` | تنظیمات Resolver و هماهنگی اسکن تونل DNS |
-| `xray_settings.toml` | نوع تست اتصال Xray، Timeout تست سرعت و Pre-scan |
+| `xray_settings.toml` | نوع تست اتصال Xray، Timeout تست سرعت، سقف Dialهای هم‌زمان و Pre-scan |
 
 می‌توانید فایل‌ها را دستی تغییر دهید یا از بخش تنظیمات داخل برنامه استفاده کنید. هر دو روش همان فایل‌ها را تغییر می‌دهند و تغییرات بخش تنظیمات فوراً ذخیره می‌شوند. توضیح همهٔ گزینه‌ها در [مستندات تنظیمات](https://mohsenbg.github.io/bgscan/docs/settings/) آمده است.
 
@@ -202,7 +211,7 @@ go run ./cmd/bgscan/
 
 **اعتبارسنجی Outboundهای Xray:** از منوی اصلی وارد **Xray Outbounds** شوید و با فشردن `a` یک قالب را از لینک‌هایی مانند `vless://`، `vmess://`، `trojan://`، `ss://`، `hysteria2://` و `wireguard://` یا از فایل JSON اضافه کنید. سپس اسکن Xray را اجرا کنید تا اتصال و پهنای باند بررسی شود.
 
-**تونل DNS:** از منوی اصلی وارد **DNS Tunneling** شوید و Config تونل DNSTT، VayDNS یا Slipstream بسازید. بعد با نوع اسکن تونل DNS بررسی می‌شود کدام Resolverها می‌توانند تونل را عبور دهند.
+**تونل DNS:** از منوی اصلی وارد **DNS Tunneling** شوید و Config تونل DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS یا TheFeed بسازید. بعد با نوع اسکن تونل DNS بررسی می‌شود کدام Resolverها می‌توانند تونل را عبور دهند.
 
 ## پلتفرم‌های پشتیبانی‌شده
 
@@ -226,19 +235,19 @@ bgscan/
 │   │   │   └── validate/    # اعتبارسنج‌های بخش‌ها و اعتبارسنجی کلی
 │   │   ├── scanner/         # هماهنگ‌کنندهٔ اسکنر و Stage Builderها
 │   │   │   ├── engine/      # اجرای Pipeline در حالت Streaming و Batch
-│   │   │   ├── portmgr/     # اجارهٔ پورت محلی برای پروب‌هایی که کلاینت اجرا می‌کنند
+│   │   │   ├── portmgr/     # اجارهٔ پورت محلی برای پروب‌های تونل و Xray
 │   │   │   └── probe/       # رابط Probe و پیاده‌سازی پروتکل‌ها
 │   │   ├── result/          # رابط نتیجه، Schema، نویسنده و بارگذاری CSV
 │   │   ├── iplist/          # بارگذاری، تجزیه، ثبت و Shuffle فهرست‌های IP
 │   │   ├── netutil/         # ابزارهای netip و محاسبات CIDR برای IPv4/IPv6
-│   │   ├── dns/             # ابزار DNS، سرویس‌های Config تونل (DNSTT/VayDNS/Slipstream)، SOCKS5 و SSH
+│   │   ├── dns/             # ابزار DNS، سرویس‌های Config تونل (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed)، SOCKS5 و SSH
 │   │   ├── speedtest/       # تست پهنای باند، تأخیر و Transport در Xray
-│   │   ├── xray/             # اجرای Xray و تجزیهٔ Outbound و لینک
-│   │   ├── process/         # مدیریت چرخهٔ عمر Process در چند پلتفرم
+│   │   ├── xray/             # سرویس Xray داخل برنامه (کتابخانهٔ داخلی) و تجزیهٔ Outbound و لینک
+│   │   ├── process/         # مدیریت Process جانبی Slipstream در چند پلتفرم
 │   │   └── fileutil/        # ابزار CSV، JSON، TOML، متن و فایل موقت
 │   ├── logger/              # لاگ‌گیری سطح‌بندی‌شده با چرخش lumberjack
 │   └── ui/                  # TUI مبتنی بر BubbleTea (Splash، Startup، Workspace و کامپوننت‌ها)
-├── assets/                  # باینری‌های Xray و Slipstream، Configهای تونل DNS و قالب‌های Outbound
+├── assets/                  # باینری جانبی Slipstream، Configها و داده‌های Xray، Configهای تونل DNS و قالب‌های Outbound
 ├── ips/                     # فهرست‌های آماده و واردشدهٔ IP در قالب CSV
 ├── settings/                # فایل‌های پیش‌فرض تنظیمات TOML
 ├── result/                  # خروجی اسکن، تفکیک‌شده بر اساس نوع اسکن

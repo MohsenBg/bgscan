@@ -9,7 +9,7 @@ weight: 8
 
 فایل تنظیمات: `settings/dns_settings.toml`
 
-این فایل دو بخش دارد: `resolver` برای تست Resolver معمولی، و `dns_tunneling` برای هماهنگی اسکن Tunnel DNS. تنظیمات مخصوص هر پروتکل Tunnel (DNSTT، VayDNS و Slipstream) داخل این فایل نیست و در فایل‌های TOML جداگانه زیر `assets/dns-tunneling/` ذخیره می‌شود.
+این فایل دو بخش دارد: `resolver` برای تست Resolver معمولی، و `dns_tunneling` برای هماهنگی اسکن Tunnel DNS. تنظیمات مخصوص هر پروتکل Tunnel (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed) داخل این فایل نیست و در فایل‌های TOML جداگانه زیر `assets/dns-tunneling/` ذخیره می‌شود.
 
 ## خلاصهٔ گزینه‌ها
 
@@ -221,11 +221,11 @@ adaptive_resolver = true
 output_prefix = "dns_tun_"
 ```
 
-پیشوند فایل‌های نتیجهٔ Tunnel. فایل‌ها بسته به پروتکل داخل `result/dnstt/`، `result/vaydns/` یا `result/slipstream/` ذخیره می‌شوند.
+پیشوند فایل‌های نتیجهٔ Tunnel. فایل‌ها بسته به پروتکل داخل `result/dnstt/`، `result/vaydns/`، `result/slipstream/` یا `result/thefeed/` ذخیره می‌شوند.
 
 ## Configهای Tunnel
 
-پروتکل‌های Tunnel DNS (DNSTT، VayDNS و Slipstream) با فایل‌های TOML جداگانه زیر `assets/dns-tunneling/` تنظیم می‌شوند:
+پروتکل‌های Tunnel DNS (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed) با فایل‌های TOML جداگانه زیر `assets/dns-tunneling/` تنظیم می‌شوند:
 
 ```
 assets/dns-tunneling/
@@ -235,12 +235,21 @@ assets/dns-tunneling/
 ├── vaydns/
 │   ├── my-vaydns-config.toml
 │   └── ...
-└── slipstream/
-    ├── my-slipstream-config.toml
+├── slipstream/
+│   ├── my-slipstream-config.toml
+│   └── ...
+├── masterdns/
+│   ├── my-masterdns-config.toml
+│   └── ...
+├── stormdns/
+│   ├── my-stormdns-config.toml
+│   └── ...
+└── thefeed/
+    ├── my-thefeed-config.toml
     └── ...
 ```
 
-این Configها از داخل برنامه در **Main Menu → DNS Tunneling** ساخته و مدیریت می‌شوند. هر Config یک نام، نوع پروتکل و فیلدهای مخصوص همان پروتکل دارد. برای تنظیمات هر پروتکل [Tunnel DNS](../scanner/dns-tunneling.md) را ببینید.
+این Configها از داخل برنامه در **Main Menu → DNS Tunneling** ساخته و مدیریت می‌شوند. هر Config یک نام، نوع پروتکل و فیلدهای مخصوص همان پروتکل دارد. برای تنظیمات هر پروتکل [Tunnel DNS](../dns-tunneling/) را ببینید.
 
 ## فایل‌های مرتبط
 
@@ -250,4 +259,4 @@ assets/dns-tunneling/
 - [`http_settings.toml`](./http.md)
 - [`xray_settings.toml`](./xray.md)
 - [`writer_settings.toml`](./writer.md)
-- [Tunnel DNS](../scanner/dns-tunneling.md) — تنظیمات پروتکل‌های Tunnel
+- [Tunnel DNS](../dns-tunneling/) — تنظیمات پروتکل‌های Tunnel

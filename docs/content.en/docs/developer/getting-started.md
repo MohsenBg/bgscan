@@ -38,7 +38,7 @@ See [Contributing](../contributing/) for branch naming conventions.
 
 ## 3. Install dependencies
 
-bgscan uses a companion tool called **`bgscan-builder`** to fetch and build the project's dependencies. The install scripts download it for you, place it in the project root, and use it to fetch the correct dependency build for your OS/architecture.
+bgscan uses a companion tool called **`bgscan-builder`** to fetch the platform-specific Slipstream sidecar binary and bundled IP lists, and to build release artifacts. The install scripts download it for you, place it in the project root, and use it to fetch the correct sidecar build for your OS/architecture. (Xray needs no binary: it runs in-process through a vendored xray-core library.)
 
 **Linux / macOS**
 
@@ -55,7 +55,7 @@ bgscan uses a companion tool called **`bgscan-builder`** to fetch and build the 
 This script will:
 
 1. Download `bgscan-builder` into the project root.
-2. Run `bgscan-builder setup-dev --project-dir <project-root>` to download the correct dependencies for your OS/arch and place them in the right directory.
+2. Run `bgscan-builder setup-dev --project-dir <project-root>` to download the Slipstream sidecar for your OS/arch and place it in the right directory.
 
 ## 4. Build and run
 
@@ -106,11 +106,12 @@ bgscan-builder release -os android -arch arm64 -ndk-dir /opt/android-ndk
 
 ## bgscan-builder reference
 
-A small Go CLI for managing the project. The same binary is used for three workflows:
+A small Go CLI for building the project. It has two subcommands:
 
-- **install** / **update** — resolve a bgscan release, verify its checksum, and place it on disk. (Run by the user-facing installer.)
-- **release** — assemble dependencies (Xray, Slipstream) and build a release binary for a target OS/arch.
 - **setup-dev** — download the correct dependency binaries for the host so `go run ./cmd/bgscan/` works locally.
+- **release** — stage the Slipstream sidecar and build a release binary for a target OS/arch.
+
+Installing and updating released builds is not part of the builder. That is handled by the separate [bgscan-installer](https://github.com/MohsenBg/bgscan-installer) tool (see [Installation](../../getting-started/installation/)).
 
 **Flags:**
 
@@ -118,11 +119,8 @@ A small Go CLI for managing the project. The same binary is used for three workf
 |---|---|---|
 | `-arch string` | release | Target architecture (`amd64`, `arm64`, `arm32`, `amd32`, `all`) |
 | `-dest string` | release | Release output directory (default `"./dist"`) |
-| `-dir string` | install, update | Directory where bgscan is installed (default `"bgscan"`) |
 | `-ndk-dir string` | release (android) | Android NDK root directory |
 | `-os string` | release | Target operating system (`linux`, `windows`, `macos`, `android`, `all`) |
-| `-project-dir string` | setup-dev | Path to the bgscan project |
+| `-project-dir string` | setup-dev, release | Path to the bgscan project |
 | `-verbose` | all | Print each step as it runs |
-| `-version string` | install, update | bgscan release tag to install/update (default: latest) |
 | `-version string` | release | Version embedded into the built binary |
-| `-xray-version string` | release | Xray version tag (default `"v26.3.27"`) |

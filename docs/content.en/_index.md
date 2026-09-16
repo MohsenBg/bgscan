@@ -407,7 +407,7 @@ body.dark .lp,
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-badge">v2.10.0 · Now available</div>
+  <div class="hero-badge">v2.11.0 · Now available</div>
   <h1>Scan everything.<br>At full speed.</h1>
   <p>bgscan is a blazing-fast, multi-protocol network scanner built in Go — with a modular chain engine and an interactive terminal UI.</p>
   <div class="hero-actions">
@@ -428,7 +428,7 @@ body.dark .lp,
 
 <!-- STATS -->
 <div class="stats reveal">
-  <div class="stat-item"><span class="stat-num">8</span><span class="stat-label">Protocols</span></div>
+  <div class="stat-item"><span class="stat-num">11</span><span class="stat-label">Protocols</span></div>
   <div class="stat-item"><span class="stat-num">100%</span><span class="stat-label">Go</span></div>
   <div class="stat-item"><span class="stat-num">4</span><span class="stat-label">Platforms</span></div>
   <div class="stat-item"><span class="stat-num">MIT</span><span class="stat-label">License</span></div>
@@ -444,14 +444,14 @@ body.dark .lp,
   <div class="feature"><div class="fi">🔗</div><h3>Chain engine</h3><p>Compose scan stages using Stream, Sequential, or Batch modes to build full detection pipelines.</p></div>
   <div class="feature"><div class="fi">🖥️</div><h3>Interactive TUI</h3><p>A Bubble Tea terminal UI — scan, monitor, and explore results live, no browser needed.</p></div>
   <div class="feature"><div class="fi">💾</div><h3>Save &amp; replay</h3><p>Persist results and re-run new scans against saved data. Full Xray outbound management included.</p></div>
-  <div class="feature"><div class="fi">🌐</div><h3>Advanced DNS</h3><p>DNS resolver scanning with DPI detection and three tunneling protocols: DNSTT, VayDNS, and Slipstream.</p></div>
+  <div class="feature"><div class="fi">🌐</div><h3>Advanced DNS</h3><p>DNS resolver scanning with DPI detection and six tunneling protocols: DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, and TheFeed.</p></div>
   <div class="feature"><div class="fi">🛰️</div><h3>Xray integration</h3><p>Save, manage, and validate Xray outbounds directly from the scanner.</p></div>
 </div>
 
 <!-- PROTOCOLS -->
 <div class="proto-section">
   <div class="stitle reveal">
-    <h2>8 protocols. One tool.</h2>
+    <h2>11 protocols. One tool.</h2>
     <p>From Layer 3 to Layer 7 — every protocol you need for deep network analysis.</p>
   </div>
   <div class="proto-grid reveal">
@@ -462,6 +462,9 @@ body.dark .lp,
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">DNSTT</p><p class="pdesc">SOCKS and SSH base validation</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">VayDNS</p><p class="pdesc">SOCKS and SSH base validation</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Slipstream</p><p class="pdesc">SOCKS and SSH base validation</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">MasterDNS</p><p class="pdesc">Encrypted tunnel validation</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">StormDNS</p><p class="pdesc">Encrypted tunnel validation</p></div></div>
+    <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">TheFeed</p><p class="pdesc">Encrypted feed validation</p></div></div>
     <div class="proto-card"><span class="ptag">L7</span><div><p class="pname">Xray</p><p class="pdesc">Outbound testing</p></div></div>
   </div>
 </div>

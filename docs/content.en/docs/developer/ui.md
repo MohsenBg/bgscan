@@ -15,13 +15,13 @@ bgscan's terminal UI is built on [BubbleTea](https://github.com/charmbracelet/bu
 |---|---|
 | `ui/main/app` | Root BubbleTea model. Manages three application stages (splash → startup → workspace). |
 | `ui/main/splash` | Splash screen with ASCII art logo animation and version display. |
-| `ui/main/startup` | Startup health checks — validates Logger, Config, Xray, DNSTT, Slipstream, Vaydns, and App state. |
+| `ui/main/startup` | Startup health checks — validates Logger, Config, Xray, DNSTT, Slipstream, Vaydns, MasterDNS, StormDNS, TheFeed, and App state. |
 | `ui/main/workspace` | Main workspace — header, body (component stack), footer, and overlay dialog stack. |
 | `ui/main/header` | Top bar — app title and branding. |
 | `ui/main/body` | Central content area — holds a component stack (main menu → sub-screens). |
 | `ui/main/footer` | Status bar — app version, current screen name, goroutine count, memory usage. |
 | `ui/components/basic` | Reusable widgets: confirm, crud, form, input, inspector, logview, menu, notice, picker, progress, table, tabs. |
-| `ui/components/form` | DNS tunnel config forms: dnstt, slipstream, vaydns. |
+| `ui/components/form` | DNS tunnel config forms: dnstt, slipstream, vaydns, masterdns, stormdns, thefeed (built on the shared `formkit`). |
 | `ui/components/inspector` | Per-protocol settings forms (DNS, general, HTTP, ICMP, TCP, Xray). |
 | `ui/components/menus` | Screen-level menus: entry (main), logs, outbound, scantype, settings, targetsource, dnstunmenu. |
 | `ui/components/tables` | Data tables: iplist, ipviewer, outbounds, resultlist, dnstun (DNS tunnel CRUD). |
@@ -78,7 +78,7 @@ The app progresses through three stages:
 | Stage | Component | Description |
 |---|---|---|
 | `StageSplash` | `splash` | Animated ASCII logo with glitch effects and version display |
-| `StageStartUP` | `startup` | Sequential health checks (Logger → Config → Xray → DNSTT → Slipstream → Vaydns → App) |
+| `StageStartUP` | `startup` | Sequential health checks (Logger → Config → Xray → DNSTT → Slipstream → Vaydns → MasterDNS → StormDNS → TheFeed → App) |
 | `StageWorkspace` | `workspace` | Main workspace with header, body (component stack), footer, and overlay dialog stack |
 
 `AppState` threads shared dependencies through the whole tree:
@@ -142,17 +142,20 @@ Overlays are rendered on top via `bubbletea-overlay`. Minimum terminal size is 7
 
 ## Startup checks
 
-`ui/main/startup` runs seven sequential health checks in a goroutine, reporting status through a sidebar with dots (pending/running/success/warn/error), a progress bar, and a scrollable viewport:
+`ui/main/startup` runs ten sequential health checks in a goroutine, reporting status through a sidebar with dots (pending/running/success/warn/error), a progress bar, and a scrollable viewport:
 
 | # | Category | What it checks |
 |---|----------|----------------|
 | 1 | Logger | Initialize core, UI, and debug loggers; register probe schemas |
 | 2 | Config | Load config, NormalizeAll, report any clamped values |
-| 3 | Xray | Find binary, ensure executable, check version, validate outbound templates |
+| 3 | Xray | Report embedded core version, list and validate outbound templates |
 | 4 | DNSTT | Validate all DNSTT config files |
 | 5 | Slipstream | Find binary, ensure executable, verify, validate config files |
 | 6 | Vaydns | Validate all VayDNS config files |
-| 7 | App | Wait for user to press Enter |
+| 7 | MasterDNS | Validate all MasterDNS config files |
+| 8 | StormDNS | Validate all StormDNS config files |
+| 9 | TheFeed | Validate all TheFeed config files |
+| 10 | App | Wait for user to press Enter |
 
 Critical errors abort subsequent checks. The user can scroll with `j`/`k` and press `Enter` to continue when done.
 
@@ -283,8 +286,11 @@ The generic `basic/inspector` widget handles the field rendering, formatting, an
 | `dnstt` | DNSTT | `dns.DNSTTConfig` |
 | `slipstream` | Slipstream | `dns.SlipstreamConfig` |
 | `vaydns` | VayDNS | `dns.VayDNSConfig` |
+| `masterdns` | MasterDNS | `dns.MasterDNSConfig` |
+| `stormdns` | StormDNS | `dns.StormDNSConfig` |
+| `thefeed` | TheFeed | `dns.TheFeedConfig` |
 
-Each form creates a protocol-specific inspector with fields for connection settings, advanced options (VayDNS only), and proxy/authentication. Forms support both creating new configs and editing existing ones. On save, they call the matching service's `SaveConfig` or `EditConfig` method.
+Each form creates a protocol-specific inspector with fields for connection settings, advanced options (VayDNS only), and proxy/authentication (DNSTT, VayDNS, and Slipstream only). Forms support both creating new configs and editing existing ones. On save, they call the matching service's `SaveConfig` or `EditConfig` method. The forms share field builders through `ui/components/form/formkit`.
 
 ---
 
@@ -299,7 +305,7 @@ Each form creates a protocol-specific inspector with fields for connection setti
 | `scantype` | After source selection | Scan type picker (ICMP, TCP, HTTP, Xray, DNS Resolve, DNS Tunneling) |
 | `settings` | Settings menu item | Settings category picker |
 | `outboundmenu` | Xray Outbounds menu item | Outbound management |
-| `dnstunmenu` | DNS Tunneling scan type | Protocol selector (DNSTT, Slipstream, VayDNS) |
+| `dnstunmenu` | DNS Tunneling scan type | Protocol selector (DNSTT, Slipstream, VayDNS, MasterDNS, StormDNS, TheFeed) |
 | `logs` | Logs menu item | Log category picker (core/ui/debug) |
 
 #### Tables (`ui/components/tables`)

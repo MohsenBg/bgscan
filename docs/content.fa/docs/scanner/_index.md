@@ -17,4 +17,3 @@ bookCollapseSection: true
 - [لیست‌های آی‌پی - ورودی (IP Lists)](./ip-files/) — فایل‌های ورودی
 - [فایل‌های نتایج - خروجی (Result Files)](./result-files/) — فایل‌های خروجی
 - [اوت‌باندهای ایکس‌ری (Xray Outbounds)](./xray-outbound/) — قالب‌های Outbound برای اسکن Xray
-- [تونل DNS (DNS Tunneling)](./dns-tunneling/) — تنظیمات پروتکل‌های تونل

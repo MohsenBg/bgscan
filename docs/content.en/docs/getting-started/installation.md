@@ -29,7 +29,13 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 { command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
 ```
 
-The installer downloads the `bgscan-builder` tool, which resolves the latest release asset for your platform, verifies its checksum, and installs bgscan into `bgscan/`. If an installation already exists, you choose how to proceed: update in place (keeps your `ips`/`assets`/`settings`), clean install, or back up the existing installation to a timestamped `bgscan_bck_*` directory.
+The install scripts use `bgscan-installer`, a small standalone Rust binary from the separate [bgscan-installer](https://github.com/MohsenBg/bgscan-installer) project. It resolves the requested release asset for your platform, verifies its SHA-256 checksum against `checksum.txt`, and installs bgscan into `bgscan/` (or into the current directory if a `bgscan` binary is already there). If an installation already exists, you choose how to proceed: update in place (replaces the binary and adds missing files, keeps your `ips`, `assets`, and `settings`), clean install, back up the existing installation to a timestamped `bgscan_<timestamp>` directory, or cancel.
+
+To install a specific version instead of the latest, pass `--version`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh -s -- --version v2.11.0
+```
 
 ## Manual Install
 
@@ -43,7 +49,7 @@ The first run creates the default `settings/` folder with configuration files an
 
 ## Build from Source
 
-> **Note:** bgscan cannot be installed via `go install` because it depends on external binaries (Xray, Slipstream). You must build it using the companion **`bgscan-builder`** tool.
+> **Note:** bgscan cannot be installed via `go install` because it needs the platform-specific Slipstream sidecar binary. You must build it using the companion **`bgscan-builder`** tool. `bgscan-builder` only builds; installing and updating releases is handled by the separate `bgscan-installer` tool described above. (Xray needs no binary: it runs in-process through a vendored library.)
 
 #### Prerequisites
 
@@ -64,7 +70,7 @@ curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scr
 # Windows (PowerShell)
 irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install-builder.ps1 | iex
 
-# Fetch dependencies for your platform (Xray, Slipstream, bundled IP lists)
+# Fetch the Slipstream sidecar and bundled IP lists for your platform
 # Linux/macOS
 ./scripts/install-deps.sh
 # Windows (PowerShell)
@@ -73,7 +79,7 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 # Run in development
 go run ./cmd/bgscan/
 
-# Or build release artifacts targeting a specific platform
+# Or build release artifacts targeting a specific platform (see `bgscan-builder release -h` for all flags)
 ./bgscan-builder release -os linux -arch amd64
 ./bgscan-builder release -os windows -arch amd64
 ./bgscan-builder release -os macos -arch arm64
@@ -82,9 +88,9 @@ go run ./cmd/bgscan/
 
 ## Upgrading
 
-To upgrade, simply re-run the [Quick Install](#quick-install) script. It will detect the existing version and offer to replace it or back it up.
+To upgrade, simply re-run the [Quick Install](#quick-install) script. It will detect the existing installation and offer to update, clean install, back up, or cancel.
 
-If you have customized configurations:
+The update option keeps your `settings`, `ips`, and `assets`. If you choose a clean install instead, back up first:
 
 - Copy your custom `settings/*.toml` files to the new installation.
 - Move any custom IP lists from `ips/`.

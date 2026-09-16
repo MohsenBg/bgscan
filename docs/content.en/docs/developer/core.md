@@ -16,16 +16,16 @@ weight: 3
 | `scanner` | `Scanner` interface, stage builders, and pipeline assembly. |
 | `scanner/engine` | Execution: single scan, sequential chain, streaming pipeline, batch pipeline. |
 | `scanner/probe` | `Probe` interface and one subpackage per probe. |
-| `scanner/portmgr` | Ephemeral local port pool for probes that spawn tunnel clients. |
+| `scanner/portmgr` | Ephemeral local port pool for tunnel and Xray probes. |
 | `result` | `Writer`, CSV merge, schema registry, loader, counters. |
 | `iplist` | IP list CSV import, parsing, registry, shuffle, streaming. |
-| `dns` | DNS query helpers, transport parsing, DNSTT/VayDNS/Slipstream config services, and tunnel management. |
+| `dns` | DNS query helpers, transport parsing, tunnel config services (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed), and tunnel management. |
 | `socks` | SOCKS5 client for tunnel validation. |
 | `ssh` | SSH client for tunneled connections. |
-| `xray` | Xray runner, inbound and outbound config, link parsing, speed test. |
+| `xray` | In-process Xray service (vendored core), inbound and outbound config, link parsing, speed test. |
 | `speedtest` | Latency, download, and upload measurement used by the Xray probe. |
 | `netutil` | Host normalization, TLS version parsing, and SNI extraction used by the HTTP probes. |
-| `process` | Cross-platform process spawn and kill. |
+| `process` | Cross-platform process tracking for the Slipstream sidecar. |
 | `fileutil` | CSV, JSON, TOML, text, temp-file, and path helpers. |
 
 ## Scanner
@@ -54,10 +54,13 @@ type Scanner interface {
     BuildDNSTTStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
     BuildSlipStreamStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
     BuildVayDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildMasterDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildStormDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+    BuildTheFeedStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 }
 ```
 
-`BuildXrayStage`, `BuildDNSTTStage`, `BuildSlipStreamStage`, and `BuildVayDNSStage` take a config name and return a slice of stages (an optional resolver pre-scan stage plus the main stage). The other builders return a single stage. All builders accept optional `ScanHooks` via variadic arguments.
+`BuildXrayStage`, `BuildDNSTTStage`, `BuildSlipStreamStage`, `BuildVayDNSStage`, `BuildMasterDNSStage`, `BuildStormDNSStage`, and `BuildTheFeedStage` take a config name and return a slice of stages (an optional resolver pre-scan stage plus the main stage). The other builders return a single stage. All builders accept optional `ScanHooks` via variadic arguments.
 
 A stage is:
 
@@ -192,12 +195,15 @@ Each probe lives in its own subpackage under `scanner/probe`:
 | `httpprobe` | HTTP/1.1 and HTTP/2 over ALPN | `NewHTTPProbe(req, acceptedCodes)` |
 | `httpprobe` | HTTP/3 over QUIC | `NewHTTP3Probe(req, acceptedCodes)` |
 | `resolveprobe` | DNS resolver with DPI check | `NewResolverProbe(*DNSRequest)` |
-| `dnsttprobe` | DNSTT tunnel validation | `NewDNSTTProbe(config, portMgr)` |
-| `vaydnsprobe` | VayDNS tunnel validation | `NewVayDNSProbe(config, portMgr)` |
-| `slipstreamprobe` | SlipStream tunnel validation | `NewSlipstreamProbe(workers, config, portMgr)` |
+| `dnsttprobe` | DNSTT tunnel validation | `NewDNSTTProbe(config, timeout, ...)` |
+| `vaydnsprobe` | VayDNS tunnel validation | `NewVayDNSProbe(config, timeout, ...)` |
+| `slipstreamprobe` | SlipStream tunnel validation | `NewSlipstreamProbe(config, timeout, portMgr, ...)` |
+| `masterdnsprobe` | MasterDNS tunnel validation | `NewMasterDNSProbe(config, timeout, portMgr, ...)` |
+| `stormdnsprobe` | StormDNS tunnel validation | `NewStormDNSProbe(config, timeout, portMgr, ...)` |
+| `thefeedprobe` | TheFeed tunnel validation | `NewTheFeedProbe(config, timeout, ...)` |
 | `xrayprobe` | Xray connectivity and bandwidth | `NewXrayProbe(cfg, template, portMgr)` |
 
-Probes that spawn a client binary take a `portmgr.Manager` and lease a local port per probe so concurrent workers do not collide.
+Only the Slipstream probe spawns an external process. Tunnel and Xray probes take a `portmgr.Manager` and lease a local port per probe so concurrent workers do not collide.
 
 ## Result system
 
@@ -320,24 +326,23 @@ Disabled entries are skipped during streaming. Both IPv4 and IPv6 prefixes are s
 ## DNS subsystem
 
 - `query.go` builds and sends queries over UDP, TCP, and DoT.
-- `type.go` parses transports, rcodes, and protocol types. `doh` parses successfully but resolves to DoT, since the scanner targets resolvers by IP.
-- `dnstt.go`, `vaydns.go`, and `slipstream.go` define config structs, service interfaces (`DNSTTService`, `VayDNSService`, `SlipstreamService`), and manage tunnel config files under `assets/dns-tunneling/`.
-- `shared.go` provides config name normalization, public key validation, and the `GetAllDNSTunsFile` aggregator that merges configs from all three services.
+- `types.go` parses transports, record types, rcodes, auth methods, and tunnel protocol names.
+- `dnstt.go`, `vaydns.go`, `slipstream.go`, `masterdns.go`, `stormdns.go`, and `thefeed.go` define config structs, service interfaces (`DNSTTService`, `VayDNSService`, `SlipstreamService`, `MasterDNSService`, `StormDNSService`, `TheFeedService`), and manage tunnel config files under `assets/dns-tunneling/`.
+- `store.go` provides the generic config file store, `registry.go` holds the `GetAllDNSTunsFile` aggregator that merges configs from all six services, `validate.go` holds shared validation helpers, and `embedded.go` wraps the vendored MasterDNS/StormDNS clients.
 - `socks/` is a SOCKS5 client used to validate a tunnel once it is up.
 - `ssh/` is an SSH client for tunneled connections through SSH proxies.
 
 ## Xray integration
 
-- `xray.go` and `command.go` spawn and control the process.
-- `inbound.go` and `outbound.go` generate the config JSON.
+- `service.go` starts and controls in-process instances through the vendored xray-core library, `inbound.go` and `outbound.go` generate the config JSON.
 - `link.go` parses share links.
-- `speedtest.go` measures throughput.
+- `download.go`, `latency.go`, and `upload.go` measure throughput.
 
-`xrayprobe` generates a config for the chosen outbound, leases a port, starts Xray, measures latency through the local proxy, optionally runs the speed tests, and tears everything down.
+`xrayprobe` generates a config for the chosen outbound, leases a port, starts an in-process Xray instance, measures latency through the local proxy, optionally runs the speed tests, and tears everything down.
 
 ## Process management
 
-`process.go` defines the interface, with `process_unix.go` and `process_windows.go` supplying platform behavior. Used by every probe that spawns a binary.
+`process.go` defines the interface, with `process_unix.go` and `process_windows.go` supplying platform behavior. Only the Slipstream sidecar runs as a child process.
 
 ## Logger
 
@@ -360,15 +365,19 @@ The checks are private functions in `checklist.go` driven by the startup compone
                  to register probe result schemas
 2. Config     — store.Load() (fatal on malformed TOML), validate.NormalizeAll
                  to report any out-of-range values clamped to defaults
-3. Xray       — locate Xray binary, ensure executable, check version
+3. Xray       — report the embedded core version, list and validate
+                 outbound templates
 4. DNSTT      — validate all DNSTT config files
 5. Slipstream — find slipstream-client binary, ensure executable, verify,
                  validate config files
 6. Vaydns     — validate all VayDNS config files
-7. App        — wait for user to press Enter
+7. MasterDNS  — validate all MasterDNS config files
+8. StormDNS   — validate all StormDNS config files
+9. TheFeed    — validate all TheFeed config files
+10. App       — wait for user to press Enter
 ```
 
-Each check reports status through a `reporter` that emits `[INFO]`, `[SUCCESS]`, `[WARN]`, or `[ERROR]` messages. Critical errors abort subsequent checks. A missing optional binary prints a warning and disables only the scan type that needs it. Once all checks pass and the user presses Enter, the app transitions to the workspace stage.
+Each check reports status through a `reporter` that emits `[INFO]`, `[SUCCESS]`, `[WARN]`, or `[ERROR]` messages. Critical errors abort subsequent checks. A missing Slipstream binary prints a warning and disables only the Slipstream scan. Once all checks pass and the user presses Enter, the app transitions to the workspace stage.
 
 Unlike the previous design, `main.go` does **not** load config or run any checks — it only calls `theme.Init()`, constructs the app, and starts the BubbleTea program. Config load failures, schema registration, and binary checks all happen as visible steps in the startup UI rather than as silent pre-TUI failures. Corrected values live in memory until the user saves the section through the settings inspector.
 

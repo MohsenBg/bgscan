@@ -32,4 +32,4 @@ weight: 1
 
 هنگام شروع برنامه، همهٔ تنظیمات بررسی می‌شوند. مقدارهای خارج از محدوده با مقدار پیش‌فرض جایگزین و در لاگ ثبت می‌شوند؛ پس یک ویرایش اشتباه باعث خراب‌شدن اسکن نمی‌شود.
 
-تنظیمات پروتکل‌های تونل DNS (DNSTT، VayDNS و Slipstream) در فایل‌های TOML جداگانه زیر `assets/dns-tunneling/` ذخیره می‌شوند، نه در `dns_settings.toml`. این فایل‌ها از طریق رابط برنامه در **Main Menu → DNS Tunneling** ساخته و مدیریت می‌شوند.
+تنظیمات پروتکل‌های تونل DNS (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed) در فایل‌های TOML جداگانه زیر `assets/dns-tunneling/` ذخیره می‌شوند، نه در `dns_settings.toml`. این فایل‌ها از طریق رابط برنامه در **Main Menu → DNS Tunneling** ساخته و مدیریت می‌شوند.

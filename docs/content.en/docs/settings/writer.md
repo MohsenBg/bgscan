@@ -56,7 +56,7 @@ Number of results held in memory before a flush is forced. It also sets the init
 result_directory = "result"
 ```
 
-Base directory, relative to the bgscan binary, holding one subdirectory per result schema: `result/icmp/`, `result/tcp/`, `result/http/`, `result/xray/`, `result/dns_resolver/`, `result/dnstt/`, and `result/slipstream/`. Directories are created on demand.
+Base directory, relative to the bgscan binary, holding one subdirectory per result schema: `result/icmp/`, `result/tcp/`, `result/http/`, `result/xray/`, `result/dns_resolver/`, `result/dnstt/`, `result/vaydns/`, `result/slipstream/`, `result/masterdns/`, `result/stormdns/`, and `result/thefeed/`. Directories are created on demand.
 
 The value must be a plain directory name, not a path.
 

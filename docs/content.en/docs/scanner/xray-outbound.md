@@ -146,7 +146,7 @@ bgscan also ships example templates with a `.json.example` extension in the same
 
 ## The `$ADDRESS` Placeholder
 
-Every outbound template must contain `"address": "$ADDRESS"` in its settings. During an Xray scan, bgscan generates a temporary per-IP config by replacing `$ADDRESS` with each target IP before starting an Xray process. The generated configs are written to `assets/xray/configs/` and cleaned up after each probe.
+Every outbound template must contain `"address": "$ADDRESS"` in its settings. During an Xray scan, bgscan generates a temporary per-IP config by replacing `$ADDRESS` with each target IP before starting an in-process Xray instance. The generated configs are written to `assets/xray/configs/` and cleaned up after each probe.
 
 Do not change or remove this placeholder — templates missing it will be rejected on import.
 

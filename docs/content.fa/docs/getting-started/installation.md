@@ -28,7 +28,13 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 { command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
 ```
 
-نصب‌کننده ابزار `bgscan-builder` را دانلود می‌کند که نسخهٔ مناسب پلتفرم شما را دریافت کرده، چک‌سام آن را بررسی می‌کند و bgscan را داخل پوشهٔ `bgscan/` نصب می‌کند. اگر از قبل نسخه‌ای نصب شده باشد، از شما می‌پرسد که چگونه ادامه دهید: به‌روزرسانی در همان محل (که پوشه‌های `ips/`، `assets/` و `settings/` شما را حفظ می‌کند)، نصب تمیز، یا پشتیبان‌گیری از نسخهٔ قبلی در یک پوشه با مهر زمانی به نام `bgscan_bck_*`.
+اسکریپت‌های نصب از `bgscan-installer` استفاده می‌کنند؛ یک باینری کوچک و مستقل که با Rust نوشته شده و پروژهٔ جداگانهٔ خودش را دارد ([bgscan-installer](https://github.com/MohsenBg/bgscan-installer)). این ابزار نسخهٔ مناسب پلتفرم شما را پیدا می‌کند، چک‌سام SHA-256 آن را با `checksum.txt` بررسی می‌کند و bgscan را داخل پوشهٔ `bgscan/` نصب می‌کند (یا داخل همان پوشهٔ فعلی، اگر باینری `bgscan` از قبل آن‌جا باشد). اگر از قبل نسخه‌ای نصب شده باشد، از شما می‌پرسد که چگونه ادامه دهید: به‌روزرسانی در همان محل (باینری را عوض می‌کند و فایل‌های جدید را اضافه می‌کند، ولی `ips`، `assets` و `settings` شما دست نمی‌خورد)، نصب تمیز، پشتیبان‌گیری از نصب قبلی در پوشه‌ای با مهر زمانی به نام `bgscan_<timestamp>`، یا انصراف.
+
+برای نصب یک نسخهٔ مشخص به‌جای آخرین نسخه، `--version` بدهید:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh -s -- --version v2.11.0
+```
 
 ## نصب دستی
 
@@ -42,7 +48,7 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 
 ## ساخت از سورس
 
-> **نکته:** bgscan را نمی‌توان با `go install` نصب کرد چون برنامه به باینری‌های خارجی (Xray، Slipstream) وابسته است. برای ساخت آن باید از ابزار همراه **`bgscan-builder`** استفاده کنید.
+> **نکته:** bgscan را نمی‌توان با `go install` نصب کرد چون به باینری Slipstream مخصوص پلتفرم نیاز دارد. برای ساخت آن باید از ابزار همراه **`bgscan-builder`** استفاده کنید. این ابزار فقط برای ساخت است؛ نصب و به‌روزرسانی نسخه‌ها با ابزار جداگانهٔ `bgscan-installer` انجام می‌شود که بالاتر توضیح داده شد. (خود Xray باینری نمی‌خواهد و داخل برنامه اجرا می‌شود.)
 
 ### پیش‌نیازها
 
@@ -63,7 +69,7 @@ curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scr
 # Windows (PowerShell)
 irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install-builder.ps1 | iex
 
-# دریافت وابستگی‌های پلتفرم شما (Xray، Slipstream و فهرست‌های IP پیش‌فرض)
+# گرفتن باینری جانبی Slipstream و فهرست‌های IP مخصوص پلتفرم شما
 # Linux / macOS
 ./scripts/install-deps.sh
 # Windows (PowerShell)
@@ -72,7 +78,7 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 # اجرا در محیط توسعه
 go run ./cmd/bgscan/
 
-# یا ساخت خروجی نهایی برای یک پلتفرم خاص
+# یا ساخت خروجی نهایی برای یک پلتفرم خاص (همهٔ فلگ‌ها را با `bgscan-builder release -h` ببینید)
 ./bgscan-builder release -os linux -arch amd64
 ./bgscan-builder release -os windows -arch amd64
 ./bgscan-builder release -os macos -arch arm64
@@ -81,9 +87,9 @@ go run ./cmd/bgscan/
 
 ## ارتقا
 
-برای ارتقا، دوباره اسکریپت [نصب سریع](#نصب-سریع) را اجرا کنید. اسکریپت نسخهٔ قبلی را پیدا می‌کند و به شما اجازه می‌دهد آن را جایگزین کنید یا از آن پشتیبان بگیرید.
+برای ارتقا، دوباره اسکریپت [نصب سریع](#نصب-سریع) را اجرا کنید. اسکریپت نصب قبلی را پیدا می‌کند و به‌روزرسانی، نصب تمیز، پشتیبان‌گیری یا انصراف را پیشنهاد می‌دهد.
 
-اگر تنظیمات خودتان را تغییر داده‌اید:
+گزینهٔ به‌روزرسانی `settings`، `ips` و `assets` شما را نگه می‌دارد. اگر نصب تمیز را انتخاب کردید، اول پشتیبان بگیرید:
 
 - فایل‌های `settings/*.toml` را به نصب جدید منتقل کنید.
 - فهرست‌های IP شخصی خود را از پوشهٔ `ips/` کپی کنید.

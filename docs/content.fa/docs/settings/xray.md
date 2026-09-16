@@ -23,6 +23,8 @@ weight: 9
 | `upload_speed` | وابسته به سیستم | حداقل سرعت آپلود قابل قبول، Kbps |
 | `output_prefix` | `"xray_"` | پیشوند فایل‌های نتیجه |
 | `pre_scan_type` | `"tcp"` | بررسی اولیه: `none`، `icmp`، `tcp` یا `http` |
+| `max_concurrent_dials` | وابسته به سیستم | سقف Dialهای هم‌زمان Outbound در کل برنامه (`0` یعنی بدون سقف) |
+| `dial_max_attempts` | وابسته به سیستم | تعداد تلاش Dial برای هر Outbound |
 
 ## Timeout
 
@@ -111,6 +113,22 @@ pre_scan_type = "none"
 - `icmp` — Ping ICMP هدف را بررسی کن
 - `tcp` — اتصال TCP به پورت هدف را بررسی کن
 - `http` — درخواست HTTP/HTTPS به هدف بفرست
+
+## Max Concurrent Dials
+
+```toml
+max_concurrent_dials = 128
+```
+
+سقف تعداد Dialهای Outbound که هم‌زمان در کل برنامه اجرا می‌شوند. `0` یعنی بدون سقف. اگر وسط اسکن‌های بزرگ Socket یا File Descriptor تمام شد، این را کم کنید. محدوده ۰ تا ۱۰۰۰۰ است.
+
+## Dial Max Attempts
+
+```toml
+dial_max_attempts = 3
+```
+
+هر Outbound برای وصل‌شدن چند بار تلاش می‌کند قبل از این‌که بی‌خیال شود. محدوده ۱ تا ۱۰ است.
 
 ## فایل‌های مرتبط
 

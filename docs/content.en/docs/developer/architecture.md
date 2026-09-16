@@ -14,8 +14,11 @@ bgscan is layered. `main` initializes the theme and hands control to a BubbleTea
 ├── assets
 │   ├── dns-tunneling
 │   │   ├── dnstt
-│   │   ├── vaydns
-│   │   └── slipstream
+│   │   ├── masterdns
+│   │   ├── slipstream
+│   │   ├── stormdns
+│   │   ├── thefeed
+│   │   └── vaydns
 │   ├── xray
 │   │   ├── configs
 │   │   └── outbounds
@@ -42,9 +45,12 @@ bgscan is layered. `main` initializes the theme and hands control to a BubbleTea
 │   │   │       ├── dnsttprobe
 │   │   │       ├── httpprobe
 │   │   │       ├── icmpprobe
+│   │   │       ├── masterdnsprobe
 │   │   │       ├── resolveprobe
 │   │   │       ├── slipstreamprobe
+│   │   │       ├── stormdnsprobe
 │   │   │       ├── tcpprobe
+│   │   │       ├── thefeedprobe
 │   │   │       ├── vaydnsprobe
 │   │   │       └── xrayprobe
 │   │   ├── socks
@@ -119,30 +125,30 @@ bgscan is layered. `main` initializes the theme and hands control to a BubbleTea
 | `internal/core/scanner` | `Scanner` interface, `StageConfig`, and the stage builders. |
 | `internal/core/scanner/engine` | Pipeline execution: single scan, sequential, streaming, batch, pause control. |
 | `internal/core/scanner/probe` | `Probe` interface plus one subpackage per probe. |
-| `internal/core/scanner/portmgr` | Local port leasing for probes that spawn client binaries. |
+| `internal/core/scanner/portmgr` | Local port leasing for tunnel and Xray probes. |
 | `internal/core/result` | `Result` interface, schemas, registry, async writer, CSV merge, loader. |
 | `internal/core/iplist` | IP list import, parsing, registry, shuffle, streaming. |
 | `internal/core/netutil` | Host normalization, TLS version parsing, and SNI extraction for the HTTP probes. |
-| `internal/core/dns` | DNS queries, transports, DNSTT/VayDNS/Slipstream config services, and tunnel management. |
+| `internal/core/dns` | DNS queries, transports, tunnel config services (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed), and tunnel management. |
 | `internal/core/socks` | SOCKS5 client for tunnel validation. |
 | `internal/core/ssh` | SSH client for tunneled connections through SSH proxies. |
-| `internal/core/xray` | Xray process control, inbound and outbound config, share link parsing. |
+| `internal/core/xray` | In-process Xray service (vendored core), inbound and outbound config, share link parsing. |
 | `internal/core/speedtest` | Latency, download, and upload measurement used by the Xray probe. |
-| `internal/core/process` | Cross-platform process spawn and kill. |
+| `internal/core/process` | Cross-platform process tracking for the Slipstream sidecar. |
 | `internal/core/fileutil` | CSV, JSON, TOML, text, temp-file, sorting, and path helpers. |
 | `internal/logger` | Three leveled log streams with lumberjack rotation and live subscribers. |
 | `internal/ui/main/app` | Root BubbleTea model. Owns the stage machine: splash → startup → workspace. |
 | `internal/ui/main/splash` | Animated splash screen, runs first. |
-| `internal/ui/main/startup` | Sequential health checks (Logger, Config, Xray, DNSTT, Slipstream, Vaydns, App) shown to the user with a live status sidebar. |
+| `internal/ui/main/startup` | Sequential health checks (Logger, Config, Xray, DNSTT, Slipstream, Vaydns, MasterDNS, StormDNS, TheFeed, App) shown to the user with a live status sidebar. |
 | `internal/ui/main/workspace` | Main workspace shell (header, body, footer) after startup passes. |
 | `internal/ui/main/body` | Stack of body screens (main menu, scan, settings, logs) inside the workspace. |
 | `internal/ui/main/header` / `footer` | Workspace chrome. |
 | `internal/ui/components` | Widgets, settings inspectors, menus, tables, and the live scanner view. |
 | `internal/ui/shared` | Layout geometry, dialog system, key modes, component interface, validation. |
 | `internal/ui/theme` | Dark and light palettes plus the huh form theme adapter. |
-| `assets/xray` | Bundled Xray binary location, configs, and outbound templates. |
-| `assets/dnstt-client`, `assets/slipstream-client` | Optional tunnel client binaries. |
-| `assets/dns-tunneling` | DNS tunnel config files (DNSTT, VayDNS, Slipstream). |
+| `assets/xray` | Xray configs, routing data, and outbound templates. No binary lives here: Xray runs in-process through the vendored core. |
+| `assets/slipstream-client` | Slipstream sidecar binary, the only external process bgscan spawns. |
+| `assets/dns-tunneling` | DNS tunnel config files (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed). |
 | `ips` | Bundled provider IP lists as CSV. |
 | `settings` | Live `.toml` settings. |
 | `scripts` | Install, build, and release helpers. |
@@ -170,10 +176,14 @@ main()
         │     │                     to register probe schemas
         │     ├─ Config             store.Load(), validate.NormalizeAll,
         │     │                     report any clamped values
-        │     ├─ Xray               locate binary, check version
+        │     ├─ Xray               report embedded core version,
+        │     │                     validate outbound templates
         │     ├─ DNSTT              validate config files
         │     ├─ Slipstream         find binary, verify, validate configs
         │     ├─ Vaydns             validate config files
+        │     ├─ MasterDNS          validate config files
+        │     ├─ StormDNS           validate config files
+        │     ├─ TheFeed            validate config files
         │     └─ App                wait for Enter
         │
         └─ StageWorkspace           main workspace:
@@ -203,7 +213,7 @@ on Run Scan:
 
 **The engine is protocol-agnostic.** It moves addresses and results, and never inspects what a probe measured. Pipeline mode is a config choice, not an engine rewrite.
 
-**External binaries are optional.** ICMP, TCP, HTTP, and DNS resolver probes need only the Go standard library and `golang.org/x/net`. Xray, DNSTT, and Slipstream are checked at startup, and a missing binary disables just that scan type.
+**External binaries are optional.** ICMP, TCP, HTTP, and DNS resolver probes need only the Go standard library and `golang.org/x/net`. Xray runs in-process through the vendored xray-core library, so there is no Xray binary to install. Only the Slipstream sidecar is an external binary: it is checked at startup, and when it is missing a warning is logged and just that scan type is disabled. The other tunnel protocols run in-process through vendored libraries.
 
 **The UI is a component tree.** Every screen implements `ui.Component`. Overlays stack, and the top one consumes all input.
 

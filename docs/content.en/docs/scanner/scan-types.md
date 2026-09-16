@@ -18,7 +18,7 @@ The scan type menu offers six entries, each bound to a key:
 
 **DNS Resolve** runs a standalone resolver scan. It tests each target IP as a DNS resolver and optionally checks for DPI hijacking.
 
-**DNS Tunneling** opens a config browser first. You select a saved tunnel configuration (DNSTT, VayDNS, or Slipstream) before the scan starts. The tunnel stage optionally chains a resolver pre-scan when `check_dns_resolver` is enabled in the DNS tunneling settings.
+**DNS Tunneling** opens a config browser first. You select a saved tunnel configuration (DNSTT, VayDNS, Slipstream, or TheFeed) before the scan starts. The tunnel stage optionally chains a resolver pre-scan when `check_dns_resolver` is enabled in the DNS tunneling settings.
 
 **Xray Scan** first asks which outbound template to use. If `pre_scan_type` is `icmp`, `tcp`, or `http`, that stage runs ahead of the Xray stage and filters the targets. With `none`, Xray runs directly.
 
@@ -44,7 +44,7 @@ Records latency, status code, negotiated version, and whether TLS was used.
 
 ## Xray
 
-Starts a temporary Xray process per target using the selected outbound template, then measures latency through the local proxy. Depending on `connectivity_test_type`, it also runs a download test, an upload test, or both, and fails the target when the measured speed falls below the configured minimum.
+Starts an in-process Xray instance per target using the selected outbound template, then measures latency through the local proxy. Depending on `connectivity_test_type`, it also runs a download test, an upload test, or both, and fails the target when the measured speed falls below the configured minimum.
 
 Records latency plus download and upload throughput. Both speeds are zero when only connectivity is tested.
 
@@ -56,13 +56,16 @@ Records latency, the record type that worked, attempt count, response code, and 
 
 ## DNS Tunneling
 
-Tests whether resolvers can carry a DNS tunnel. You first select a saved tunnel configuration from the config browser. Three protocols are supported:
+Tests whether resolvers can carry a DNS tunnel. You first select a saved tunnel configuration from the config browser. Four protocols can be scanned:
 
 - **DNSTT** — DNS tunnel using the vaydns library with legacy DNSTT-compatible framing
 - **VayDNS** — Native vaydns protocol with tunable QNAME, MTU, and record type settings
 - **Slipstream** — External binary (`slipstream-client`) based tunnel
+- **TheFeed** — Encrypted feed tunnel over UDP, TCP, or DNS-over-TLS with single or double query encoding
 
-Each tunnel probe allocates a local SOCKS5 port per target, so they are much slower than the resolver stage. Latency measures the tunnel once it is up, not the time to bring it up.
+MasterDNS and StormDNS configurations can be created and managed in the DNS Tunneling menu, but the scan flow does not run them yet.
+
+DNSTT, VayDNS, and Slipstream probes each allocate a local SOCKS5 port per target, so they are much slower than the resolver stage. Latency measures the tunnel once it is up, not the time to bring it up.
 
 When `check_dns_resolver` is enabled in the DNS tunneling settings, a resolver pre-scan runs first and feeds surviving targets into the tunnel stage. When `adaptive_resolver` is enabled, the resolver settings are automatically adjusted to match the tunnel configuration's transport, port, and domain.
 

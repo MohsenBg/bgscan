@@ -66,3 +66,12 @@ func ParseIPOrCIDR(raw string) (netip.Prefix, bool) {
 
 	return netip.Prefix{}, false
 }
+
+// Loopback returns the loopback address matching the family of addr:
+// ::1 for IPv6 (including IPv4-mapped IPv6), 127.0.0.1 otherwise.
+func Loopback(addr netip.Addr) netip.Addr {
+	if addr.Is6() {
+		return netip.IPv6Loopback()
+	}
+	return netip.AddrFrom4([4]byte{127, 0, 0, 1})
+}

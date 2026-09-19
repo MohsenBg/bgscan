@@ -15,7 +15,7 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/dns"
-	"github.com/MohsenBg/bgscan/internal/core/process"
+	ffislipstream "github.com/MohsenBg/bgscan/internal/core/ffi/slipstream"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/engine"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/portmgr"
@@ -108,7 +108,7 @@ func (m *mockSlipstreamService) RenameConfig(oldName, newName string) error {
 	return nil
 }
 
-func (m *mockSlipstreamService) RunTunnel(ctx context.Context, cfg dns.SlipstreamConfig, resolverIP string, listenPort uint16) (process.Process, error) {
+func (m *mockSlipstreamService) RunTunnel(ctx context.Context, cfg dns.SlipstreamConfig, resolverIP netip.Addr, listenPort uint16, keepAlive uint16) (ffislipstream.Client, error) {
 	return nil, nil
 }
 

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
-	"github.com/MohsenBg/bgscan/internal/core/process"
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/portmgr"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
@@ -22,15 +22,14 @@ import (
 
 // SlipstreamProbe verifies connectivity through a Slipstream DNS tunnel.
 type SlipstreamProbe struct {
-	pm             portmgr.Manager
-	processTracker process.ProcessTracker
-	config         dns.SlipstreamConfig
-	slipstreamSvc  dns.SlipstreamService
-	sshService     ssh.SSHService
-	socksService   socks.Service
-	speedtestSvc   speedtest.Service
-	timeout        time.Duration
-	tries          int
+	pm            portmgr.Manager
+	config        dns.SlipstreamConfig
+	slipstreamSvc dns.SlipstreamService
+	sshService    ssh.SSHService
+	socksService  socks.Service
+	speedtestSvc  speedtest.Service
+	timeout       time.Duration
+	tries         int
 }
 
 type Option func(*SlipstreamProbe)
@@ -67,14 +66,6 @@ func WithSpeedtestService(service speedtest.Service) Option {
 	}
 }
 
-func WithProcessTracker(tracker process.ProcessTracker) Option {
-	return func(p *SlipstreamProbe) {
-		if tracker != nil {
-			p.processTracker = tracker
-		}
-	}
-}
-
 // WithTries sets how many times a failed probe is retried.
 // Values below 1 are ignored; the default is a single attempt.
 func WithTries(n int) Option {
@@ -105,11 +96,10 @@ func NewSlipstreamProbe(
 	}
 
 	p := &SlipstreamProbe{
-		pm:             pm,
-		config:         config,
-		processTracker: process.NewProcessTracker(),
-		timeout:        timeout,
-		tries:          1,
+		pm:      pm,
+		config:  config,
+		timeout: timeout,
+		tries:   1,
 	}
 
 	for _, opt := range opts {
@@ -143,13 +133,12 @@ func (s *SlipstreamProbe) Schema() result.ResultSchema {
 
 // Init initializes the probe.
 func (s *SlipstreamProbe) Init(ctx context.Context) error {
-	s.processTracker.Start(ctx)
 	return nil
 }
 
-// Run opens a Slipstream tunnel to ip (via the external slipstream binary)
-// and verifies connectivity through its local proxy listener, retrying
-// failed attempts up to the configured tries.
+// Run opens a Slipstream tunnel to ip (via the embedded libslipstream
+// library) and verifies connectivity through its local proxy listener,
+// retrying failed attempts up to the configured tries.
 func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -181,36 +170,18 @@ func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result
 }
 
 func (s *SlipstreamProbe) runOnce(ctx context.Context, ip netip.Addr, localPort uint16) (result.Result, error) {
-	// Determine resolver IP from the target IP.
-	resolverIP := ip.String()
-
-	// Start the external Slipstream tunnel process.
-	proc, err := s.slipstreamSvc.RunTunnel(ctx, s.config, resolverIP, localPort)
+	client, err := s.slipstreamSvc.RunTunnel(ctx, s.config, ip, localPort, uint16(s.timeout.Seconds()))
 	if err != nil {
 		return nil, fmt.Errorf("start Slipstream tunnel: %w", err)
 	}
-
-	// Track the process for cleanup.
-	id, err := s.processTracker.Register(ctx, proc)
-	if err != nil {
-		_ = proc.StopGracefully(time.Second)
-		return nil, fmt.Errorf("register Slipstream process: %w", err)
-	}
-
-	// Ensure the external process and its tracker entry are always cleaned up.
 	defer func() {
-		_ = proc.StopGracefully(time.Second)
-
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		if err := s.processTracker.Unregister(cleanupCtx, id); err != nil {
-			logger.CoreError("unregister Slipstream process %s: %s", id, err)
+		if err := client.Stop(); err != nil {
+			logger.CoreError("close Slipstream tunnel: %v", err)
 		}
 	}()
 
 	// Wait for the local proxy listener to come up.
-	proxyAddr := net.JoinHostPort("127.0.0.1", fmt.Sprint(localPort))
+	proxyAddr := net.JoinHostPort(netutil.Loopback(ip).String(), fmt.Sprint(localPort))
 	if err := s.pm.WaitOpen(ctx, proxyAddr, time.Second); err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr

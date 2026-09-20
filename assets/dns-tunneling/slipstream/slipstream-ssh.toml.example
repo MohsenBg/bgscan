@@ -10,6 +10,18 @@ resolver_port = 53
 # Leave empty to use the system certificate pool.
 cert_path = ''
 
+# DNS resolution mode: 'recursive' or 'authoritative'.
+dns_resolution = 'recursive'
+
+# Enable UDP generic segmentation offload.
+gso = false
+
+# Congestion control: 'bbr' or 'cubic'.
+congestion_control = 'bbr'
+
+# Keepalive interval in seconds. 0 = library default.
+keepalive_interval = 10
+
 # Proxy protocol used for the tunnel connection.
 # Supported values: 'socks' or 'ssh'.
 proxy_type = 'ssh'

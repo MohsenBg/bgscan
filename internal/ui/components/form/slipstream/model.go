@@ -5,16 +5,21 @@ import (
 	"strings"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/formkit"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/huh/v2"
 )
 
 const (
-	descCertPath = "Optional path to a custom TLS certificate file."
+	descCertPath          = "Optional path to a custom TLS certificate file."
+	descDNSResolution     = "DNS resolution mode: recursive or authoritative."
+	descCongestionControl = "Congestion control: bbr, cubic, or default (library)."
+	descGSO               = "Enable UDP generic segmentation offload."
 )
 
 // Model is the Slipstream tunnel configuration form.
@@ -93,6 +98,64 @@ func (m *Model) buildInspector() *inspector.Model {
 		func(c *dns.SlipstreamConfig, v string) { c.CertPath = strings.TrimSpace(v) },
 	)
 
+	dnsResolution := selectinput.New(
+		l, "Select DNS resolution mode",
+		selectinput.WithValue(cfg.DNSResolution),
+		selectinput.WithFocus[dns.DNSResolution](),
+		selectinput.WithOptions(
+			huh.NewOption("Recursive", dns.DNSResolutionRecursive),
+			huh.NewOption("Authoritative", dns.DNSResolutionAuthoritative),
+		),
+		selectinput.WithValidation(func(v dns.DNSResolution) error {
+			tmp := *cfg
+			tmp.DNSResolution = v
+			if e, ok := tmp.Validate()["dns_resolution"]; ok {
+				return e
+			}
+			return nil
+		}),
+		selectinput.WithOnSubmit(func(v dns.DNSResolution) tea.Cmd {
+			cfg.DNSResolution = v
+			return nil
+		}),
+	)
+
+	congestion := selectinput.New(
+		l, "Select congestion control",
+		selectinput.WithValue(cfg.CongestionControl),
+		selectinput.WithFocus[dns.CongestionControl](),
+		selectinput.WithOptions(
+			huh.NewOption("BBR", dns.CongestionControlBBR),
+			huh.NewOption("Cubic", dns.CongestionControlCubic),
+		),
+		selectinput.WithValidation(func(v dns.CongestionControl) error {
+			tmp := *cfg
+			tmp.CongestionControl = v
+			if e, ok := tmp.Validate()["congestion_control"]; ok {
+				return e
+			}
+			return nil
+		}),
+		selectinput.WithOnSubmit(func(v dns.CongestionControl) tea.Cmd {
+			cfg.CongestionControl = v
+			return nil
+		}),
+	)
+
+	gso := selectinput.New(
+		l, "Select GSO",
+		selectinput.WithValue(cfg.GSO),
+		selectinput.WithFocus[bool](),
+		selectinput.WithOptions(
+			huh.NewOption("Enabled", true),
+			huh.NewOption("Disabled", false),
+		),
+		selectinput.WithOnSubmit(func(v bool) tea.Cmd {
+			cfg.GSO = v
+			return nil
+		}),
+	)
+
 	proxy, vis := formkit.BuildProxy(
 		l, cfg, m.Refresh,
 		func(c dns.SlipstreamConfig) dns.ResolverProxyType { return c.ProxyType },
@@ -113,6 +176,9 @@ func (m *Model) buildInspector() *inspector.Model {
 		{Name: "Config Name", Description: formkit.DescConfigName, Group: formkit.GroupConnection, Input: inspector.Adapt(configName), Visible: formkit.AlwaysVisible, Format: inspector.FormatEmptyString},
 		{Name: "Domain", Description: formkit.DescDomain, Group: formkit.GroupConnection, Input: inspector.Adapt(domain), Visible: formkit.AlwaysVisible, Format: inspector.FormatEmptyString},
 		{Name: "Resolver Port", Description: formkit.DescResolverPort, Group: formkit.GroupConnection, Input: inspector.Adapt(resPort), Visible: formkit.AlwaysVisible},
+		{Name: "Congestion Control", Description: descCongestionControl, Group: formkit.GroupConnection, Input: inspector.Adapt(congestion), Visible: formkit.AlwaysVisible},
+		{Name: "GSO", Description: descGSO, Group: formkit.GroupConnection, Input: inspector.Adapt(gso), Visible: formkit.AlwaysVisible},
+		{Name: "DNS Resolution", Description: descDNSResolution, Group: formkit.GroupConnection, Input: inspector.Adapt(dnsResolution), Visible: formkit.AlwaysVisible},
 		{Name: "Cert Path", Description: descCertPath, Group: formkit.GroupConnection, Input: inspector.Adapt(certPath), Visible: formkit.AlwaysVisible, Format: inspector.FormatEmptyString},
 
 		{Name: "Proxy Type", Description: formkit.DescProxyType, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.Type), Visible: formkit.AlwaysVisible},

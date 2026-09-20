@@ -7,7 +7,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/config/validate"
 	"github.com/MohsenBg/bgscan/internal/core/dns"
-	"github.com/MohsenBg/bgscan/internal/core/process"
+	"github.com/MohsenBg/bgscan/internal/core/ffi/slipstream"
 	"github.com/MohsenBg/bgscan/internal/core/xray"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
@@ -136,28 +136,22 @@ func checkTheFeedHealth(r *reporter) {
 }
 
 func checkSlipstreamHealth(r *reporter) {
-	r.info("Finding Slipstream client...")
-	path, err := dns.FindSlipstreamClient()
+	r.info("Finding Slipstream library...")
+	path, err := slipstream.FindLibSlipstream()
 	if err != nil {
-		r.binaryMissing("Slipstream", "slipstream-client")
-		r.errMsg("Binary lookup error", err)
+		r.binaryMissing("Slipstream", "libslipstream-client")
+		r.errMsg("Library lookup error", err)
 		return
 	}
 	r.successf("Slipstream found at: %s", path)
 
-	r.info("Ensuring Slipstream client binary is executable...")
-	if err := process.EnsureExecutable(path); err != nil {
-		r.errMsg("Failed to set executable bit for Slipstream client", err)
+	r.info("Verifying Slipstream library...")
+	version, err := slipstream.VerifyLibSlipstream()
+	if err != nil {
+		r.errMsg("Slipstream library validation failed", err)
 		return
 	}
-	r.success("Slipstream binary is executable")
-
-	r.info("Verifying Slipstream client...")
-	if err := dns.VerifySlipstreamClient(); err != nil {
-		r.errMsg("Slipstream client validation failed", err)
-		return
-	}
-	r.success("Slipstream client verified")
+	r.successf("Slipstream library verified (version %s)", version)
 
 	r.info("Validating Slipstream config files...")
 	srv, err := dns.NewSlipstreamService()

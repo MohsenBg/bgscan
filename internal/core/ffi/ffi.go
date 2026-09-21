@@ -11,7 +11,7 @@ func GoString(p uintptr) string {
 		return ""
 	}
 
-	ptr := unsafe.Pointer(p)
+	ptr := *(*unsafe.Pointer)(unsafe.Pointer(&p))
 	n := 0
 
 	for *(*byte)(unsafe.Add(ptr, n)) != 0 {

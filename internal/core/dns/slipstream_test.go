@@ -3,84 +3,41 @@ package dns
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/MohsenBg/bgscan/internal/core/process"
+	ffislipstream "github.com/MohsenBg/bgscan/internal/core/ffi/slipstream"
 )
 
-type mockProcess struct {
-	killed bool
-	waited bool
-}
-
-func (m *mockProcess) StopGracefully(time.Duration) error {
-	return nil
-}
-
-func (m *mockProcess) Kill() error {
-	m.killed = true
-	return nil
-}
-
-func (m *mockProcess) Wait() error {
-	m.waited = true
-	return nil
-}
-
-func (m *mockProcess) Pid() int {
-	return 9999
-}
-
-func (m *mockProcess) String() string {
-	return "mock-process(9999)"
-}
-
-type captureStarter struct {
-	calls []startCall
+type fakeStarter struct {
+	calls int
+	cfg   ffislipstream.Config
 	err   error
-	proc  process.Process
 }
 
-type startCall struct {
-	bin  string
-	args []string
-}
+func (f *fakeStarter) Start(cfg ffislipstream.Config) (ffislipstream.Client, error) {
+	f.calls++
+	f.cfg = cfg
 
-func (c *captureStarter) Start(
-	_ context.Context,
-	bin string,
-	args ...string,
-) (process.Process, error) {
-	c.calls = append(c.calls, startCall{
-		bin:  bin,
-		args: append([]string(nil), args...),
-	})
-
-	if c.err != nil {
-		return nil, c.err
+	if f.err != nil {
+		return nil, f.err
 	}
 
-	if c.proc != nil {
-		return c.proc, nil
-	}
-
-	return &mockProcess{}, nil
+	return nil, nil
 }
 
 func newTestSlipstreamService(
 	t *testing.T,
-	starter *captureStarter,
+	starter *fakeStarter,
 ) SlipstreamService {
 	t.Helper()
 
 	service, err := NewSlipstreamService(
 		WithSlipstreamDir(t.TempDir()),
-		WithSlipstreamClientBinary("/usr/local/bin/slipstream-client"),
-		WithSlipstreamProcessStarter(starter.Start),
+		WithSlipstreamStarter(starter),
 	)
 	if err != nil {
 		t.Fatalf("NewSlipstreamService: %v", err)
@@ -91,8 +48,12 @@ func newTestSlipstreamService(
 
 func validSlipstreamConfig() SlipstreamConfig {
 	return SlipstreamConfig{
-		Domain:       "tunnel.example.com",
-		ResolverPort: 53,
+		Domain:            "tunnel.example.com",
+		ResolverPort:      53,
+		DNSResolution:     DNSResolutionRecursive,
+		CongestionControl: CongestionControlBBR,
+		GSO:               false,
+		KeepAliveInterval: 10,
 	}
 }
 
@@ -104,11 +65,27 @@ func TestDefaultSlipstreamConfig(t *testing.T) {
 	}
 
 	if config.ResolverPort != 53 {
-		t.Errorf("DNSPort = %d, want 53", config.ResolverPort)
+		t.Errorf("ResolverPort = %d, want 53", config.ResolverPort)
 	}
 
 	if config.CertPath != "" {
 		t.Errorf("CertPath = %q, want empty", config.CertPath)
+	}
+
+	if config.DNSResolution != DNSResolutionRecursive {
+		t.Errorf("DNSResolution = %q, want %q", config.DNSResolution, DNSResolutionRecursive)
+	}
+
+	if config.CongestionControl != CongestionControlCubic {
+		t.Errorf("CongestionControl = %q, want %q", config.CongestionControl, CongestionControlCubic)
+	}
+
+	if config.GSO {
+		t.Error("GSO = true, want false")
+	}
+
+	if config.KeepAliveInterval == 0 {
+		t.Error("KeepAliveInterval = 0, want non-zero default")
 	}
 }
 
@@ -121,6 +98,13 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 		{
 			name:   "valid",
 			config: validSlipstreamConfig(),
+		},
+		{
+			name: "valid empty new fields for backward compat",
+			config: SlipstreamConfig{
+				Domain:       "tunnel.example.com",
+				ResolverPort: 53,
+			},
 		},
 		{
 			name: "missing domain",
@@ -152,6 +136,24 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 				ResolverPort: 0,
 			},
 			wantError: "dns_port",
+		},
+		{
+			name: "invalid dns resolution",
+			config: func() SlipstreamConfig {
+				c := validSlipstreamConfig()
+				c.DNSResolution = "round-robin"
+				return c
+			}(),
+			wantError: "dns_resolution",
+		},
+		{
+			name: "invalid congestion control",
+			config: func() SlipstreamConfig {
+				c := validSlipstreamConfig()
+				c.CongestionControl = "reno"
+				return c
+			}(),
+			wantError: "congestion_control",
 		},
 		{
 			name:      "multiple errors",
@@ -199,12 +201,50 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 	}
 }
 
+func TestDNSResolutionIsValid(t *testing.T) {
+	for _, valid := range []DNSResolution{"", DNSResolutionRecursive, DNSResolutionAuthoritative} {
+		if !valid.IsValid() {
+			t.Errorf("IsValid(%q) = false, want true", valid)
+		}
+	}
+
+	if DNSResolution("bogus").IsValid() {
+		t.Error("IsValid(bogus) = true, want false")
+	}
+}
+
+func TestCongestionControlIsValid(t *testing.T) {
+	for _, valid := range []CongestionControl{"", CongestionControlBBR, CongestionControlCubic} {
+		if !valid.IsValid() {
+			t.Errorf("IsValid(%q) = false, want true", valid)
+		}
+	}
+
+	if CongestionControl("reno").IsValid() {
+		t.Error("IsValid(reno) = true, want false")
+	}
+}
+
+func TestDNSResolutionLibValue(t *testing.T) {
+	if got := DNSResolutionAuthoritative.libValue(); got != ffislipstream.ModeAuthoritative {
+		t.Errorf("authoritative libValue = %v, want %v", got, ffislipstream.ModeAuthoritative)
+	}
+
+	if got := DNSResolutionRecursive.libValue(); got != ffislipstream.ModeRecursive {
+		t.Errorf("recursive libValue = %v, want %v", got, ffislipstream.ModeRecursive)
+	}
+
+	if got := DNSResolution("").libValue(); got != ffislipstream.ModeRecursive {
+		t.Errorf("empty libValue = %v, want recursive %v", got, ffislipstream.ModeRecursive)
+	}
+}
+
 func TestNewSlipstreamService(t *testing.T) {
-	starter := &captureStarter{}
+	starter := &fakeStarter{}
 
 	service, err := NewSlipstreamService(
-		WithSlipstreamClientBinary("/fake/slipstream-client"),
-		WithSlipstreamProcessStarter(starter.Start),
+		WithSlipstreamDir(t.TempDir()),
+		WithSlipstreamStarter(starter),
 	)
 	if err != nil {
 		t.Fatalf("NewSlipstreamService: %v", err)
@@ -216,9 +256,13 @@ func TestNewSlipstreamService(t *testing.T) {
 }
 
 func TestNewSlipstreamServiceNilStarter(t *testing.T) {
+	starter := &fakeStarter{}
+
+	// A nil starter must not clear a previously injected one.
 	_, err := NewSlipstreamService(
-		WithSlipstreamClientBinary("/fake/slipstream-client"),
-		WithSlipstreamProcessStarter(nil),
+		WithSlipstreamDir(t.TempDir()),
+		WithSlipstreamStarter(starter),
+		WithSlipstreamStarter(nil),
 	)
 	if err != nil {
 		t.Fatalf("NewSlipstreamService: %v", err)
@@ -226,56 +270,116 @@ func TestNewSlipstreamServiceNilStarter(t *testing.T) {
 }
 
 func TestRunTunnel(t *testing.T) {
-	starter := &captureStarter{
-		proc: &mockProcess{},
-	}
+	starter := &fakeStarter{}
 
 	service := newTestSlipstreamService(t, starter)
 
 	config := validSlipstreamConfig()
 
-	gotProc, err := service.RunTunnel(
+	_, err := service.RunTunnel(
 		context.Background(),
 		config,
-		"1.2.3.4",
+		netip.MustParseAddr("1.2.3.4"),
 		5300,
+		0,
 	)
 	if err != nil {
 		t.Fatalf("RunTunnel: %v", err)
 	}
 
-	if gotProc != starter.proc {
-		t.Fatalf("process = %v, want %v", gotProc, starter.proc)
+	if starter.calls != 1 {
+		t.Fatalf("start calls = %d, want 1", starter.calls)
 	}
 
-	if len(starter.calls) != 1 {
-		t.Fatalf(
-			"start calls = %d, want 1",
-			len(starter.calls),
-		)
+	got := starter.cfg
+
+	if len(got.Resolvers) != 1 {
+		t.Fatalf("resolvers = %d, want 1", len(got.Resolvers))
 	}
 
-	call := starter.calls[0]
-
-	if call.bin != "/usr/local/bin/slipstream-client" {
-		t.Errorf(
-			"binary = %q, want %q",
-			call.bin,
-			"/usr/local/bin/slipstream-client",
-		)
+	if got.Resolvers[0].Host != "1.2.3.4" {
+		t.Errorf("resolver host = %q, want %q", got.Resolvers[0].Host, "1.2.3.4")
 	}
 
-	wantArgs := []string{
-		"-d", "tunnel.example.com",
-		"-r", "1.2.3.4:53",
-		"-l", "5300",
+	if got.Resolvers[0].Port != 53 {
+		t.Errorf("resolver port = %d, want 53", got.Resolvers[0].Port)
 	}
 
-	assertArgs(t, call.args, wantArgs)
+	if got.Resolvers[0].Mode != ffislipstream.ModeRecursive {
+		t.Errorf("resolver mode = %v, want recursive", got.Resolvers[0].Mode)
+	}
+
+	if got.ListenHost != "127.0.0.1" {
+		t.Errorf("listen host = %q, want 127.0.0.1", got.ListenHost)
+	}
+
+	if got.ListenPort != 5300 {
+		t.Errorf("listen port = %d, want 5300", got.ListenPort)
+	}
+
+	if got.Domain != "tunnel.example.com" {
+		t.Errorf("domain = %q, want tunnel.example.com", got.Domain)
+	}
+
+	if got.CongestionControl != string(CongestionControlBBR) {
+		t.Errorf("congestion = %q, want bbr", got.CongestionControl)
+	}
+
+	if got.GSO {
+		t.Error("GSO = true, want false")
+	}
+
+	// Zero keepalive falls back to the config value.
+	if got.KeepAliveInterval != 10 {
+		t.Errorf("keepalive = %d, want 10 (config fallback)", got.KeepAliveInterval)
+	}
+}
+
+func TestRunTunnelKeepAliveOverride(t *testing.T) {
+	starter := &fakeStarter{}
+	service := newTestSlipstreamService(t, starter)
+
+	config := validSlipstreamConfig()
+	config.KeepAliveInterval = 10
+
+	_, err := service.RunTunnel(
+		context.Background(),
+		config,
+		netip.MustParseAddr("1.2.3.4"),
+		5300,
+		30,
+	)
+	if err != nil {
+		t.Fatalf("RunTunnel: %v", err)
+	}
+
+	if starter.cfg.KeepAliveInterval != 30 {
+		t.Errorf("keepalive = %d, want 30 (explicit override)", starter.cfg.KeepAliveInterval)
+	}
+}
+
+func TestRunTunnelIPv6ListenHost(t *testing.T) {
+	starter := &fakeStarter{}
+	service := newTestSlipstreamService(t, starter)
+
+	_, err := service.RunTunnel(
+		context.Background(),
+		validSlipstreamConfig(),
+		netip.MustParseAddr("2001:db8::1"),
+		5300,
+		0,
+	)
+	if err != nil {
+		t.Fatalf("RunTunnel: %v", err)
+	}
+
+	if starter.cfg.ListenHost != "::1" {
+		t.Errorf("listen host = %q, want ::1", starter.cfg.ListenHost)
+	}
 }
 
 func TestRunTunnelWithCert(t *testing.T) {
-	starter := &captureStarter{}
+	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
 
 	config := validSlipstreamConfig()
@@ -284,25 +388,54 @@ func TestRunTunnelWithCert(t *testing.T) {
 	_, err := service.RunTunnel(
 		context.Background(),
 		config,
-		"1.2.3.4",
+		netip.MustParseAddr("1.2.3.4"),
 		5300,
+		0,
 	)
 	if err != nil {
 		t.Fatalf("RunTunnel: %v", err)
 	}
 
-	wantArgs := []string{
-		"-d", "tunnel.example.com",
-		"-r", "1.2.3.4:53",
-		"-l", "5300",
-		"--cert", "/etc/slipstream/ca.pem",
+	if starter.cfg.CertPath != "/etc/slipstream/ca.pem" {
+		t.Errorf("cert = %q, want /etc/slipstream/ca.pem", starter.cfg.CertPath)
+	}
+}
+
+func TestRunTunnelAuthoritativeAndGSO(t *testing.T) {
+	starter := &fakeStarter{}
+	service := newTestSlipstreamService(t, starter)
+
+	config := validSlipstreamConfig()
+	config.DNSResolution = DNSResolutionAuthoritative
+	config.CongestionControl = CongestionControlCubic
+	config.GSO = true
+
+	_, err := service.RunTunnel(
+		context.Background(),
+		config,
+		netip.MustParseAddr("1.2.3.4"),
+		5300,
+		0,
+	)
+	if err != nil {
+		t.Fatalf("RunTunnel: %v", err)
 	}
 
-	assertArgs(t, starter.calls[0].args, wantArgs)
+	if starter.cfg.Resolvers[0].Mode != ffislipstream.ModeAuthoritative {
+		t.Errorf("mode = %v, want authoritative", starter.cfg.Resolvers[0].Mode)
+	}
+
+	if starter.cfg.CongestionControl != "cubic" {
+		t.Errorf("congestion = %q, want cubic", starter.cfg.CongestionControl)
+	}
+
+	if !starter.cfg.GSO {
+		t.Error("GSO = false, want true")
+	}
 }
 
 func TestRunTunnelCustomDNSPort(t *testing.T) {
-	starter := &captureStarter{}
+	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
 
 	config := validSlipstreamConfig()
@@ -311,24 +444,25 @@ func TestRunTunnelCustomDNSPort(t *testing.T) {
 	_, err := service.RunTunnel(
 		context.Background(),
 		config,
-		"10.0.0.1",
+		netip.MustParseAddr("10.0.0.1"),
 		5300,
+		0,
 	)
 	if err != nil {
 		t.Fatalf("RunTunnel: %v", err)
 	}
 
-	wantArgs := []string{
-		"-d", "tunnel.example.com",
-		"-r", "10.0.0.1:5353",
-		"-l", "5300",
+	if starter.cfg.Resolvers[0].Host != "10.0.0.1" {
+		t.Errorf("resolver host = %q, want 10.0.0.1", starter.cfg.Resolvers[0].Host)
 	}
 
-	assertArgs(t, starter.calls[0].args, wantArgs)
+	if starter.cfg.Resolvers[0].Port != 5353 {
+		t.Errorf("resolver port = %d, want 5353", starter.cfg.Resolvers[0].Port)
+	}
 }
 
 func TestRunTunnelInvalidConfig(t *testing.T) {
-	starter := &captureStarter{}
+	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
 
 	config := SlipstreamConfig{}
@@ -336,79 +470,63 @@ func TestRunTunnelInvalidConfig(t *testing.T) {
 	_, err := service.RunTunnel(
 		context.Background(),
 		config,
-		"1.2.3.4",
+		netip.MustParseAddr("1.2.3.4"),
 		5300,
+		0,
 	)
 	if err == nil {
 		t.Fatal("expected validation error")
 	}
 
-	if len(starter.calls) != 0 {
-		t.Fatal("process should not start with invalid config")
+	if starter.calls != 0 {
+		t.Fatal("library should not start with invalid config")
 	}
 }
 
-func TestRunTunnelEmptyResolverIP(t *testing.T) {
-	starter := &captureStarter{}
+func TestRunTunnelInvalidResolverIP(t *testing.T) {
+	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
 
 	_, err := service.RunTunnel(
 		context.Background(),
 		validSlipstreamConfig(),
-		"",
+		netip.Addr{},
 		5300,
+		0,
 	)
 	if err == nil {
 		t.Fatal("expected resolver IP error")
 	}
 
-	if len(starter.calls) != 0 {
-		t.Fatal("process should not start without resolver IP")
-	}
-}
-
-func TestRunTunnelWhitespaceResolverIP(t *testing.T) {
-	starter := &captureStarter{}
-	service := newTestSlipstreamService(t, starter)
-
-	_, err := service.RunTunnel(
-		context.Background(),
-		validSlipstreamConfig(),
-		"   ",
-		5300,
-	)
-	if err == nil {
-		t.Fatal("expected resolver IP error")
-	}
-
-	if len(starter.calls) != 0 {
-		t.Fatal("process should not start with invalid resolver IP")
+	if starter.calls != 0 {
+		t.Fatal("library should not start without resolver IP")
 	}
 }
 
 func TestRunTunnelZeroListenPort(t *testing.T) {
-	starter := &captureStarter{}
+	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
 
 	_, err := service.RunTunnel(
 		context.Background(),
 		validSlipstreamConfig(),
-		"1.2.3.4",
+		netip.MustParseAddr("1.2.3.4"),
+		0,
 		0,
 	)
 	if err == nil {
 		t.Fatal("expected listen port error")
 	}
 
-	if len(starter.calls) != 0 {
-		t.Fatal("process should not start with zero listen port")
+	if starter.calls != 0 {
+		t.Fatal("library should not start with zero listen port")
 	}
 }
 
 func TestRunTunnelStarterError(t *testing.T) {
 	sentinel := errors.New("start failed")
 
-	starter := &captureStarter{
+	starter := &fakeStarter{
 		err: sentinel,
 	}
 
@@ -417,8 +535,9 @@ func TestRunTunnelStarterError(t *testing.T) {
 	_, err := service.RunTunnel(
 		context.Background(),
 		validSlipstreamConfig(),
-		"1.2.3.4",
+		netip.MustParseAddr("1.2.3.4"),
 		5300,
+		0,
 	)
 	if err == nil {
 		t.Fatal("expected starter error")
@@ -433,18 +552,111 @@ func TestRunTunnelStarterError(t *testing.T) {
 	}
 }
 
+func TestRunTunnelCanceledContext(t *testing.T) {
+	starter := &fakeStarter{}
+	service := newTestSlipstreamService(t, starter)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := service.RunTunnel(
+		ctx,
+		validSlipstreamConfig(),
+		netip.MustParseAddr("1.2.3.4"),
+		5300,
+		0,
+	)
+	if err == nil {
+		t.Fatal("expected context error")
+	}
+
+	if starter.calls != 0 {
+		t.Fatal("library should not start with canceled context")
+	}
+}
+
+func TestRunTunnelNilLib(t *testing.T) {
+	service := &slipstreamService{
+		configs: newConfigStore[SlipstreamConfig](t.TempDir(), "Slipstream"),
+		slip:    nil,
+	}
+
+	_, err := service.RunTunnel(
+		context.Background(),
+		validSlipstreamConfig(),
+		netip.MustParseAddr("1.2.3.4"),
+		5300,
+		0,
+	)
+	if err == nil {
+		t.Fatal("expected library-not-loaded error")
+	}
+}
+
+func TestLibConfig(t *testing.T) {
+	config := validSlipstreamConfig()
+	config.ResolverPort = 5353
+	config.CertPath = "/tmp/ca.pem"
+
+	got := config.LibConfig(
+		netip.MustParseAddr("9.9.9.9"),
+		netip.MustParseAddr("127.0.0.1"),
+		5400,
+		7,
+	)
+
+	if got.Domain != "tunnel.example.com" {
+		t.Errorf("domain = %q", got.Domain)
+	}
+
+	if len(got.Resolvers) != 1 || got.Resolvers[0].Host != "9.9.9.9" || got.Resolvers[0].Port != 5353 {
+		t.Errorf("resolvers = %+v", got.Resolvers)
+	}
+
+	if got.ListenHost != "127.0.0.1" || got.ListenPort != 5400 {
+		t.Errorf("listen = %s:%d", got.ListenHost, got.ListenPort)
+	}
+
+	if got.KeepAliveInterval != 7 {
+		t.Errorf("keepalive = %d, want 7", got.KeepAliveInterval)
+	}
+
+	if got.CertPath != "/tmp/ca.pem" {
+		t.Errorf("cert = %q", got.CertPath)
+	}
+}
+
+func TestLibConfigNil(t *testing.T) {
+	var config *SlipstreamConfig
+
+	got := config.LibConfig(
+		netip.MustParseAddr("1.1.1.1"),
+		netip.MustParseAddr("127.0.0.1"),
+		5300,
+		5,
+	)
+
+	if len(got.Resolvers) != 0 {
+		t.Errorf("expected no resolvers, got %+v", got.Resolvers)
+	}
+}
+
 func TestSaveAndLoadConfig(t *testing.T) {
 	dir := resolvedSlipstreamDir(t)
 
 	service := newTestSlipstreamService(
 		t,
-		&captureStarter{},
+		&fakeStarter{},
 	)
 
 	config := SlipstreamConfig{
-		Domain:       "roundtrip.example.com",
-		ResolverPort: 853,
-		CertPath:     "/tmp/cert.pem",
+		Domain:            "roundtrip.example.com",
+		ResolverPort:      853,
+		CertPath:          "/tmp/cert.pem",
+		DNSResolution:     DNSResolutionAuthoritative,
+		GSO:               true,
+		CongestionControl: CongestionControlCubic,
+		KeepAliveInterval: 15,
 	}
 
 	const name = "test-roundtrip"
@@ -464,11 +676,17 @@ func TestSaveAndLoadConfig(t *testing.T) {
 		t.Fatalf("LoadConfig: %v", err)
 	}
 
-	if got != config {
+	// KeepAliveInterval is tagged toml:"-" (runtime-only), so it is not
+	// persisted. Compare everything else, then assert the loaded value is
+	// the zero value.
+	want := config
+	want.KeepAliveInterval = 0
+
+	if got != want {
 		t.Errorf(
 			"loaded config = %#v, want %#v",
 			got,
-			config,
+			want,
 		)
 	}
 }
@@ -476,7 +694,7 @@ func TestSaveAndLoadConfig(t *testing.T) {
 func TestSaveConfigEmptyName(t *testing.T) {
 	service := newTestSlipstreamService(
 		t,
-		&captureStarter{},
+		&fakeStarter{},
 	)
 
 	err := service.SaveConfig(
@@ -491,7 +709,7 @@ func TestSaveConfigEmptyName(t *testing.T) {
 func TestSaveConfigWhitespaceName(t *testing.T) {
 	service := newTestSlipstreamService(
 		t,
-		&captureStarter{},
+		&fakeStarter{},
 	)
 
 	err := service.SaveConfig(
@@ -506,7 +724,7 @@ func TestSaveConfigWhitespaceName(t *testing.T) {
 func TestSaveConfigInvalidConfig(t *testing.T) {
 	service := newTestSlipstreamService(
 		t,
-		&captureStarter{},
+		&fakeStarter{},
 	)
 
 	err := service.SaveConfig(
@@ -521,7 +739,7 @@ func TestSaveConfigInvalidConfig(t *testing.T) {
 func TestSlipstreamLoadConfigNotFound(t *testing.T) {
 	service := newTestSlipstreamService(
 		t,
-		&captureStarter{},
+		&fakeStarter{},
 	)
 
 	_, err := service.LoadConfig(
@@ -533,7 +751,7 @@ func TestSlipstreamLoadConfigNotFound(t *testing.T) {
 }
 
 func TestSlipstreamGetAllConfigFiles(t *testing.T) {
-	service := newTestSlipstreamService(t, &captureStarter{})
+	service := newTestSlipstreamService(t, &fakeStarter{})
 
 	names := []string{
 		"test-list-alpha",
@@ -585,7 +803,7 @@ func TestGetAllConfigFilesIgnoresNonTOML(t *testing.T) {
 
 	service := newTestSlipstreamService(
 		t,
-		&captureStarter{},
+		&fakeStarter{},
 	)
 
 	files, err := service.GetAllConfigFiles()
@@ -637,72 +855,6 @@ func TestConfigPathAddsExtension(t *testing.T) {
 	}
 }
 
-func TestSlipstreamClientPaths(t *testing.T) {
-	t.Parallel()
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-
-	want := []string{
-		filepath.Join(wd, "assets", "slipstream-client"),
-		filepath.Join(wd, "assets", "slipstream", "slipstream-client"),
-		filepath.Join(wd, "slipstream-client"),
-		wd,
-	}
-
-	got := getSlipstreamPaths()
-
-	if len(got) != len(want) {
-		t.Fatalf(
-			"getSlipstreamPaths() length = %d, want %d",
-			len(got),
-			len(want),
-		)
-	}
-
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf(
-				"getSlipstreamPaths()[%d] = %q, want %q",
-				i,
-				got[i],
-				want[i],
-			)
-		}
-	}
-}
-
-func assertArgs(
-	t *testing.T,
-	got []string,
-	want []string,
-) {
-	t.Helper()
-
-	if len(got) != len(want) {
-		t.Fatalf(
-			"args length = %d, want %d\n got: %#v\nwant: %#v",
-			len(got),
-			len(want),
-			got,
-			want,
-		)
-	}
-
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf(
-				"args[%d] = %q, want %q",
-				i,
-				got[i],
-				want[i],
-			)
-		}
-	}
-}
-
 func resolvedSlipstreamDir(t *testing.T) string {
 	t.Helper()
 
@@ -719,7 +871,7 @@ func resolvedSlipstreamDir(t *testing.T) string {
 }
 
 func TestSlipstreamEditConfigUpdatesExisting(t *testing.T) {
-	service := newTestSlipstreamService(t, &captureStarter{})
+	service := newTestSlipstreamService(t, &fakeStarter{})
 
 	if err := service.SaveConfig(validSlipstreamConfig(), "my-tunnel"); err != nil {
 		t.Fatalf("SaveConfig() error = %v", err)
@@ -743,7 +895,7 @@ func TestSlipstreamEditConfigUpdatesExisting(t *testing.T) {
 }
 
 func TestSlipstreamEditConfigMissingConfigReturnsError(t *testing.T) {
-	service := newTestSlipstreamService(t, &captureStarter{})
+	service := newTestSlipstreamService(t, &fakeStarter{})
 
 	err := service.EditConfig(validSlipstreamConfig(), "does-not-exist")
 	if err == nil {

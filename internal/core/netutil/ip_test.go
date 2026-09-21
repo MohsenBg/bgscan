@@ -84,6 +84,23 @@ func TestStreamCIDR(t *testing.T) {
 	}
 }
 
+func TestLoopback(t *testing.T) {
+	v4 := netip.MustParseAddr("1.2.3.4")
+	if got := Loopback(v4); got.String() != "127.0.0.1" {
+		t.Errorf("Loopback(%s) = %s, want 127.0.0.1", v4, got)
+	}
+
+	v6 := netip.MustParseAddr("2001:db8::1")
+	if got := Loopback(v6); got != netip.IPv6Loopback() {
+		t.Errorf("Loopback(%s) = %s, want ::1", v6, got)
+	}
+
+	v4mapped := netip.MustParseAddr("::ffff:1.2.3.4")
+	if got := Loopback(v4mapped); got != netip.IPv6Loopback() {
+		t.Errorf("Loopback(%s) = %s, want ::1", v4mapped, got)
+	}
+}
+
 func TestParseIPOrCIDR(t *testing.T) {
 	tests := []struct {
 		raw    string

@@ -1,18 +1,11 @@
 package fileutil
 
 import (
-	"log"
 	"os"
 	"testing"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 func TestMain(m *testing.M) {
-	if err := logger.InitCore(); err != nil {
-		log.Fatalf("core logger initialization failed: %v", err)
-	}
-
 	switch os.Getenv(basePathHelperEnv) {
 	case basePathHelperReal, basePathHelperSymlinked:
 		base, err := BasePath()

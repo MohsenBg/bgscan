@@ -3,10 +3,7 @@ package result
 import (
 	"log"
 	"os"
-	"path/filepath"
 	"testing"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 func TestMain(m *testing.M) {
@@ -19,8 +16,5 @@ func TestMain(m *testing.M) {
 		_ = os.RemoveAll(dir)
 	}()
 
-	if err := logger.InitCoreToDir(filepath.Join(dir, "logs")); err != nil {
-		log.Fatalf("core logger initialization failed: %v", err)
-	}
 	os.Exit(m.Run())
 }

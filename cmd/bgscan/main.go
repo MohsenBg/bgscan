@@ -8,7 +8,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/main/app"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
 var Version = "dev"
@@ -19,12 +18,17 @@ func main() {
 		return
 	}
 
-	theme.Init()
+	logs, err := logger.NewSet()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: log files unavailable: %v\n", err)
+		logs = logger.DiscardSet()
+	}
 
-	defer logger.CloseAll()
+	defer logs.Close()
+
 	config.AppVersion = Version
 
-	app := app.New()
+	app := app.New(logs)
 	p := tea.NewProgram(app)
 	app.SetProgram(p)
 

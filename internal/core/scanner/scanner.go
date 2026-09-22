@@ -120,6 +120,9 @@ type scanner struct {
 	masterDNSService  dns.MasterDNSService
 	stormDNSService   dns.StormDNSService
 	thefeedService    dns.TheFeedService
+
+	// logs bundles the app's file loggers (nil-safe children via DiscardSet).
+	logs logger.Set
 }
 
 // ScannerOption configures a Scanner.
@@ -146,6 +149,15 @@ func WithPortManager(pm portmgr.Manager) ScannerOption {
 	return func(s *scanner) {
 		if pm != nil {
 			s.pm = pm
+		}
+	}
+}
+
+// WithLogs provides the file loggers used by the scanner and its probes.
+func WithLogs(l logger.Set) ScannerOption {
+	return func(s *scanner) {
+		if l.Core != nil {
+			s.logs = l
 		}
 	}
 }
@@ -222,7 +234,7 @@ func withScanRunner(runner scanRunner) ScannerOption {
 	}
 }
 
-// NewScanner creates a scanner for input.
+// NewScanner creates a scanner for the target file at input.
 func NewScanner(
 	ctx context.Context,
 	input string,
@@ -247,6 +259,10 @@ func NewScanner(
 		if opt != nil {
 			opt(s)
 		}
+	}
+
+	if s.logs.Core == nil {
+		s.logs = logger.DiscardSet()
 	}
 
 	if err := s.loadConfig(); err != nil {
@@ -296,7 +312,7 @@ func (s *scanner) loadConfig() error {
 		return nil
 	}
 
-	cfg, err := config.NewStore().Load()
+	cfg, err := config.NewStore(config.WithLogger(s.logs.Core)).Load()
 	if err != nil {
 		return fmt.Errorf("load scanner config: %w", err)
 	}
@@ -393,7 +409,7 @@ func (s *scanner) Run() error {
 
 	if config.DetectPlatform() == config.Android {
 		if err := exec.Command("termux-wake-lock").Run(); err != nil {
-			logger.CoreWarn("termux-wake-lock failed: %v", err)
+			s.logs.Core.Warn("termux-wake-lock failed: %v", err)
 		}
 
 		defer func() {
@@ -437,6 +453,7 @@ func (s *scanner) runSingle(stage StageConfig) {
 		Shuffled:         general.Shuffled,
 		Pause:            s.pause,
 		RateLimiter:      s.newRateLimiter(),
+		Log:              s.logs.Core,
 	})
 }
 
@@ -466,6 +483,7 @@ func (s *scanner) runChain(stages []StageConfig) {
 		BatchSize:        general.BatchSize,
 		MinProbeDuration: general.MinProbeDuration.Duration(),
 		RateLimiter:      s.newRateLimiter(),
+		Log:              s.logs.Core,
 	})
 }
 
@@ -531,7 +549,7 @@ func (s *scanner) Close() error {
 		return nil
 
 	case <-timer.C:
-		logger.CoreError(
+		s.logs.Core.Error(
 			"scanner shutdown timed out after %s",
 			shutdownTimeout,
 		)

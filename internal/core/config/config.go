@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
-// AppVersion is the current application version fill by main app.
+// AppVersion holds the application version set by main ("dev" when unset).
 var AppVersion = "dev"
 
 const (
@@ -40,6 +41,7 @@ type ScannerConfig struct {
 // Store reads and writes scanner settings in a specific directory.
 type Store struct {
 	dir string
+	log *logger.Logger
 }
 
 // StoreOption configures a Store during creation.
@@ -49,6 +51,13 @@ type StoreOption func(*Store)
 func WithSettingsDir(dir string) StoreOption {
 	return func(s *Store) {
 		s.dir = dir
+	}
+}
+
+// WithLogger sets the logger used for load-time warnings (nil-safe).
+func WithLogger(log *logger.Logger) StoreOption {
+	return func(s *Store) {
+		s.log = log
 	}
 }
 
@@ -71,37 +80,37 @@ func NewStore(opts ...StoreOption) Store {
 // Load reads all configuration files from the store directory.
 // Missing files are created with defaults; malformed files return an error.
 func (s Store) Load() (ScannerConfig, error) {
-	general, err := loadTOML(s.path(generalFile), DefaultGeneralConfig())
+	general, err := loadTOML(s.path(generalFile), DefaultGeneralConfig(s.log))
 	if err != nil {
 		return ScannerConfig{}, err
 	}
 
-	writer, err := loadTOML(s.path(writerFile), DefaultWriterConfig())
+	writer, err := loadTOML(s.path(writerFile), DefaultWriterConfig(s.log))
 	if err != nil {
 		return ScannerConfig{}, err
 	}
 
-	icmp, err := loadTOML(s.path(icmpFile), DefaultICMPConfig())
+	icmp, err := loadTOML(s.path(icmpFile), DefaultICMPConfig(s.log))
 	if err != nil {
 		return ScannerConfig{}, err
 	}
 
-	tcp, err := loadTOML(s.path(tcpFile), DefaultTCPConfig())
+	tcp, err := loadTOML(s.path(tcpFile), DefaultTCPConfig(s.log))
 	if err != nil {
 		return ScannerConfig{}, err
 	}
 
-	http, err := loadTOML(s.path(httpFile), DefaultHTTPConfig())
+	http, err := loadTOML(s.path(httpFile), DefaultHTTPConfig(s.log))
 	if err != nil {
 		return ScannerConfig{}, err
 	}
 
-	xray, err := loadTOML(s.path(xrayFile), DefaultXrayConfig())
+	xray, err := loadTOML(s.path(xrayFile), DefaultXrayConfig(s.log))
 	if err != nil {
 		return ScannerConfig{}, err
 	}
 
-	dns, err := loadTOML(s.path(dnsFile), DefaultDNSConfig())
+	dns, err := loadTOML(s.path(dnsFile), DefaultDNSConfig(s.log))
 	if err != nil {
 		return ScannerConfig{}, err
 	}

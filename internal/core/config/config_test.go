@@ -15,17 +15,17 @@ func newTestStore(t *testing.T) Store {
 
 func defaultScannerConfig() ScannerConfig {
 	return ScannerConfig{
-		General: DefaultGeneralConfig(),
-		Writer:  DefaultWriterConfig(),
-		ICMP:    DefaultICMPConfig(),
-		TCP:     DefaultTCPConfig(),
-		HTTP:    DefaultHTTPConfig(),
-		Xray:    DefaultXrayConfig(),
-		DNS:     DefaultDNSConfig(),
+		General: DefaultGeneralConfig(nil),
+		Writer:  DefaultWriterConfig(nil),
+		ICMP:    DefaultICMPConfig(nil),
+		TCP:     DefaultTCPConfig(nil),
+		HTTP:    DefaultHTTPConfig(nil),
+		Xray:    DefaultXrayConfig(nil),
+		DNS:     DefaultDNSConfig(nil),
 	}
 }
 
-// TestNewStore_UsesBasePath verifies that under `go test` (BasePath falls
+// TestNewStore_UsesDefaultDirectory verifies that under `go test` (BasePath falls
 // back to the working directory) the default store lives in ./settings.
 func TestNewStore_UsesDefaultDirectory(t *testing.T) {
 	wd, err := os.Getwd()
@@ -148,7 +148,7 @@ func TestStoreSave_ReturnsErrorWhenDirectoryIsAFile(t *testing.T) {
 
 	store := NewStore(WithSettingsDir(path))
 
-	if err := store.SaveTCP(DefaultTCPConfig()); err == nil {
+	if err := store.SaveTCP(DefaultTCPConfig(nil)); err == nil {
 		t.Fatal("expected save error")
 	}
 }

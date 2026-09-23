@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // WriteJSONFile encodes value as JSON and writes it to path.
@@ -20,9 +18,7 @@ func WriteJSONFile(path string, value any) error {
 		return fmt.Errorf("create JSON file %q: %w", path, err)
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			logger.CoreError("close JSON file %q: %v", path, err)
-		}
+		_ = file.Close()
 	}()
 
 	encoder := json.NewEncoder(file)

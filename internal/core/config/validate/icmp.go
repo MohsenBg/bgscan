@@ -45,7 +45,7 @@ func ValidateICMP(cfg config.ICMPConfig) map[string]error {
 
 // NormalizeICMP replaces invalid ICMPConfig fields with defaults and reports each correction.
 func NormalizeICMP(cfg *config.ICMPConfig) []Warning {
-	def := config.DefaultICMPConfig()
+	def := config.DefaultICMPConfig(nil)
 	var warns []Warning
 
 	fixInt("Workers", &cfg.Workers,

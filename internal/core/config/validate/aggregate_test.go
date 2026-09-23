@@ -9,13 +9,13 @@ import (
 
 func defaultScannerConfig() config.ScannerConfig {
 	return config.ScannerConfig{
-		General: config.DefaultGeneralConfig(),
-		Writer:  config.DefaultWriterConfig(),
-		ICMP:    config.DefaultICMPConfig(),
-		TCP:     config.DefaultTCPConfig(),
-		HTTP:    config.DefaultHTTPConfig(),
-		Xray:    config.DefaultXrayConfig(),
-		DNS:     config.DefaultDNSConfig(),
+		General: config.DefaultGeneralConfig(nil),
+		Writer:  config.DefaultWriterConfig(nil),
+		ICMP:    config.DefaultICMPConfig(nil),
+		TCP:     config.DefaultTCPConfig(nil),
+		HTTP:    config.DefaultHTTPConfig(nil),
+		Xray:    config.DefaultXrayConfig(nil),
+		DNS:     config.DefaultDNSConfig(nil),
 	}
 }
 

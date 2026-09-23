@@ -127,7 +127,7 @@ func ValidateHTTP(cfg config.HTTPConfig) map[string]error {
 
 // NormalizeHTTP replaces invalid HTTPConfig fields with defaults and reports each correction.
 func NormalizeHTTP(cfg *config.HTTPConfig) []Warning {
-	def := config.DefaultHTTPConfig()
+	def := config.DefaultHTTPConfig(nil)
 	var warns []Warning
 
 	fixInt(

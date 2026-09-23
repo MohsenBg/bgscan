@@ -165,7 +165,7 @@ func TestValidateGeneral(t *testing.T) {
 }
 
 func TestNormalizeGeneral(t *testing.T) {
-	def := config.DefaultGeneralConfig()
+	def := config.DefaultGeneralConfig(nil)
 
 	tests := []struct {
 		name          string

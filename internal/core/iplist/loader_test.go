@@ -72,12 +72,12 @@ func TestImportIPList_MapPath_DedupesAndMasks(t *testing.T) {
 		"invalid-ip,1",
 	})
 
-	err := ImportIPList(context.Background(), src, dst, ImportOption{
+	err := ImportIPList(nil, context.Background(), src, dst, ImportOption{
 		MaxMapFileSize:     1 << 20, // force map path for this small file
 		MaxInMemoryEntries: 100,
 	})
 	if err != nil {
-		t.Fatalf("ImportIPList() error = %v", err)
+		t.Fatalf("ImportIPList(nil, ) error = %v", err)
 	}
 
 	got := readAllCSV(t, dst)
@@ -108,11 +108,11 @@ func TestImportIPList_DiskPath_DedupesAndSorts(t *testing.T) {
 		"2.2.2.2,0",
 	})
 
-	err := ImportIPList(context.Background(), src, dst, ImportOption{
+	err := ImportIPList(nil, context.Background(), src, dst, ImportOption{
 		MaxMapFileSize: 0, // force disk path
 	})
 	if err != nil {
-		t.Fatalf("ImportIPList() error = %v", err)
+		t.Fatalf("ImportIPList(nil, ) error = %v", err)
 	}
 
 	got := readAllCSV(t, dst)
@@ -140,12 +140,12 @@ func TestImportIPList_MapPath_RespectsMaxInMemoryEntries(t *testing.T) {
 		"2.2.2.2,1",
 	})
 
-	err := ImportIPList(context.Background(), src, dst, ImportOption{
+	err := ImportIPList(nil, context.Background(), src, dst, ImportOption{
 		MaxMapFileSize:     1 << 20,
 		MaxInMemoryEntries: 1,
 	})
 	if err == nil {
-		t.Fatal("ImportIPList() error = nil, want memory limit error")
+		t.Fatal("ImportIPList(nil, ) error = nil, want memory limit error")
 	}
 
 	if !strings.Contains(err.Error(), "in-memory entry limit") {

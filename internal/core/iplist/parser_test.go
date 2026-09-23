@@ -115,7 +115,7 @@ func TestStreamActiveIPsSequential(t *testing.T) {
 		out := make(chan netip.Addr, 10)
 		ctx := context.Background()
 
-		err := StreamActiveIPs(ctx, path, 1, false, out)
+		err := StreamActiveIPs(nil, ctx, path, 1, false, out)
 		close(out)
 
 		// depending on ReadCSV implementation, limit stop may surface as nil or io.EOF

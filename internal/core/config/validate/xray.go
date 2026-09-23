@@ -127,7 +127,7 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 
 // NormalizeXray replaces invalid XrayConfig fields with defaults and reports each correction.
 func NormalizeXray(cfg *config.XrayConfig) []Warning {
-	def := config.DefaultXrayConfig()
+	def := config.DefaultXrayConfig(nil)
 	var warns []Warning
 
 	fixInt(

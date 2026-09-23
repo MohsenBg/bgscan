@@ -186,7 +186,7 @@ func NormalizeDNS(cfg *config.DNSConfig) []Warning {
 }
 
 func normalizeResolver(r *config.ResolverConfig) []Warning {
-	def := config.DefaultDNSConfig().Resolver
+	def := config.DefaultDNSConfig(nil).Resolver
 	var warns []Warning
 
 	fixInt(
@@ -276,7 +276,7 @@ func normalizeResolver(r *config.ResolverConfig) []Warning {
 }
 
 func normalizeDNSTunneling(d *config.DNSTunneling) []Warning {
-	def := config.DefaultDNSConfig().DNSTunneling
+	def := config.DefaultDNSConfig(nil).DNSTunneling
 	var warns []Warning
 
 	fixInt(

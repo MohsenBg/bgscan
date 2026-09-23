@@ -131,7 +131,7 @@ func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
 
 // NormalizeGeneral replaces invalid GeneralConfig fields with defaults and reports each correction.
 func NormalizeGeneral(cfg *config.GeneralConfig) []Warning {
-	def := config.DefaultGeneralConfig()
+	def := config.DefaultGeneralConfig(nil)
 	var warns []Warning
 
 	fixDurationMS(

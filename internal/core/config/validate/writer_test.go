@@ -8,7 +8,7 @@ import (
 )
 
 func TestWriterConfig(t *testing.T) {
-	def := config.DefaultWriterConfig()
+	def := config.DefaultWriterConfig(nil)
 
 	tests := []struct {
 		name          string

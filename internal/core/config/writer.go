@@ -14,20 +14,20 @@ type WriterConfig struct {
 	ResultBaseDir      string     `toml:"result_directory" comment:"Directory name for scan results. Created next to the binary."`
 }
 
-func DefaultWriterConfig() WriterConfig {
+func DefaultWriterConfig(log *logger.Logger) WriterConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())
 
 	tiers, ok := writerDefaults[platform]
 	if !ok {
-		logger.CoreWarn("bgscan: no Writer defaults for platform %q, falling back to %q", platform, Desktop)
+		log.Warn("bgscan: no Writer defaults for platform %q, falling back to %q", platform, Desktop)
 		platform = Desktop
 		tiers = writerDefaults[platform]
 	}
 
 	cfg, ok := tiers[tier]
 	if !ok {
-		logger.CoreWarn("bgscan: no Writer defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
+		log.Warn("bgscan: no Writer defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
 		cfg = tiers[Mid]
 	}
 

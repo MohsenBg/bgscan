@@ -297,54 +297,54 @@ func TestDNSDefaultsSlicesAreIndependent(t *testing.T) {
 // valid (non-zero) entry from *some* row of its table, on any machine ----
 
 func TestDefaultConfigsDoNotPanicAndAreNonZero(t *testing.T) {
-	g := DefaultGeneralConfig()
+	g := DefaultGeneralConfig(nil)
 	if g.MaxIPsPerStage == 0 || g.BatchSize == 0 {
-		t.Error("DefaultGeneralConfig() returned zero-value fields")
+		t.Error("DefaultGeneralConfig(nil) returned zero-value fields")
 	}
 
-	w := DefaultWriterConfig()
+	w := DefaultWriterConfig(nil)
 	if w.ChanSize == 0 || w.BatchSize == 0 {
-		t.Error("DefaultWriterConfig() returned zero-value fields")
+		t.Error("DefaultWriterConfig(nil) returned zero-value fields")
 	}
 
-	i := DefaultICMPConfig()
+	i := DefaultICMPConfig(nil)
 	if i.Workers == 0 || i.OutputPrefix == "" {
-		t.Error("DefaultICMPConfig() returned zero-value fields")
+		t.Error("DefaultICMPConfig(nil) returned zero-value fields")
 	}
 
-	tc := DefaultTCPConfig()
+	tc := DefaultTCPConfig(nil)
 	if tc.Workers == 0 || tc.OutputPrefix == "" {
-		t.Error("DefaultTCPConfig() returned zero-value fields")
+		t.Error("DefaultTCPConfig(nil) returned zero-value fields")
 	}
 
-	h := DefaultHTTPConfig()
+	h := DefaultHTTPConfig(nil)
 	if h.Workers == 0 || h.Host == "" {
-		t.Error("DefaultHTTPConfig() returned zero-value fields")
+		t.Error("DefaultHTTPConfig(nil) returned zero-value fields")
 	}
 
-	x := DefaultXrayConfig()
+	x := DefaultXrayConfig(nil)
 	if x.Workers == 0 || x.OutputPrefix == "" {
-		t.Error("DefaultXrayConfig() returned zero-value fields")
+		t.Error("DefaultXrayConfig(nil) returned zero-value fields")
 	}
 
-	d := DefaultDNSConfig()
+	d := DefaultDNSConfig(nil)
 	if d.Resolver.Workers == 0 || d.Resolver.OutputPrefix == "" {
-		t.Error("DefaultDNSConfig() returned zero-value fields")
+		t.Error("DefaultDNSConfig(nil) returned zero-value fields")
 	}
 }
 
 func TestDefaultConfigsReturnIndependentSlices(t *testing.T) {
-	a := DefaultHTTPConfig()
-	b := DefaultHTTPConfig()
+	a := DefaultHTTPConfig(nil)
+	b := DefaultHTTPConfig(nil)
 	a.AcceptedStatusCodes = append(a.AcceptedStatusCodes, 200)
 	if len(b.AcceptedStatusCodes) != 0 {
-		t.Error("DefaultHTTPConfig() shares AcceptedStatusCodes slice across calls")
+		t.Error("DefaultHTTPConfig(nil) shares AcceptedStatusCodes slice across calls")
 	}
 
-	c := DefaultDNSConfig()
-	d := DefaultDNSConfig()
+	c := DefaultDNSConfig(nil)
+	d := DefaultDNSConfig(nil)
 	c.Resolver.CheckTypes = append(c.Resolver.CheckTypes, "AAAA")
 	if len(d.Resolver.CheckTypes) != 1 {
-		t.Error("DefaultDNSConfig() shares Resolver.CheckTypes slice across calls")
+		t.Error("DefaultDNSConfig(nil) shares Resolver.CheckTypes slice across calls")
 	}
 }

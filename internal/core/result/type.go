@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// KeyType identifies what kind of key is used to identify a result.
+// KeyType identifies how a result is keyed.
 type KeyType uint8
 
 const (
@@ -40,8 +40,7 @@ type Result interface {
 	Key() string
 	// KeyType returns the type of key used to identify this result.
 	KeyType() KeyType
-	// ToRecord converts the result to a slice of strings for storage.
-	// The order must match the ColumnDefs in the corresponding ResultSchema.
+	// ToRecord converts the result to storable strings, in ColumnDefs order.
 	ToRecord() []string
 	// Equal reports whether the other result is equivalent.
 	Equal(other Result) bool
@@ -62,7 +61,7 @@ type ColumnDef struct {
 type ResultSchema struct {
 	Name      string
 	Directory string
-	Columns   []ColumnDef // Order matches ToRecord output.
+	Columns   []ColumnDef
 	Parser    ResultParser
 }
 

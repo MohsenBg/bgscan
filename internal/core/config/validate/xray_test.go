@@ -8,7 +8,7 @@ import (
 )
 
 func TestXrayConfig(t *testing.T) {
-	def := config.DefaultXrayConfig()
+	def := config.DefaultXrayConfig(nil)
 
 	tests := []struct {
 		name          string

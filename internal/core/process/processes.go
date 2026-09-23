@@ -38,9 +38,8 @@ type processTracker struct {
 	startOnce   sync.Once
 }
 
-// NewProcessTracker creates a process tracker.
-//
-// Start must be called before the tracker can process registrations.
+// NewProcessTracker returns a tracker; Start must be called before it can
+// process registrations.
 func NewProcessTracker() ProcessTracker {
 	return &processTracker{
 		actionQueue: make(chan action, 100),

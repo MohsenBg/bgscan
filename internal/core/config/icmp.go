@@ -14,20 +14,20 @@ type ICMPConfig struct {
 	OutputPrefix string     `toml:"output_prefix" comment:"Filename prefix for result files."`
 }
 
-func DefaultICMPConfig() ICMPConfig {
+func DefaultICMPConfig(log *logger.Logger) ICMPConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())
 
 	tiers, ok := icmpDefaults[platform]
 	if !ok {
-		logger.CoreWarn("bgscan: no ICMP defaults for platform %q, falling back to %q", platform, Desktop)
+		log.Warn("bgscan: no ICMP defaults for platform %q, falling back to %q", platform, Desktop)
 		platform = Desktop
 		tiers = icmpDefaults[platform]
 	}
 
 	cfg, ok := tiers[tier]
 	if !ok {
-		logger.CoreWarn("bgscan: no ICMP defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
+		log.Warn("bgscan: no ICMP defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
 		cfg = tiers[Mid]
 	}
 

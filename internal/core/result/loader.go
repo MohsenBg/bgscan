@@ -1,10 +1,14 @@
 package result
 
-import "io"
+import (
+	"io"
+
+	"github.com/MohsenBg/bgscan/internal/logger"
+)
 
 // LoadResult streams valid scan results from CSV into a channel.
-func LoadResult(path string, schema ResultSchema, out chan<- Result) (ReadResult, error) {
-	return ReadCSV(path, schema, func(r Result) error {
+func LoadResult(log *logger.Logger, path string, schema ResultSchema, out chan<- Result) (ReadResult, error) {
+	return ReadCSV(log, path, schema, func(r Result) error {
 		out <- r
 		return nil
 	})
@@ -16,11 +20,11 @@ func CountResultKeys(path string, schema ResultSchema) (uint64, error) {
 }
 
 // LoadAll loads the entire result file into memory.
-func LoadAll(path string, schema ResultSchema, maxResults uint32) ([]Result, error) {
+func LoadAll(log *logger.Logger, path string, schema ResultSchema, maxResults uint32) ([]Result, error) {
 	results := make([]Result, 0, 1024)
 	var count uint32
 
-	_, err := ReadCSV(path, schema, func(r Result) error {
+	_, err := ReadCSV(log, path, schema, func(r Result) error {
 		if count >= maxResults {
 			return io.EOF
 		}

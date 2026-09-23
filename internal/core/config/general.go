@@ -20,20 +20,20 @@ type GeneralConfig struct {
 	ProbeBurst       int        `toml:"probe_burst" comment:"Max probes allowed in a burst. Range: 1-10000. Keep low on Android (10-50)."`
 }
 
-func DefaultGeneralConfig() GeneralConfig {
+func DefaultGeneralConfig(log *logger.Logger) GeneralConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())
 
 	tiers, ok := generalDefaults[platform]
 	if !ok {
-		logger.CoreWarn("bgscan: no General defaults for platform %q, falling back to %q", platform, Desktop)
+		log.Warn("bgscan: no General defaults for platform %q, falling back to %q", platform, Desktop)
 		platform = Desktop
 		tiers = generalDefaults[platform]
 	}
 
 	cfg, ok := tiers[tier]
 	if !ok {
-		logger.CoreWarn("bgscan: no General defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
+		log.Warn("bgscan: no General defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
 		cfg = tiers[Mid]
 	}
 

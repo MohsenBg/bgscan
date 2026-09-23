@@ -20,7 +20,7 @@ const (
 
 // SortFile sorts inputFile and writes the result to outputFile.
 // It selects an in-memory or external merge sort based on the input size.
-func SortFile(ctx context.Context, inputFile, outputFile string) error {
+func SortFile(log *logger.Logger, ctx context.Context, inputFile, outputFile string) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("context cancelled before start: %w", err)
 	}
@@ -35,11 +35,11 @@ func SortFile(ctx context.Context, inputFile, outputFile string) error {
 	}
 
 	if info.Size() <= inMemoryThreshold {
-		logger.CoreInfo("SortFile: using in-memory sort (%d bytes)", info.Size())
+		log.Info("SortFile: using in-memory sort (%d bytes)", info.Size())
 		return sortInMemory(ctx, inputFile, outputFile)
 	}
 
-	logger.CoreInfo("SortFile: using external merge sort (%d bytes)", info.Size())
+	log.Info("SortFile: using external merge sort (%d bytes)", info.Size())
 	return sortExternal(ctx, inputFile, outputFile)
 }
 
@@ -65,9 +65,7 @@ func sortInMemory(ctx context.Context, inputFile, outputFile string) error {
 		return fmt.Errorf("create output file: %w", err)
 	}
 	defer func() {
-		if err := out.Close(); err != nil {
-			logger.CoreError("error closing output file: %v", err)
-		}
+		_ = out.Close()
 	}()
 
 	w := bufio.NewWriter(out)
@@ -85,9 +83,7 @@ func sortExternal(ctx context.Context, inputFile, outputFile string) error {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
 	defer func() {
-		if err := os.RemoveAll(tmpDir); err != nil {
-			logger.CoreError("error removing temp dir: %v", err)
-		}
+		_ = os.RemoveAll(tmpDir)
 	}()
 
 	chunkFiles, err := splitAndSort(ctx, inputFile, tmpDir)
@@ -104,9 +100,7 @@ func splitAndSort(ctx context.Context, inputFile, tmpDir string) ([]string, erro
 		return nil, fmt.Errorf("open input file: %w", err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing input file: %v", err)
-		}
+		_ = f.Close()
 	}()
 
 	scanner := bufio.NewScanner(f)
@@ -155,9 +149,7 @@ func writeSortedChunk(lines []string, dir string, n int) (string, error) {
 		return "", fmt.Errorf("create chunk file: %w", err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing chunk file: %v", err)
-		}
+		_ = f.Close()
 	}()
 
 	w := bufio.NewWriter(f)
@@ -206,9 +198,7 @@ func mergeChunks(ctx context.Context, chunkFiles []string, outputFile string) er
 
 	defer func() {
 		for _, f := range files {
-			if err := f.Close(); err != nil {
-				logger.CoreError("error closing chunk file: %v", err)
-			}
+			_ = f.Close()
 		}
 	}()
 
@@ -217,9 +207,7 @@ func mergeChunks(ctx context.Context, chunkFiles []string, outputFile string) er
 		return fmt.Errorf("create output file: %w", err)
 	}
 	defer func() {
-		if err := out.Close(); err != nil {
-			logger.CoreError("error closing output file: %v", err)
-		}
+		_ = out.Close()
 	}()
 
 	w := bufio.NewWriter(out)

@@ -15,20 +15,20 @@ type TCPConfig struct {
 	OutputPrefix string     `toml:"output_prefix" comment:"Filename prefix for result files."`
 }
 
-func DefaultTCPConfig() TCPConfig {
+func DefaultTCPConfig(log *logger.Logger) TCPConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())
 
 	tiers, ok := tcpDefaults[platform]
 	if !ok {
-		logger.CoreWarn("bgscan: no TCP defaults for platform %q, falling back to %q", platform, Desktop)
+		log.Warn("bgscan: no TCP defaults for platform %q, falling back to %q", platform, Desktop)
 		platform = Desktop
 		tiers = tcpDefaults[platform]
 	}
 
 	cfg, ok := tiers[tier]
 	if !ok {
-		logger.CoreWarn("bgscan: no TCP defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
+		log.Warn("bgscan: no TCP defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
 		cfg = tiers[Mid]
 	}
 

@@ -23,20 +23,20 @@ type HTTPConfig struct {
 	AcceptedStatusCodes []int      `toml:"accepted_status_codes" comment:"HTTP status codes to accept. Empty = accept all codes."`
 }
 
-func DefaultHTTPConfig() HTTPConfig {
+func DefaultHTTPConfig(log *logger.Logger) HTTPConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())
 
 	tiers, ok := httpDefaults[platform]
 	if !ok {
-		logger.CoreWarn("bgscan: no HTTP defaults for platform %q, falling back to %q", platform, Desktop)
+		log.Warn("bgscan: no HTTP defaults for platform %q, falling back to %q", platform, Desktop)
 		platform = Desktop
 		tiers = httpDefaults[platform]
 	}
 
 	cfg, ok := tiers[tier]
 	if !ok {
-		logger.CoreWarn("bgscan: no HTTP defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
+		log.Warn("bgscan: no HTTP defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
 		cfg = tiers[Mid]
 	}
 

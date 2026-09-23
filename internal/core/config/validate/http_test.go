@@ -8,7 +8,7 @@ import (
 )
 
 func TestHTTPConfig(t *testing.T) {
-	def := config.DefaultHTTPConfig()
+	def := config.DefaultHTTPConfig(nil)
 
 	makeValidHTTP := func() config.HTTPConfig {
 		return config.HTTPConfig{

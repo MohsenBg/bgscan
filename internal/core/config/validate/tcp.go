@@ -52,7 +52,7 @@ func ValidateTCP(cfg config.TCPConfig) map[string]error {
 
 // NormalizeTCP replaces invalid TCPConfig fields with defaults and reports each correction.
 func NormalizeTCP(cfg *config.TCPConfig) []Warning {
-	def := config.DefaultTCPConfig()
+	def := config.DefaultTCPConfig(nil)
 	var warns []Warning
 
 	fixInt("Workers", &cfg.Workers,

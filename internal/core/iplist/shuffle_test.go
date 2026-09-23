@@ -243,7 +243,7 @@ func TestNewMasterIndexer_EmptyFile(t *testing.T) {
 
 	path := mustWriteShuffleFile(t, "empty.csv", "")
 
-	idx, err := NewMasterIndexer(path)
+	idx, err := NewMasterIndexer(nil, path)
 	if err != nil {
 		t.Fatalf("NewMasterIndexer: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestNewMasterIndexer_SinglesOnly(t *testing.T) {
 
 	path := mustWriteShuffleFile(t, "single.csv", content)
 
-	idx, err := NewMasterIndexer(path)
+	idx, err := NewMasterIndexer(nil, path)
 	if err != nil {
 		t.Fatalf("NewMasterIndexer: %v", err)
 	}
@@ -301,7 +301,7 @@ func TestNewMasterIndexer_CIDRsAndSingles(t *testing.T) {
 
 	path := mustWriteShuffleFile(t, "mixed.csv", content)
 
-	idx, err := NewMasterIndexer(path)
+	idx, err := NewMasterIndexer(nil, path)
 	if err != nil {
 		t.Fatalf("NewMasterIndexer: %v", err)
 	}
@@ -333,7 +333,7 @@ func TestStreamActiveIPsShuffled_Empty(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- streamActiveIPsShuffled(context.Background(), path, 0, out)
+		errCh <- streamActiveIPsShuffled(nil, context.Background(), path, 0, out)
 		close(out)
 	}()
 
@@ -361,7 +361,7 @@ func TestStreamActiveIPsShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- streamActiveIPsShuffled(context.Background(), path, 0, out)
+		errCh <- streamActiveIPsShuffled(nil, context.Background(), path, 0, out)
 		close(out)
 	}()
 
@@ -407,7 +407,7 @@ func TestStreamActiveIPsShuffled_MixedDataset(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- streamActiveIPsShuffled(context.Background(), path, 0, out)
+		errCh <- streamActiveIPsShuffled(nil, context.Background(), path, 0, out)
 		close(out)
 	}()
 
@@ -451,7 +451,7 @@ func TestStreamActiveIPsShuffled_Limit(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- streamActiveIPsShuffled(context.Background(), path, 2, out)
+		errCh <- streamActiveIPsShuffled(nil, context.Background(), path, 2, out)
 		close(out)
 	}()
 
@@ -477,7 +477,7 @@ func TestStreamActiveIPsShuffled_ContextCanceled(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- streamActiveIPsShuffled(ctx, path, 0, out)
+		errCh <- streamActiveIPsShuffled(nil, ctx, path, 0, out)
 		close(out)
 	}()
 

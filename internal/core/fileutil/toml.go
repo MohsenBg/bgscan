@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/MohsenBg/bgscan/internal/logger"
-
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -21,9 +19,7 @@ func WriteTOMLFile(path string, value any) error {
 		return fmt.Errorf("create TOML file %q: %w", path, err)
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			logger.CoreError("close TOML file %q: %v", path, err)
-		}
+		_ = file.Close()
 	}()
 
 	if err := toml.NewEncoder(file).Encode(value); err != nil {
@@ -51,9 +47,7 @@ func ReadTOMLFile[T any](path string) (T, error) {
 		return value, fmt.Errorf("open TOML file %q: %w", path, err)
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			logger.CoreError("close TOML file %q: %v", path, err)
-		}
+		_ = file.Close()
 	}()
 
 	if err := toml.NewDecoder(file).Decode(&value); err != nil {

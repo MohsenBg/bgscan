@@ -24,8 +24,7 @@ const (
 // DefaultRegistry holds schemas used by GetResultFiles.
 var DefaultRegistry = NewResultRegistry()
 
-// baseDirOverride redirects the application base directory in tests.
-// It is always empty in production.
+// baseDirOverride redirects the base directory in tests; empty in production.
 var baseDirOverride string
 
 // ResultRegistry stores result schemas safely for concurrent use.
@@ -34,13 +33,12 @@ type ResultRegistry struct {
 	schemas []ResultSchema
 }
 
-// NewResultRegistry returns an empty schema registry.
 func NewResultRegistry() *ResultRegistry {
 	return &ResultRegistry{}
 }
 
-// Register adds schema to the registry.
-// It rejects invalid schemas and duplicate directories.
+// Register adds a schema, rejecting invalid schemas and duplicate
+// directories.
 func (r *ResultRegistry) Register(schema ResultSchema) error {
 	if err := schema.Validate(); err != nil {
 		return fmt.Errorf("register schema: %w", err)
@@ -86,7 +84,6 @@ func (r *ResultRegistry) All() []ResultSchema {
 	return out
 }
 
-// Len returns the number of registered schemas.
 func (r *ResultRegistry) Len() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

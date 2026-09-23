@@ -1,6 +1,8 @@
 package iplist
 
 import (
+	"github.com/MohsenBg/bgscan/internal/logger"
+
 	"context"
 	"io"
 	"math"
@@ -69,7 +71,7 @@ func ParseRecord(rec []string) (IPList, bool) {
 	return New(ip.Masked(), enable), true
 }
 
-// ParseIPOrCIDR leverages netip.Prefix for all cases (single IPs become /32 or /128).
+// ParseIPOrCIDR uses netip.Prefix for all cases (single IPs become /32 or /128).
 func ParseIPOrCIDR(raw string) (netip.Prefix, bool) {
 	raw = strings.TrimSpace(raw)
 
@@ -87,14 +89,14 @@ func ParseIPOrCIDR(raw string) (netip.Prefix, bool) {
 }
 
 // StreamActiveIPs now outputs netip.Addr to avoid string allocations in the scan loop.
-func StreamActiveIPs(ctx context.Context, path string, limit uint64, shuffled bool, out chan<- netip.Addr) error {
+func StreamActiveIPs(log *logger.Logger, ctx context.Context, path string, limit uint64, shuffled bool, out chan<- netip.Addr) error {
 	if limit == 0 {
 		limit = math.MaxUint64 - 1
 	}
 
 	if shuffled {
 		// Ensure streamActiveIPsShuffled also uses chan<- netip.Addr
-		return streamActiveIPsShuffled(ctx, path, limit, out)
+		return streamActiveIPsShuffled(log, ctx, path, limit, out)
 	}
 	return streamActiveIPsSequential(ctx, path, limit, out)
 }

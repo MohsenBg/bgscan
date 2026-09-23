@@ -45,20 +45,20 @@ type DNSTunneling struct {
 	OutputPrefix     string     `toml:"output_prefix" comment:"Filename prefix for result files."`
 }
 
-func DefaultDNSConfig() DNSConfig {
+func DefaultDNSConfig(log *logger.Logger) DNSConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())
 
 	tiers, ok := dnsDefaults[platform]
 	if !ok {
-		logger.CoreWarn("bgscan: no DNS defaults for platform %q, falling back to %q", platform, Desktop)
+		log.Warn("bgscan: no DNS defaults for platform %q, falling back to %q", platform, Desktop)
 		platform = Desktop
 		tiers = dnsDefaults[platform]
 	}
 
 	cfg, ok := tiers[tier]
 	if !ok {
-		logger.CoreWarn("bgscan: no DNS defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
+		log.Warn("bgscan: no DNS defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
 		cfg = tiers[Mid]
 	}
 

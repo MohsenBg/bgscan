@@ -65,7 +65,7 @@ func ValidateWriter(cfg config.WriterConfig) map[string]error {
 
 // NormalizeWriter replaces invalid WriterConfig fields with defaults and reports each correction.
 func NormalizeWriter(cfg *config.WriterConfig) []Warning {
-	def := config.DefaultWriterConfig()
+	def := config.DefaultWriterConfig(nil)
 	var warns []Warning
 
 	fixDurationMS(

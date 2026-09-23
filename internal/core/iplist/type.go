@@ -18,7 +18,6 @@ func New(ip netip.Prefix, enable int) IPList {
 	}
 }
 
-// NewEnabled creates an enabled IPList entry.
 func NewEnabled(ip netip.Prefix) IPList {
 	return IPList{
 		IP:     ip,
@@ -26,7 +25,6 @@ func NewEnabled(ip netip.Prefix) IPList {
 	}
 }
 
-// NewDisabled creates a disabled IPList entry.
 func NewDisabled(ip netip.Prefix) IPList {
 	return IPList{
 		IP:     ip,

@@ -2,8 +2,6 @@ package result
 
 import (
 	"os"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // replaceFile atomically replaces the destination file with the source file.
@@ -32,9 +30,7 @@ func syncDir(dir string) error {
 	}
 
 	defer func() {
-		if err := df.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
-		}
+		_ = df.Close()
 	}()
 
 	return df.Sync()

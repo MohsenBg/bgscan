@@ -8,7 +8,7 @@ import (
 )
 
 func TestTCPConfig(t *testing.T) {
-	def := config.DefaultTCPConfig()
+	def := config.DefaultTCPConfig(nil)
 	tests := []struct {
 		name          string
 		mutateCfg     func(*config.TCPConfig)

@@ -50,7 +50,7 @@ func TestSortFile_SmallFile(t *testing.T) {
 	lines := []string{"banana", "apple", "cherry", "date", "elderberry"}
 	writeLines(t, input, lines)
 
-	if err := SortFile(context.Background(), input, output); err != nil {
+	if err := SortFile(nil, context.Background(), input, output); err != nil {
 		t.Fatalf("SortFile: %v", err)
 	}
 
@@ -70,7 +70,7 @@ func TestSortFile_AlreadySorted(t *testing.T) {
 	lines := []string{"apple", "banana", "cherry"}
 	writeLines(t, input, lines)
 
-	if err := SortFile(context.Background(), input, output); err != nil {
+	if err := SortFile(nil, context.Background(), input, output); err != nil {
 		t.Fatalf("SortFile: %v", err)
 	}
 
@@ -88,7 +88,7 @@ func TestSortFile_ReverseSorted(t *testing.T) {
 
 	writeLines(t, input, []string{"z", "y", "x", "w", "v"})
 
-	if err := SortFile(context.Background(), input, output); err != nil {
+	if err := SortFile(nil, context.Background(), input, output); err != nil {
 		t.Fatalf("SortFile: %v", err)
 	}
 
@@ -104,7 +104,7 @@ func TestSortFile_SingleLine(t *testing.T) {
 
 	writeLines(t, input, []string{"only"})
 
-	if err := SortFile(context.Background(), input, output); err != nil {
+	if err := SortFile(nil, context.Background(), input, output); err != nil {
 		t.Fatalf("SortFile: %v", err)
 	}
 
@@ -120,7 +120,7 @@ func TestSortFile_DuplicateLines(t *testing.T) {
 
 	writeLines(t, input, []string{"b", "a", "b", "a", "c"})
 
-	if err := SortFile(context.Background(), input, output); err != nil {
+	if err := SortFile(nil, context.Background(), input, output); err != nil {
 		t.Fatalf("SortFile: %v", err)
 	}
 
@@ -140,7 +140,7 @@ func TestSortFile_CreatesOutputDir(t *testing.T) {
 
 	writeLines(t, input, []string{"b", "a"})
 
-	if err := SortFile(context.Background(), input, output); err != nil {
+	if err := SortFile(nil, context.Background(), input, output); err != nil {
 		t.Fatalf("SortFile: %v", err)
 	}
 
@@ -150,7 +150,7 @@ func TestSortFile_CreatesOutputDir(t *testing.T) {
 }
 
 func TestSortFile_InputNotFound(t *testing.T) {
-	err := SortFile(context.Background(), "/nonexistent/input.txt", tmpPath(t, "output.txt"))
+	err := SortFile(nil, context.Background(), "/nonexistent/input.txt", tmpPath(t, "output.txt"))
 	if err == nil {
 		t.Fatal("expected error for missing input, got nil")
 	}
@@ -163,7 +163,7 @@ func TestSortFile_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
-	err := SortFile(ctx, input, tmpPath(t, "output.txt"))
+	err := SortFile(nil, ctx, input, tmpPath(t, "output.txt"))
 	if err == nil {
 		t.Fatal("expected error for cancelled context, got nil")
 	}
@@ -180,7 +180,7 @@ func TestSortFile_ExternalSort(t *testing.T) {
 	}
 	writeLines(t, input, lines)
 
-	if err := SortFile(context.Background(), input, output); err != nil {
+	if err := SortFile(nil, context.Background(), input, output); err != nil {
 		t.Fatalf("SortFile: %v", err)
 	}
 
@@ -200,7 +200,7 @@ func TestSortFile_PreservesAllLines(t *testing.T) {
 	lines := []string{"delta", "alpha", "gamma", "beta", "alpha", "epsilon"}
 	writeLines(t, input, lines)
 
-	if err := SortFile(context.Background(), input, output); err != nil {
+	if err := SortFile(nil, context.Background(), input, output); err != nil {
 		t.Fatalf("SortFile: %v", err)
 	}
 

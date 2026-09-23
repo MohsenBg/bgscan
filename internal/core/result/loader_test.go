@@ -9,9 +9,9 @@ func TestLoadResult_SendsValidRecords(t *testing.T) {
 	schema := validSchema(t)
 	out := make(chan Result, 10)
 
-	res, err := LoadResult(path, schema, out)
+	res, err := LoadResult(nil, path, schema, out)
 	if err != nil {
-		t.Fatalf("LoadResult() error = %v", err)
+		t.Fatalf("LoadResult(nil, ) error = %v", err)
 	}
 
 	close(out)
@@ -38,9 +38,9 @@ func TestLoadResult_SkipsInvalidRecords(t *testing.T) {
 	schema := validSchema(t)
 	out := make(chan Result, 10)
 
-	res, err := LoadResult(path, schema, out)
+	res, err := LoadResult(nil, path, schema, out)
 	if err != nil {
-		t.Fatalf("LoadResult() error = %v", err)
+		t.Fatalf("LoadResult(nil, ) error = %v", err)
 	}
 
 	close(out)
@@ -60,7 +60,7 @@ func TestLoadResult_NonexistentFile(t *testing.T) {
 	schema := validSchema(t)
 	out := make(chan Result, 1)
 
-	_, err := LoadResult("/nonexistent.csv", schema, out)
+	_, err := LoadResult(nil, "/nonexistent.csv", schema, out)
 	if err == nil {
 		t.Fatal("expected error for nonexistent file, got nil")
 	}
@@ -94,9 +94,9 @@ func TestLoadAll_WithinLimit(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n10.0.0.1,0.3\n")
 	schema := validSchema(t)
 
-	results, err := LoadAll(path, schema, 10)
+	results, err := LoadAll(nil, path, schema, 10)
 	if err != nil {
-		t.Fatalf("LoadAll() error = %v", err)
+		t.Fatalf("LoadAll(nil, ) error = %v", err)
 	}
 	if len(results) != 3 {
 		t.Errorf("got %d results, want 3", len(results))
@@ -107,9 +107,9 @@ func TestLoadAll_ExceedsLimit(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n10.0.0.1,0.3\n")
 	schema := validSchema(t)
 
-	results, err := LoadAll(path, schema, 2)
+	results, err := LoadAll(nil, path, schema, 2)
 	if err != nil {
-		t.Fatalf("LoadAll() error = %v", err)
+		t.Fatalf("LoadAll(nil, ) error = %v", err)
 	}
 	if len(results) != 2 {
 		t.Errorf("got %d results, want 2 (maxResults=2)", len(results))
@@ -120,9 +120,9 @@ func TestLoadAll_LimitZero(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n")
 	schema := validSchema(t)
 
-	results, err := LoadAll(path, schema, 0)
+	results, err := LoadAll(nil, path, schema, 0)
 	if err != nil {
-		t.Fatalf("LoadAll() error = %v", err)
+		t.Fatalf("LoadAll(nil, ) error = %v", err)
 	}
 	if len(results) != 0 {
 		t.Errorf("got %d results, want 0 (maxResults=0)", len(results))
@@ -133,9 +133,9 @@ func TestLoadAll_LimitOne(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
 
-	results, err := LoadAll(path, schema, 1)
+	results, err := LoadAll(nil, path, schema, 1)
 	if err != nil {
-		t.Fatalf("LoadAll() error = %v", err)
+		t.Fatalf("LoadAll(nil, ) error = %v", err)
 	}
 	if len(results) != 1 {
 		t.Errorf("got %d results, want 1", len(results))
@@ -149,9 +149,9 @@ func TestLoadAll_EmptyFile(t *testing.T) {
 	path := writeTempCSV(t, "")
 	schema := validSchema(t)
 
-	results, err := LoadAll(path, schema, 100)
+	results, err := LoadAll(nil, path, schema, 100)
 	if err != nil {
-		t.Fatalf("LoadAll() error = %v", err)
+		t.Fatalf("LoadAll(nil, ) error = %v", err)
 	}
 	if len(results) != 0 {
 		t.Errorf("got %d results from empty file, want 0", len(results))
@@ -161,7 +161,7 @@ func TestLoadAll_EmptyFile(t *testing.T) {
 func TestLoadAll_NonexistentFile(t *testing.T) {
 	schema := validSchema(t)
 
-	_, err := LoadAll("/nonexistent.csv", schema, 10)
+	_, err := LoadAll(nil, "/nonexistent.csv", schema, 10)
 	if err == nil {
 		t.Fatal("expected error for nonexistent file, got nil")
 	}
@@ -171,9 +171,9 @@ func TestLoadAll_SkipsInvalidRecords(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\ninvalid\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
 
-	results, err := LoadAll(path, schema, 10)
+	results, err := LoadAll(nil, path, schema, 10)
 	if err != nil {
-		t.Fatalf("LoadAll() error = %v", err)
+		t.Fatalf("LoadAll(nil, ) error = %v", err)
 	}
 
 	if len(results) != 2 {
@@ -185,9 +185,9 @@ func TestLoadAll_EOFIsNotError(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
 
-	results, err := LoadAll(path, schema, 1)
+	results, err := LoadAll(nil, path, schema, 1)
 	if err != nil {
-		t.Fatalf("LoadAll() should not return error when hitting limit, got: %v", err)
+		t.Fatalf("LoadAll(nil, ) should not return error when hitting limit, got: %v", err)
 	}
 	if len(results) != 1 {
 		t.Errorf("got %d results, want 1", len(results))

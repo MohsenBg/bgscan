@@ -1,6 +1,8 @@
 package result
 
 import (
+	"github.com/MohsenBg/bgscan/internal/logger"
+
 	"bufio"
 	"encoding/csv"
 	"fmt"
@@ -19,6 +21,7 @@ import (
 //   - Streaming merge with existing file
 //   - Atomic file replacement
 func mergeResults(
+	log *logger.Logger,
 	resultPath string,
 	batchSize int,
 	schema ResultSchema,
@@ -68,6 +71,7 @@ func mergeResults(
 
 	if fileutil.CheckFileExists(resultPath) {
 		if err := mergeWithExisting(
+			log,
 			resultPath,
 			schema,
 			results,
@@ -98,6 +102,7 @@ func mergeResults(
 // Existing file is streamed.
 // Only one existing record is kept in memory.
 func mergeWithExisting(
+	log *logger.Logger,
 	resultPath string,
 	schema ResultSchema,
 	delta []Result,
@@ -106,6 +111,7 @@ func mergeWithExisting(
 	index := 0
 
 	_, err := ReadCSV(
+		log,
 		resultPath,
 		schema,
 		func(existing Result) error {

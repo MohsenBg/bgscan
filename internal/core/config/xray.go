@@ -20,20 +20,20 @@ type XrayConfig struct {
 	DialMaxAttempts      int              `toml:"dial_max_attempts" comment:"Dial attempts per outbound dispatch. Range: 1-10."`
 }
 
-func DefaultXrayConfig() XrayConfig {
+func DefaultXrayConfig(log *logger.Logger) XrayConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())
 
 	tiers, ok := xrayDefaults[platform]
 	if !ok {
-		logger.CoreWarn("bgscan: no Xray defaults for platform %q, falling back to %q", platform, Desktop)
+		log.Warn("bgscan: no Xray defaults for platform %q, falling back to %q", platform, Desktop)
 		platform = Desktop
 		tiers = xrayDefaults[platform]
 	}
 
 	cfg, ok := tiers[tier]
 	if !ok {
-		logger.CoreWarn("bgscan: no Xray defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
+		log.Warn("bgscan: no Xray defaults for platform %q tier %q, falling back to %q", platform, tier, Mid)
 		cfg = tiers[Mid]
 	}
 

@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // CSVConfig controls CSV reader and writer behavior.
@@ -56,9 +54,7 @@ func StreamCSV(path string, cfg CSVConfig, handler func([]string) error) error {
 	}
 
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
-		}
+		_ = f.Close()
 	}()
 
 	r := csv.NewReader(f)
@@ -93,9 +89,7 @@ func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, 
 	}
 
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
-		}
+		_ = f.Close()
 	}()
 
 	br := bufio.NewReader(f)
@@ -165,9 +159,7 @@ func WriteCSVFile(path string, cfg CSVConfig, records [][]string) error {
 	}
 
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
-		}
+		_ = f.Close()
 	}()
 
 	w := csv.NewWriter(f)
@@ -193,9 +185,7 @@ func StreamWriteCSV(path string, cfg CSVConfig, fn func(write func([]string) err
 	}
 
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
-		}
+		_ = f.Close()
 	}()
 
 	w := csv.NewWriter(f)
@@ -230,9 +220,7 @@ func AppendCSVRows(path string, cfg CSVConfig, rows [][]string) error {
 	}
 
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
-		}
+		_ = f.Close()
 	}()
 
 	w := csv.NewWriter(f)

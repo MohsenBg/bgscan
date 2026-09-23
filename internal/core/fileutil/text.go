@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // TextStreamConfig configures tokenization and buffer limits for StreamTextFile.
@@ -57,9 +55,7 @@ func AppendTextFile(path string, content string) error {
 		return fmt.Errorf("open text file append mode: %w", err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
-		}
+		_ = f.Close()
 	}()
 
 	if _, err := f.WriteString(content); err != nil {
@@ -75,9 +71,7 @@ func StreamTextFile(ctx context.Context, path string, cfg TextStreamConfig, hand
 		return fmt.Errorf("open text file stream: %w", err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
-		}
+		_ = f.Close()
 	}()
 
 	scanner := bufio.NewScanner(f)
@@ -136,9 +130,7 @@ func CopyFile(src, dst string) error {
 		return fmt.Errorf("open source file: %w", err)
 	}
 	defer func() {
-		if err := in.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
-		}
+		_ = in.Close()
 	}()
 
 	out, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644)

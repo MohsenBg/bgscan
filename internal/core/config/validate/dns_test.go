@@ -119,7 +119,7 @@ func TestDNSConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := config.DefaultDNSConfig()
+			cfg := config.DefaultDNSConfig(nil)
 			tt.mutate(&cfg)
 
 			errs := ValidateDNS(cfg)
@@ -142,7 +142,7 @@ func TestDNSConfig(t *testing.T) {
 				}
 			}
 
-			cfg = config.DefaultDNSConfig()
+			cfg = config.DefaultDNSConfig(nil)
 			tt.mutate(&cfg)
 
 			warnings := NormalizeDNS(&cfg)
@@ -167,7 +167,7 @@ func TestDNSConfig(t *testing.T) {
 				tt.checkFixed(
 					t,
 					cfg,
-					config.DefaultDNSConfig(),
+					config.DefaultDNSConfig(nil),
 				)
 			}
 		})

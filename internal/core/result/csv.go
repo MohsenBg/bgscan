@@ -15,6 +15,7 @@ type ReadResult struct {
 
 // ReadCSV reads records and converts them using the schema parser.
 func ReadCSV(
+	log *logger.Logger,
 	path string,
 	schema ResultSchema,
 	fn func(Result) error,
@@ -25,7 +26,7 @@ func ReadCSV(
 		result, err := schema.Parser(rec)
 		if err != nil {
 			res.Skipped++
-			logger.CoreError("failed to parse record: %v", err)
+			log.Error("failed to parse record: %v", err)
 			return nil
 		}
 

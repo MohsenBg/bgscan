@@ -66,7 +66,7 @@ func writeTempCSV(t *testing.T, content string) string {
 func defaultTestWriterConfig(t *testing.T) config.WriterConfig {
 	t.Helper()
 
-	cfg := config.DefaultWriterConfig()
+	cfg := config.DefaultWriterConfig(nil)
 	setBaseDir(t)
 	return cfg
 }

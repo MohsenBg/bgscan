@@ -8,7 +8,7 @@ import (
 )
 
 func TestICMPConfig(t *testing.T) {
-	def := config.DefaultICMPConfig()
+	def := config.DefaultICMPConfig(nil)
 
 	tests := []struct {
 		name          string

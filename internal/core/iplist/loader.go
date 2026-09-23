@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // ImportOption controls the behaviour of ImportIPList.
@@ -32,7 +33,7 @@ func DefaultImportOption() ImportOption {
 // ImportIPList reads a CSV IP-prefix list from srcPath, deduplicates it, and
 // writes the result to dstPath. It picks an in-memory or disk strategy
 // automatically based on file size and ImportOption.
-func ImportIPList(ctx context.Context, srcPath, dstPath string, option ImportOption) error {
+func ImportIPList(log *logger.Logger, ctx context.Context, srcPath, dstPath string, option ImportOption) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("context cancelled: %w", err)
 	}
@@ -46,13 +47,13 @@ func ImportIPList(ctx context.Context, srcPath, dstPath string, option ImportOpt
 	}
 
 	if srcInfo.Size() <= option.MaxMapFileSize {
-		return importIPListMap(ctx, srcPath, dstPath, option)
+		return importIPListMap(log, ctx, srcPath, dstPath, option)
 	}
-	return importIPListDisk(ctx, srcPath, dstPath)
+	return importIPListDisk(log, ctx, srcPath, dstPath)
 }
 
 // importIPListMap deduplicates using an in-memory map. Fast, but bounded by RAM.
-func importIPListMap(ctx context.Context, srcPath, dstPath string, option ImportOption) error {
+func importIPListMap(_ *logger.Logger, ctx context.Context, srcPath, dstPath string, option ImportOption) error {
 	estimated := estimateMapEntries(srcPath, option.MaxInMemoryEntries)
 	seen := make(map[netip.Prefix]struct{}, estimated)
 
@@ -79,7 +80,7 @@ func importIPListMap(ctx context.Context, srcPath, dstPath string, option Import
 
 // importIPListDisk sorts the file on disk first, then streams it once to
 // deduplicate adjacent equal prefixes. O(1) memory regardless of file size.
-func importIPListDisk(ctx context.Context, srcPath, dstPath string) error {
+func importIPListDisk(log *logger.Logger, ctx context.Context, srcPath, dstPath string) error {
 	tmpFile, tmpPath, err := fileutil.CreateTmpFile("bgscan-import-ip-")
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)
@@ -91,7 +92,7 @@ func importIPListDisk(ctx context.Context, srcPath, dstPath string) error {
 		}
 	}()
 
-	if err := fileutil.SortFile(ctx, srcPath, tmpPath); err != nil {
+	if err := fileutil.SortFile(log, ctx, srcPath, tmpPath); err != nil {
 		return fmt.Errorf("sort file: %w", err)
 	}
 

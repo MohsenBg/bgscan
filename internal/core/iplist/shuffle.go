@@ -30,7 +30,7 @@ const avgLineBytes = 20
 // If the total IP count fits in uint64, a direct index is built.
 // If not (e.g. many large IPv6 ranges), each range is proportionally sliced
 // at a random offset so they share the 2^64 address space evenly.
-func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
+func NewMasterIndexer(log *logger.Logger, filePath string) (*MasterIndexer, error) {
 	indexer := &MasterIndexer{
 		FilePath:      filePath,
 		CIDRBlocks:    make([]CIDRBlock, 0),
@@ -46,7 +46,7 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 	}
 
 	if estimatedLines := fi.Size() / avgLineBytes; estimatedLines > shuffleMemWarnThreshold {
-		logger.CoreWarn(
+		log.Warn(
 			"shuffled mode: file %q has ~%dM estimated lines; peak memory during indexing may exceed 300MB — consider sequential mode for very large lists",
 			filePath, estimatedLines/1_000_000,
 		)
@@ -70,9 +70,7 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 		return nil, err
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			logger.CoreError("failed to close file: %v", err)
-		}
+		_ = f.Close()
 	}()
 
 	r := bufio.NewReaderSize(f, 64*1024)
@@ -199,8 +197,8 @@ func NewMasterIndexer(filePath string) (*MasterIndexer, error) {
 // streamActiveIPsShuffled streams IPs in pseudo-random order using an LCG
 // over the index built by NewMasterIndexer. Memory usage is O(1) regardless
 // of how many IPs are in the list.
-func streamActiveIPsShuffled(ctx context.Context, path string, limit uint64, out chan<- netip.Addr) error {
-	indexer, err := NewMasterIndexer(path)
+func streamActiveIPsShuffled(log *logger.Logger, ctx context.Context, path string, limit uint64, out chan<- netip.Addr) error {
+	indexer, err := NewMasterIndexer(log, path)
 	if err != nil {
 		return fmt.Errorf("shuffled pre-scan initialization failed: %w", err)
 	}
@@ -214,9 +212,7 @@ func streamActiveIPsShuffled(ctx context.Context, path string, limit uint64, out
 		return err
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			logger.CoreError("error closing file: %v", err)
-		}
+		_ = file.Close()
 	}()
 
 	// Knuth/Newlib LCG — full-period over the uint64 ring.

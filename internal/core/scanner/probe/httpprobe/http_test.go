@@ -53,7 +53,7 @@ func TestNewHTTPProbe_ReturnsProbe(t *testing.T) {
 		Timeout: 5 * time.Second,
 	}
 
-	p := NewHTTPProbe(req, nil)
+	p := NewHTTPProbe(req, nil, nil)
 	if p == nil {
 		t.Fatal("NewHTTPProbe returned nil")
 	}
@@ -62,7 +62,7 @@ func TestNewHTTPProbe_ReturnsProbe(t *testing.T) {
 func TestNewHTTPProbe_WithAcceptedCodes(t *testing.T) {
 	req := HTTPRequest{URL: "http://example.com:80", Timeout: time.Second}
 
-	p := NewHTTPProbe(req, []int{200, 301}).(*HTTPProbe)
+	p := NewHTTPProbe(req, []int{200, 301}, nil).(*HTTPProbe)
 
 	if !p.filter.isAccepted(200) {
 		t.Error("200 should be accepted")
@@ -78,7 +78,7 @@ func TestNewHTTPProbe_WithAcceptedCodes(t *testing.T) {
 func TestNewHTTPProbe_EmptyCodesAcceptsAll(t *testing.T) {
 	req := HTTPRequest{URL: "http://example.com:80", Timeout: time.Second}
 
-	p := NewHTTPProbe(req, nil).(*HTTPProbe)
+	p := NewHTTPProbe(req, nil, nil).(*HTTPProbe)
 
 	for _, code := range []int{100, 200, 301, 404, 500} {
 		if !p.filter.isAccepted(code) {

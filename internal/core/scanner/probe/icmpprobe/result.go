@@ -49,7 +49,6 @@ func (r ICMPResult) Key() string {
 	return r.IP.String()
 }
 
-// KeyType returns the type of key used for this result.
 func (r ICMPResult) KeyType() result.KeyType {
 	return result.KeyIP
 }

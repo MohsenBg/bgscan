@@ -80,7 +80,6 @@ func TestTheFeedResult_Score(t *testing.T) {
 		t.Errorf("Score for 100ms = %v, want 10.0", got)
 	}
 
-	// Sub-1ms values must be clamped to 1ms to avoid division by zero.
 	if got := (TheFeedResult{Latency: 0}).Score(); got != 1000.0 {
 		t.Errorf("Score for 0 latency = %v, want 1000.0", got)
 	}

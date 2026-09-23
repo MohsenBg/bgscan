@@ -74,8 +74,8 @@ type ResolverProbe struct {
 	resolver dns.Resolver
 }
 
-// NewResolverProbe creates a new ResolverProbe.
-// Note: It mutates req to ensure Tries and DpiTries are at least 1.
+// NewResolverProbe returns a probe that mutates req to ensure Tries and
+// DpiTries are at least 1.
 func NewResolverProbe(req *DNSRequest) probe.Probe {
 	if req.Tries <= 0 {
 		req.Tries = 1
@@ -101,18 +101,17 @@ func (r *ResolverProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init implements probe.Probe. It is a no-op since the probe is stateless.
+// Init is a no-op: the probe is stateless.
 func (r *ResolverProbe) Init(_ context.Context) error {
 	return nil
 }
 
-// Close implements probe.Probe. It is a no-op.
 func (r *ResolverProbe) Close() error {
 	return nil
 }
 
-// Run implements probe.Probe. It validates the resolver at the given IP,
-// optionally performing a DPI check before standard queries.
+// Run validates the resolver at ip, with an optional DPI honesty check
+// first.
 func (r *ResolverProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -127,9 +126,8 @@ func (r *ResolverProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, 
 	return r.executeNormalProbe(ctx, ip)
 }
 
-// verifyResolverHonesty queries a guaranteed-invalid .invalid domain.
-// It returns an error if the resolver returns a success rcode (0),
-// indicating potential hijacking or DPI.
+// verifyResolverHonesty queries a guaranteed-invalid .invalid domain; rcode 0
+// means the resolver answers for names that cannot exist (hijacking/DPI).
 func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip netip.Addr) error {
 	fakeDomain := generateRandomString(16) + ".invalid"
 
@@ -162,20 +160,17 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip netip.Addr
 			continue
 		}
 
-		// rcode 0 = resolver claims success → likely hijacking/DPI.
 		if resp.Rcode == 0 {
 			return fmt.Errorf("dpi detected: resolver returned rcode 0 for %s", fakeDomain)
 		}
 
-		// Any non-zero rcode is considered honest.
 		return nil
 	}
 
 	return fmt.Errorf("dpi verification failed after %d tries: %w", r.request.DpiTries, lastErr)
 }
 
-// executeNormalProbe iterates through the configured CheckTypes,
-// returning the first query that yields an AcceptedRcode.
+// executeNormalProbe returns the first CheckType yielding an AcceptedRcode.
 func (r *ResolverProbe) executeNormalProbe(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	query := dns.Query{
 		Resolver:         ip.String(),
@@ -236,8 +231,7 @@ func (r *ResolverProbe) isRcodeAccepted(code uint16) bool {
 	return slices.Contains(r.request.AcceptedRcodes, code)
 }
 
-// parseRecordType maps a string to a dns.RecordType,
-// defaulting to TypeA for unknown or empty values.
+// parseRecordType maps a string to a dns.RecordType, defaulting to TypeA.
 func parseRecordType(s string) dns.RecordType {
 	switch strings.ToUpper(strings.TrimSpace(s)) {
 	case "A":
@@ -257,9 +251,8 @@ func parseRecordType(s string) dns.RecordType {
 	}
 }
 
-// generateRandomString returns a random lowercase alphanumeric string of length n.
-// It uses math/rand and is not cryptographically secure, which is acceptable
-// for simple cache-busting.
+// generateRandomString returns n random lowercase alphanumerics. math/rand is
+// fine here: cache-busting needs no cryptographic strength.
 func generateRandomString(n int) string {
 	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, n)

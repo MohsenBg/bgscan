@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
 func TestRunScan_EmptyInput(t *testing.T) {
@@ -449,5 +450,66 @@ func TestProgress_FieldsViaScan(t *testing.T) {
 	}
 	if last.RatePerSec <= 0 {
 		t.Fatalf("last progress RatePerSec = %v, want > 0", last.RatePerSec)
+	}
+}
+
+func TestRunScan_EnvironmentFailureAborts(t *testing.T) {
+	const totalIPs = 100
+
+	ips := make([]string, totalIPs)
+	for i := range ips {
+		ips[i] = fmt.Sprintf("10.3.%d.%d", i/256, i%256)
+	}
+	path := ipFile(t, ips...)
+
+	prb := &mockProbe{
+		runErr: fmt.Errorf("%w: local port pool exhausted", probe.ErrEnvironment),
+	}
+	w := &mockWriter{}
+
+	var gotErr error
+	var errCount atomic.Int32
+	endCh := make(chan struct{}, 1)
+
+	RunScan(context.Background(), path, ScanConfig{
+		Workers: 1,
+		Probe:   prb,
+		Writer:  w,
+		Hooks: ScanHooks{
+			OnError: func(e error) {
+				gotErr = e
+				errCount.Add(1)
+			},
+			OnScanEnd: func() { endCh <- struct{}{} },
+		},
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
+
+	select {
+	case <-endCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("RunScan did not end after environment abort")
+	}
+
+	if gotErr == nil {
+		t.Fatal("expected OnError on environment abort")
+	}
+	if !errors.Is(gotErr, probe.ErrEnvironment) {
+		t.Fatalf("OnError err = %v, want errors.Is ErrEnvironment", gotErr)
+	}
+	if errCount.Load() != 1 {
+		t.Fatalf("OnError calls = %d, want exactly 1", errCount.Load())
+	}
+
+	called := int(prb.runCalled.Load())
+	if called < envFailThreshold {
+		t.Fatalf("runCalled = %d, want at least %d before abort", called, envFailThreshold)
+	}
+	if called > envFailThreshold+10 {
+		t.Fatalf("runCalled = %d, scan did not abort early (limit %d)", called, envFailThreshold+10)
+	}
+	if len(w.results()) != 0 {
+		t.Fatalf("expected no written results, got %d", len(w.results()))
 	}
 }

@@ -17,6 +17,7 @@ import (
 // TCPProbe verifies Layer-4 reachability and measures handshake RTT without
 // making assumptions about the application-layer protocol.
 type TCPProbe struct {
+	log     *logger.Logger
 	port    uint16
 	timeout time.Duration
 	dialer  net.Dialer
@@ -25,13 +26,14 @@ type TCPProbe struct {
 
 // NewTCPProbe creates a TCPProbe targeting the specified port.
 // If the port string is invalid or out of range, it defaults to 80.
-func NewTCPProbe(port string, timeout time.Duration, tries uint16) probe.Probe {
+func NewTCPProbe(port string, timeout time.Duration, tries uint16, log *logger.Logger) probe.Probe {
 	p, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
 		p = 80
 	}
 
 	return &TCPProbe{
+		log:     log,
 		port:    uint16(p),
 		tries:   tries,
 		timeout: timeout,
@@ -72,13 +74,16 @@ func (p *TCPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error
 			if netutil.IsTimeout(err) {
 				continue
 			}
+			if netutil.IsUnreachable(err) {
+				return nil, fmt.Errorf("%w: tcp dial: %w", probe.ErrEnvironment, err)
+			}
 			return nil, err
 		}
 
 		rtt := time.Since(start)
 
 		if err := conn.Close(); err != nil {
-			logger.CoreError("error closing connection: %v", err)
+			p.log.Error("error closing connection: %v", err)
 		}
 
 		return TCPResult{

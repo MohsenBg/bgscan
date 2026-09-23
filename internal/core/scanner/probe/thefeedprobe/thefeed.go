@@ -43,7 +43,6 @@ func WithTries(n int) Option {
 	}
 }
 
-// NewTheFeedProbe creates a TheFeed probe.
 func NewTheFeedProbe(
 	config dns.TheFeedConfig,
 	timeout time.Duration,
@@ -78,12 +77,10 @@ func joinConfigErrors(errs map[string]error) error {
 	return joined
 }
 
-// Schema returns the result schema emitted by the probe.
 func (p *TheFeedProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init initializes the probe.
 func (p *TheFeedProbe) Init(context.Context) error {
 	return nil
 }

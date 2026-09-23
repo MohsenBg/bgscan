@@ -66,8 +66,8 @@ func (r MasterDNSResult) ToRecord() []string {
 	}
 }
 
-// Score calculates a performance rating where lower latency yields a
-// higher score. Latency is clamped to 1ms to prevent division by zero.
+// Score rates lower latency higher; sub-millisecond values clamp to 1ms to
+// avoid dividing by zero.
 func (r MasterDNSResult) Score() float64 {
 	ms := float64(r.Latency.Milliseconds())
 	if ms < 1 {

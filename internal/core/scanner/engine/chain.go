@@ -36,7 +36,7 @@ func executeSequentialChain(ctx context.Context, input string, cfg ChainConfig) 
 
 	for i, stage := range cfg.Stages {
 		if currentInput == "" {
-			logger.CoreInfo("stage %d skipped (no input)", i+1)
+			cfg.Log.Info("stage %d skipped (no input)", i+1)
 			return
 		}
 
@@ -46,14 +46,15 @@ func executeSequentialChain(ctx context.Context, input string, cfg ChainConfig) 
 		default:
 		}
 
-		logger.CoreInfo("stage %d/%d starting", i+1, len(cfg.Stages))
-		// MaxSuccessfulIPs applies to the last stage only: earlier stages
-		// must run fully so downstream stages still get their input.
+		cfg.Log.Info("stage %d/%d starting", i+1, len(cfg.Stages))
+		// maxSuccessful mirrors cfg.MaxSuccessfulIPs, which applies to the last
+		// stage only: earlier stages must run fully so downstream stages still get their input.
 		var maxSuccessful uint64
 		if i == len(cfg.Stages)-1 {
 			maxSuccessful = cfg.MaxSuccessfulIPs
 		}
 		RunScan(ctx, currentInput, ScanConfig{
+			Log:              cfg.Log,
 			Workers:          stage.Workers,
 			MaxIPsToTest:     cfg.MaxIPsToTest,
 			MaxSuccessfulIPs: maxSuccessful,
@@ -67,7 +68,7 @@ func executeSequentialChain(ctx context.Context, input string, cfg ChainConfig) 
 			RateLimiter:      cfg.RateLimiter,
 		})
 		currentInput = stage.Writer.GetResultPath()
-		logger.CoreInfo("stage %d/%d completed", i+1, len(cfg.Stages))
+		cfg.Log.Info("stage %d/%d completed", i+1, len(cfg.Stages))
 	}
 }
 
@@ -75,11 +76,11 @@ func executeSequentialChain(ctx context.Context, input string, cfg ChainConfig) 
 func executeStreamingPipeline(ctx context.Context, input string, cfg ChainConfig) {
 	totalIPs, err := iplist.CountActiveIPs(input)
 	if err != nil {
-		logger.CoreError("failed to count IPs: %v", err)
+		cfg.Log.Error("failed to count IPs: %v", err)
 		totalIPs = 0
 	}
 
-	logger.CoreInfo("stream pipeline started: stages=%d ips=%d", len(cfg.Stages), totalIPs)
+	cfg.Log.Info("stream pipeline started: stages=%d ips=%d", len(cfg.Stages), totalIPs)
 
 	// Shared cancellable ctx so the last stage can stop the whole pipeline
 	// once MaxSuccessfulIPs is reached.
@@ -108,7 +109,11 @@ func executeStreamingPipeline(ctx context.Context, input string, cfg ChainConfig
 	// MaxSuccessfulIPs applies to the last stage only.
 	if n := len(executors); n > 0 && cfg.MaxSuccessfulIPs > 0 {
 		executors[n-1].maxSuccessful = cfg.MaxSuccessfulIPs
-		executors[n-1].stop = stop
+	}
+	// Every stage can cancel the shared ctx: an environment-failure
+	// abort in any stage stops the whole pipeline.
+	for _, exec := range executors {
+		exec.stop = stop
 	}
 
 	var wg sync.WaitGroup
@@ -129,7 +134,7 @@ func executeStreamingPipeline(ctx context.Context, input string, cfg ChainConfig
 			defer closeOutputChannel(out)
 
 			if in == nil {
-				streamStageFromFile(ctx, input, cfg.MaxIPsToTest, s, cfg.Shuffled, out, exec, nextExec, cfg.Pause)
+				streamStageFromFile(cfg.Log, ctx, input, cfg.MaxIPsToTest, s, cfg.Shuffled, out, exec, nextExec, cfg.Pause)
 			} else {
 				streamStageFromChannel(ctx, in, s, out, exec, nextExec, cfg.Pause)
 			}
@@ -184,19 +189,19 @@ func closeOutputChannel(ch chan netip.Addr) {
 func executeBatchPipeline(ctx context.Context, input string, cfg ChainConfig) {
 	totalIPs, err := iplist.CountActiveIPs(input)
 	if err != nil {
-		logger.CoreError("failed to count IPs: %v", err)
+		cfg.Log.Error("failed to count IPs: %v", err)
 		totalIPs = 0
 	}
 
 	batchSize := calculateBatchSize(cfg)
-	logger.CoreInfo("batch pipeline started: batch=%d ips=%d", batchSize, totalIPs)
+	cfg.Log.Info("batch pipeline started: batch=%d ips=%d", batchSize, totalIPs)
 
 	// Shared cancellable ctx so the last stage can stop the whole pipeline
 	// once MaxSuccessfulIPs is reached.
 	ctx, stop := context.WithCancel(ctx)
 	defer stop()
 
-	stream := streamIPsFromFile(ctx, input, cfg.Shuffled, cfg.MaxIPsToTest, batchSize)
+	stream := streamIPsFromFile(cfg.Log, ctx, input, cfg.Shuffled, cfg.MaxIPsToTest, batchSize)
 
 	executors := make([]*stageExecutor, 0, len(cfg.Stages))
 
@@ -224,7 +229,11 @@ func executeBatchPipeline(ctx context.Context, input string, cfg ChainConfig) {
 	// MaxSuccessfulIPs applies to the last stage only.
 	if n := len(executors); n > 0 && cfg.MaxSuccessfulIPs > 0 {
 		executors[n-1].maxSuccessful = cfg.MaxSuccessfulIPs
-		executors[n-1].stop = stop
+	}
+	// Every stage can cancel the shared ctx: an environment-failure
+	// abort in any stage stops the whole pipeline.
+	for _, exec := range executors {
+		exec.stop = stop
 	}
 
 	for batch := range stream {
@@ -313,7 +322,7 @@ func calculateBatchSize(cfg ChainConfig) int {
 }
 
 // streamIPsFromFile streams IPs in batches from file input.
-func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP uint64, batchSize int) <-chan []netip.Addr {
+func streamIPsFromFile(log *logger.Logger, ctx context.Context, input string, shuffled bool, maxIP uint64, batchSize int) <-chan []netip.Addr {
 	out := make(chan []netip.Addr, 2)
 
 	go func() {
@@ -324,7 +333,7 @@ func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP u
 
 		go func() {
 			defer close(ipCh)
-			done <- iplist.StreamActiveIPs(ctx, input, maxIP, shuffled, ipCh)
+			done <- iplist.StreamActiveIPs(log, ctx, input, maxIP, shuffled, ipCh)
 		}()
 
 		batch := make([]netip.Addr, 0, batchSize)
@@ -350,7 +359,7 @@ func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP u
 		}
 
 		if err := <-done; err != nil && err != context.Canceled {
-			logger.CoreError("stream error: %v", err)
+			log.Error("stream error: %v", err)
 		}
 	}()
 
@@ -358,6 +367,7 @@ func streamIPsFromFile(ctx context.Context, input string, shuffled bool, maxIP u
 }
 
 func streamStageFromFile(
+	log *logger.Logger,
 	ctx context.Context,
 	input string,
 	maxIP uint64,
@@ -375,7 +385,7 @@ func streamStageFromFile(
 
 	go func() {
 		defer close(in)
-		done <- iplist.StreamActiveIPs(ctx, input, maxIP, shuffled, in)
+		done <- iplist.StreamActiveIPs(log, ctx, input, maxIP, shuffled, in)
 	}()
 
 	runWorkerPool(ctx, workers, pause, in, func(ip netip.Addr) {
@@ -391,7 +401,7 @@ func streamStageFromFile(
 	})
 
 	if err := <-done; err != nil && err != context.Canceled {
-		logger.CoreError("stream error: %v", err)
+		log.Error("stream error: %v", err)
 		stage.Hooks.callOnError(err)
 	}
 }

@@ -20,6 +20,7 @@ import (
 
 // DNSTTProbe verifies connectivity through a DNSTT tunnel.
 type DNSTTProbe struct {
+	log              *logger.Logger
 	cfg              dns.DNSTTConfig
 	dnsttService     dns.DNSTTService
 	sshService       ssh.SSHService
@@ -30,6 +31,13 @@ type DNSTTProbe struct {
 }
 
 type Option func(*DNSTTProbe)
+
+// WithLogger sets the logger for probe lifecycle events (nil-safe).
+func WithLogger(log *logger.Logger) Option {
+	return func(p *DNSTTProbe) {
+		p.log = log
+	}
+}
 
 func WithDNSTTService(service dns.DNSTTService) Option {
 	return func(p *DNSTTProbe) {
@@ -73,7 +81,6 @@ func WithTries(n int) Option {
 	}
 }
 
-// NewDNSTTProbe creates a DNSTT probe.
 func NewDNSTTProbe(
 	config dns.DNSTTConfig,
 	timeout time.Duration,
@@ -113,12 +120,10 @@ func NewDNSTTProbe(
 	return p, nil
 }
 
-// Schema returns the result schema emitted by the probe.
 func (d *DNSTTProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init initializes the probe.
 func (d *DNSTTProbe) Init(context.Context) error {
 	return nil
 }
@@ -158,7 +163,7 @@ func (d *DNSTTProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result,
 	defer func() {
 		err := tunnel.Close()
 		if err != nil {
-			logger.CoreError("close DNSTT tunnel: %v", err)
+			d.log.Error("close DNSTT tunnel: %v", err)
 		}
 	}()
 
@@ -170,7 +175,7 @@ func (d *DNSTTProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result,
 	case dns.ResolverProxySOCKS:
 		dialContext, err = d.dialSOCKS(tunnel)
 	default:
-		err = fmt.Errorf("unsupported proxy type: %v", d.cfg.ProxyType)
+		err = fmt.Errorf("%w: unsupported proxy type: %v", probe.ErrEnvironment, d.cfg.ProxyType)
 	}
 	if err != nil {
 		return nil, err
@@ -183,7 +188,7 @@ func (d *DNSTTProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result,
 // DialContext that proxies connections through it.
 func (d *DNSTTProbe) dialSSH(ctx context.Context, tunnel net.Conn) (func(context.Context, string, string) (net.Conn, error), error) {
 	if d.cfg.AuthMethod == dns.AuthNone {
-		return nil, errors.New("SSH authentication is required")
+		return nil, fmt.Errorf("%w: SSH authentication is required", probe.ErrEnvironment)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -230,7 +235,7 @@ func (d *DNSTTProbe) dialSSH(ctx context.Context, tunnel net.Conn) (func(context
 // tunnel using the real destination address requested by the caller.
 func (d *DNSTTProbe) dialSOCKS(tunnel net.Conn) (func(context.Context, string, string) (net.Conn, error), error) {
 	if d.cfg.AuthMethod == dns.AuthKey {
-		return nil, errors.New("SOCKS proxy does not support key authentication")
+		return nil, fmt.Errorf("%w: SOCKS proxy does not support key authentication", probe.ErrEnvironment)
 	}
 
 	socksConfig := socks.Config{

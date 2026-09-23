@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -13,6 +14,8 @@ import (
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
+
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
 // fakeClock is a manually-advanced clock for deterministic timeout testing.
@@ -318,8 +321,11 @@ func TestRun_IPv6_UnavailableReturnsError(t *testing.T) {
 		t.Fatal("expected error for IPv6 target when IPv6 unavailable")
 	}
 	want := "IPv6 is not available on this system"
-	if err.Error() != want {
-		t.Errorf("error: got %q, want %q", err.Error(), want)
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("error: got %q, want containing %q", err.Error(), want)
+	}
+	if !errors.Is(err, probe.ErrEnvironment) {
+		t.Errorf("error = %v, want errors.Is ErrEnvironment", err)
 	}
 }
 

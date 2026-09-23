@@ -63,8 +63,8 @@ func (r VayDNSResult) ToRecord() []string {
 	}
 }
 
-// Score calculates a performance rating where lower latency yields a higher score.
-// A latency of 0 or negative values are clamped to 1ms to prevent division by zero.
+// Score rates lower latency higher; sub-millisecond values clamp to 1ms to
+// avoid dividing by zero.
 func (r VayDNSResult) Score() float64 {
 	ms := float64(r.Latency.Milliseconds())
 	if ms < 1 {

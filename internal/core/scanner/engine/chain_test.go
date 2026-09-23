@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
 func TestRunScanWithChain_EmptyStages(t *testing.T) {
@@ -219,5 +221,113 @@ func TestRunScanWithChain_Batch_FiltersProperly(t *testing.T) {
 
 	if got := prb2.runCalled.Load(); got != 2 {
 		t.Fatalf("expected stage 2 to be called 2 times, got %d", got)
+	}
+}
+
+func TestRunScanWithChain_Streaming_EnvironmentAbort(t *testing.T) {
+	const totalIPs = 60
+
+	ips := make([]string, totalIPs)
+	for i := range ips {
+		ips[i] = fmt.Sprintf("10.4.%d.%d", i/256, i%256)
+	}
+	path := ipFile(t, ips...)
+
+	prb1 := &mockProbe{
+		runErr: fmt.Errorf("%w: broken local xray", probe.ErrEnvironment),
+	}
+	prb2 := &mockProbe{}
+
+	var stage1Err atomic.Int32
+	var end1, end2 atomic.Int32
+
+	pc := NewPauseController()
+	defer pc.Stop()
+
+	RunScanWithChain(context.Background(), path, ChainConfig{
+		Mode:      ModeStreaming,
+		MaxBuffer: 100,
+		Pause:     pc,
+		Stages: []StageConfig{
+			{Workers: 1, Probe: prb1, Writer: &mockWriter{}, Hooks: ScanHooks{
+				OnError:   func(error) { stage1Err.Add(1) },
+				OnScanEnd: func() { end1.Add(1) },
+			}},
+			{Workers: 1, Probe: prb2, Writer: &mockWriter{}, Hooks: ScanHooks{
+				OnScanEnd: func() { end2.Add(1) },
+			}},
+		},
+	})
+
+	if end1.Load() == 0 || end2.Load() == 0 {
+		t.Fatalf("OnScanEnd calls = %d/%d, want 1/1", end1.Load(), end2.Load())
+	}
+	if stage1Err.Load() != 1 {
+		t.Fatalf("stage 1 OnError calls = %d, want exactly 1", stage1Err.Load())
+	}
+
+	called := int(prb1.runCalled.Load())
+	if called < envFailThreshold {
+		t.Fatalf("stage 1 runCalled = %d, want at least %d", called, envFailThreshold)
+	}
+	if called > envFailThreshold+10 {
+		t.Fatalf("stage 1 runCalled = %d, pipeline did not abort early (limit %d)", called, envFailThreshold+10)
+	}
+	if prb2.runCalled.Load() != 0 {
+		t.Fatalf("stage 2 runCalled = %d, want 0 (no successes reached stage 2)", prb2.runCalled.Load())
+	}
+}
+
+func TestRunScanWithChain_Batch_EnvironmentAbort(t *testing.T) {
+	const totalIPs = 60
+
+	ips := make([]string, totalIPs)
+	for i := range ips {
+		ips[i] = fmt.Sprintf("10.5.%d.%d", i/256, i%256)
+	}
+	path := ipFile(t, ips...)
+
+	prb1 := &mockProbe{
+		runErr: fmt.Errorf("%w: broken local xray", probe.ErrEnvironment),
+	}
+	prb2 := &mockProbe{}
+
+	var stage1Err atomic.Int32
+	var end1, end2 atomic.Int32
+
+	pc := NewPauseController()
+	defer pc.Stop()
+
+	RunScanWithChain(context.Background(), path, ChainConfig{
+		Mode:      ModeBatch,
+		BatchSize: 10,
+		Pause:     pc,
+		Stages: []StageConfig{
+			{Workers: 1, Probe: prb1, Writer: &mockWriter{}, Hooks: ScanHooks{
+				OnError:   func(error) { stage1Err.Add(1) },
+				OnScanEnd: func() { end1.Add(1) },
+			}},
+			{Workers: 1, Probe: prb2, Writer: &mockWriter{}, Hooks: ScanHooks{
+				OnScanEnd: func() { end2.Add(1) },
+			}},
+		},
+	})
+
+	if end1.Load() == 0 || end2.Load() == 0 {
+		t.Fatalf("OnScanEnd calls = %d/%d, want 1/1", end1.Load(), end2.Load())
+	}
+	if stage1Err.Load() != 1 {
+		t.Fatalf("stage 1 OnError calls = %d, want exactly 1", stage1Err.Load())
+	}
+
+	called := int(prb1.runCalled.Load())
+	if called < envFailThreshold {
+		t.Fatalf("stage 1 runCalled = %d, want at least %d", called, envFailThreshold)
+	}
+	if called > envFailThreshold+10 {
+		t.Fatalf("stage 1 runCalled = %d, batch did not abort early (limit %d)", called, envFailThreshold+10)
+	}
+	if prb2.runCalled.Load() != 0 {
+		t.Fatalf("stage 2 runCalled = %d, want 0 (no successes reached stage 2)", prb2.runCalled.Load())
 	}
 }

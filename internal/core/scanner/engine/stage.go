@@ -14,6 +14,7 @@ import (
 
 // stageExecutor manages execution state, metrics, and lifecycle of a single scan stage.
 type stageExecutor struct {
+	log              *logger.Logger
 	stage            StageConfig
 	pause            PauseController
 	rateLimiter      *rate.Limiter
@@ -25,6 +26,10 @@ type stageExecutor struct {
 	stop          context.CancelFunc
 	stopOnce      sync.Once
 
+	// fails tripwires per-IP probe errors and aborts on an environment
+	// failure streak.
+	fails *probeFailures
+
 	start        time.Time
 	total        atomic.Uint64
 	processed    atomic.Uint64
@@ -35,12 +40,14 @@ type stageExecutor struct {
 // newStageExecutor initialises a stage executor and starts background progress reporting.
 func newStageExecutor(ctx context.Context, stage StageConfig, cfg ChainConfig, total uint64) (*stageExecutor, error) {
 	exec := &stageExecutor{
+		log:              cfg.Log,
 		stage:            stage,
 		pause:            cfg.Pause,
 		rateLimiter:      cfg.RateLimiter,
 		minProbeDuration: cfg.MinProbeDuration,
 		start:            time.Now(),
 	}
+	exec.fails = newProbeFailures(exec.log, exec.requestStop, exec.stage.Hooks)
 	exec.total.Store(total)
 
 	if err := exec.stage.Writer.Start(); err != nil {
@@ -129,12 +136,13 @@ func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) bool {
 
 	if err != nil {
 		if ctx.Err() == nil {
-			logger.CoreError("probe failed for %s: %v", ip, err)
+			e.fails.note(ip, err)
 		}
 		e.enforceMinProbeDuration(ctx, probeStart)
 		return false
 	}
 
+	e.fails.resetEnv()
 	if e.succeed.Add(1) >= e.maxSuccessful && e.maxSuccessful > 0 {
 		e.requestStop()
 	}

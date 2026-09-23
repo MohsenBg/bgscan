@@ -60,8 +60,8 @@ func (r SlipstreamResult) ToRecord() []string {
 	}
 }
 
-// Score calculates a performance metric where lower latency yields a higher score.
-// It guards against division by zero by enforcing a minimum latency of 1ms.
+// Score rates lower latency higher; sub-millisecond values clamp to 1ms to
+// avoid dividing by zero.
 func (r SlipstreamResult) Score() float64 {
 	ms := float64(r.Latency.Milliseconds())
 	if ms < 1 {

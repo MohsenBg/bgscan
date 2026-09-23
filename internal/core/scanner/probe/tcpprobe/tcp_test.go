@@ -71,11 +71,11 @@ func acceptLoop(t *testing.T, ln net.Listener, stop <-chan struct{}) {
 func TestNewTCPProbeValidPort(t *testing.T) {
 	t.Parallel()
 
-	p := NewTCPProbe("443", 2*time.Second, 3)
+	p := NewTCPProbe("443", 2*time.Second, 3, nil)
 
 	tcp, ok := p.(*TCPProbe)
 	if !ok {
-		t.Fatalf("NewTCPProbe() type = %T, want *TCPProbe", p)
+		t.Fatalf("NewTCPProbe(, nil) type = %T, want *TCPProbe", p)
 	}
 
 	if tcp.port != 443 {
@@ -95,11 +95,11 @@ func TestNewTCPProbeValidPort(t *testing.T) {
 func TestNewTCPProbeInvalidPortFallsBackTo80(t *testing.T) {
 	t.Parallel()
 
-	p := NewTCPProbe("not-a-port", 1500*time.Millisecond, 2)
+	p := NewTCPProbe("not-a-port", 1500*time.Millisecond, 2, nil)
 
 	tcp, ok := p.(*TCPProbe)
 	if !ok {
-		t.Fatalf("NewTCPProbe() type = %T, want *TCPProbe", p)
+		t.Fatalf("NewTCPProbe(, nil) type = %T, want *TCPProbe", p)
 	}
 
 	if tcp.port != 80 {
@@ -282,11 +282,11 @@ func TestIsTimeout(t *testing.T) {
 func TestNewTCPProbePortOverflowFallsBackTo80(t *testing.T) {
 	t.Parallel()
 
-	p := NewTCPProbe(strconv.Itoa(70000), time.Second, 1)
+	p := NewTCPProbe(strconv.Itoa(70000), time.Second, 1, nil)
 
 	tcp, ok := p.(*TCPProbe)
 	if !ok {
-		t.Fatalf("NewTCPProbe() type = %T, want *TCPProbe", p)
+		t.Fatalf("NewTCPProbe(, nil) type = %T, want *TCPProbe", p)
 	}
 
 	if tcp.port != 80 {

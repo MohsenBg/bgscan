@@ -22,6 +22,7 @@ import (
 // the probe boots it against the scanned IP as resolver and measures
 // latency through that listener.
 type MasterDNSProbe struct {
+	log              *logger.Logger
 	pm               portmgr.Manager
 	config           dns.MasterDNSConfig
 	masterDNSService dns.MasterDNSService
@@ -32,6 +33,13 @@ type MasterDNSProbe struct {
 }
 
 type Option func(*MasterDNSProbe)
+
+// WithLogger sets the logger for probe lifecycle events (nil-safe).
+func WithLogger(log *logger.Logger) Option {
+	return func(p *MasterDNSProbe) {
+		p.log = log
+	}
+}
 
 func WithMasterDNSService(service dns.MasterDNSService) Option {
 	return func(p *MasterDNSProbe) {
@@ -67,7 +75,6 @@ func WithTries(n int) Option {
 	}
 }
 
-// NewMasterDNSProbe creates a MasterDNS probe.
 func NewMasterDNSProbe(
 	config dns.MasterDNSConfig,
 	timeout time.Duration,
@@ -106,12 +113,10 @@ func NewMasterDNSProbe(
 	return p, nil
 }
 
-// Schema returns the result schema emitted by the probe.
 func (p *MasterDNSProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init initializes the probe.
 func (p *MasterDNSProbe) Init(context.Context) error {
 	return nil
 }
@@ -126,7 +131,10 @@ func (p *MasterDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result,
 
 	localPort, err := p.pm.Get(ctx)
 	if err != nil {
-		return nil, err
+		if ctx.Err() != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%w: lease port for MasterDNS: %w", probe.ErrEnvironment, err)
 	}
 	defer p.pm.Release(localPort)
 
@@ -156,7 +164,7 @@ func (p *MasterDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort u
 	}
 	defer func() {
 		if err := handle.Close(); err != nil {
-			logger.CoreError("close MasterDNS tunnel: %v", err)
+			p.log.Error("close MasterDNS tunnel: %v", err)
 		}
 	}()
 
@@ -165,7 +173,7 @@ func (p *MasterDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort u
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
 		}
-		return nil, fmt.Errorf("wait for MasterDNS proxy: %w", err)
+		return nil, fmt.Errorf("%w: wait for MasterDNS proxy: %w", probe.ErrEnvironment, err)
 	}
 
 	latency, err := p.speedtestService.MeasureLatency(ctx, speedtest.LatencyConfig{

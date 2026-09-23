@@ -23,6 +23,7 @@ import (
 // the probe boots it against the scanned IP as resolver and measures
 // latency through that listener.
 type StormDNSProbe struct {
+	log             *logger.Logger
 	pm              portmgr.Manager
 	config          dns.StormDNSConfig
 	stormDNSService dns.StormDNSService
@@ -33,6 +34,13 @@ type StormDNSProbe struct {
 }
 
 type Option func(*StormDNSProbe)
+
+// WithLogger sets the logger for probe lifecycle events (nil-safe).
+func WithLogger(log *logger.Logger) Option {
+	return func(p *StormDNSProbe) {
+		p.log = log
+	}
+}
 
 func WithStormDNSService(service dns.StormDNSService) Option {
 	return func(p *StormDNSProbe) {
@@ -68,7 +76,6 @@ func WithTries(n int) Option {
 	}
 }
 
-// NewStormDNSProbe creates a StormDNS probe.
 func NewStormDNSProbe(
 	config dns.StormDNSConfig,
 	timeout time.Duration,
@@ -107,12 +114,10 @@ func NewStormDNSProbe(
 	return p, nil
 }
 
-// Schema returns the result schema emitted by the probe.
 func (p *StormDNSProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init initializes the probe.
 func (p *StormDNSProbe) Init(context.Context) error {
 	return nil
 }
@@ -127,7 +132,10 @@ func (p *StormDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, 
 
 	localPort, err := p.pm.Get(ctx)
 	if err != nil {
-		return nil, err
+		if ctx.Err() != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%w: lease port for StormDNS: %w", probe.ErrEnvironment, err)
 	}
 	defer p.pm.Release(localPort)
 
@@ -157,7 +165,7 @@ func (p *StormDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort ui
 	}
 	defer func() {
 		if err := handle.Close(); err != nil {
-			logger.CoreError("close StormDNS tunnel: %v", err)
+			p.log.Error("close StormDNS tunnel: %v", err)
 		}
 	}()
 
@@ -166,7 +174,7 @@ func (p *StormDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort ui
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
 		}
-		return nil, fmt.Errorf("wait for StormDNS proxy: %w", err)
+		return nil, fmt.Errorf("%w: wait for StormDNS proxy: %w", probe.ErrEnvironment, err)
 	}
 
 	latency, err := p.speedtestSvc.MeasureLatency(ctx, speedtest.LatencyConfig{

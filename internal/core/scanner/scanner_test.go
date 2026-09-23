@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
 	"net"
 	"net/netip"
 	"strings"
@@ -19,15 +18,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/engine"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/portmgr"
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
-
-func TestMain(m *testing.M) {
-	if err := logger.InitCore(); err != nil {
-		log.Fatalf("core logger initialization failed: %v", err)
-	}
-	m.Run()
-}
 
 // mockDNSTTService implements dns.DNSTTService.
 type mockDNSTTService struct {
@@ -228,10 +219,6 @@ func (m *mockVayDNSService) RenameConfig(oldName, newName string) error {
 func (m *mockVayDNSService) NewTunnel(ctx context.Context, cfg dns.VayDNSConfig, resolverAddr netip.Addr) (net.Conn, error) {
 	return nil, nil
 }
-
-// ---------------------------------------------------------------------
-// Existing tests – updated to use mocks where needed
-// ---------------------------------------------------------------------
 
 // newTestScanner wraps NewScanner with mock DNS tunnel services so tests
 // never require a real slipstream-client binary on the system.

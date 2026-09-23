@@ -77,7 +77,7 @@ func defaultH3Request() HTTPRequest {
 
 func TestNewHTTP3Probe_Success(t *testing.T) {
 	req := defaultH3Request()
-	p, err := NewHTTP3Probe(req, nil)
+	p, err := NewHTTP3Probe(req, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestNewHTTP3Probe_Success(t *testing.T) {
 
 func TestNewHTTP3Probe_WithCodes(t *testing.T) {
 	req := defaultH3Request()
-	p, err := NewHTTP3Probe(req, []int{200, 204})
+	p, err := NewHTTP3Probe(req, []int{200, 204}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

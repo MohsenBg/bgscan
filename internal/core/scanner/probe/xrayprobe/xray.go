@@ -32,6 +32,7 @@ type XrayService interface {
 // XrayProbe validates connectivity and performance through a temporary local
 // Xray SOCKS proxy configured for a target IP.
 type XrayProbe struct {
+	log   *logger.Logger
 	pm    portmgr.Manager
 	xray  XrayService
 	speed speedtest.Service
@@ -48,6 +49,13 @@ type XrayProbe struct {
 
 // Option configures an XrayProbe.
 type Option func(*XrayProbe)
+
+// WithLogger sets the logger for probe lifecycle events (nil-safe).
+func WithLogger(log *logger.Logger) Option {
+	return func(p *XrayProbe) {
+		p.log = log
+	}
+}
 
 // WithXrayService uses service for Xray configuration and instance operations.
 func WithXrayService(service XrayService) Option {
@@ -136,7 +144,6 @@ func NewXrayProbe(
 	return p, nil
 }
 
-// Schema returns the result schema emitted by the probe.
 func (p *XrayProbe) Schema() result.ResultSchema {
 	return Schema
 }
@@ -173,24 +180,27 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 
 	port, err := p.pm.Get(ctx)
 	if err != nil {
-		return nil, err
+		if ctx.Err() != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%w: lease port for Xray: %w", probe.ErrEnvironment, err)
 	}
 	defer p.pm.Release(port)
 
 	cfg, err := p.xray.GenerateConfig(p.outbound, ip, port)
 	if err != nil {
-		return nil, fmt.Errorf("generate Xray config: %w", err)
+		return nil, fmt.Errorf("%w: generate Xray config: %w", probe.ErrEnvironment, err)
 	}
 
 	inst, err := p.xray.Start(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("start Xray: %w", err)
+		return nil, fmt.Errorf("%w: start Xray: %w", probe.ErrEnvironment, err)
 	}
 
 	// Always closed via defer below.
 	defer func() {
 		if err := inst.Close(); err != nil {
-			logger.CoreError("terminate Xray: %v", err)
+			p.log.Error("terminate Xray: %v", err)
 		}
 	}()
 
@@ -201,7 +211,7 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 			return nil, ctxErr
 		}
 
-		return nil, fmt.Errorf("wait for Xray proxy: %w", err)
+		return nil, fmt.Errorf("%w: wait for Xray proxy: %w", probe.ErrEnvironment, err)
 	}
 
 	latency, err := p.speed.MeasureLatency(ctx, speedtest.LatencyConfig{

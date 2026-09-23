@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/iplist"
 	"github.com/MohsenBg/bgscan/internal/core/result"
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 type scanProgress struct {
@@ -39,14 +39,13 @@ func RunScan(ctx context.Context, input string, cfg ScanConfig) {
 		workers = 1
 	}
 
-	// MaxSuccessfulIPs stops the scan once enough successes are found.
-	// A cancellable child ctx lets workers and the IP feeder exit promptly.
+	// A cancellable child ctx lets workers and the IP feeder exit promptly
+	// on MaxSuccessfulIPs or an environment abort.
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
+
 	limit := cfg.MaxSuccessfulIPs
-	var stop context.CancelFunc
-	if limit > 0 {
-		ctx, stop = context.WithCancel(ctx)
-		defer stop()
-	}
+	fails := newProbeFailures(cfg.Log, stop, cfg.Hooks)
 
 	ips := make(chan netip.Addr, workers*2)
 	results := make(chan result.Result, workers*4)
@@ -72,7 +71,7 @@ func RunScan(ctx context.Context, input string, cfg ScanConfig) {
 
 	defer func() {
 		if err := cfg.Writer.Stop(); err != nil {
-			logger.CoreError("stopping writer: %v", err)
+			cfg.Log.Error("stopping writer: %v", err)
 		}
 
 		if err := cfg.Probe.Close(); err != nil {
@@ -126,7 +125,7 @@ func RunScan(ctx context.Context, input string, cfg ScanConfig) {
 					stop()
 					return
 				}
-				runProbe(ctx, ip, cfg, &processed, &success, results)
+				runProbe(ctx, ip, cfg, &processed, &success, results, fails)
 				if limit > 0 && success.Load() >= limit {
 					stop()
 				}
@@ -135,12 +134,13 @@ func RunScan(ctx context.Context, input string, cfg ScanConfig) {
 	}
 
 	if err := iplist.StreamActiveIPs(
+		cfg.Log,
 		ctx,
 		input,
 		cfg.MaxIPsToTest,
 		cfg.Shuffled,
 		ips,
-	); err != nil {
+	); err != nil && !errors.Is(err, context.Canceled) {
 		cfg.Hooks.callOnError(err)
 	}
 
@@ -211,6 +211,7 @@ func runProbe(
 	processed *atomic.Uint64,
 	succeed *atomic.Uint64,
 	results chan<- result.Result,
+	fails *probeFailures,
 ) {
 	if cfg.RateLimiter != nil {
 		if err := cfg.RateLimiter.Wait(ctx); err != nil {
@@ -222,9 +223,12 @@ func runProbe(
 	processed.Add(1)
 
 	if err != nil {
-		logger.CoreError("probe failed for %s: %v", ip, err)
+		if ctx.Err() == nil {
+			fails.note(ip, err)
+		}
 	} else {
 		succeed.Add(1)
+		fails.resetEnv()
 		cfg.Hooks.callOnSuccess(res)
 		select {
 		case results <- res:

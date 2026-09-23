@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 	"github.com/MohsenBg/bgscan/internal/logger"
@@ -26,6 +27,7 @@ type httpClientFactory func(ip netip.Addr) httpClientResult
 // HTTPProbe validates HTTP/HTTPS connectivity to a target IP, preserving
 // Host and SNI semantics.
 type HTTPProbe struct {
+	log           *logger.Logger
 	req           HTTPRequest
 	filter        statusFilter
 	dialer        *net.Dialer
@@ -35,8 +37,9 @@ type HTTPProbe struct {
 
 // NewHTTPProbe creates an HTTPProbe. If acceptedCodes is empty or covers all
 // known codes, all response status codes are accepted.
-func NewHTTPProbe(req HTTPRequest, acceptedCodes []int) probe.Probe {
+func NewHTTPProbe(req HTTPRequest, acceptedCodes []int, log *logger.Logger) probe.Probe {
 	p := &HTTPProbe{
+		log:    log,
 		req:    req,
 		dialer: &net.Dialer{Timeout: req.Timeout},
 		tls:    newTLSConfig(req),
@@ -103,11 +106,14 @@ func (p *HTTPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	r.close()
 
 	if err != nil {
+		if netutil.IsUnreachable(err) {
+			return nil, fmt.Errorf("%w: request failed: %w", probe.ErrEnvironment, err)
+		}
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			logger.CoreError("close response body: %v", err)
+			p.log.Error("close response body: %v", err)
 		}
 	}()
 
@@ -124,14 +130,13 @@ func (p *HTTPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	}, nil
 }
 
-// Schema returns the result schema for HTTP probes.
 func (p *HTTPProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// buildClient creates a fresh *http.Transport and *http.Client bound to the target IP.
-// A new transport is instantiated per call to prevent HTTP/2 readLoop goroutine leaks.
-// The caller must invoke CloseIdleConnections on the returned transport after the request completes.
+// buildClient returns a transport + client bound to ip. A fresh transport
+// per call avoids HTTP/2 readLoop goroutine leaks; callers must
+// CloseIdleConnections when done.
 func (p *HTTPProbe) buildClient(ip netip.Addr) (*http.Transport, *http.Client) {
 	t := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -155,8 +160,8 @@ func (p *HTTPProbe) buildClient(ip netip.Addr) (*http.Transport, *http.Client) {
 	}
 }
 
-// tlsNextProto configures ALPN behavior for the transport.
-// An empty map disables HTTP/2 upgrades for H1-only mode, while nil allows default HTTP/2 negotiation.
+// tlsNextProto disables HTTP/2 upgrades in H1-only mode (empty map); nil
+// keeps default negotiation.
 func tlsNextProto(v HTTPVersion) map[string]func(authority string, c *tls.Conn) http.RoundTripper {
 	if v == HTTPVersionH1 {
 		return map[string]func(authority string, c *tls.Conn) http.RoundTripper{}
@@ -164,7 +169,6 @@ func tlsNextProto(v HTTPVersion) map[string]func(authority string, c *tls.Conn) 
 	return nil
 }
 
-// isHTTPS reports whether the protocol string indicates an HTTPS connection.
 func isHTTPS(proto string) bool {
 	p := strings.ToLower(proto)
 	p = strings.TrimSpace(p)

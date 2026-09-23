@@ -30,8 +30,8 @@ const (
 	HTTPVersionH2
 )
 
-// HTTPRequest holds a normalized, ready-to-execute HTTP probe configuration.
-// It is shared by both HTTPProbe (HTTP/1.1, HTTP/2) and HTTP3Probe (QUIC).
+// HTTPRequest is a normalized, ready-to-execute probe configuration shared
+// by HTTPProbe (HTTP/1.1, HTTP/2) and HTTP3Probe (QUIC).
 type HTTPRequest struct {
 	URL           string
 	Host          string
@@ -45,14 +45,13 @@ type HTTPRequest struct {
 	MaxTLSVersion uint16
 }
 
-// statusFilter is an optional allow-list of HTTP status codes considered valid.
-// A zero-value statusFilter accepts every status code.
+// statusFilter is an allow-list of valid HTTP status codes; the zero value
+// accepts everything.
 type statusFilter struct {
 	accepted map[int]struct{}
 }
 
-// newStatusFilter builds a statusFilter from a slice of accepted status codes.
-// It returns an empty filter (accepts all) if the list is empty or covers all possible codes.
+// newStatusFilter builds a statusFilter; empty or exhaustive lists accept all.
 func newStatusFilter(codes []int, total int) statusFilter {
 	if len(codes) == 0 || len(codes) >= total {
 		return statusFilter{}
@@ -74,8 +73,7 @@ func (f statusFilter) isAccepted(code int) bool {
 	return ok
 }
 
-// newTLSConfig builds a *tls.Config from an HTTPRequest.
-// It returns nil if TLS is not enabled.
+// newTLSConfig builds a *tls.Config, or nil when TLS is disabled.
 func newTLSConfig(req HTTPRequest) *tls.Config {
 	if !req.UseTLS {
 		return nil
@@ -89,7 +87,7 @@ func newTLSConfig(req HTTPRequest) *tls.Config {
 	}
 }
 
-// defaultPort returns the configured port, or defaults to 443 for TLS and 80 for plain HTTP.
+// defaultPort returns port, or 443/80 for TLS/plain HTTP when port is 0.
 func defaultPort(port int, useTLS bool) (uint16, error) {
 	if port < 0 || port > math.MaxUint16 {
 		return 0, errors.New("invalid port number")
@@ -104,9 +102,8 @@ func defaultPort(port int, useTLS bool) (uint16, error) {
 	return 80, nil
 }
 
-// resolveSNI returns a validated SNI value.
-// If serverName is empty, it returns an empty string, allowing the caller
-// to derive the SNI from the host if needed.
+// resolveSNI validates serverName. Empty stays empty so callers can fall
+// back to the host.
 func resolveSNI(serverName string, useTLS bool) (string, error) {
 	if serverName != "" {
 		return serverName, nil
@@ -117,9 +114,8 @@ func resolveSNI(serverName string, useTLS bool) (string, error) {
 	return "", nil
 }
 
-// resolveHTTPVersion maps a protocol string from config to an HTTPVersion.
-// Recognized values (case-insensitive): "h1", "http/1", "http/1.1" → H1;
-// "h2", "http/2" → H2; anything else (including empty) → H1H2.
+// resolveHTTPVersion maps a protocol string to an HTTPVersion
+// ("h1"/"http/1.x" → H1, "h2"/"http/2" → H2, anything else → H1H2).
 func resolveHTTPVersion(protocol string) HTTPVersion {
 	switch strings.ToLower(strings.TrimSpace(protocol)) {
 	case "h1", "http/1", "http/1.1", "http1":
@@ -131,8 +127,7 @@ func resolveHTTPVersion(protocol string) HTTPVersion {
 	}
 }
 
-// NewHTTPRequestFromConfig builds an HTTPRequest from a generic HTTPConfig,
-// suitable for HTTP/1.1 and HTTP/2 probing.
+// NewHTTPRequestFromConfig builds an HTTPRequest from an HTTPConfig.
 func NewHTTPRequestFromConfig(cfg config.HTTPConfig) (*HTTPRequest, error) {
 	scheme := "http://"
 	useHTTPS := isHTTPS(cfg.Protocol)
@@ -185,8 +180,7 @@ func NewHTTPRequestFromConfig(cfg config.HTTPConfig) (*HTTPRequest, error) {
 	}, nil
 }
 
-// resolveTLSVersions parses TLS version constraints from the configuration
-// and ensures the minimum version does not exceed the maximum.
+// resolveTLSVersions parses the TLS version range, rejecting min > max.
 func resolveTLSVersions(cfg config.HTTPConfig) (uint16, uint16, error) {
 	minTLS, err := netutil.ParseTLSVersion(cfg.MinTLSVersion)
 	if err != nil {

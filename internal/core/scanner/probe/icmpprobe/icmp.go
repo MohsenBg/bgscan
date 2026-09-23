@@ -17,6 +17,7 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/netutil"
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
 const (
@@ -49,19 +50,17 @@ func (realClock) NewTimer(d time.Duration) *time.Timer { return time.NewTimer(d)
 // socketFactory abstracts socket creation for testing.
 type socketFactory func(privileged, unprivileged, addr string) (socket, string, int, error)
 
-// waiter tracks an in-flight Ping call awaiting a reply. addr records the
-// target IP so replies can be verified against the sender, not just the
-// (protocol, id, seq) key, which can legitimately collide once more than
-// 65536 pings for a given protocol are in flight at once (ICMP sequence
-// numbers are only 16 bits on the wire).
+// waiter tracks an in-flight Ping awaiting a reply. addr pins the target IP
+// because the (protocol, id, seq) key can collide past ~65536 concurrent
+// pings per protocol (ICMP sequence numbers are 16 bits on the wire).
 type waiter struct {
 	ch   chan struct{}
 	addr netip.Addr
 }
 
-// ICMPProbe measures reachability and latency for IPv4 and IPv6 targets using ICMP echo requests.
-// It maintains shared ICMP sockets and dedicated reader goroutines to demultiplex echo replies.
-// IPv6 support is best-effort; if unavailable, IPv6 targets return an error.
+// ICMPProbe measures reachability and latency over shared ICMP sockets with
+// dedicated reader goroutines. IPv6 is best-effort; without it, IPv6
+// targets fail.
 type ICMPProbe struct {
 	conn4 socket
 	mode4 string
@@ -82,15 +81,16 @@ type ICMPProbe struct {
 	startOnce sync.Once
 }
 
-// Options configures the behavior of an ICMPProbe.
+// Options configures an ICMPProbe.
 type Options struct {
-	Timeout time.Duration // Per-ping timeout.
-	Tries   uint16        // Maximum number of ping attempts.
-	Clock   clock         // Optional clock interface for testing.
-	Factory socketFactory // Optional socket factory for testing.
+	Timeout time.Duration
+	Tries   uint16
+	Clock   clock         // Optional, for testing.
+	Factory socketFactory // Optional, for testing.
 }
 
-// NewICMPProbe creates a new ICMPProbe. If opts.Clock or opts.Factory are nil, real implementations are used.
+// NewICMPProbe creates an ICMPProbe, filling in real Clock/Factory when
+// opts leaves them nil.
 func NewICMPProbe(opts Options) (*ICMPProbe, error) {
 	if opts.Clock == nil {
 		opts.Clock = realClock{}
@@ -120,12 +120,11 @@ func NewICMPProbe(opts Options) (*ICMPProbe, error) {
 	}, nil
 }
 
-// Schema returns the result schema for ICMP probes.
 func (p *ICMPProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
-// Init implements probe.Probe. It starts the background reader goroutines on first invocation.
+// Init starts the background reader goroutines (once).
 func (p *ICMPProbe) Init(_ context.Context) error {
 	p.startOnce.Do(func() {
 		go p.reader(p.conn4, icmpProtocol)
@@ -136,7 +135,7 @@ func (p *ICMPProbe) Init(_ context.Context) error {
 	return nil
 }
 
-// reader consumes incoming ICMP packets from a socket and demultiplexes replies to waiting Ping callers.
+// reader demultiplexes incoming ICMP replies to waiting Ping callers.
 func (p *ICMPProbe) reader(conn socket, protocol int) {
 	buf := make([]byte, maxPacket)
 
@@ -161,12 +160,11 @@ func (p *ICMPProbe) reader(conn socket, protocol int) {
 	}
 }
 
-// handlePacket parses an incoming ICMP packet and signals the corresponding waiter if it matches
-// an active Echo Reply. The (protocol, id, seq) key narrows candidates, but since ICMP sequence
-// numbers are only 16 bits on the wire, two different in-flight targets can legitimately share a
-// key once more than ~65536 pings for a protocol are outstanding at once. To guard against
-// signaling the wrong waiter in that case, the packet's source address must also match the
-// waiter's target address before it is treated as a genuine reply.
+// handlePacket signals the waiter matching an Echo Reply. The (protocol,
+// id, seq) key narrows candidates, but ICMP sequence numbers are only 16
+// bits on the wire, so two in-flight targets can legitimately share a key
+// past ~65536 concurrent pings per protocol. The packet source must also
+// match the waiter's target before it counts as a genuine reply.
 func (p *ICMPProbe) handlePacket(packet []byte, protocol int, from net.Addr) {
 	msg, err := icmp.ParseMessage(protocol, packet)
 	if err != nil {
@@ -200,12 +198,10 @@ func (p *ICMPProbe) handlePacket(packet []byte, protocol int, from net.Addr) {
 
 	w := v.(*waiter)
 	if !addrMatches(w.addr, from) {
-		// Key collision (e.g. sequence-number wraparound with a very high number
-		// of concurrent pings): this reply belongs to a different in-flight
-		// target than the one currently registered under this key. Drop it;
-		// the real waiter for this reply either already fired or will time out
-		// and retry. This is a safe failure mode — it never signals the wrong
-		// waiter as successful.
+		// Key collision (sequence wraparound under very high concurrency):
+		// the reply belongs to a different in-flight target. Drop it — its
+		// real waiter already fired or will time out and retry. Never signals
+		// the wrong waiter.
 		return
 	}
 
@@ -236,9 +232,9 @@ func addrMatches(target netip.Addr, from net.Addr) bool {
 	return got.Unmap() == target.Unmap()
 }
 
-// makeKey generates a unique 64-bit identifier from an ICMP protocol, ID, and sequence number.
-// Including the protocol prevents an IPv4 waiter from ever being matched by an IPv6 reply (or vice
-// versa) even when both families happen to share the same ICMP ID and sequence number.
+// makeKey packs protocol, ID and sequence into 64 bits. The protocol bits
+// keep an IPv4 waiter from matching an IPv6 reply with the same ID and
+// sequence (or vice versa).
 func makeKey(protocol, id, seq int) uint64 {
 	return uint64(protocol)<<48 | uint64(id)<<32 | uint64(seq)
 }
@@ -259,7 +255,7 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Durati
 		proto = icmpProtocol
 	} else {
 		if p.conn6 == nil {
-			return errors.New("IPv6 is not available on this system")
+			return fmt.Errorf("%w: IPv6 is not available on this system", probe.ErrEnvironment)
 		}
 		conn = p.conn6
 		id = p.id6
@@ -297,7 +293,7 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Durati
 	}
 
 	if _, err = conn.WriteTo(data, destination(ip, mode)); err != nil {
-		return err
+		return fmt.Errorf("%w: icmp write: %w", probe.ErrEnvironment, err)
 	}
 
 	timer := p.clock.NewTimer(timeout)
@@ -307,7 +303,7 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Durati
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-p.done:
-		return errors.New("icmp probe closed")
+		return fmt.Errorf("%w: icmp probe closed", probe.ErrEnvironment)
 	case <-w.ch:
 		return nil
 	case <-timer.C:
@@ -315,7 +311,7 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Durati
 	}
 }
 
-// destination returns the appropriate net.Addr for the target IP, adapting to raw or UDP socket modes.
+// destination adapts the target IP to the socket mode (raw vs UDP).
 func destination(ip netip.Addr, mode string) net.Addr {
 	stdIP := net.IP(ip.Unmap().AsSlice())
 	if mode == "udp" {
@@ -324,7 +320,7 @@ func destination(ip netip.Addr, mode string) net.Addr {
 	return &net.IPAddr{IP: stdIP}
 }
 
-// Run implements probe.Probe. It performs an ICMP reachability check, retrying up to the configured Tries limit on failure.
+// Run pings ip, retrying up to the configured Tries limit.
 func (p *ICMPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -360,7 +356,7 @@ func (p *ICMPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	return nil, lastErr
 }
 
-// Close implements probe.Probe. It terminates the background readers and closes the ICMP sockets.
+// Close stops the background readers and closes the ICMP sockets.
 func (p *ICMPProbe) Close() error {
 	var errs []error
 
@@ -383,7 +379,8 @@ func (p *ICMPProbe) Close() error {
 	return errors.Join(errs...)
 }
 
-// defaultFactory attempts to open a raw ICMP socket, falling back to an unprivileged UDP socket if permissions are denied.
+// defaultFactory opens a raw ICMP socket, falling back to unprivileged UDP
+// when permissions are denied.
 func defaultFactory(privileged, unprivileged, addr string) (socket, string, int, error) {
 	conn, err := icmp.ListenPacket(privileged, addr)
 	if err == nil {

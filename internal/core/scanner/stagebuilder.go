@@ -61,6 +61,7 @@ func (s *scanner) BuildTCPStage(
 		fmt.Sprint(cfg.Port),
 		cfg.Timeout.Duration(),
 		cfg.Tries,
+		s.logs.Core.With("probe", "tcp"),
 	)
 
 	writer, err := s.newWriter(
@@ -112,6 +113,7 @@ func (s *scanner) newHTTPProbe(
 		prb, err := httpprobe.NewHTTP3Probe(
 			req,
 			cfg.AcceptedStatusCodes,
+			s.logs.Core.With("probe", "http3"),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create HTTP/3 probe: %w", err)
@@ -122,6 +124,7 @@ func (s *scanner) newHTTPProbe(
 	return httpprobe.NewHTTPProbe(
 		req,
 		cfg.AcceptedStatusCodes,
+		s.logs.Core.With("probe", "http"),
 	), nil
 }
 
@@ -157,6 +160,7 @@ func (s *scanner) BuildXrayStage(
 		&cfg,
 		template,
 		s.pm,
+		xrayprobe.WithLogger(s.logs.Core.With("probe", "xray")),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create Xray probe: %w", err)
@@ -264,6 +268,7 @@ func (s *scanner) BuildDNSTTStage(
 		dnsttCfg,
 		tunCfg.Timeout.Duration(),
 		dnsttprobe.WithTries(tunCfg.Tries),
+		dnsttprobe.WithLogger(s.logs.Core.With("probe", "dnstt")),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create DNSTT probe: %w", err)
@@ -366,6 +371,7 @@ func (s *scanner) BuildSlipStreamStage(
 		s.pm,
 		slipstreamprobe.WithSlipstreamService(s.slipstreamService),
 		slipstreamprobe.WithTries(tunCfg.Tries),
+		slipstreamprobe.WithLogger(s.logs.Core.With("probe", "slipstream")),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create Slipstream probe: %w", err)
@@ -427,6 +433,7 @@ func (s *scanner) BuildVayDNSStage(
 		tunCfg.Timeout.Duration(),
 		vaydnsprobe.WithVayDNSService(s.vaydnsService),
 		vaydnsprobe.WithTries(tunCfg.Tries),
+		vaydnsprobe.WithLogger(s.logs.Core.With("probe", "vaydns")),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create VayDNS probe: %w", err)
@@ -489,6 +496,7 @@ func (s *scanner) BuildMasterDNSStage(
 		s.pm,
 		masterdnsprobe.WithMasterDNSService(s.masterDNSService),
 		masterdnsprobe.WithTries(tunCfg.Tries),
+		masterdnsprobe.WithLogger(s.logs.Core.With("probe", "masterdns")),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create MasterDNS probe: %w", err)
@@ -551,6 +559,7 @@ func (s *scanner) BuildStormDNSStage(
 		s.pm,
 		stormdnsprobe.WithStormDNSService(s.stormDNSService),
 		stormdnsprobe.WithTries(tunCfg.Tries),
+		stormdnsprobe.WithLogger(s.logs.Core.With("probe", "stormdns")),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create StormDNS probe: %w", err)
@@ -639,6 +648,7 @@ func (s *scanner) newWriter(ctx context.Context, prefix string, schema result.Re
 		ResultPrefix: prefix,
 		Schema:       schema,
 		Config:       s.config.Writer,
+		Logs:         s.logs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create %s result writer: %w", schema.Name, err)

@@ -2,6 +2,8 @@
 package engine
 
 import (
+	"github.com/MohsenBg/bgscan/internal/logger"
+
 	"strings"
 	"time"
 
@@ -62,6 +64,9 @@ type ChainConfig struct {
 	// MaxSuccessfulIPs caps the number of successful IPs to find.
 	// The scan stops once this limit is reached.
 	MaxSuccessfulIPs uint64
+
+	// Log receives engine lifecycle events (nil-safe).
+	Log *logger.Logger
 }
 
 // ScanConfig controls the execution of a single, standalone scan.
@@ -99,6 +104,9 @@ type ScanConfig struct {
 	// MaxSuccessfulIPs caps the number of successful IPs to find.
 	// The scan stops once this limit is reached.
 	MaxSuccessfulIPs uint64
+
+	// Log receives engine lifecycle events (nil-safe).
+	Log *logger.Logger
 }
 
 // StageConfig defines settings and dependencies for a single scan stage.
@@ -135,29 +143,26 @@ type ScanHooks struct {
 	OnError func(error)
 }
 
-// callOnError safely invokes OnError if it has been provided.
 func (h ScanHooks) callOnError(err error) {
 	if h.OnError != nil {
 		h.OnError(err)
 	}
 }
 
-// callOnSuccess safely invokes OnSuccess if it has been provided.
 func (h ScanHooks) callOnSuccess(r result.Result) {
 	if h.OnSuccess != nil {
 		h.OnSuccess(r)
 	}
 }
 
-// callOnScanEnd safely invokes OnScanEnd if it has been provided.
 func (h ScanHooks) callOnScanEnd() {
 	if h.OnScanEnd != nil {
 		h.OnScanEnd()
 	}
 }
 
-// ParsePipelineMode converts an incoming configuration string into a valid PipelineMode.
-// It gracefully defaults to ModeSequential if the input is empty or unrecognized.
+// ParsePipelineMode maps a config string to a PipelineMode, defaulting to
+// ModeSequential for empty or unrecognized input.
 func ParsePipelineMode(s string) PipelineMode {
 	s = strings.TrimSpace(strings.ToLower(s))
 

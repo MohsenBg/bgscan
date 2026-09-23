@@ -10,6 +10,7 @@ import (
 
 	"github.com/quic-go/quic-go/http3"
 
+	"github.com/MohsenBg/bgscan/internal/core/netutil"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 	"github.com/MohsenBg/bgscan/internal/logger"
@@ -24,6 +25,7 @@ type roundTripCloser interface {
 
 // HTTP3Probe validates HTTP/3 (QUIC) connectivity to a target IP.
 type HTTP3Probe struct {
+	log       *logger.Logger
 	req       HTTPRequest
 	filter    statusFilter
 	transport roundTripCloser
@@ -31,10 +33,11 @@ type HTTP3Probe struct {
 
 // NewHTTP3Probe creates an HTTP3Probe. If acceptedCodes is empty or covers all
 // known codes, all response status codes are accepted.
-func NewHTTP3Probe(req HTTPRequest, acceptedCodes []int) (probe.Probe, error) {
+func NewHTTP3Probe(req HTTPRequest, acceptedCodes []int, log *logger.Logger) (probe.Probe, error) {
 	tlsCfg := newTLSConfig(req)
 
 	return &HTTP3Probe{
+		log:    log,
 		req:    req,
 		filter: newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
 		transport: &http3.Transport{
@@ -89,12 +92,15 @@ func (p *HTTP3Probe) Run(ctx context.Context, ip netip.Addr) (result.Result, err
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if netutil.IsUnreachable(err) {
+			return nil, fmt.Errorf("%w: execute request: %w", probe.ErrEnvironment, err)
+		}
 		return nil, fmt.Errorf("execute request: %w", err)
 	}
 
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			logger.CoreError("close response body: %v", err)
+			p.log.Error("close response body: %v", err)
 		}
 	}()
 

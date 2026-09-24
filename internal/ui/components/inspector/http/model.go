@@ -8,7 +8,6 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/config/validate"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/multiselect"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
@@ -87,16 +86,15 @@ func (m *Model) OnClose() tea.Cmd   { return nil }
 // saveHTTP saves the current HTTP configuration and returns a notification command on error.
 func saveHTTP(state *ui.AppState) tea.Cmd {
 	if err := state.Store.SaveHTTP(state.Config.HTTP); err != nil {
-		logger.UIError("Failed to save HTTP settings: %v", err)
-		return notice.NewNoticeCmd(state.Layout, "Failed to save HTTP settings", err.Error(), notice.NOTICE_ERROR)
+		state.Log.UI.Error("Failed to save HTTP settings: %v", err)
+		return notice.NewNoticeCmd(state.Deps(), "Failed to save HTTP settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
 // newIntInput creates a text input for integer values with validation and auto-save.
 func newIntInput(state *ui.AppState, title string, value int, validateFn func(int) error, setFn func(int)) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(strconv.Itoa(value)),
 		textinput.WithValidation(func(v string) error {
 			n, err := strconv.Atoi(v)
@@ -109,7 +107,7 @@ func newIntInput(state *ui.AppState, title string, value int, validateFn func(in
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			setFn(n)
 			return saveHTTP(state)
@@ -119,8 +117,7 @@ func newIntInput(state *ui.AppState, title string, value int, validateFn func(in
 
 // newDurationInput creates a text input for duration values (in ms) with validation and auto-save.
 func newDurationInput(state *ui.AppState, title string, value time.Duration, validateFn func(time.Duration) error, setFn func(time.Duration)) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
 		textinput.WithValidation(func(v string) error {
 			n, err := strconv.Atoi(v)
@@ -133,7 +130,7 @@ func newDurationInput(state *ui.AppState, title string, value time.Duration, val
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			setFn(time.Duration(n) * time.Millisecond)
 			return saveHTTP(state)
@@ -143,8 +140,7 @@ func newDurationInput(state *ui.AppState, title string, value time.Duration, val
 
 // newStringInput creates a text input for string values with validation and auto-save.
 func newStringInput(state *ui.AppState, title, value string, validateFn func(string) error, setFn func(string)) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(value),
 		textinput.WithValidation(validateFn),
 		textinput.WithFocus(),
@@ -315,8 +311,7 @@ func New(state *ui.AppState, name string) *Model {
 			return valField(tmp, "Port")
 		}, func(n int) { cfg.Port = n })
 
-	protocol := selectinput.New(
-		state.Layout, "Protocol",
+	protocol := selectinput.New(state.Deps(), "Protocol",
 		selectinput.WithValue(cfg.Protocol),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -329,8 +324,7 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 	)
 
-	httpVersion := selectinput.New(
-		state.Layout, "HTTP Version",
+	httpVersion := selectinput.New(state.Deps(), "HTTP Version",
 		selectinput.WithValue(cfg.Version),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -345,8 +339,7 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 	)
 
-	tlsValidation := toggleinput.New(
-		state.Layout, "TLS Validation",
+	tlsValidation := toggleinput.New(state.Deps(), "TLS Validation",
 		toggleinput.WithValue(cfg.TLSValidation),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
@@ -362,8 +355,7 @@ func New(state *ui.AppState, name string) *Model {
 		fingerprintOptions = append(fingerprintOptions, huh.NewOption(label, label))
 	}
 
-	fingerprint := selectinput.New(
-		state.Layout, "TLS Fingerprint",
+	fingerprint := selectinput.New(state.Deps(), "TLS Fingerprint",
 		selectinput.WithValue(cfg.Fingerprint),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(fingerprintOptions...),
@@ -396,8 +388,7 @@ func New(state *ui.AppState, name string) *Model {
 			return valField(tmp, "OutputPrefix")
 		}, func(v string) { cfg.OutputPrefix = v })
 
-	minTLSVersion := selectinput.New(
-		state.Layout, "Min TLS Version",
+	minTLSVersion := selectinput.New(state.Deps(), "Min TLS Version",
 		selectinput.WithValue(cfg.MinTLSVersion),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -417,8 +408,7 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 	)
 
-	maxTLSVersion := selectinput.New(
-		state.Layout, "Max TLS Version",
+	maxTLSVersion := selectinput.New(state.Deps(), "Max TLS Version",
 		selectinput.WithValue(cfg.MaxTLSVersion),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -449,8 +439,7 @@ func New(state *ui.AppState, name string) *Model {
 		groupOpts[i] = huh.NewOption(groupLabels[g], g)
 	}
 
-	statusCodeGroups := multiselect.New(
-		state.Layout, "Select accepted status code groups",
+	statusCodeGroups := multiselect.New(state.Deps(), "Select accepted status code groups",
 		multiselect.WithFocus[string](),
 		multiselect.WithOptions(groupOpts...),
 		multiselect.WithValue(groupMultiselectValue),
@@ -472,8 +461,7 @@ func New(state *ui.AppState, name string) *Model {
 	for _, g := range groupOrder {
 		group := g
 
-		specific := multiselect.New(
-			state.Layout,
+		specific := multiselect.New(state.Deps(),
 			fmt.Sprintf("Fine-tune %s codes", groupLabels[group]),
 			multiselect.WithFocus[int](),
 			multiselect.WithOptions(buildSpecificOptions(group)...),
@@ -530,7 +518,7 @@ func New(state *ui.AppState, name string) *Model {
 
 	fields = append(fields, statusCodeSpecificFields...)
 
-	m.inspector = inspector.New(state.Layout, "http settings", fields)
+	m.inspector = inspector.New(state.Deps(), "http settings", fields)
 	return m
 }
 

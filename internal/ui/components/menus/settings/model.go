@@ -8,6 +8,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/http"
 	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/icmp"
 	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/tcp"
+	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/uisettings"
 	"github.com/MohsenBg/bgscan/internal/ui/components/inspector/xray"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
@@ -56,9 +57,14 @@ func New(state *ui.AppState) *Model {
 				Component: dns.New(state, "DNS Settings"),
 			}
 		}),
+		menu.NewMenuItem("◐", "UI Settings", "u", func() tea.Msg {
+			return ui.OpenComponentMsg{
+				Component: uisettings.New(state, "UI Settings"),
+			}
+		}),
 	}
 	return &Model{
-		menu:  menu.New(items, "Settings", state.Layout),
+		menu:  menu.New(items, "Settings", state.Deps()),
 		id:    ui.NewComponentID(),
 		name:  "settings",
 		state: state,

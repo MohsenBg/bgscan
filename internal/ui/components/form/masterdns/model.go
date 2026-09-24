@@ -62,78 +62,63 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
-	l := m.Layout()
 
-	configName := formkit.ConfigNameField(l, m.Name(), m.SetName)
-	domain := formkit.StringField(
-		l, cfg, "Enter domain", "domain",
+	configName := formkit.ConfigNameField(m.State().Deps(), m.Name(), m.SetName)
+	domain := formkit.StringField(m.State().Deps(), cfg, "Enter domain", "domain",
 		func(c dns.MasterDNSConfig) string { return c.Domain },
 		func(c *dns.MasterDNSConfig, v string) { c.Domain = strings.TrimSpace(v) },
 	)
-	encryptionKey := formkit.SecretField(
-		l, cfg, "Enter encryption key", "encryption_key",
+	encryptionKey := formkit.SecretField(m.State().Deps(), cfg, "Enter encryption key", "encryption_key",
 		func(c dns.MasterDNSConfig) string { return c.EncryptionKey },
 		func(c *dns.MasterDNSConfig, v string) { c.EncryptionKey = v },
 		textarea.WithNewlines(false),
 	)
-	encMethod := formkit.EncMethodField(
-		l, cfg, "Select encryption method",
+	encMethod := formkit.EncMethodField(m.State().Deps(), cfg, "Select encryption method",
 		func(c dns.MasterDNSConfig) dns.EncMethod { return c.DataEncMethod },
 		func(c *dns.MasterDNSConfig, v dns.EncMethod) { c.DataEncMethod = v },
 	)
-	resPort := formkit.Uint16Field(
-		l, cfg, "Enter resolver port", "resolver_port",
+	resPort := formkit.Uint16Field(m.State().Deps(), cfg, "Enter resolver port", "resolver_port",
 		func(c dns.MasterDNSConfig) uint16 { return c.ResolverPort },
 		func(c *dns.MasterDNSConfig, v uint16) { c.ResolverPort = v },
 	)
 
-	mtuTestTimeout := formkit.FloatField(
-		l, cfg, "Enter MTU test timeout", "mtu_test_timeout_sec",
+	mtuTestTimeout := formkit.FloatField(m.State().Deps(), cfg, "Enter MTU test timeout", "mtu_test_timeout_sec",
 		func(c dns.MasterDNSConfig) float64 { return c.MTUTestTimeoutSec },
 		func(c *dns.MasterDNSConfig, v float64) { c.MTUTestTimeoutSec = v },
 	)
-	mtuTestRetries := formkit.Uint8Field(
-		l, cfg, "Enter MTU test retries", "mtu_test_retries",
+	mtuTestRetries := formkit.Uint8Field(m.State().Deps(), cfg, "Enter MTU test retries", "mtu_test_retries",
 		func(c dns.MasterDNSConfig) uint8 { return c.MTUTestRetries },
 		func(c *dns.MasterDNSConfig, v uint8) { c.MTUTestRetries = v },
 	)
-	sessionInitRetryMax := formkit.FloatField(
-		l, cfg, "Enter session init retry max", "session_init_retry_max_sec",
+	sessionInitRetryMax := formkit.FloatField(m.State().Deps(), cfg, "Enter session init retry max", "session_init_retry_max_sec",
 		func(c dns.MasterDNSConfig) float64 { return c.SessionInitRetryMaxSec },
 		func(c *dns.MasterDNSConfig, v float64) { c.SessionInitRetryMaxSec = v },
 	)
-	sessionInitRacing := formkit.Uint8Field(
-		l, cfg, "Enter session init racing count", "session_init_racing_count",
+	sessionInitRacing := formkit.Uint8Field(m.State().Deps(), cfg, "Enter session init racing count", "session_init_racing_count",
 		func(c dns.MasterDNSConfig) uint8 { return c.SessionInitRacingCount },
 		func(c *dns.MasterDNSConfig, v uint8) { c.SessionInitRacingCount = v },
 	)
-	minUploadMTU := formkit.Uint16Field(
-		l, cfg, "Enter min upload MTU", "min_upload_mtu",
+	minUploadMTU := formkit.Uint16Field(m.State().Deps(), cfg, "Enter min upload MTU", "min_upload_mtu",
 		func(c dns.MasterDNSConfig) uint16 { return c.MinUploadMTU },
 		func(c *dns.MasterDNSConfig, v uint16) { c.MinUploadMTU = v },
 	)
-	maxUploadMTU := formkit.Uint16Field(
-		l, cfg, "Enter max upload MTU", "max_upload_mtu",
+	maxUploadMTU := formkit.Uint16Field(m.State().Deps(), cfg, "Enter max upload MTU", "max_upload_mtu",
 		func(c dns.MasterDNSConfig) uint16 { return c.MaxUploadMTU },
 		func(c *dns.MasterDNSConfig, v uint16) { c.MaxUploadMTU = v },
 	)
-	minDownloadMTU := formkit.Uint16Field(
-		l, cfg, "Enter min download MTU", "min_download_mtu",
+	minDownloadMTU := formkit.Uint16Field(m.State().Deps(), cfg, "Enter min download MTU", "min_download_mtu",
 		func(c dns.MasterDNSConfig) uint16 { return c.MinDownloadMTU },
 		func(c *dns.MasterDNSConfig, v uint16) { c.MinDownloadMTU = v },
 	)
-	maxDownloadMTU := formkit.Uint16Field(
-		l, cfg, "Enter max download MTU", "max_download_mtu",
+	maxDownloadMTU := formkit.Uint16Field(m.State().Deps(), cfg, "Enter max download MTU", "max_download_mtu",
 		func(c dns.MasterDNSConfig) uint16 { return c.MaxDownloadMTU },
 		func(c *dns.MasterDNSConfig, v uint16) { c.MaxDownloadMTU = v },
 	)
-	mtuParallelism := formkit.Uint8Field(
-		l, cfg, "Enter MTU parallelism", "mtu_parallelism",
+	mtuParallelism := formkit.Uint8Field(m.State().Deps(), cfg, "Enter MTU parallelism", "mtu_parallelism",
 		func(c dns.MasterDNSConfig) uint8 { return c.MTUParallelism },
 		func(c *dns.MasterDNSConfig, v uint8) { c.MTUParallelism = v },
 	)
-	rxTxWorkers := formkit.Uint8Field(
-		l, cfg, "Enter RX/TX workers", "rx_tx_workers",
+	rxTxWorkers := formkit.Uint8Field(m.State().Deps(), cfg, "Enter RX/TX workers", "rx_tx_workers",
 		func(c dns.MasterDNSConfig) uint8 { return c.RxTxWorkers },
 		func(c *dns.MasterDNSConfig, v uint8) { c.RxTxWorkers = v },
 	)
@@ -157,7 +142,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		{Name: "RX/TX Workers", Description: formkit.DescRxTxWorkers, Group: formkit.GroupAdvanced, Input: inspector.Adapt(rxTxWorkers), Visible: formkit.AlwaysVisible, Format: inspector.FormatInt},
 	}
 
-	return inspector.New(l, "masterdns config", fields)
+	return inspector.New(m.State().Deps(), "masterdns config", fields)
 }
 
 func (m *Model) saveConfig() tea.Msg {

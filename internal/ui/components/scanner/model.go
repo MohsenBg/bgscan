@@ -8,7 +8,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/engine"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	logview "github.com/MohsenBg/bgscan/internal/ui/components/basic/logview"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/progress"
@@ -17,7 +16,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/ipviewer"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -87,15 +85,15 @@ func New(state *ui.AppState, maxIPs int, scn scanner.Scanner) *Model {
 
 	tabsList := make([]tabs.Tab[int], n)
 	for i, stage := range stages {
-		m.ipViewers[i] = createIPViewer(m.state.Layout, stage.Probe.Schema())
-		m.progress[i] = progress.New(m.state.Layout)
+		m.ipViewers[i] = createIPViewer(m.state, stage.Probe.Schema())
+		m.progress[i] = progress.New(m.state.Deps())
 		m.results[i] = make([]result.Result, 0, maxIPs)
 		m.batch[i] = make([]result.Result, 0, 128)
 		m.status[i] = StatusWaiting
 		tabsList[i] = tabs.NewTab(stage.Probe.Schema().Name, i)
 	}
 
-	m.tabs = tabs.New(m.state.Layout, tabsList, func(idx int, _ tabs.Tab[int]) tea.Cmd {
+	m.tabs = tabs.New(m.state.Deps(), tabsList, func(idx int, _ tabs.Tab[int]) tea.Cmd {
 		m.currentTab = idx
 		return m.immediateTick()
 	})
@@ -308,7 +306,7 @@ func (m *Model) asyncClose() tea.Cmd {
 
 func (m *Model) openLogViewer() tea.Cmd {
 	return func() tea.Msg {
-		v := logview.New(m.state, logger.Core(), "core logs")
+		v := logview.New(m.state, m.state.Log.Core, "core logs")
 		v.SetContainerWidth(min(80, m.state.Layout.Body.Width))
 		v.SetShowBorder(false)
 		return dialog.OpenDialog(v)
@@ -316,11 +314,11 @@ func (m *Model) openLogViewer() tea.Cmd {
 }
 
 func (m *Model) errorCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(m.state.Layout, title, message, notice.NOTICE_ERROR)
+	return notice.NewNoticeCmd(m.state.Deps(), title, message, notice.NOTICE_ERROR)
 }
 
-func createIPViewer(layout *layout.Layout, schema result.ResultSchema) ui.Component {
-	viewer := ipviewer.New(layout, "", nil, schema)
+func createIPViewer(state *ui.AppState, schema result.ResultSchema) ui.Component {
+	viewer := ipviewer.New(state.Deps(), "", nil, schema, ipviewer.WithMaxRow(state.Settings.MaxRow))
 	if t := viewer.Table(); t != nil {
 		t.SetKeys(
 			table.NewKey([]string{env.KeyTab}, "tab", "next tab", nil),

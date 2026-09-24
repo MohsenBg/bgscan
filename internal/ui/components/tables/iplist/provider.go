@@ -5,33 +5,30 @@ import (
 	"slices"
 
 	"github.com/MohsenBg/bgscan/internal/core/iplist"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/dustin/go-humanize"
 )
 
-type provider struct {
-	title    string
-	layout   *layout.Layout
-	onSelect func(*iplist.IPFileInfo) tea.Cmd
+type source struct {
+	title string
+	state *ui.AppState
 }
 
-func newProvider(layout *layout.Layout, title string, onSelect func(*iplist.IPFileInfo) tea.Cmd) crud.Provider[iplist.IPFileInfo] {
-	return &provider{
-		title:    title,
-		layout:   layout,
-		onSelect: onSelect,
+func newSource(state *ui.AppState, title string) crud.Source[iplist.IPFileInfo] {
+	return &source{
+		title: title,
+		state: state,
 	}
 }
 
-func (p *provider) Title() string { return p.title }
+func (s *source) Title() string { return s.title }
 
-func (p *provider) Columns() []table.Column {
+func (s *source) Columns() []table.Column {
 	return []table.Column{
 		{Title: "Name", Width: 40},
 		{Title: "Created Time", Width: 40},
@@ -39,13 +36,13 @@ func (p *provider) Columns() []table.Column {
 	}
 }
 
-func (p *provider) Load() ([]iplist.IPFileInfo, error) {
+func (s *source) Load() ([]iplist.IPFileInfo, error) {
 	files, err := iplist.ListIPFiles()
 	if err != nil {
-		logger.UIError("Failed to load IP files: %v", err)
+		s.state.Log.UI.Error("Failed to load IP files: %v", err)
 		return nil, err
 	}
-	logger.UIInfo("Loaded %d IP files", len(files))
+	s.state.Log.UI.Info("Loaded %d IP files", len(files))
 
 	slices.SortFunc(files, func(i, j iplist.IPFileInfo) int {
 		return j.CreatedAt.Compare(i.CreatedAt)
@@ -53,7 +50,7 @@ func (p *provider) Load() ([]iplist.IPFileInfo, error) {
 	return files, nil
 }
 
-func (p *provider) RenderRow(item iplist.IPFileInfo) table.Row {
+func (s *source) RenderRow(item iplist.IPFileInfo) table.Row {
 	return table.Row{
 		item.Name,
 		item.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -61,45 +58,47 @@ func (p *provider) RenderRow(item iplist.IPFileInfo) table.Row {
 	}
 }
 
-func (p *provider) Identity(item iplist.IPFileInfo) string {
+func (s *source) Identity(item iplist.IPFileInfo) string {
 	return item.Name
 }
 
-func (p *provider) OnSelect(item iplist.IPFileInfo) (tea.Cmd, bool) {
-	if p.onSelect != nil {
-		return p.onSelect(&item), true
+// newHooks wires the mutation behaviors. OnAdd only registers the "add"
+// keybinding: the real file-picker workflow is intercepted in Update via
+// crud.MsgActionTrigger, so its body never runs.
+func newHooks(state *ui.AppState, onSelect func(*iplist.IPFileInfo) tea.Cmd) crud.Hooks[iplist.IPFileInfo] {
+	hooks := crud.Hooks[iplist.IPFileInfo]{
+		OnDelete: func(item iplist.IPFileInfo) tea.Cmd {
+			return func() tea.Msg {
+				if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
+					state.Log.UI.Error("Failed to delete IP file: %v", err)
+					return notice.NewNoticeCmd(state.Deps(), "Delete Failed", err.Error(), notice.NOTICE_ERROR)()
+				}
+				return nil
+			}
+		},
+		OnRename: func(item iplist.IPFileInfo, newName string) tea.Cmd {
+			return func() tea.Msg {
+				dstPath, err := iplist.GetIPFilePath(newName)
+				if err != nil {
+					state.Log.UI.Error("Failed to resolve destination path: %v", err)
+					return notice.NewNoticeCmd(state.Deps(), "Rename Failed", err.Error(), notice.NOTICE_ERROR)()
+				}
+
+				if err := os.Rename(item.Path, dstPath); err != nil {
+					state.Log.UI.Error("Rename failed: %v", err)
+					return notice.NewNoticeCmd(state.Deps(), "Rename Failed", err.Error(), notice.NOTICE_ERROR)()
+				}
+				return nil
+			}
+		},
+		OnAdd: func() tea.Cmd { return nil },
 	}
-	return nil, false
-}
 
-func (p *provider) OnDelete(item iplist.IPFileInfo) (tea.Cmd, bool) {
-	cmd := func() tea.Msg {
-		if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
-			logger.UIError("Failed to delete IP file: %v", err)
-			return notice.NewNoticeCmd(p.layout, "Delete Failed", err.Error(), notice.NOTICE_ERROR)()
+	if onSelect != nil {
+		hooks.OnSelect = func(item iplist.IPFileInfo) tea.Cmd {
+			return onSelect(&item)
 		}
-		return nil
 	}
-	return cmd, true
-}
 
-func (p *provider) OnRename(item iplist.IPFileInfo, newName string) (tea.Cmd, bool) {
-	cmd := func() tea.Msg {
-		dstPath, err := iplist.GetIPFilePath(newName)
-		if err != nil {
-			logger.UIError("Failed to resolve destination path: %v", err)
-			return notice.NewNoticeCmd(p.layout, "Rename Failed", err.Error(), notice.NOTICE_ERROR)()
-		}
-
-		if err := os.Rename(item.Path, dstPath); err != nil {
-			logger.UIError("Rename failed: %v", err)
-			return notice.NewNoticeCmd(p.layout, "Rename Failed", err.Error(), notice.NOTICE_ERROR)()
-		}
-		return nil
-	}
-	return cmd, true
-}
-
-func (p *provider) OnAdd(item iplist.IPFileInfo) (tea.Cmd, bool) {
-	return nil, true
+	return hooks
 }

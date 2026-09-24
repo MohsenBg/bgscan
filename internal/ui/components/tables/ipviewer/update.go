@@ -13,6 +13,10 @@ import (
 )
 
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	// SetTheme cascades to the inner table, so early return is enough.
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	if key, ok := msg.(tea.KeyMsg); ok && key.String() == env.KeyEnter {
 		if cmd := m.copySelectedIP(); cmd != nil {
 			return m, cmd
@@ -42,9 +46,9 @@ func (m *Model) copySelectedIP() tea.Cmd {
 }
 
 func (m *Model) errorCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(m.layout, title, message, notice.NOTICE_ERROR)
+	return notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log}, title, message, notice.NOTICE_ERROR)
 }
 
 func (m *Model) infoCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(m.layout, title, message, notice.NOTICE_INFO)
+	return notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log}, title, message, notice.NOTICE_INFO)
 }

@@ -6,7 +6,6 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/config/validate"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
@@ -49,22 +48,21 @@ func (m *Model) OnClose() tea.Cmd   { return nil }
 
 func saveXray(state *ui.AppState) tea.Cmd {
 	if err := state.Store.SaveXray(state.Config.Xray); err != nil {
-		logger.UIError("Failed to save Xray settings: %v", err)
-		return notice.NewNoticeCmd(state.Layout, "Failed to save Xray settings", err.Error(), notice.NOTICE_ERROR)
+		state.Log.UI.Error("Failed to save Xray settings: %v", err)
+		return notice.NewNoticeCmd(state.Deps(), "Failed to save Xray settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
 func intInput(state *ui.AppState, title string, value int, val func(string) error, set func(int)) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(strconv.Itoa(value)),
 		textinput.WithValidation(val),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(n)
 			return saveXray(state)
@@ -73,15 +71,14 @@ func intInput(state *ui.AppState, title string, value int, val func(string) erro
 }
 
 func durationMSInput(state *ui.AppState, title string, value time.Duration, val func(string) error, set func(time.Duration)) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
 		textinput.WithValidation(val),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(time.Duration(n) * time.Millisecond)
 			return saveXray(state)
@@ -90,8 +87,7 @@ func durationMSInput(state *ui.AppState, title string, value time.Duration, val 
 }
 
 func stringInput(state *ui.AppState, title, value string, val func(string) error, set func(string)) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(value),
 		textinput.WithValidation(val),
 		textinput.WithFocus(),
@@ -117,8 +113,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.Workers = n })
 
-	connectivityTestType := selectinput.New(
-		state.Layout, "Select connectivity test type",
+	connectivityTestType := selectinput.New(state.Deps(), "Select connectivity test type",
 		selectinput.WithValue(cfg.ConnectivityTestType),
 		selectinput.WithFocus[config.ConnectivityTest](),
 		selectinput.WithOptions(
@@ -188,8 +183,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(d time.Duration) { cfg.SpeedTestTimeout = config.NewDurationMS(d) })
 
-	preScanType := selectinput.New(
-		state.Layout, "Select pre-scan type",
+	preScanType := selectinput.New(state.Deps(), "Select pre-scan type",
 		selectinput.WithValue(cfg.PreScanType),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -253,7 +247,7 @@ func New(state *ui.AppState, name string) *Model {
 		state:     state,
 		name:      name,
 		id:        ui.NewComponentID(),
-		inspector: inspector.New(state.Layout, "xray settings", fields),
+		inspector: inspector.New(state.Deps(), "xray settings", fields),
 	}
 }
 

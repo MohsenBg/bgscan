@@ -28,7 +28,6 @@ type Model struct {
 	dnsTunMenu ui.Component
 }
 
-// New creates a new outbound template list component view layer.
 func New(state *ui.AppState, title string, onSelect func(*dns.DNSTunConfigFile) tea.Cmd) *Model {
 	m := &Model{
 		id:    ui.NewComponentID(),
@@ -39,8 +38,7 @@ func New(state *ui.AppState, title string, onSelect func(*dns.DNSTunConfigFile) 
 	if onSelect == nil {
 		onSelect = m.openDNSTunForm
 	}
-	canAdd := true
-	m.crudTable = crud.New("dns tunling", state.Layout, newProvider(state, onSelect), 100, canAdd)
+	m.crudTable = crud.New(state.Deps(), newSource(state), newHooks(state, onSelect), 100)
 
 	return m
 }
@@ -52,7 +50,7 @@ func (m *Model) OnClose() tea.Cmd   { return m.crudTable.OnClose() }
 func (m *Model) Mode() env.Mode     { return m.crudTable.Mode() }
 
 func (m *Model) selectDNSTunMethod() tea.Cmd {
-	menu := dnstunmenu.New(m.state.Layout)
+	menu := dnstunmenu.New(m.state.Deps())
 	m.dnsTunMenu = menu
 	return func() tea.Msg {
 		return dialog.OpenDialog(menu)
@@ -75,7 +73,7 @@ func (m *Model) openSlipstreamForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
 		frm, err := slipstream.New(m.state.Layout, m.state, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Layout, "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
 		return dialog.OpenDialog(frm,
 			dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
@@ -86,7 +84,7 @@ func (m *Model) openDNSTTForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
 		frm, err := dnstt.New(m.state.Layout, m.state, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Layout, "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
 		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
@@ -96,7 +94,7 @@ func (m *Model) openVayDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
 		frm, err := vaydns.New(m.state.Layout, m.state, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Layout, "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
 		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
@@ -106,7 +104,7 @@ func (m *Model) openMasterDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
 		frm, err := masterdns.New(m.state.Layout, m.state, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Layout, "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
 		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
@@ -116,7 +114,7 @@ func (m *Model) openStormDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
 		frm, err := stormdns.New(m.state.Layout, m.state, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Layout, "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
 		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
@@ -126,7 +124,7 @@ func (m *Model) openTheFeedForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
 		frm, err := thefeed.New(m.state.Layout, m.state, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Layout, "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
 		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
@@ -155,8 +153,7 @@ func (m *Model) openDNSTunForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		}
 
 		if err != nil {
-			return notice.NewNoticeCmd(
-				m.state.Layout,
+			return notice.NewNoticeCmd(m.state.Deps(),
 				"Error",
 				err.Error(),
 				notice.NOTICE_ERROR,

@@ -10,17 +10,16 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textarea"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/validation"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 )
 
-// ConfigNameField builds the config-name input bound to the form name.
-func ConfigNameField(l *layout.Layout, name string, set func(string)) input.Input[string] {
+func ConfigNameField(deps ui.Deps, name string, set func(string)) input.Input[string] {
 	return textinput.New(
-		l, "Enter config name",
+		deps, "Enter config name",
 		textinput.WithValue(name),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -33,17 +32,17 @@ func ConfigNameField(l *layout.Layout, name string, set func(string)) input.Inpu
 	)
 }
 
-// StringField builds a single-line text input bound to a string config field,
-// validating through a copy of the whole config keyed by errKey.
+// StringField binds a text input to a string config field, validating
+// through a copy of the whole config keyed by errKey.
 func StringField[C TunnelConfig](
-	l *layout.Layout,
+	deps ui.Deps,
 	cfg *C,
 	title, errKey string,
 	get func(C) string,
 	set func(*C, string),
 ) input.Input[string] {
 	return buildTextInput(
-		l, title, get(*cfg),
+		deps, title, get(*cfg),
 		func(v string) error {
 			tmp := *cfg
 			set(&tmp, v)
@@ -56,10 +55,10 @@ func StringField[C TunnelConfig](
 	)
 }
 
-// SecretField builds a textarea bound to a sensitive/secret config field
-// (e.g. public key, private key, encryption key), validating through a copy.
+// SecretField binds a textarea to a secret config field (keys), validating
+// through a copy.
 func SecretField[C TunnelConfig](
-	l *layout.Layout,
+	deps ui.Deps,
 	cfg *C,
 	title, errKey string,
 	get func(C) string,
@@ -82,20 +81,20 @@ func SecretField[C TunnelConfig](
 			return nil
 		}),
 	}
-	return textarea.New(l, title, append(o, opts...)...)
+	return textarea.New(deps, title, append(o, opts...)...)
 }
 
-// Uint8Field builds a numeric input bound to a uint8 config field, using
-// overflow-safe parsing (bit size 8) and config-level validation.
+// Uint8Field binds a numeric input to a uint8 field, parsing with bit size
+// 8 so overflow fails validation instead of wrapping.
 func Uint8Field[C TunnelConfig](
-	l *layout.Layout,
+	deps ui.Deps,
 	cfg *C,
 	title, errKey string,
 	get func(C) uint8,
 	set func(*C, uint8),
 	opts ...textinput.Option,
 ) input.Input[string] {
-	return buildUintInput(l, title, 8, uint64(get(*cfg)), func(n uint64) error {
+	return buildUintInput(deps, title, 8, uint64(get(*cfg)), func(n uint64) error {
 		tmp := *cfg
 		set(&tmp, uint8(n))
 		if e, ok := tmp.Validate()[errKey]; ok {
@@ -105,17 +104,17 @@ func Uint8Field[C TunnelConfig](
 	}, func(n uint64) { set(cfg, uint8(n)) }, opts...)
 }
 
-// Uint16Field builds a numeric input bound to a uint16 config field, using
-// overflow-safe parsing (bit size 16) and config-level validation.
+// Uint16Field binds a numeric input to a uint16 field, parsing with bit
+// size 16 so overflow fails validation instead of wrapping.
 func Uint16Field[C TunnelConfig](
-	l *layout.Layout,
+	deps ui.Deps,
 	cfg *C,
 	title, errKey string,
 	get func(C) uint16,
 	set func(*C, uint16),
 	opts ...textinput.Option,
 ) input.Input[string] {
-	return buildUintInput(l, title, 16, uint64(get(*cfg)), func(n uint64) error {
+	return buildUintInput(deps, title, 16, uint64(get(*cfg)), func(n uint64) error {
 		tmp := *cfg
 		set(&tmp, uint16(n))
 		if e, ok := tmp.Validate()[errKey]; ok {
@@ -125,10 +124,8 @@ func Uint16Field[C TunnelConfig](
 	}, func(n uint64) { set(cfg, uint16(n)) }, opts...)
 }
 
-// FloatField builds a numeric input bound to a float64 config field with
-// config-level validation.
 func FloatField[C TunnelConfig](
-	l *layout.Layout,
+	deps ui.Deps,
 	cfg *C,
 	title, errKey string,
 	get func(C) float64,
@@ -136,7 +133,7 @@ func FloatField[C TunnelConfig](
 	opts ...textinput.Option,
 ) input.Input[string] {
 	return buildTextInput(
-		l, title, strconv.FormatFloat(get(*cfg), 'f', -1, 64),
+		deps, title, strconv.FormatFloat(get(*cfg), 'f', -1, 64),
 		func(v string) error {
 			n, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
 			if err != nil {
@@ -157,10 +154,9 @@ func FloatField[C TunnelConfig](
 	)
 }
 
-// FingerprintField builds the uTLS fingerprint select shared by the
-// vaydns/dnstt forms.
+// FingerprintField is the uTLS fingerprint select shared by vaydns/dnstt.
 func FingerprintField[C TunnelConfig](
-	l *layout.Layout,
+	deps ui.Deps,
 	cfg *C,
 	get func(C) string,
 	set func(*C, string),
@@ -171,7 +167,7 @@ func FingerprintField[C TunnelConfig](
 	}
 
 	return selectinput.New(
-		l, "Select TLS fingerprint",
+		deps, "Select TLS fingerprint",
 		selectinput.WithValue(get(*cfg)),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(opts...),
@@ -190,17 +186,16 @@ func FingerprintField[C TunnelConfig](
 	)
 }
 
-// EncMethodField builds the data-encryption-method select shared by the
-// masterdns/stormdns forms.
+// EncMethodField is the encryption-method select shared by masterdns/stormdns.
 func EncMethodField[C TunnelConfig](
-	l *layout.Layout,
+	deps ui.Deps,
 	cfg *C,
 	title string,
 	get func(C) dns.EncMethod,
 	set func(*C, dns.EncMethod),
 ) input.Input[dns.EncMethod] {
 	return selectinput.New(
-		l, title,
+		deps, title,
 		selectinput.WithValue(get(*cfg)),
 		selectinput.WithFocus[dns.EncMethod](),
 		selectinput.WithOptions[dns.EncMethod](
@@ -226,11 +221,10 @@ func EncMethodField[C TunnelConfig](
 	)
 }
 
-// buildTextInput is the common single-line input constructor. The validation
-// and submit closures receive the raw string and are responsible for parse,
-// config validation and set.
+// buildTextInput is the shared single-line constructor; validate/submit
+// receive the raw string and handle parsing, config validation and set.
 func buildTextInput(
-	l *layout.Layout,
+	deps ui.Deps,
 	title, value string,
 	validate func(string) error,
 	submit func(string),
@@ -245,13 +239,13 @@ func buildTextInput(
 			return nil
 		}),
 	}
-	return textinput.New(l, title, append(o, opts...)...)
+	return textinput.New(deps, title, append(o, opts...)...)
 }
 
-// buildUintInput is the common numeric input constructor with overflow-safe
-// parsing of the given bit size.
+// buildUintInput is the shared numeric constructor, parsing with the given
+// bit size so overflow fails validation instead of wrapping.
 func buildUintInput(
-	l *layout.Layout,
+	deps ui.Deps,
 	title string,
 	bitSize int,
 	value uint64,
@@ -260,7 +254,7 @@ func buildUintInput(
 	opts ...textinput.Option,
 ) input.Input[string] {
 	return buildTextInput(
-		l, title, strconv.FormatUint(value, 10),
+		deps, title, strconv.FormatUint(value, 10),
 		func(v string) error {
 			n, err := strconv.ParseUint(strings.TrimSpace(v), 10, bitSize)
 			if err != nil {

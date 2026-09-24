@@ -14,7 +14,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	case crud.MsgActionTrigger:
 		if msg.ActionType == "add" {
 			return m, picker.OpenFilePickerCmd(
-				m.layout,
+				m.state.Deps(),
 				"Select IP File (.txt)",
 				"",
 				[]string{".txt"},

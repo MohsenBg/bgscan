@@ -79,27 +79,23 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
-	l := m.Layout()
 
-	configName := formkit.ConfigNameField(l, m.Name(), m.SetName)
-	domain := formkit.StringField(
-		l, cfg, "Enter domain", "domain",
+	configName := formkit.ConfigNameField(m.State().Deps(), m.Name(), m.SetName)
+	domain := formkit.StringField(m.State().Deps(), cfg, "Enter domain", "domain",
 		func(c dns.SlipstreamConfig) string { return c.Domain },
 		func(c *dns.SlipstreamConfig, v string) { c.Domain = strings.TrimSpace(v) },
 	)
-	resPort := formkit.Uint16Field(
-		l, cfg, "Enter resolver port", "resolver_port",
+	resPort := formkit.Uint16Field(m.State().Deps(), cfg, "Enter resolver port", "resolver_port",
 		func(c dns.SlipstreamConfig) uint16 { return c.ResolverPort },
 		func(c *dns.SlipstreamConfig, v uint16) { c.ResolverPort = v },
 	)
-	certPath := formkit.StringField(
-		l, cfg, "Enter certificate path", "cert_path",
+	certPath := formkit.StringField(m.State().Deps(), cfg, "Enter certificate path", "cert_path",
 		func(c dns.SlipstreamConfig) string { return c.CertPath },
 		func(c *dns.SlipstreamConfig, v string) { c.CertPath = strings.TrimSpace(v) },
 	)
 
 	dnsResolution := selectinput.New(
-		l, "Select DNS resolution mode",
+		m.State().Deps(), "Select DNS resolution mode",
 		selectinput.WithValue(cfg.DNSResolution),
 		selectinput.WithFocus[dns.DNSResolution](),
 		selectinput.WithOptions(
@@ -121,7 +117,7 @@ func (m *Model) buildInspector() *inspector.Model {
 	)
 
 	congestion := selectinput.New(
-		l, "Select congestion control",
+		m.State().Deps(), "Select congestion control",
 		selectinput.WithValue(cfg.CongestionControl),
 		selectinput.WithFocus[dns.CongestionControl](),
 		selectinput.WithOptions(
@@ -143,7 +139,7 @@ func (m *Model) buildInspector() *inspector.Model {
 	)
 
 	gso := selectinput.New(
-		l, "Select GSO",
+		m.State().Deps(), "Select GSO",
 		selectinput.WithValue(cfg.GSO),
 		selectinput.WithFocus[bool](),
 		selectinput.WithOptions(
@@ -156,8 +152,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		}),
 	)
 
-	proxy, vis := formkit.BuildProxy(
-		l, cfg, m.Refresh,
+	proxy, vis := formkit.BuildProxy(m.State().Deps(), cfg, m.Refresh,
 		func(c dns.SlipstreamConfig) dns.ResolverProxyType { return c.ProxyType },
 		func(c *dns.SlipstreamConfig, v dns.ResolverProxyType) { c.ProxyType = v },
 		func(c dns.SlipstreamConfig) uint16 { return c.ProxyPort },
@@ -190,7 +185,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		{Name: "Private Key", Description: formkit.DescPrivateKey, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.PrivateKey), Visible: vis.Key, Format: inspector.FormatPrivateKey},
 	}
 
-	return inspector.New(l, "slipstream config", fields)
+	return inspector.New(m.State().Deps(), "slipstream config", fields)
 }
 
 func (m *Model) saveConfig() tea.Msg {

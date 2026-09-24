@@ -6,7 +6,6 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/config/validate"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
@@ -41,8 +40,8 @@ func (m *Model) OnClose() tea.Cmd   { return nil }
 
 func saveICMP(state *ui.AppState) tea.Cmd {
 	if err := state.Store.SaveICMP(state.Config.ICMP); err != nil {
-		logger.UIError("Failed to save ICMP settings: %v", err)
-		return notice.NewNoticeCmd(state.Layout, "Failed to save ICMP settings", err.Error(), notice.NOTICE_ERROR)
+		state.Log.UI.Error("Failed to save ICMP settings: %v", err)
+		return notice.NewNoticeCmd(state.Deps(), "Failed to save ICMP settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
@@ -109,7 +108,7 @@ func New(state *ui.AppState, name string) *Model {
 		{Name: "Prefix Output", Description: descOutputPrefix, Group: groupICMP, Input: inspector.Adapt(prefixOutput), Visible: alwaysVisible},
 	}
 
-	return &Model{state: state, name: name, id: ui.NewComponentID(), inspector: inspector.New(state.Layout, "icmp settings", fields)}
+	return &Model{state: state, name: name, id: ui.NewComponentID(), inspector: inspector.New(state.Deps(), "icmp settings", fields)}
 }
 
 func alwaysVisible() bool { return true }
@@ -117,10 +116,10 @@ func alwaysVisible() bool { return true }
 func fieldErr(errs map[string]error, field string) error { return errs[field] }
 
 func intInput(state *ui.AppState, title string, value int, validate func(string) error, set func(int)) input.Input[string] {
-	return textinput.New(state.Layout, title, textinput.WithValue(strconv.Itoa(value)), textinput.WithValidation(validate), textinput.WithFocus(), textinput.WithOnSubmit(func(v string) tea.Cmd {
+	return textinput.New(state.Deps(), title, textinput.WithValue(strconv.Itoa(value)), textinput.WithValidation(validate), textinput.WithFocus(), textinput.WithOnSubmit(func(v string) tea.Cmd {
 		n, err := strconv.Atoi(v)
 		if err != nil {
-			return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 		}
 		set(n)
 		return saveICMP(state)
@@ -128,10 +127,10 @@ func intInput(state *ui.AppState, title string, value int, validate func(string)
 }
 
 func durationMSInput(state *ui.AppState, title string, value time.Duration, validate func(string) error, set func(time.Duration)) input.Input[string] {
-	return textinput.New(state.Layout, title, textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)), textinput.WithValidation(validate), textinput.WithFocus(), textinput.WithOnSubmit(func(v string) tea.Cmd {
+	return textinput.New(state.Deps(), title, textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)), textinput.WithValidation(validate), textinput.WithFocus(), textinput.WithOnSubmit(func(v string) tea.Cmd {
 		n, err := strconv.Atoi(v)
 		if err != nil {
-			return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 		}
 		set(time.Duration(n) * time.Millisecond)
 		return saveICMP(state)
@@ -139,7 +138,7 @@ func durationMSInput(state *ui.AppState, title string, value time.Duration, vali
 }
 
 func stringInput(state *ui.AppState, title, value string, validate func(string) error, set func(string)) input.Input[string] {
-	return textinput.New(state.Layout, title, textinput.WithValue(value), textinput.WithValidation(validate), textinput.WithFocus(), textinput.WithOnSubmit(func(v string) tea.Cmd {
+	return textinput.New(state.Deps(), title, textinput.WithValue(value), textinput.WithValidation(validate), textinput.WithFocus(), textinput.WithOnSubmit(func(v string) tea.Cmd {
 		set(v)
 		return saveICMP(state)
 	}))

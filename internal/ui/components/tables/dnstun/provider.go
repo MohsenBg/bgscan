@@ -5,7 +5,6 @@ import (
 	"slices"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
@@ -14,26 +13,21 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-type provider struct {
-	state    *ui.AppState
-	onSelect func(*dns.DNSTunConfigFile) tea.Cmd
+type source struct {
+	state *ui.AppState
 }
 
-func newProvider(
-	state *ui.AppState,
-	onSelect func(*dns.DNSTunConfigFile) tea.Cmd,
-) crud.Provider[dns.DNSTunConfigFile] {
-	return &provider{
-		state:    state,
-		onSelect: onSelect,
+func newSource(state *ui.AppState) crud.Source[dns.DNSTunConfigFile] {
+	return &source{
+		state: state,
 	}
 }
 
-func (p *provider) Title() string {
+func (s *source) Title() string {
 	return "DNS Tunnels"
 }
 
-func (p *provider) Columns() []table.Column {
+func (s *source) Columns() []table.Column {
 	return []table.Column{
 		{Title: "Name", Width: 40},
 		{Title: "Protocol", Width: 15},
@@ -42,14 +36,14 @@ func (p *provider) Columns() []table.Column {
 	}
 }
 
-func (p *provider) Load() ([]dns.DNSTunConfigFile, error) {
+func (s *source) Load() ([]dns.DNSTunConfigFile, error) {
 	configs, err := dns.GetAllDNSTunsFile()
 	if err != nil {
-		logger.UIError("Failed to load DNS tunnel configs: %s", err)
+		s.state.Log.UI.Error("Failed to load DNS tunnel configs: %s", err)
 		return nil, err
 	}
 
-	logger.UIInfo("Loaded %d DNS tunnel configs", len(configs))
+	s.state.Log.UI.Info("Loaded %d DNS tunnel configs", len(configs))
 
 	slices.SortFunc(configs, func(i, j dns.DNSTunConfigFile) int {
 		return j.CreatedAt.Compare(i.CreatedAt)
@@ -58,7 +52,7 @@ func (p *provider) Load() ([]dns.DNSTunConfigFile, error) {
 	return configs, nil
 }
 
-func (p *provider) RenderRow(item dns.DNSTunConfigFile) table.Row {
+func (s *source) RenderRow(item dns.DNSTunConfigFile) table.Row {
 	return table.Row{
 		item.Name,
 		string(item.Protocol),
@@ -67,48 +61,49 @@ func (p *provider) RenderRow(item dns.DNSTunConfigFile) table.Row {
 	}
 }
 
-func (p *provider) Identity(item dns.DNSTunConfigFile) string {
+func (s *source) Identity(item dns.DNSTunConfigFile) string {
 	return item.Name
 }
 
-func (p *provider) OnSelect(item dns.DNSTunConfigFile) (tea.Cmd, bool) {
-	if p.onSelect != nil {
-		return p.onSelect(&item), true
+// newHooks wires the mutation behaviors. OnAdd only registers the "add"
+// keybinding: adding a tunnel goes through the protocol menu intercepted
+// in Update via crud.MsgActionTrigger, so its body never runs.
+func newHooks(state *ui.AppState, onSelect func(*dns.DNSTunConfigFile) tea.Cmd) crud.Hooks[dns.DNSTunConfigFile] {
+	hooks := crud.Hooks[dns.DNSTunConfigFile]{
+		OnDelete: func(item dns.DNSTunConfigFile) tea.Cmd {
+			if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
+				state.Log.UI.Error("Failed to delete DNS tunnel config: %s", err)
+
+				return notice.NewNoticeCmd(state.Deps(),
+					"Delete Failed",
+					err.Error(),
+					notice.NOTICE_ERROR,
+				)
+			}
+
+			return nil
+		},
+		OnRename: func(item dns.DNSTunConfigFile, newName string) tea.Cmd {
+			if err := dns.RenameDNSTunConfigFile(item, newName); err != nil {
+				state.Log.UI.Error("Rename failed: %v", err)
+
+				return notice.NewNoticeCmd(state.Deps(),
+					"Rename Failed",
+					err.Error(),
+					notice.NOTICE_ERROR,
+				)
+			}
+
+			return nil
+		},
+		OnAdd: func() tea.Cmd { return nil },
 	}
 
-	return nil, false
-}
-
-func (p *provider) OnDelete(item dns.DNSTunConfigFile) (tea.Cmd, bool) {
-	if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
-		logger.UIError("Failed to delete DNS tunnel config: %s", err)
-
-		return notice.NewNoticeCmd(
-			p.state.Layout,
-			"Delete Failed",
-			err.Error(),
-			notice.NOTICE_ERROR,
-		), true
+	if onSelect != nil {
+		hooks.OnSelect = func(item dns.DNSTunConfigFile) tea.Cmd {
+			return onSelect(&item)
+		}
 	}
 
-	return nil, true
-}
-
-func (p *provider) OnRename(item dns.DNSTunConfigFile, newName string) (tea.Cmd, bool) {
-	if err := dns.RenameDNSTunConfigFile(item, newName); err != nil {
-		logger.UIError("Rename failed: %v", err)
-
-		return notice.NewNoticeCmd(
-			p.state.Layout,
-			"Rename Failed",
-			err.Error(),
-			notice.NOTICE_ERROR,
-		), true
-	}
-
-	return nil, true
-}
-
-func (p *provider) OnAdd(item dns.DNSTunConfigFile) (tea.Cmd, bool) {
-	return nil, true
+	return hooks
 }

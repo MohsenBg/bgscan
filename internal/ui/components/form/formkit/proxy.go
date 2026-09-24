@@ -9,13 +9,12 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textarea"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 )
 
-// ProxyInputs holds the inputs composing the shared Proxy & Auth section.
 type ProxyInputs struct {
 	Type       input.Input[string]
 	Port       input.Input[string]
@@ -25,8 +24,8 @@ type ProxyInputs struct {
 	PrivateKey input.Input[string]
 }
 
-// ProxyVisibility provides the field-visibility predicates derived from the
-// current proxy/auth selection.
+// ProxyVisibility holds field-visibility predicates derived from the current
+// proxy/auth selection.
 type ProxyVisibility struct {
 	Proxy    func() bool
 	Auth     func() bool
@@ -34,14 +33,13 @@ type ProxyVisibility struct {
 	Key      func() bool
 }
 
-// BuildProxy assembles the full Proxy & Auth section shared by the vaydns,
-// dnstt and slipstream forms: proxy type with automatic port switching
-// (SOCKS -> 1080, SSH -> 22), auth method and its dependent fields.
-//
-// The known_hosts_file config field is intentionally not edited here.
+// BuildProxy assembles the Proxy & Auth section shared by vaydns, dnstt and
+// slipstream: proxy type with automatic port switching (SOCKS -> 1080, SSH
+// -> 22), auth method and dependent fields. known_hosts_file is
+// intentionally not editable here.
 // TODO: expose a known_hosts_file field in the proxy forms.
 func BuildProxy[C TunnelConfig](
-	l *layout.Layout,
+	deps ui.Deps,
 	cfg *C,
 	refresh func() tea.Cmd,
 	getType func(C) dns.ResolverProxyType,
@@ -58,7 +56,7 @@ func BuildProxy[C TunnelConfig](
 	setPriv func(*C, string),
 ) (*ProxyInputs, *ProxyVisibility) {
 	port := textinput.New(
-		l, "Enter proxy port",
+		deps, "Enter proxy port",
 		textinput.WithValue(strconv.Itoa(int(getPort(*cfg)))),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -81,7 +79,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	proxyType := selectinput.New(
-		l, "Select proxy type",
+		deps, "Select proxy type",
 		selectinput.WithValue(string(getType(*cfg))),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -114,7 +112,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	authMethod := selectinput.New(
-		l, "Select authentication method",
+		deps, "Select authentication method",
 		selectinput.WithValue(string(getAuth(*cfg))),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -137,7 +135,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	username := textinput.New(
-		l, "Enter username",
+		deps, "Enter username",
 		textinput.WithValue(getUser(*cfg)),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -155,7 +153,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	password := textinput.New(
-		l, "Enter password",
+		deps, "Enter password",
 		textinput.WithValue(getPass(*cfg)),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -173,7 +171,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	privateKey := textarea.New(
-		l, "Enter private key",
+		deps, "Enter private key",
 		textarea.WithValue(getPriv(*cfg)),
 		textarea.WithFocus(),
 		textarea.WithHeight(6),

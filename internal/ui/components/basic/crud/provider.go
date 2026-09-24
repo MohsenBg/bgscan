@@ -6,26 +6,51 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Provider defines the hook system for the generic CRUD controller.
-type Provider[T any] interface {
-	// Title returns the table title.
+// Source supplies the read-side data for a CRUD model.
+type Source[T any] interface {
+	// Title is the display name of the collection.
 	Title() string
-	// Columns returns the table column definitions.
+	// Columns describes the table columns.
 	Columns() []table.Column
 	// Load returns the current set of items.
 	Load() ([]T, error)
-	// RenderRow renders a single item as a table row.
+	// RenderRow renders one item as a table row.
+	//
+	// The first cell of the returned Row MUST be the item's Identity,
+	// because selection lookup uses it.
 	RenderRow(item T) table.Row
-	// Identity returns a stable key for item, used for selection and diffing.
+	// Identity returns a stable key for item.
 	Identity(item T) string
+}
 
-	// OnSelect is called when an item is chosen. The bool reports whether
-	// the operation handled the selection (true) or should fall through.
-	OnSelect(item T) (tea.Cmd, bool)
-	// OnDelete is called when an item is deleted.
-	OnDelete(item T) (tea.Cmd, bool)
-	// OnRename is called when an item is renamed to newName.
-	OnRename(item T, newName string) (tea.Cmd, bool)
-	// OnAdd is called when a new item is added.
-	OnAdd(item T) (tea.Cmd, bool)
+// Action is a custom keybinding registered in addition to the built-in
+// select / add / delete / rename verbs.
+//
+// If NeedsItem is true, Handler receives the currently selected item.
+// If NeedsItem is false, Handler receives the zero value of T and should
+// ignore it.
+type Action[T any] struct {
+	Key       []string
+	Name      string
+	Help      string
+	NeedsItem bool
+	Handler   func(item T) tea.Cmd
+}
+
+// Hooks holds the optional mutation behaviors for a CRUD model.
+//
+// A nil field means the capability is not supported: the keybinding is not
+// registered and the action is not dispatched. This replaces the previous
+// "call with zero value and check bool" probing hack.
+type Hooks[T any] struct {
+	// OnSelect is invoked when the user picks an item.
+	OnSelect func(item T) tea.Cmd
+	// OnDelete is invoked after the user confirms deletion.
+	OnDelete func(item T) tea.Cmd
+	// OnRename is invoked after the user submits a new name.
+	OnRename func(item T, newName string) tea.Cmd
+	// OnAdd is invoked when the user triggers "add".
+	OnAdd func() tea.Cmd
+	// Custom holds extra keybindings registered on the table.
+	Custom []Action[T]
 }

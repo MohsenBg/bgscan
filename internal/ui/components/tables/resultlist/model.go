@@ -33,7 +33,7 @@ func New(state *ui.AppState, title string, maxIPs uint32, onSelect func(*result.
 		onSelect = m.defaultSelectHandler
 	}
 
-	m.crudTable = crud.New(title, state.Layout, newProvider(state, title, onSelect), 100, false)
+	m.crudTable = crud.New(state.Deps(), newSource(state, title), newHooks(state, onSelect), 100)
 
 	return m
 }
@@ -48,17 +48,16 @@ func (m *Model) Mode() env.Mode     { return m.crudTable.Mode() }
 func (m *Model) defaultSelectHandler(file *result.ResultFile) tea.Cmd {
 	ips, err := result.ReadResultFile(file.Path, file.Schema)
 	if err != nil {
-		return notice.NewNoticeCmd(m.state.Layout, "Selection", err.Error(), notice.NOTICE_ERROR)
+		return notice.NewNoticeCmd(m.state.Deps(), "Selection", err.Error(), notice.NOTICE_ERROR)
 	}
 	return m.OpenResultIP(ips)
 }
 
 // OpenResultIP loads IP results from a result file and opens the IP viewer.
 func (m *Model) OpenResultIP(file result.ResultFile) tea.Cmd {
-	ips, err := result.LoadAll(file.Path, file.Schema, m.maxIPs)
+	ips, err := result.LoadAll(m.state.Log.Core, file.Path, file.Schema, m.maxIPs)
 	if err != nil {
-		return notice.NewNoticeCmd(
-			m.state.Layout,
+		return notice.NewNoticeCmd(m.state.Deps(),
 			"Result File Error",
 			fmt.Sprintf("Error while reading result file: %v", err),
 			notice.NOTICE_ERROR,
@@ -68,10 +67,11 @@ func (m *Model) OpenResultIP(file result.ResultFile) tea.Cmd {
 	return func() tea.Msg {
 		return ui.OpenComponentMsg{
 			Component: ipviewer.New(
-				m.state.Layout,
+				m.state.Deps(),
 				fmt.Sprintf("IP Scan [%s]", file.Schema.Name),
 				ips,
 				file.Schema,
+				ipviewer.WithMaxRow(m.state.Settings.MaxRow),
 			),
 		}
 	}

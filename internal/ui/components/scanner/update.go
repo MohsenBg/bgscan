@@ -1,7 +1,6 @@
 package scanner
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/progress"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
@@ -22,10 +21,10 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		case scanClosedMsg:
 			m.closing = false
 			if msg.err != nil {
-				logger.UIError("Failed to close scanner: %v", msg.err)
+				m.state.Log.UI.Error("Failed to close scanner: %v", msg.err)
 				cmds = append(cmds, m.errorCmd("Failed to close scanner", msg.err.Error()))
 			}
-			logger.UIInfo("Scan closed")
+			m.state.Log.UI.Info("Scan closed")
 			cmds = append(cmds, func() tea.Msg { return ui.ResetComponentStacksMsg{} })
 			return m, tea.Batch(cmds...)
 
@@ -52,7 +51,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		return m, nil
 
 	case scanErrorMsg:
-		logger.UIError("Scan error: %v", msg.err)
+		m.state.Log.UI.Error("Scan error: %v", msg.err)
 		m.onError(msg.err)
 		return m, nil
 
@@ -71,8 +70,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	switch msg.String() {
 	case "q", "b":
-		return confirm.ConfirmCmd(
-			m.state.Layout,
+		return confirm.ConfirmCmd(m.state.Deps(),
 			"Do you want to exit the scan?",
 			func() tea.Msg {
 				m.closing = true // block further input

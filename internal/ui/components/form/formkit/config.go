@@ -3,7 +3,6 @@ package formkit
 import (
 	"strings"
 
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
@@ -25,14 +24,13 @@ type Service[C TunnelConfig] interface {
 	RenameConfig(oldName, newName string) error
 }
 
-// Save runs the generic save-or-edit flow for a tunnel config form: it
-// validates the name, edits/renames or creates the config through srv, and
-// emits the appropriate success/error notice.
+// Save validates the name, edits/renames or creates the config through srv,
+// and emits the success/error notice.
 func Save[C TunnelConfig](b *Base, label string, srv Service[C], cfg *C) tea.Msg {
 	name := strings.TrimSpace(b.name)
 	if name == "" {
-		return notice.NewNoticeCmd(
-			b.Layout(),
+		return notice.NewNoticeCmd(b.State().Deps(),
+
 			"Error",
 			"config name is required",
 			notice.NOTICE_ERROR,
@@ -41,9 +39,9 @@ func Save[C TunnelConfig](b *Base, label string, srv Service[C], cfg *C) tea.Msg
 
 	if b.originalName != "" {
 		if err := srv.EditConfig(*cfg, b.originalName); err != nil {
-			logger.UIError("Failed to edit %s config: %v", label, err)
-			return notice.NewNoticeCmd(
-				b.Layout(),
+			b.state.Log.UI.Error("Failed to edit %s config: %v", label, err)
+			return notice.NewNoticeCmd(b.State().Deps(),
+
 				"Edit Failed",
 				err.Error(),
 				notice.NOTICE_ERROR,
@@ -52,9 +50,9 @@ func Save[C TunnelConfig](b *Base, label string, srv Service[C], cfg *C) tea.Msg
 
 		if b.originalName != name {
 			if err := srv.RenameConfig(b.originalName, name); err != nil {
-				logger.UIError("Failed to rename %s config: %v", label, err)
-				return notice.NewNoticeCmd(
-					b.Layout(),
+				b.state.Log.UI.Error("Failed to rename %s config: %v", label, err)
+				return notice.NewNoticeCmd(b.State().Deps(),
+
 					"Rename Failed",
 					err.Error(),
 					notice.NOTICE_ERROR,
@@ -62,9 +60,9 @@ func Save[C TunnelConfig](b *Base, label string, srv Service[C], cfg *C) tea.Msg
 			}
 		}
 	} else if err := srv.SaveConfig(*cfg, name); err != nil {
-		logger.UIError("Failed to save %s config: %v", label, err)
-		return notice.NewNoticeCmd(
-			b.Layout(),
+		b.state.Log.UI.Error("Failed to save %s config: %v", label, err)
+		return notice.NewNoticeCmd(b.State().Deps(),
+
 			"Save Failed",
 			err.Error(),
 			notice.NOTICE_ERROR,
@@ -72,8 +70,8 @@ func Save[C TunnelConfig](b *Base, label string, srv Service[C], cfg *C) tea.Msg
 	}
 
 	return tea.Sequence(
-		notice.NewNoticeCmd(
-			b.Layout(),
+		notice.NewNoticeCmd(b.State().Deps(),
+
 			"Saved",
 			label+" config saved",
 			notice.NOTICE_SUCCESS,

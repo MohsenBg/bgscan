@@ -55,18 +55,18 @@ func (m *Model) renderStatsRow(p engine.Progress) string {
 	}
 	return lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		scannedStyle().Render(fmt.Sprintf("scanned: %s", formatCount(p.Processed))),
-		separatorStyle().Render(" | "),
-		leftStyle().Render(fmt.Sprintf("left: %s", formatCount(left))),
-		separatorStyle().Render(" | "),
-		foundStyle().Render(fmt.Sprintf("found: %s", formatCount(p.Succeed))),
-		separatorStyle().Render(" | "),
-		elapsedStyle().Render(fmt.Sprintf("elapsed: %s", formatDuration(p.Elapsed))),
+		m.scannedStyle().Render(fmt.Sprintf("scanned: %s", formatCount(p.Processed))),
+		m.separatorStyle().Render(" | "),
+		m.leftStyle().Render(fmt.Sprintf("left: %s", formatCount(left))),
+		m.separatorStyle().Render(" | "),
+		m.foundStyle().Render(fmt.Sprintf("found: %s", formatCount(p.Succeed))),
+		m.separatorStyle().Render(" | "),
+		m.elapsedStyle().Render(fmt.Sprintf("elapsed: %s", formatDuration(p.Elapsed))),
 	)
 }
 
 func (m *Model) renderStatusRow() string {
-	return elapsedEndStyle().Render(m.statusText())
+	return m.elapsedEndStyle().Render(m.statusText())
 }
 
 func (m *Model) statusText() string {
@@ -98,7 +98,7 @@ func (m *Model) estimateRemaining(p engine.Progress) string {
 	if p.ETA <= 0 || p.RatePerSec <= 0 {
 		return "estimating remaining time…"
 	}
-	rateStr := leftStyle().Render(fmt.Sprintf("[%.2fIP/S]", p.RatePerSec))
+	rateStr := m.leftStyle().Render(fmt.Sprintf("[%.2fIP/S]", p.RatePerSec))
 	return fmt.Sprintf("estimated remaining: %s %s", formatDuration(p.ETA), rateStr)
 }
 

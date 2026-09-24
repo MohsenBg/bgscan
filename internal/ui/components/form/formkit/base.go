@@ -13,7 +13,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Option configures a Base at construction time.
 type Option func(*Base)
 
 // WithMaxHeight overrides the default maximum form body height.
@@ -67,22 +66,16 @@ func NewBase(
 	return b
 }
 
-// Layout returns the layout used for sizing and positioning.
 func (b *Base) Layout() *layout.Layout { return b.layout }
 
-// State returns the application state the form was created with.
 func (b *Base) State() *ui.AppState { return b.state }
 
-// Name returns the config name being created or edited.
 func (b *Base) Name() string { return b.name }
 
-// SetName sets the config name.
 func (b *Base) SetName(name string) { b.name = name }
 
-// ID returns the unique component identifier.
 func (b *Base) ID() ui.ComponentID { return b.id }
 
-// Mode returns the UI input mode for managed config forms.
 func (b *Base) Mode() env.Mode { return env.ManagedMode }
 
 // CalculateSize derives the form body size from the layout.
@@ -111,7 +104,7 @@ func (b *Base) BuildForm(
 	b.inspector = ins
 
 	b.form = form.New(
-		b.layout,
+		b.state.Deps(),
 		ins,
 		form.WithName(title),
 		form.WithWidth(b.width),
@@ -123,8 +116,8 @@ func (b *Base) BuildForm(
 			}
 			return fmt.Errorf("%s", form.FormatValidationErrors(errs))
 		}),
-		form.WithSave(confirm.ConfirmCmd(
-			b.layout,
+		form.WithSave(confirm.ConfirmCmd(b.state.Deps(),
+
 			"Save configuration?",
 			onSave,
 			true,
@@ -133,8 +126,8 @@ func (b *Base) BuildForm(
 	)
 }
 
-// Refresh returns a command that redraws the inspector (used after fields
-// change the visibility of other fields).
+// Refresh redraws the inspector (used after fields change other fields'
+// visibility).
 func (b *Base) Refresh() tea.Cmd {
 	if b.inspector != nil {
 		return b.inspector.Refresh()
@@ -142,7 +135,6 @@ func (b *Base) Refresh() tea.Cmd {
 	return nil
 }
 
-// Init implements [ui.Component].
 func (b *Base) Init() tea.Cmd {
 	if b.form == nil {
 		return nil
@@ -150,7 +142,6 @@ func (b *Base) Init() tea.Cmd {
 	return b.form.Init()
 }
 
-// OnClose implements [ui.Component].
 func (b *Base) OnClose() tea.Cmd {
 	if b.form == nil {
 		return nil
@@ -158,7 +149,6 @@ func (b *Base) OnClose() tea.Cmd {
 	return b.form.OnClose()
 }
 
-// View renders the form.
 func (b *Base) View() string {
 	if b.form == nil {
 		return ""
@@ -166,8 +156,8 @@ func (b *Base) View() string {
 	return b.form.View()
 }
 
-// Update implements [ui.Component]. self is returned so promoted protocol
-// models keep their concrete type in the component stack.
+// Update returns self so promoted protocol models keep their concrete type
+// in the component stack.
 func (b *Base) Update(self ui.Component, msg tea.Msg) (ui.Component, tea.Cmd) {
 	if _, ok := msg.(tea.WindowSizeMsg); ok {
 		b.CalculateSize()
@@ -186,11 +176,10 @@ func (b *Base) Update(self ui.Component, msg tea.Msg) (ui.Component, tea.Cmd) {
 	return self, cmd
 }
 
-// CancelCmd returns the discard-changes confirmation used by the form cancel
-// handler.
+// CancelCmd confirms discarding unsaved changes.
 func (b *Base) CancelCmd() tea.Cmd {
-	return confirm.ConfirmCmd(
-		b.layout,
+	return confirm.ConfirmCmd(b.state.Deps(),
+
 		"Discard unsaved changes?",
 		func() tea.Msg {
 			return ui.CloseComponentMsg{ID: b.ID()}

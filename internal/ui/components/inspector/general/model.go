@@ -6,7 +6,6 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/config/validate"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
@@ -65,30 +64,29 @@ func (m *Model) OnClose() tea.Cmd   { return nil }
 
 func saveGeneral(state *ui.AppState) tea.Cmd {
 	if err := state.Store.SaveGeneral(state.Config.General); err != nil {
-		logger.UIError("Failed to save General settings: %v", err)
-		return notice.NewNoticeCmd(state.Layout, "Failed to save General settings", err.Error(), notice.NOTICE_ERROR)
+		state.Log.UI.Error("Failed to save General settings: %v", err)
+		return notice.NewNoticeCmd(state.Deps(), "Failed to save General settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
 func saveWriter(state *ui.AppState) tea.Cmd {
 	if err := state.Store.SaveWriter(state.Config.Writer); err != nil {
-		logger.UIError("Failed to save Writer settings: %v", err)
-		return notice.NewNoticeCmd(state.Layout, "Failed to save Writer settings", err.Error(), notice.NOTICE_ERROR)
+		state.Log.UI.Error("Failed to save Writer settings: %v", err)
+		return notice.NewNoticeCmd(state.Deps(), "Failed to save Writer settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
 func intInput(state *ui.AppState, title string, value int, validate func(string) error, set func(int), save func() tea.Cmd) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(strconv.Itoa(value)),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(n)
 			return save()
@@ -97,15 +95,14 @@ func intInput(state *ui.AppState, title string, value int, validate func(string)
 }
 
 func durationMSInput(state *ui.AppState, title string, value time.Duration, validate func(string) error, set func(time.Duration), save func() tea.Cmd) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(time.Duration(n) * time.Millisecond)
 			return save()
@@ -155,8 +152,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.General.MaxIPsToTest = n }, saveGeneralCmd)
 
-	shuffled := toggleinput.New(
-		state.Layout, "Shuffle",
+	shuffled := toggleinput.New(state.Deps(), "Shuffle",
 		toggleinput.WithValue(cfg.General.Shuffled),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
@@ -229,8 +225,7 @@ func New(state *ui.AppState, name string) *Model {
 		saveGeneralCmd,
 	)
 
-	pipelineMode := selectinput.New(
-		state.Layout, "Select Pipeline Mode",
+	pipelineMode := selectinput.New(state.Deps(), "Select Pipeline Mode",
 		selectinput.WithValue(cfg.General.PipelineMode),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -305,8 +300,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.Writer.BatchSize = n }, saveWriterCmd)
 
-	resultDirectory := textinput.New(
-		state.Layout, "Enter Result Directory",
+	resultDirectory := textinput.New(state.Deps(), "Enter Result Directory",
 		textinput.WithValue(cfg.Writer.ResultBaseDir),
 		textinput.WithValidation(func(v string) error {
 			tmp := cfg.Writer
@@ -342,7 +336,7 @@ func New(state *ui.AppState, name string) *Model {
 		state:     state,
 		name:      name,
 		id:        ui.NewComponentID(),
-		inspector: inspector.New(state.Layout, "general settings", fields),
+		inspector: inspector.New(state.Deps(), "general settings", fields),
 	}
 }
 

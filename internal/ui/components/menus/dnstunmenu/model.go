@@ -3,10 +3,12 @@ package dnstunmenu
 
 import (
 	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -22,16 +24,20 @@ type Model struct {
 	name   string
 	menu   ui.Component
 	Layout *layout.Layout
+	theme  *theme.Theme
+	log    logger.Set
 }
 
 // New creates the DNS tunnel protocol menu.
-func New(layout *layout.Layout) *Model {
+func New(deps ui.Deps) *Model {
 	m := &Model{
 		id:     ui.NewComponentID(),
 		name:   "DNS Tunnel Menu",
-		Layout: layout,
+		Layout: deps.Layout,
+		theme:  deps.Theme,
+		log:    deps.Log,
 	}
-	m.menu = newMenu(layout)
+	m.menu = newMenu(deps)
 	return m
 }
 
@@ -55,7 +61,16 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func newMenu(layout *layout.Layout) *menu.Model {
+func (m *Model) Theme() *theme.Theme { return m.theme }
+
+func (m *Model) SetTheme(th *theme.Theme) {
+	m.theme = th
+	if mm, ok := m.menu.(*menu.Model); ok {
+		mm.SetTheme(th)
+	}
+}
+
+func newMenu(deps ui.Deps) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
 			"≈",
@@ -108,7 +123,7 @@ func newMenu(layout *layout.Layout) *menu.Model {
 	}
 
 	return menu.New(
-		items, "Select Protocol", layout,
+		items, "Select Protocol", deps,
 		menu.WithHeight(20),
 		menu.WithWidth(40),
 	)

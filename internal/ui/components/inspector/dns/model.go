@@ -7,7 +7,6 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/config/validate"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/multiselect"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
@@ -71,22 +70,21 @@ func (m *Model) OnClose() tea.Cmd   { return nil }
 
 func saveDNS(state *ui.AppState) tea.Cmd {
 	if err := state.Store.SaveDNS(state.Config.DNS); err != nil {
-		logger.UIError("Failed to save DNS settings: %v", err)
-		return notice.NewNoticeCmd(state.Layout, "Failed to save DNS settings", err.Error(), notice.NOTICE_ERROR)
+		state.Log.UI.Error("Failed to save DNS settings: %v", err)
+		return notice.NewNoticeCmd(state.Deps(), "Failed to save DNS settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
 func intInput(state *ui.AppState, title string, value int, validate func(string) error, set func(int)) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(strconv.Itoa(value)),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(n)
 			return saveDNS(state)
@@ -95,15 +93,14 @@ func intInput(state *ui.AppState, title string, value int, validate func(string)
 }
 
 func durationMSInput(state *ui.AppState, title string, value time.Duration, validate func(string) error, set func(time.Duration)) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Layout, "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(time.Duration(n) * time.Millisecond)
 			return saveDNS(state)
@@ -112,8 +109,7 @@ func durationMSInput(state *ui.AppState, title string, value time.Duration, vali
 }
 
 func stringInput(state *ui.AppState, title, value string, validate func(string) error, set func(string)) input.Input[string] {
-	return textinput.New(
-		state.Layout, title,
+	return textinput.New(state.Deps(), title,
 		textinput.WithValue(value),
 		textinput.WithFocus(),
 		textinput.WithValidation(validate),
@@ -155,8 +151,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(n int) { cfg.Resolver.Port = uint16(n) },
 	)
 
-	resolverTransport := selectinput.New(
-		state.Layout, "Select protocol",
+	resolverTransport := selectinput.New(state.Deps(), "Select protocol",
 		selectinput.WithValue(cfg.Resolver.Transport),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -180,8 +175,7 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 	)
 
-	resolverCheckType := multiselect.New(
-		state.Layout, "Select check types",
+	resolverCheckType := multiselect.New(state.Deps(), "Select check types",
 		multiselect.WithFocus[string](),
 		multiselect.WithOptions(
 			huh.NewOption("A", "A"),
@@ -238,8 +232,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.Resolver.Tries = n })
 
-	resolverRandomSubdomain := toggleinput.New(
-		state.Layout, "Enable random subdomain",
+	resolverRandomSubdomain := toggleinput.New(state.Deps(), "Enable random subdomain",
 		toggleinput.WithValue(cfg.Resolver.RandomSubdomain),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
@@ -249,8 +242,7 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 	)
 
-	resolverAcceptedRCodes := multiselect.New(
-		state.Layout, "Select accepted RCodes",
+	resolverAcceptedRCodes := multiselect.New(state.Deps(), "Select accepted RCodes",
 		multiselect.WithFocus[string](),
 		multiselect.WithOptions(
 			huh.NewOption("NOERROR", "NOERROR"),
@@ -279,8 +271,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(v string) { cfg.Resolver.OutputPrefix = v })
 
 	// DPI pre-check, nested under Resolver.DPI
-	resolverCheckDPI := toggleinput.New(
-		state.Layout, "Enable DPI check",
+	resolverCheckDPI := toggleinput.New(state.Deps(), "Enable DPI check",
 		toggleinput.WithValue(cfg.Resolver.DPI.Enabled),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
@@ -353,8 +344,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(dur time.Duration) { cfg.DNSTunneling.Timeout = config.NewDurationMS(dur) })
 
-	tunnelCheckDNSResolver := toggleinput.New(
-		state.Layout, "Check resolver before tunneling",
+	tunnelCheckDNSResolver := toggleinput.New(state.Deps(), "Check resolver before tunneling",
 		toggleinput.WithValue(cfg.DNSTunneling.CheckDNSResolver),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
@@ -364,8 +354,7 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 	)
 
-	tunnelAdaptiveResolver := toggleinput.New(
-		state.Layout, "Adaptive resolver",
+	tunnelAdaptiveResolver := toggleinput.New(state.Deps(), "Adaptive resolver",
 		toggleinput.WithValue(cfg.DNSTunneling.AdaptiveResolver),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
@@ -416,7 +405,7 @@ func New(state *ui.AppState, name string) *Model {
 		{Name: "Prefix Output", Description: descTunnelOutputPrefix, Group: groupDNSTunnel, Input: inspector.Adapt(tunnelOutputPrefix), Visible: alwaysVisible},
 	}
 
-	m.inspector = inspector.New(state.Layout, "dns settings", fields)
+	m.inspector = inspector.New(state.Deps(), "dns settings", fields)
 	return m
 }
 

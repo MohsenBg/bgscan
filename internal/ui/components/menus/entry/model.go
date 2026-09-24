@@ -40,12 +40,10 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-// ID returns the component identifier.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
-// Name returns the component name.
 func (m *Model) Name() string {
 	return m.name
 }
@@ -55,7 +53,6 @@ func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-// Mode returns the entry menu interaction mode.
 func (m *Model) Mode() env.Mode {
 	return env.NormalMode
 }
@@ -78,7 +75,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 			"i",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
-					Component: iplist.New(state.Layout, "IP Files", nil),
+					Component: iplist.New(state, "IP Files", nil),
 				}
 			},
 		),
@@ -105,7 +102,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
 					Component: outbounds.New(
-						state.Layout,
+						state,
 						"Xray Outbound",
 						nil,
 					),
@@ -148,5 +145,5 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 		),
 	}
 
-	return menu.New(items, "Main Menu", state.Layout)
+	return menu.New(items, "Main Menu", state.Deps())
 }

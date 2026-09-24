@@ -63,41 +63,34 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
-	l := m.Layout()
 
-	configName := formkit.ConfigNameField(l, m.Name(), m.SetName)
-	domain := formkit.StringField(
-		l, cfg, "Enter domain", "domain",
+	configName := formkit.ConfigNameField(m.State().Deps(), m.Name(), m.SetName)
+	domain := formkit.StringField(m.State().Deps(), cfg, "Enter domain", "domain",
 		func(c dns.DNSTTConfig) string { return c.Domain },
 		func(c *dns.DNSTTConfig, v string) { c.Domain = strings.TrimSpace(v) },
 	)
-	pubKey := formkit.SecretField(
-		l, cfg, "Enter public key", "pub_key",
+	pubKey := formkit.SecretField(m.State().Deps(), cfg, "Enter public key", "pub_key",
 		func(c dns.DNSTTConfig) string { return c.PubKey },
 		func(c *dns.DNSTTConfig, v string) { c.PubKey = strings.TrimSpace(v) },
 		textarea.WithNewlines(false),
 	)
-	resType, resPort := formkit.ResolverTypePort(
-		l, cfg, m.Refresh,
+	resType, resPort := formkit.ResolverTypePort(m.State().Deps(), cfg, m.Refresh,
 		func(c dns.DNSTTConfig) dns.ResolverType { return c.ResolverType },
 		func(c *dns.DNSTTConfig, v dns.ResolverType) { c.ResolverType = v },
 		func(c dns.DNSTTConfig) uint16 { return c.ResolverPort },
 		func(c *dns.DNSTTConfig, v uint16) { c.ResolverPort = v },
 	)
-	fingerprint := formkit.FingerprintField(
-		l, cfg,
+	fingerprint := formkit.FingerprintField(m.State().Deps(), cfg,
 		func(c dns.DNSTTConfig) string { return c.Fingerprint },
 		func(c *dns.DNSTTConfig, v string) { c.Fingerprint = v },
 	)
-	rps := formkit.FloatField(
-		l, cfg, "Enter requests per second", "rps",
+	rps := formkit.FloatField(m.State().Deps(), cfg, "Enter requests per second", "rps",
 		func(c dns.DNSTTConfig) float64 { return c.RPS },
 		func(c *dns.DNSTTConfig, v float64) { c.RPS = v },
 		textinput.WithPlaceholder("0 = unlimited"),
 	)
 
-	proxy, vis := formkit.BuildProxy(
-		l, cfg, m.Refresh,
+	proxy, vis := formkit.BuildProxy(m.State().Deps(), cfg, m.Refresh,
 		func(c dns.DNSTTConfig) dns.ResolverProxyType { return c.ProxyType },
 		func(c *dns.DNSTTConfig, v dns.ResolverProxyType) { c.ProxyType = v },
 		func(c dns.DNSTTConfig) uint16 { return c.ProxyPort },
@@ -130,7 +123,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		{Name: "Private Key", Description: formkit.DescPrivateKey, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.PrivateKey), Visible: vis.Key, Format: inspector.FormatPrivateKey},
 	}
 
-	return inspector.New(l, "dnstt config", fields)
+	return inspector.New(m.State().Deps(), "dnstt config", fields)
 }
 
 func (m *Model) saveConfig() tea.Msg {

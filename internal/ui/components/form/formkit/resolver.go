@@ -8,17 +8,17 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 )
 
-// ResolverTypePort builds the coupled resolver transport + port inputs shared
-// by the vaydns, dnstt and thefeed forms: selecting DOT switches the port to
-// 853, anything else resets it to 53.
+// ResolverTypePort builds the coupled transport + port inputs shared by
+// vaydns, dnstt and thefeed: DOT switches the port to 853, anything else
+// resets it to 53.
 func ResolverTypePort[C TunnelConfig](
-	l *layout.Layout,
+	deps ui.Deps,
 	cfg *C,
 	refresh func() tea.Cmd,
 	getType func(C) dns.ResolverType,
@@ -27,7 +27,7 @@ func ResolverTypePort[C TunnelConfig](
 	setPort func(*C, uint16),
 ) (input.Input[string], input.Input[string]) {
 	port := textinput.New(
-		l, "Enter resolver port",
+		deps, "Enter resolver port",
 		textinput.WithValue(strconv.Itoa(int(getPort(*cfg)))),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -50,7 +50,7 @@ func ResolverTypePort[C TunnelConfig](
 	)
 
 	resType := selectinput.New(
-		l, "Select resolver type",
+		deps, "Select resolver type",
 		selectinput.WithValue(string(getType(*cfg))),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(

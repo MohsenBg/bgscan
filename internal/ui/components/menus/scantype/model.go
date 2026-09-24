@@ -10,7 +10,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/scanner"
 	"github.com/MohsenBg/bgscan/internal/core/xray"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	scannerUi "github.com/MohsenBg/bgscan/internal/ui/components/scanner"
@@ -81,7 +80,7 @@ func New(state *ui.AppState, input string) *Model {
 		menu.NewMenuItem("◇", "Xray Scan", "x", m.openXrayTemplates()),
 		menu.NewMenuItem("?", "DNS Resolve", "r", m.open(DNSResolveScan)),
 		menu.NewMenuItem("≈", "DNS Tunneling", "d", m.openDNSTunConfig()),
-	}, "Select Scan Type", state.Layout)
+	}, "Select Scan Type", state.Deps())
 	return m
 }
 
@@ -95,7 +94,7 @@ func (m *Model) OnClose() tea.Cmd {
 	if m.closeScanner && m.scanner != nil {
 		err := m.scanner.Close()
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Layout, "Failed to close scanner", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.state.Deps(), "Failed to close scanner", err.Error(), notice.NOTICE_ERROR)
 		}
 	}
 	return nil
@@ -103,11 +102,11 @@ func (m *Model) OnClose() tea.Cmd {
 
 func (m *Model) open(mode ScanType) tea.Cmd {
 	return func() tea.Msg {
-		logger.UIInfo("Starting %s scan", mode)
+		m.state.Log.UI.Info("Starting %s scan", mode)
 
 		scn, err := m.createScanner(mode, m.input)
 		if err != nil {
-			logger.UIError("Failed to create %s scanner: %v", mode, err)
+			m.state.Log.UI.Error("Failed to create %s scanner: %v", mode, err)
 			return m.errorCmd("scanner error", err.Error())
 		}
 
@@ -118,7 +117,7 @@ func (m *Model) open(mode ScanType) tea.Cmd {
 
 func (m *Model) openXrayTemplates() tea.Cmd {
 	return ui.OpenComponentCmd(
-		outbounds.New(m.state.Layout, "select outbound", func(xof *xray.XrayOutboundsFile) tea.Cmd {
+		outbounds.New(m.state, "select outbound", func(xof *xray.XrayOutboundsFile) tea.Cmd {
 			m.xrayTemplate = xof.Name
 			return m.open(XRAYScan)
 		}),
@@ -137,7 +136,7 @@ func (m *Model) openDNSTunConfig() tea.Cmd {
 func (m *Model) createScanner(mode ScanType, input string) (scanner.Scanner, error) {
 	ctx := context.Background()
 
-	scn, err := scanner.NewScanner(ctx, input, scanner.WithConfig(*m.state.Config))
+	scn, err := scanner.NewScanner(ctx, input, scanner.WithConfig(*m.state.Config), scanner.WithLogs(m.state.Log))
 	if err != nil {
 		return nil, err
 	}
@@ -268,5 +267,5 @@ func (m *Model) buildDNSTunScanner(ctx context.Context, scn scanner.Scanner) (sc
 }
 
 func (m *Model) errorCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(m.state.Layout, title, message, notice.NOTICE_ERROR)
+	return notice.NewNoticeCmd(m.state.Deps(), title, message, notice.NOTICE_ERROR)
 }

@@ -73,23 +73,20 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
-	l := m.Layout()
 
-	configName := formkit.ConfigNameField(l, m.Name(), m.SetName)
-	domain := formkit.StringField(
-		l, cfg, "Enter domain", "domain",
+	configName := formkit.ConfigNameField(m.State().Deps(), m.Name(), m.SetName)
+	domain := formkit.StringField(m.State().Deps(), cfg, "Enter domain", "domain",
 		func(c dns.VayDNSConfig) string { return c.Domain },
 		func(c *dns.VayDNSConfig, v string) { c.Domain = strings.TrimSpace(v) },
 	)
-	pubKey := formkit.SecretField(
-		l, cfg, "Enter public key", "pub_key",
+	pubKey := formkit.SecretField(m.State().Deps(), cfg, "Enter public key", "pub_key",
 		func(c dns.VayDNSConfig) string { return c.PubKey },
 		func(c *dns.VayDNSConfig, v string) { c.PubKey = v },
 		textarea.WithNewlines(false),
 	)
 
 	recordType := selectinput.New(
-		l, "Select record type",
+		m.State().Deps(), "Select record type",
 		selectinput.WithValue(string(cfg.RecordType)),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -117,52 +114,44 @@ func (m *Model) buildInspector() *inspector.Model {
 		}),
 	)
 
-	resType, resPort := formkit.ResolverTypePort(
-		l, cfg, m.Refresh,
+	resType, resPort := formkit.ResolverTypePort(m.State().Deps(), cfg, m.Refresh,
 		func(c dns.VayDNSConfig) dns.ResolverType { return c.ResolverType },
 		func(c *dns.VayDNSConfig, v dns.ResolverType) { c.ResolverType = v },
 		func(c dns.VayDNSConfig) uint16 { return c.ResolverPort },
 		func(c *dns.VayDNSConfig, v uint16) { c.ResolverPort = v },
 	)
-	fingerprint := formkit.FingerprintField(
-		l, cfg,
+	fingerprint := formkit.FingerprintField(m.State().Deps(), cfg,
 		func(c dns.VayDNSConfig) string { return c.Fingerprint },
 		func(c *dns.VayDNSConfig, v string) { c.Fingerprint = v },
 	)
 
-	clientIDSize := formkit.Uint16Field(
-		l, cfg, "Enter client ID size", "client_id_size",
+	clientIDSize := formkit.Uint16Field(m.State().Deps(), cfg, "Enter client ID size", "client_id_size",
 		func(c dns.VayDNSConfig) uint16 { return c.ClientIDSize },
 		func(c *dns.VayDNSConfig, v uint16) { c.ClientIDSize = v },
 		textinput.WithPlaceholder("1-8"),
 	)
-	maxQnameLen := formkit.Uint8Field(
-		l, cfg, "Enter max QNAME length", "max_qname_len",
+	maxQnameLen := formkit.Uint8Field(m.State().Deps(), cfg, "Enter max QNAME length", "max_qname_len",
 		func(c dns.VayDNSConfig) uint8 { return c.MaxQnameLen },
 		func(c *dns.VayDNSConfig, v uint8) { c.MaxQnameLen = v },
 		textinput.WithPlaceholder("0-253"),
 	)
-	maxNumLabels := formkit.Uint8Field(
-		l, cfg, "Enter max labels", "max_num_labels",
+	maxNumLabels := formkit.Uint8Field(m.State().Deps(), cfg, "Enter max labels", "max_num_labels",
 		func(c dns.VayDNSConfig) uint8 { return c.MaxNumLabels },
 		func(c *dns.VayDNSConfig, v uint8) { c.MaxNumLabels = v },
 		textinput.WithPlaceholder("0-4, 0=auto"),
 	)
-	mtu := formkit.Uint16Field(
-		l, cfg, "Enter MTU", "mtu",
+	mtu := formkit.Uint16Field(m.State().Deps(), cfg, "Enter MTU", "mtu",
 		func(c dns.VayDNSConfig) uint16 { return c.MTU },
 		func(c *dns.VayDNSConfig, v uint16) { c.MTU = v },
 		textinput.WithPlaceholder("0-1452 (0 - auto)"),
 	)
-	rps := formkit.FloatField(
-		l, cfg, "Enter requests per second", "rps",
+	rps := formkit.FloatField(m.State().Deps(), cfg, "Enter requests per second", "rps",
 		func(c dns.VayDNSConfig) float64 { return c.RPS },
 		func(c *dns.VayDNSConfig, v float64) { c.RPS = v },
 		textinput.WithPlaceholder("0 = unlimited"),
 	)
 
-	proxy, vis := formkit.BuildProxy(
-		l, cfg, m.Refresh,
+	proxy, vis := formkit.BuildProxy(m.State().Deps(), cfg, m.Refresh,
 		func(c dns.VayDNSConfig) dns.ResolverProxyType { return c.ProxyType },
 		func(c *dns.VayDNSConfig, v dns.ResolverProxyType) { c.ProxyType = v },
 		func(c dns.VayDNSConfig) uint16 { return c.ProxyPort },
@@ -201,7 +190,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		{Name: "Private Key", Description: formkit.DescPrivateKey, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.PrivateKey), Visible: vis.Key, Format: inspector.FormatPrivateKey},
 	}
 
-	return inspector.New(l, "vaydns config", fields)
+	return inspector.New(m.State().Deps(), "vaydns config", fields)
 }
 
 func (m *Model) saveConfig() tea.Msg {

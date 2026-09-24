@@ -63,22 +63,18 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
-	l := m.Layout()
 
-	configName := formkit.ConfigNameField(l, m.Name(), m.SetName)
-	domain := formkit.StringField(
-		l, cfg, "Enter domain", "domain",
+	configName := formkit.ConfigNameField(m.State().Deps(), m.Name(), m.SetName)
+	domain := formkit.StringField(m.State().Deps(), cfg, "Enter domain", "domain",
 		func(c dns.TheFeedConfig) string { return c.Domain },
 		func(c *dns.TheFeedConfig, v string) { c.Domain = strings.TrimSpace(v) },
 	)
-	passphrase := formkit.StringField(
-		l, cfg, "Enter passphrase", "passphrase",
+	passphrase := formkit.StringField(m.State().Deps(), cfg, "Enter passphrase", "passphrase",
 		func(c dns.TheFeedConfig) string { return c.Passphrase },
 		func(c *dns.TheFeedConfig, v string) { c.Passphrase = strings.TrimSpace(v) },
 	)
 
-	resType, resPort := formkit.ResolverTypePort(
-		l, cfg, m.Refresh,
+	resType, resPort := formkit.ResolverTypePort(m.State().Deps(), cfg, m.Refresh,
 		func(c dns.TheFeedConfig) dns.ResolverType { return c.ResolverType },
 		func(c *dns.TheFeedConfig, v dns.ResolverType) { c.ResolverType = v },
 		func(c dns.TheFeedConfig) uint16 { return c.ResolverPort },
@@ -86,7 +82,7 @@ func (m *Model) buildInspector() *inspector.Model {
 	)
 
 	queryMode := selectinput.New(
-		l, "Select query mode",
+		m.State().Deps(), "Select query mode",
 		selectinput.WithValue(cfg.QueryMode),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -116,7 +112,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		{Name: "Query Mode", Description: formkit.DescQueryMode, Group: formkit.GroupConnection, Input: inspector.Adapt(queryMode), Visible: formkit.AlwaysVisible},
 	}
 
-	return inspector.New(l, "thefeed config", fields)
+	return inspector.New(m.State().Deps(), "thefeed config", fields)
 }
 
 func (m *Model) saveConfig() tea.Msg {

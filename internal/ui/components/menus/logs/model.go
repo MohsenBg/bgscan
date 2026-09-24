@@ -1,7 +1,6 @@
 package logs
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/logview"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
@@ -54,7 +53,7 @@ func newLogsMenu(state *ui.AppState) *menu.Model {
 			"▶", "Core Logs", "c",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
-					Component: logview.New(state, logger.Core(), "Core Logs"),
+					Component: logview.New(state, state.Log.Core, "Core Logs"),
 				}
 			},
 		),
@@ -62,7 +61,7 @@ func newLogsMenu(state *ui.AppState) *menu.Model {
 			"⚙", "UI Logs", "u",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
-					Component: logview.New(state, logger.UI(), "UI Logs"),
+					Component: logview.New(state, state.Log.UI, "UI Logs"),
 				}
 			},
 		),
@@ -70,12 +69,12 @@ func newLogsMenu(state *ui.AppState) *menu.Model {
 			"::", "Debug Logs", "d",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
-					Component: logview.New(state, logger.Debug(), "Debug Logs"),
+					Component: logview.New(state, state.Log.Debug, "Debug Logs"),
 				}
 			},
 		),
 	}
-	return menu.New(items, "Logs Menu", state.Layout)
+	return menu.New(items, "Logs Menu", state.Deps())
 }
 
 func (m *Model) Mode() env.Mode {

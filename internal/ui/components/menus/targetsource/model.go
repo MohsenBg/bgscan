@@ -42,14 +42,14 @@ func New(state *ui.AppState) *Model {
 		}),
 	}
 
-	m.menu = menu.New(items, "Select Target Source", state.Layout)
+	m.menu = menu.New(items, "Select Target Source", state.Deps())
 	return m
 }
 
 // OpenIPList opens the IP file picker overlay.
 // onSelect is called by the iplist component once the user picks a file.
 func (m *Model) OpenIPList(onSelect func(*iplist.IPFileInfo) tea.Cmd) tea.Msg {
-	return ui.OpenComponentMsg{Component: iplistTable.New(m.state.Layout, "Select IP File", onSelect)}
+	return ui.OpenComponentMsg{Component: iplistTable.New(m.state, "Select IP File", onSelect)}
 }
 
 // OpenResultIPList opens the ResultIP file picker overlay.

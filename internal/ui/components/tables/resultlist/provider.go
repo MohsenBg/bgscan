@@ -6,7 +6,6 @@ import (
 	"slices"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
@@ -16,29 +15,23 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
-type provider struct {
-	title    string
-	state    *ui.AppState
-	onSelect func(*result.ResultFile) tea.Cmd
+type source struct {
+	title string
+	state *ui.AppState
 }
 
-func newProvider(state *ui.AppState, title string, onSelect func(*result.ResultFile) tea.Cmd) crud.Provider[result.ResultFile] {
-	return &provider{
-		title:    title,
-		state:    state,
-		onSelect: onSelect,
+func newSource(state *ui.AppState, title string) crud.Source[result.ResultFile] {
+	return &source{
+		title: title,
+		state: state,
 	}
 }
 
-func (p *provider) OnAdd(item result.ResultFile) (tea.Cmd, bool) {
-	return nil, true
+func (s *source) Title() string {
+	return s.title
 }
 
-func (p *provider) Title() string {
-	return p.title
-}
-
-func (p *provider) Columns() []table.Column {
+func (s *source) Columns() []table.Column {
 	return []table.Column{
 		{Title: "File Name", Width: 40},
 		{Title: "Created Time", Width: 35},
@@ -47,10 +40,10 @@ func (p *provider) Columns() []table.Column {
 	}
 }
 
-func (p *provider) Load() ([]result.ResultFile, error) {
-	files, err := result.GetResultFiles(p.state.Config.Writer)
+func (s *source) Load() ([]result.ResultFile, error) {
+	files, err := result.GetResultFiles(s.state.Config.Writer)
 	if err != nil {
-		logger.UIError("Failed to load result logs: %v", err)
+		s.state.Log.UI.Error("Failed to load result logs: %v", err)
 		return nil, err
 	}
 
@@ -58,11 +51,11 @@ func (p *provider) Load() ([]result.ResultFile, error) {
 		return j.CreatedTime.Compare(i.CreatedTime)
 	})
 
-	logger.UIInfo("Loaded %d result files from disk", len(files))
+	s.state.Log.UI.Info("Loaded %d result files from disk", len(files))
 	return files, nil
 }
 
-func (p *provider) RenderRow(item result.ResultFile) table.Row {
+func (s *source) RenderRow(item result.ResultFile) table.Row {
 	return table.Row{
 		item.Name,
 		item.CreatedTime.Format("2006-01-02 15:04:05"),
@@ -71,31 +64,37 @@ func (p *provider) RenderRow(item result.ResultFile) table.Row {
 	}
 }
 
-func (p *provider) Identity(item result.ResultFile) string {
+func (s *source) Identity(item result.ResultFile) string {
 	return item.Name
 }
 
-func (p *provider) OnSelect(item result.ResultFile) (tea.Cmd, bool) {
-	if p.onSelect != nil {
-		return p.onSelect(&item), true
+// newHooks wires the mutation behaviors. There is no add flow for result
+// files, so OnAdd stays nil and no "add" keybinding is registered.
+func newHooks(state *ui.AppState, onSelect func(*result.ResultFile) tea.Cmd) crud.Hooks[result.ResultFile] {
+	hooks := crud.Hooks[result.ResultFile]{
+		OnDelete: func(item result.ResultFile) tea.Cmd {
+			if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
+				state.Log.UI.Error("Failed to delete result log file: %v", err)
+				return notice.NewNoticeCmd(state.Deps(), "Delete Failed", err.Error(), notice.NOTICE_ERROR)
+			}
+			return nil
+		},
+		OnRename: func(item result.ResultFile, newName string) tea.Cmd {
+			newName = result.NormalizeResultFileName(newName)
+			dstPath := filepath.Join(filepath.Dir(item.Path), newName)
+			if err := os.Rename(item.Path, dstPath); err != nil {
+				state.Log.UI.Error("Failed to rename file on disk: %v", err)
+				return notice.NewNoticeCmd(state.Deps(), "Rename Failed", err.Error(), notice.NOTICE_ERROR)
+			}
+			return nil
+		},
 	}
-	return nil, true
-}
 
-func (p *provider) OnDelete(item result.ResultFile) (tea.Cmd, bool) {
-	if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
-		logger.UIError("Failed to delete result log file: %v", err)
-		return notice.NewNoticeCmd(p.state.Layout, "Delete Failed", err.Error(), notice.NOTICE_ERROR), true
+	if onSelect != nil {
+		hooks.OnSelect = func(item result.ResultFile) tea.Cmd {
+			return onSelect(&item)
+		}
 	}
-	return nil, true
-}
 
-func (p *provider) OnRename(item result.ResultFile, newName string) (tea.Cmd, bool) {
-	newName = result.NormalizeResultFileName(newName)
-	dstPath := filepath.Join(filepath.Dir(item.Path), newName)
-	if err := os.Rename(item.Path, dstPath); err != nil {
-		logger.UIError("Failed to rename file on disk: %v", err)
-		return notice.NewNoticeCmd(p.state.Layout, "Rename Failed", err.Error(), notice.NOTICE_ERROR), true
-	}
-	return nil, true
+	return hooks
 }

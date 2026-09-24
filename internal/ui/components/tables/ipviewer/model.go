@@ -2,10 +2,12 @@ package ipviewer
 
 import (
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -20,6 +22,8 @@ type Model struct {
 	rows   []table.Row
 	schema result.ResultSchema
 	layout *layout.Layout
+	theme  *theme.Theme
+	log    logger.Set
 }
 
 type Option func(*Model)
@@ -33,16 +37,29 @@ func WithHeight(h int) Option {
 }
 
 func WithMaxRow(max uint32) Option {
-	return func(m *Model) { m.maxRow = max }
+	return func(m *Model) {
+		if max > 0 {
+			m.maxRow = max
+		}
+	}
 }
 
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
-func (m *Model) Mode() env.Mode     { return env.NormalMode }
+func (m *Model) Mode() env.Mode     { return m.table.Mode() }
 func (m *Model) Init() tea.Cmd      { return nil }
 
-func New(l *layout.Layout, name string, rows []result.Result, schema result.ResultSchema, opts ...Option) *Model {
+func (m *Model) Theme() *theme.Theme { return m.theme }
+
+func (m *Model) SetTheme(th *theme.Theme) {
+	m.theme = th
+	if tb, ok := m.table.(*table.Model); ok {
+		tb.SetTheme(th)
+	}
+}
+
+func New(deps ui.Deps, name string, rows []result.Result, schema result.ResultSchema, opts ...Option) *Model {
 	cols := make([]table.Column, 0, len(schema.Columns))
 	for _, col := range schema.Columns {
 		cols = append(cols, table.Column{Title: col.Name, Width: col.Width})
@@ -51,8 +68,10 @@ func New(l *layout.Layout, name string, rows []result.Result, schema result.Resu
 	m := &Model{
 		id:     ui.NewComponentID(),
 		name:   name,
-		maxRow: 10000,
-		layout: l,
+		maxRow: ui.DefaultMaxRow,
+		layout: deps.Layout,
+		theme:  deps.Theme,
+		log:    deps.Log,
 		schema: schema,
 	}
 
@@ -71,7 +90,7 @@ func New(l *layout.Layout, name string, rows []result.Result, schema result.Resu
 		tableOpts = append(tableOpts, table.WithMaxHeight(m.height))
 	}
 
-	m.table = table.New(l, tableOpts...)
+	m.table = table.New(deps, tableOpts...)
 	m.updateRows(rows)
 	return m
 }

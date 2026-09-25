@@ -1,8 +1,6 @@
 package workspace
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
 	"charm.land/lipgloss/v2"
 )
 
@@ -13,18 +11,18 @@ func containerStyle(termWidth, termHeight int) lipgloss.Style {
 		Height(termHeight)
 }
 
-func mainStyle(contentWidth, contentHeight int) lipgloss.Style {
+func (m *model) mainStyle(contentWidth, contentHeight int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(theme.Current().BorderActive).
+		BorderForeground(m.state.Theme().BorderActive).
 		Width(contentWidth).
 		Height(contentHeight)
 }
 
-func WindowStyle(maxWidth int) lipgloss.Style {
+func (m *model) windowStyle(maxWidth int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		MaxWidth(maxWidth).
-		BorderForeground(theme.Current().BorderActive).
+		BorderForeground(m.state.Theme().BorderActive).
 		Padding(0, 1)
 }

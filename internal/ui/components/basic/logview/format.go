@@ -30,9 +30,7 @@ func parseLogLine(line string) *logParts {
 	}
 }
 
-func levelStyle(level string) lipgloss.Style {
-	th := theme.Current()
-
+func levelStyle(th *theme.Theme, level string) lipgloss.Style {
 	switch strings.ToUpper(level) {
 	case "ERROR":
 		return lipgloss.NewStyle().Foreground(th.Error).Bold(true)
@@ -47,31 +45,31 @@ func levelStyle(level string) lipgloss.Style {
 	}
 }
 
-func timestampStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(theme.Current().Timestamp)
+func timestampStyle(th *theme.Theme) lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(th.Timestamp)
 }
 
-func messageStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(theme.Current().Text)
+func messageStyle(th *theme.Theme) lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(th.Text)
 }
 
 // formatLogLine colorizes a single log line with styled timestamp,
 // level, and message. Returns the original line if parsing fails.
-func formatLogLine(line string) string {
+func formatLogLine(th *theme.Theme, line string) string {
 	parts := parseLogLine(line)
 	if parts == nil {
 		return line
 	}
 
-	ts := timestampStyle().Render(parts.Timestamp)
-	lvl := levelStyle(parts.Level).Render("[" + parts.Level + "]")
-	msg := messageStyle().Render(parts.Message)
+	ts := timestampStyle(th).Render(parts.Timestamp)
+	lvl := levelStyle(th, parts.Level).Render("[" + parts.Level + "]")
+	msg := messageStyle(th).Render(parts.Message)
 
 	return ts + " " + lvl + " " + msg
 }
 
 // formatLogLines colorizes multiple log lines with spacing between them.
-func formatLogLines(lines []string) string {
+func formatLogLines(th *theme.Theme, lines []string) string {
 	if len(lines) == 0 {
 		return ""
 	}
@@ -81,7 +79,7 @@ func formatLogLines(lines []string) string {
 		if i > 0 {
 			b.WriteString("\n\n")
 		}
-		b.WriteString(formatLogLine(line))
+		b.WriteString(formatLogLine(th, line))
 	}
 
 	return b.String()

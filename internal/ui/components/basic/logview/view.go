@@ -18,12 +18,10 @@ import (
 func (m *Model) View() string {
 	container := ContainerStyle(m.containerWidth)
 
-	// Title
 	title := container.Render(
-		TitleStyle(m.viewport.Width()).Render(m.title),
+		m.titleStyle(m.viewport.Width()).Render(m.title),
 	)
 
-	// Content with scroll bar
 	content := m.renderContentView()
 	scrollBar := m.renderScrollBar()
 
@@ -38,9 +36,8 @@ func (m *Model) View() string {
 		contentArea = container.Render(content)
 	}
 
-	// Help bar
 	help := container.Render(
-		helpStyle(m.viewport.Width()).Render(helpView()),
+		m.helpStyle(m.viewport.Width()).Render(m.helpView()),
 	)
 
 	return lipgloss.JoinVertical(
@@ -60,7 +57,7 @@ func (m *Model) renderContentView() string {
 	content := m.viewport.View()
 
 	if m.showBorder {
-		content = BorderStyle(m.viewport.Width()).Render(content)
+		content = m.borderStyle(m.viewport.Width()).Render(content)
 	}
 
 	return content
@@ -83,9 +80,9 @@ func (m *Model) renderScrollBar() string {
 	var b strings.Builder
 	for i := 0; i < height; i++ {
 		if i >= thumbPos && i < thumbPos+thumbHeight {
-			b.WriteString(ScrollBarThumbStyle().Render("█"))
+			b.WriteString(m.scrollBarThumbStyle().Render("█"))
 		} else {
-			b.WriteString(ScrollBarStyle().Render("│"))
+			b.WriteString(m.scrollBarStyle().Render("│"))
 		}
 		if i < height-1 {
 			b.WriteString("\n")
@@ -95,14 +92,14 @@ func (m *Model) renderScrollBar() string {
 }
 
 // helpView renders the keyboard help bar.
-func helpView() string {
+func (m *Model) helpView() string {
 	return lipgloss.JoinHorizontal(
 		lipgloss.Top,
 
-		helpKeyStyle().Render("↑ ↓"),
+		m.helpKeyStyle().Render("↑ ↓"),
 		" move  ",
 
-		helpKeyStyle().Render("b/esc"),
+		m.helpKeyStyle().Render("b/esc"),
 		" close",
 	)
 }

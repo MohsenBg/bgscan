@@ -1,6 +1,7 @@
 package startup
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/MohsenBg/bgscan/internal/core"
@@ -12,8 +13,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
-func checkConfigHealth(r *reporter) (*config.ScannerConfig, *config.Store) {
-	store := config.NewStore()
+func checkConfigHealth(r *reporter, logs logger.Set) (*config.ScannerConfig, *config.Store) {
+	store := config.NewStore(config.WithLogger(logs.Core))
 	cfg, err := store.Load()
 	if err != nil {
 		r.critical("Configuration failed to load", err)
@@ -169,26 +170,14 @@ func checkSlipstreamHealth(r *reporter) {
 	r.success("Health check completed successfully")
 }
 
-func checkLoggerHealth(r *reporter) {
-	r.info("Initializing loggers...")
+func checkLoggerHealth(r *reporter, logs logger.Set) {
+	r.info("Verifying loggers...")
 
-	if err := logger.InitCore(); err != nil {
-		r.errMsg("Core logger initialization failed", err)
+	if logs.Core == nil || logs.UI == nil || logs.Debug == nil {
+		r.errMsg("Loggers not initialized", errors.New("logger.Set is empty, main must call logger.NewSet before app.New"))
 		return
 	}
-	r.success("Core logger initialized")
-
-	if err := logger.InitUI(); err != nil {
-		r.errMsg("UI logger initialization failed", err)
-		return
-	}
-	r.success("UI logger initialized")
-
-	if err := logger.InitDebug(); err != nil {
-		r.errMsg("Debug logger initialization failed", err)
-		return
-	}
-	r.success("Debug logger initialized")
+	r.success("Loggers ready (core/ui/debug)")
 
 	r.info("Registering probe schemas...")
 	if err := core.Init(); err != nil {
@@ -200,7 +189,7 @@ func checkLoggerHealth(r *reporter) {
 	r.success("Health check completed successfully")
 }
 
-func checkXrayHealth(r *reporter) {
+func checkXrayHealth(r *reporter, log *logger.Logger) {
 	r.info("Checking embedded Xray core...")
 	svc := xray.NewXrayService()
 
@@ -213,7 +202,7 @@ func checkXrayHealth(r *reporter) {
 	r.successf("Xray core version: %s", version)
 
 	r.info("Searching for configuration templates...")
-	outbounds, err := xray.ListOutboundTemplates()
+	outbounds, err := xray.ListOutboundTemplates(log)
 	if err != nil {
 		r.errMsg("Failed to retrieve outbounds", err)
 		return

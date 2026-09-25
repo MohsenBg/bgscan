@@ -10,21 +10,17 @@ import (
 func (m *Model) View() string {
 	content := make([]string, 0, 4)
 
-	// Optional message
 	if m.title != "" {
-		content = append(content, input.MessageStyle().Render(m.title))
+		content = append(content, input.MessageStyle(m.theme).Render(m.title))
 	}
 
-	// Input field
 	content = append(content, m.textinput.View())
 
-	// Validation error (if present)
 	if m.errorMsg != "" {
-		content = append(content, input.ErrorStyle().Render("✗ "+m.errorMsg))
+		content = append(content, input.ErrorStyle(m.theme).Render("✗ "+m.errorMsg))
 	}
 
-	// Key hints
-	hints := input.KeyHintStyle().Render("Enter to confirm • Esc to cancel")
+	hints := input.KeyHintStyle(m.theme).Render("Enter to confirm • Esc to cancel")
 	content = append(content, hints)
 
 	body := lipgloss.JoinVertical(

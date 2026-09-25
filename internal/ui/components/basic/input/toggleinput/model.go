@@ -1,6 +1,7 @@
 package toggleinput
 
 import (
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
@@ -21,6 +22,9 @@ type Model struct {
 
 	layout *layout.Layout
 
+	theme *theme.Theme
+	log   logger.Set
+
 	title    string
 	errorMsg string
 
@@ -29,6 +33,7 @@ type Model struct {
 	negate   string
 	huhInput *huh.Confirm
 	readOnly bool
+	focused  bool
 
 	validationFunc func(value bool) error
 
@@ -36,16 +41,17 @@ type Model struct {
 	onSubmit func(bool) tea.Cmd
 }
 
-// New creates a new toggle input component.
 func New(
-	l *layout.Layout,
+	deps ui.Deps,
 	title string,
 	options ...Option,
 ) input.Input[bool] {
 	m := &Model{
 		id:     ui.NewComponentID(),
 		name:   "toggle",
-		layout: l,
+		layout: deps.Layout,
+		theme:  deps.Theme,
+		log:    deps.Log,
 		title:  title,
 		affirm: "Yes",
 		negate: "No",
@@ -56,7 +62,7 @@ func New(
 		Value(&m.value)
 
 	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
-	m.huhInput.WithTheme(theme.NewHuhTheme())
+	m.huhInput.WithTheme(theme.NewHuhTheme(m.theme))
 	for _, opt := range options {
 		opt(m)
 	}
@@ -95,6 +101,7 @@ func WithValidation(fn func(bool) error) Option {
 // WithFocus focuses the input on creation.
 func WithFocus() Option {
 	return func(m *Model) {
+		m.focused = true
 		m.huhInput.Focus()
 	}
 }
@@ -143,6 +150,30 @@ func (m *Model) CloseCmd() tea.Cmd {
 
 func (m *Model) OnClose() tea.Cmd { return nil }
 
+func (m *Model) Theme() *theme.Theme { return m.theme }
+
+// SetTheme rebuilds the huh field: huh's WithTheme is set-once and ignores
+// later calls, so a fresh field is built preserving value, labels and
+// focus.
+func (m *Model) SetTheme(th *theme.Theme) {
+	m.theme = th
+	m.huhInput = huh.NewConfirm().
+		Title(m.title).
+		Value(&m.value)
+	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
+	m.huhInput.WithTheme(theme.NewHuhTheme(th))
+	inp := m.huhInput.
+		Affirmative(m.affirm).
+		Negative(m.negate).
+		WithWidth(m.Width())
+	m.huhInput = inp.(*huh.Confirm)
+	if m.readOnly {
+		m.huhInput.Blur()
+	} else if m.focused {
+		m.huhInput.Focus()
+	}
+}
+
 func (m *Model) Value() bool { return m.value }
 
 func (m *Model) SetValue(value bool) {
@@ -160,8 +191,8 @@ func (m *Model) OnChange(fn func(bool) tea.Cmd) { m.onChange = fn }
 
 func (m *Model) OnSubmit(fn func(bool) tea.Cmd) { m.onSubmit = fn }
 
-// AppendOnSubmit implements [input.Input]. It chains fn after any
-// previously registered onSubmit callback rather than replacing it.
+// AppendOnSubmit chains fn after any previously registered onSubmit
+// callback instead of replacing it.
 func (m *Model) AppendOnSubmit(fn func() tea.Cmd) {
 	prev := m.onSubmit
 	m.onSubmit = func(value bool) tea.Cmd {
@@ -175,6 +206,7 @@ func (m *Model) AppendOnSubmit(fn func() tea.Cmd) {
 func (m *Model) setReadOnly(ro bool) {
 	m.readOnly = ro
 	if ro {
+		m.focused = false
 		m.huhInput.Blur()
 	}
 }

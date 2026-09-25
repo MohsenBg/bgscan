@@ -10,14 +10,15 @@ import (
 // Update resizes the bar on terminal resize, advances the animation, and
 // applies UpdateProgressMsg to set the current percentage.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	switch msg := msg.(type) {
 
-	// Terminal resized → recompute progress width
 	case tea.WindowSizeMsg:
 		m.progress.SetWidth(m.Width())
 		return m, nil
 
-	// External progress update
 	case UpdateProgressMsg:
 		if msg.ID != m.ID() {
 			return m, nil

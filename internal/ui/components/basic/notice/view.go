@@ -35,17 +35,17 @@ func (m *Model) View() string {
 }
 
 func (m *Model) headerView(width int) string {
-	p := levelPalette(m.noticeType)
+	p := m.levelPalette(m.noticeType)
 
-	return titleStyle(width, m.noticeType).Render(
+	return m.titleStyle(width, m.noticeType).Render(
 		p.Icon + m.title,
 	)
 }
 
 func (m *Model) footerView(width int) string {
-	p := levelPalette(m.noticeType)
+	p := m.levelPalette(m.noticeType)
 
-	button := ButtonStyle().Render(p.FooterText)
+	button := m.buttonStyle().Render(p.FooterText)
 
 	return CenterStyle(width).Render(button)
 }

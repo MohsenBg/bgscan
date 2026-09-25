@@ -9,14 +9,15 @@ import (
 // Update handles terminal resize, forwards messages to the file picker,
 // and closes the overlay after a successful selection.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	var cmds []tea.Cmd
 
-	// Handle terminal resize
 	if _, ok := msg.(tea.WindowSizeMsg); ok {
 		m.FilePicker.SetHeight(pickerHeight(m.Layout))
 	}
 
-	// Forward message to Bubble filepicker
 	var cmd tea.Cmd
 	m.FilePicker, cmd = m.FilePicker.Update(msg)
 
@@ -24,7 +25,6 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
-	// Handle file selection
 	if didSelect, path := m.FilePicker.DidSelectFile(msg); didSelect && m.OnSelect != nil {
 		cmds = append(cmds, m.OnSelect(path))
 		cmds = append(cmds, m.CloseCmd())

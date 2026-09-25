@@ -12,6 +12,9 @@ import (
 // (the default), Shift+Enter (or Ctrl+M) inserts a literal newline. When
 // newlines are disabled via [WithNewlines], no key inserts a newline.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.textarea.SetWidth(m.Width())

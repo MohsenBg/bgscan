@@ -3,8 +3,6 @@ package notice
 import (
 	"image/color"
 
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
 	"charm.land/lipgloss/v2"
 )
 
@@ -20,23 +18,24 @@ type levelStyle struct {
 }
 
 // levelPalette maps a notice level to its rendering palette.
-func levelPalette(level LEVEL) levelStyle {
+func (m *Model) levelPalette(level LEVEL) levelStyle {
+	th := m.theme
 	switch level {
 
 	case NOTICE_ERROR:
 		return levelStyle{
-			TitleColor:  theme.Current().Error,
-			BorderColor: theme.Current().Error,
-			AccentColor: theme.Current().Error,
+			TitleColor:  th.Error,
+			BorderColor: th.Error,
+			AccentColor: th.Error,
 			Icon:        "[×] ",
 			FooterText:  "Continue",
 		}
 
 	case NOTICE_SUCCESS:
 		return levelStyle{
-			TitleColor:  theme.Current().Success,
-			BorderColor: theme.Current().Success,
-			AccentColor: theme.Current().Success,
+			TitleColor:  th.Success,
+			BorderColor: th.Success,
+			AccentColor: th.Success,
 			Icon:        "[✓] ",
 			FooterText:  "Done",
 		}
@@ -46,9 +45,9 @@ func levelPalette(level LEVEL) levelStyle {
 
 	default:
 		return levelStyle{
-			TitleColor:  theme.Current().Info,
-			BorderColor: theme.Current().Info,
-			AccentColor: theme.Current().Info,
+			TitleColor:  th.Info,
+			BorderColor: th.Info,
+			AccentColor: th.Info,
 			Icon:        "[i] ",
 			FooterText:  "Continue",
 		}
@@ -68,8 +67,8 @@ func CenterStyle(width int) lipgloss.Style {
 		Align(lipgloss.Center)
 }
 
-func titleStyle(width int, level LEVEL) lipgloss.Style {
-	p := levelPalette(level)
+func (m *Model) titleStyle(width int, level LEVEL) lipgloss.Style {
+	p := m.levelPalette(level)
 
 	return lipgloss.NewStyle().
 		Width(width).
@@ -79,13 +78,22 @@ func titleStyle(width int, level LEVEL) lipgloss.Style {
 		MarginBottom(1)
 }
 
-// ButtonStyle renders the notice action button ("Continue", "Done", ...).
-func ButtonStyle() lipgloss.Style {
+// buttonStyle renders the notice action button ("Continue", "Done", ...).
+func (m *Model) buttonStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Primary).
+		Foreground(m.theme.Primary).
 		Align(lipgloss.Center).
 		Padding(0, 2).
 		MarginTop(1).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(theme.Current().BorderActive)
+		BorderForeground(m.theme.BorderActive)
+}
+
+// ButtonStyle keeps backward compatibility for external callers.
+func ButtonStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Align(lipgloss.Center).
+		Padding(0, 2).
+		MarginTop(1).
+		Border(lipgloss.RoundedBorder())
 }

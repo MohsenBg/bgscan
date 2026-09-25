@@ -9,6 +9,7 @@ import (
 )
 
 func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	ui.SyncState(msg, m.state)
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -56,7 +57,15 @@ func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		}
 	}
 
-	if len(m.dialog) > 0 {
+	if _, ok := msg.(ui.ThemeChangedMsg); ok {
+		// Broadcast to every open dialog, not just the top one:
+		// background dialogs also cache theme styles.
+		for i, d := range m.dialog {
+			updated, cmd := d.Update(msg)
+			m.dialog[i] = updated
+			cmds = append(cmds, cmd)
+		}
+	} else if len(m.dialog) > 0 {
 		lastIdx := len(m.dialog) - 1
 		newLayer, cmd := m.dialog[lastIdx].Update(msg)
 		m.dialog[lastIdx] = newLayer

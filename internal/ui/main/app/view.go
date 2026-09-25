@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 
-	tea "charm.land/bubbletea/v2"
+		tea "charm.land/bubbletea/v2"
 )
 
 func (m *model) View() tea.View {
@@ -26,6 +26,12 @@ func (m *model) View() tea.View {
 		view = m.workspace.View()
 	}
 	t := tea.NewView(view)
+	if m.state.Settings.SolidBackground {
+		th := m.state.Theme()
+		t.BackgroundColor = th.Background
+		t.ForegroundColor = th.Text
+	}
+
 	t.AltScreen = true
 	return t
 }
@@ -37,10 +43,10 @@ func (m *model) renderLimitSize(termWidth, termHeight int) string {
 		m.state.Layout.MinTerminal.Height,
 	)
 
-	return centerStyle().
+	return m.centerStyle().
 		Width(termWidth).
 		Height(termHeight).
 		Render(
-			warningStyle().Render(msg),
+			m.warningStyle().Render(msg),
 		)
 }

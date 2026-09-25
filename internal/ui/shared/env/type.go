@@ -15,7 +15,6 @@ const (
 	// such as entering a target IP range or configuration.
 	InputMode
 
-	// ManagedMode is active while a network scan is running.
 	// During this mode most UI actions are disabled and
 	// control is handled by scanning goroutines.
 	ManagedMode

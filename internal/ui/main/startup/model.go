@@ -3,15 +3,16 @@ package startup
 import (
 	"sync/atomic"
 
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/progress"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type categoryStatus int
@@ -72,11 +73,11 @@ func (m *model) OnClose() tea.Cmd   { return nil }
 func New(state *ui.AppState) ui.Component {
 	pb := progress.New(
 		progress.WithoutPercentage(),
-		progress.WithColors(theme.Current().ProgressEnd, theme.Current().ProgressStart),
+		progress.WithColors(state.Theme().ProgressEnd, state.Theme().ProgressStart),
 	)
 	pb.Full = '▬'
 	pb.Empty = '─'
-	pb.EmptyColor = theme.Current().BorderActive
+	pb.EmptyColor = state.Theme().BorderActive
 
 	vp := viewport.New()
 	if state.Layout != nil {
@@ -87,7 +88,7 @@ func New(state *ui.AppState) ui.Component {
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
-	sp.Style = spinnerStyle()
+	sp.Style = lipgloss.NewStyle().Foreground(state.Theme().Primary)
 
 	m := &model{
 		id:          ui.NewComponentID(),
@@ -116,6 +117,18 @@ func New(state *ui.AppState) ui.Component {
 	}
 
 	return m
+}
+
+func rebuildProgressBar(state *ui.AppState, old progress.Model) progress.Model {
+	pb := progress.New(
+		progress.WithoutPercentage(),
+		progress.WithColors(state.Theme().ProgressEnd, state.Theme().ProgressStart),
+	)
+	pb.Full = old.Full
+	pb.Empty = old.Empty
+	pb.EmptyColor = state.Theme().BorderActive
+	pb.SetWidth(old.Width())
+	return pb
 }
 
 func (m *model) applyLayout(l *layout.Layout) {
@@ -154,7 +167,13 @@ func (m *model) Init() tea.Cmd {
 
 		var abort atomic.Bool
 
-		if !m.runCheck("logger", &abort, checkLoggerHealth) {
+		if !m.runCheck("logger", &abort, func(r *reporter) {
+			var logs logger.Set
+			if m.state != nil {
+				logs = m.state.Log
+			}
+			checkLoggerHealth(r, logs)
+		}) {
 			return
 		}
 
@@ -162,7 +181,11 @@ func (m *model) Init() tea.Cmd {
 			m.logCh <- categoryStartMsg{categoryID: "config"}
 
 			r := newReporter("config", m.logCh, &abort)
-			cfg, store := checkConfigHealth(r)
+			var logs logger.Set
+			if m.state != nil {
+				logs = m.state.Log
+			}
+			cfg, store := checkConfigHealth(r, logs)
 
 			if abort.Load() {
 				return
@@ -173,7 +196,13 @@ func (m *model) Init() tea.Cmd {
 			m.logCh <- categoryEndMsg{categoryID: "config", status: r.status}
 		}
 
-		if !m.runCheck("xray", &abort, checkXrayHealth) {
+		if !m.runCheck("xray", &abort, func(r *reporter) {
+			var core *logger.Logger
+			if m.state != nil {
+				core = m.state.Log.Core
+			}
+			checkXrayHealth(r, core)
+		}) {
 			return
 		}
 		if !m.runCheck("dnstt", &abort, checkDNSTTHealth) {
@@ -240,15 +269,15 @@ func (m *model) appendLine(categoryID string, status categoryStatus, line string
 		var prefix string
 		switch status {
 		case catRunning:
-			prefix = statusPrefixStyle(catRunning).Render("[INFO]")
+			prefix = m.statusPrefixStyle(catRunning).Render("[INFO]")
 		case catWait:
-			prefix = statusPrefixStyle(catWait).Render("[WAIT]")
+			prefix = m.statusPrefixStyle(catWait).Render("[WAIT]")
 		case catOK:
-			prefix = statusPrefixStyle(catOK).Render("[SUCCESS]")
+			prefix = m.statusPrefixStyle(catOK).Render("[SUCCESS]")
 		case catWarn:
-			prefix = statusPrefixStyle(catWarn).Render("[WARN]")
+			prefix = m.statusPrefixStyle(catWarn).Render("[WARN]")
 		case catError:
-			prefix = statusPrefixStyle(catError).Render("[ERROR]")
+			prefix = m.statusPrefixStyle(catError).Render("[ERROR]")
 		}
 		cat.lines = append(cat.lines, prefix+" "+line)
 		return
@@ -284,11 +313,11 @@ func (m *model) overallStatus() categoryStatus {
 func (m *model) statusIndicator(cat category) string {
 	if cat.status == catRunning {
 		if !cat.started {
-			return pendingDotStyle().Render("○")
+			return m.pendingDotStyle().Render("○")
 		}
 		return m.spinner.View()
 	}
-	return statusPrefixStyle(cat.status).Render("●")
+	return m.statusPrefixStyle(cat.status).Render("●")
 }
 
 func (m *model) completedCount() int {

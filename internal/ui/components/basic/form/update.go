@@ -8,6 +8,9 @@ import (
 )
 
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {

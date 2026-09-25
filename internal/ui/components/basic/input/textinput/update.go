@@ -10,6 +10,9 @@ import (
 // first, then on Enter submits the value (validating it), and optionally runs
 // dynamic validation on other keys.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	var cmd tea.Cmd
 
 	// Always update the underlying text input first

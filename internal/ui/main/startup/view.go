@@ -5,18 +5,18 @@ import (
 )
 
 func (m *model) renderTitle() string {
-	title := titleTextStyle(m.width).Render("Startup Health Check")
+	title := m.titleTextStyle(m.width).Render("Startup Health Check")
 	bar := m.statusIndicator(category{status: m.overallStatus(), started: true}) + " " + title
-	return titleBarStyle(m.width).Render(bar)
+	return m.titleBarStyle(m.width).Render(bar)
 }
 
 func (m *model) renderSidebar() string {
 	items := make([]string, 0, len(m.categories))
 
 	for _, cat := range m.categories {
-		style := sidebarItemStyle()
+		style := m.sidebarItemStyle()
 		if cat.status == catRunning && cat.started {
-			style = sidebarItemActiveStyle()
+			style = m.sidebarItemActiveStyle()
 		}
 		items = append(items, style.Render(m.statusIndicator(cat)+" "+cat.label))
 	}
@@ -30,27 +30,27 @@ func (m *model) renderContent() string {
 	sections := make([]string, 0, len(m.categories))
 
 	for _, cat := range m.categories {
-		labelStyle := categoryLabelStyle()
+		labelStyle := m.categoryLabelStyle()
 		label := cat.label
 
 		switch {
 		case cat.status == catRunning && cat.started:
-			labelStyle = categoryLabelActiveStyle()
+			labelStyle = m.categoryLabelActiveStyle()
 			label = m.spinner.View() + " " + label
 		case cat.status != catRunning:
-			labelStyle = categoryLabelDoneStyle(cat.status)
+			labelStyle = m.categoryLabelDoneStyle(cat.status)
 		}
 
 		lines := []string{labelStyle.Render(label)}
 
 		for _, line := range cat.lines {
-			lines = append(lines, categoryLineStyle(contentWidth).Render(line))
+			lines = append(lines, m.categoryLineStyle(contentWidth).Render(line))
 		}
 
 		sections = append(sections, lipgloss.JoinVertical(lipgloss.Left, lines...))
 	}
 
-	return contentContainerStyle(contentWidth).Render(
+	return m.contentContainerStyle(contentWidth).Render(
 		lipgloss.JoinVertical(lipgloss.Left, sections...),
 	)
 }
@@ -67,36 +67,36 @@ func (m *model) syncViewport() {
 
 func (m *model) renderHelpHint() string {
 	hint := "↑/↓ scroll  •  enter continue  •  ? help  •  q quit"
-	return helpHintStyle(m.width).Render(hint)
+	return m.helpHintStyle(m.width).Render(hint)
 }
 
 func (m *model) helpView() string {
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		helpTitleStyle().Render("Help"),
+		m.helpTitleStyle().Render("Help"),
 		"",
-		keyStyle().Render("↑ / ↓")+"      "+descStyle().Render("scroll viewport"),
-		keyStyle().Render("enter")+"      "+descStyle().Render("continue"),
-		keyStyle().Render("q")+"          "+descStyle().Render("exit"),
+		m.keyStyle().Render("↑ / ↓")+"      "+m.descStyle().Render("scroll viewport"),
+		m.keyStyle().Render("enter")+"      "+m.descStyle().Render("continue"),
+		m.keyStyle().Render("q")+"          "+m.descStyle().Render("exit"),
 		"",
-		descStyle().Render("press any key to close"),
+		m.descStyle().Render("press any key to close"),
 	)
 
-	return helpOverlayStyle().Render(content)
+	return m.helpOverlayStyle().Render(content)
 }
 
 func (m *model) fatalView() string {
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		fatalTitleStyle().Render("✕ Critical Error"),
+		m.fatalTitleStyle().Render("✕ Critical Error"),
 		"",
-		fatalCategoryStyle().Render(m.fatal.category),
-		fatalMessageStyle(fatalContentWidth(m.width)).Render(m.fatal.message),
+		m.fatalCategoryStyle().Render(m.fatal.category),
+		m.fatalMessageStyle(fatalContentWidth(m.width)).Render(m.fatal.message),
 		"",
-		descStyle().Render("the app cannot continue — press any key to exit"),
+		m.descStyle().Render("the app cannot continue — press any key to exit"),
 	)
 
-	return fatalOverlayStyle().Render(content)
+	return m.fatalOverlayStyle().Render(content)
 }
 
 func (m *model) View() string {
@@ -123,9 +123,9 @@ func (m *model) View() string {
 	title := m.renderTitle()
 	progress := m.progressBar.View()
 
-	sidebar := sidebarContainerStyle(m.viewport.Height()).Render(m.renderSidebar())
+	sidebar := m.sidebarContainerStyle(m.viewport.Height()).Render(m.renderSidebar())
 
-	content := contentPaddingStyle().Render(m.viewport.View())
+	content := m.contentPaddingStyle().Render(m.viewport.View())
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, content)
 

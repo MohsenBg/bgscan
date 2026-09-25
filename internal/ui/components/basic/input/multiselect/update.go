@@ -10,6 +10,9 @@ import (
 // Update processes incoming Bubble Tea messages and updates the state
 // of the multi-select component.
 func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	prev := make([]T, len(m.value))
 	copy(prev, m.value)
 

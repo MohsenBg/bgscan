@@ -10,6 +10,8 @@ import (
 // Update resizes the viewport, refreshes content on LogUpdateTickMsg, and
 // forwards other messages to the viewport for scrolling.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	// No cached theme here: View reads m.state.Theme() live, so
+	// ThemeChangedMsg needs no action and falls through to the viewport.
 	var cmds []tea.Cmd
 
 	switch msg.(type) {
@@ -54,7 +56,7 @@ func (m *Model) renderContent() string {
 
 	width := max(0, m.viewport.Width()-5)
 
-	content := formatLogLines(m.messages)
+	content := formatLogLines(m.state.Theme(), m.messages)
 
 	return lipgloss.NewStyle().
 		Width(width).

@@ -1,6 +1,7 @@
 package progress
 
 import (
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
@@ -22,18 +23,20 @@ type Model struct {
 	name string
 
 	layout   *layout.Layout
+	theme    *theme.Theme
+	log      logger.Set
 	progress progress.Model
 
 	// percent represents the current progress value (0.0 → 1.0).
 	percent float64
 }
 
-func New(layout *layout.Layout) *Model {
+func New(deps ui.Deps) *Model {
 	p := progress.New(
 		progress.WithScaled(true),
 		progress.WithColors(
-			theme.Current().ProgressStart,
-			theme.Current().ProgressEnd,
+			deps.Theme.ProgressStart,
+			deps.Theme.ProgressEnd,
 		),
 	)
 
@@ -41,7 +44,9 @@ func New(layout *layout.Layout) *Model {
 		id:       ui.NewComponentID(),
 		name:     "Progress",
 		progress: p,
-		layout:   layout,
+		layout:   deps.Layout,
+		theme:    deps.Theme,
+		log:      deps.Log,
 		percent:  0,
 	}
 
@@ -51,9 +56,25 @@ func New(layout *layout.Layout) *Model {
 	return m
 }
 
-// Init initializes the component.
-//
-// The progress component does not require any startup commands.
+func (m *Model) Theme() *theme.Theme { return m.theme }
+
+// SetTheme rebuilds the progress gradient.
+func (m *Model) SetTheme(th *theme.Theme) {
+	m.theme = th
+	width := m.progress.Width()
+	p := progress.New(
+		progress.WithScaled(true),
+		progress.WithColors(th.ProgressStart, th.ProgressEnd),
+	)
+	p.SetWidth(width)
+	p.PercentFormat = m.progress.PercentFormat
+	_ = p.SetPercent(m.percent)
+	p.Full = m.progress.Full
+	p.Empty = m.progress.Empty
+	p.EmptyColor = m.progress.EmptyColor
+	m.progress = p
+}
+
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
@@ -63,17 +84,14 @@ func (m *Model) Width() int {
 	return width - padding*10
 }
 
-// ID returns the unique component identifier.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
-// Name returns the human‑readable component name.
 func (m *Model) Name() string {
 	return m.name
 }
 
-// OnClose is called when the component is removed from the UI stack.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }

@@ -10,7 +10,7 @@ func (m *Model) View() string {
 		sections = append(sections, m.tabs.View())
 	}
 	if m.Title != "" {
-		sections = append(sections, titleStyle().Render(m.Title))
+		sections = append(sections, m.titleStyle().Render(m.Title))
 	}
 
 	sections = append(

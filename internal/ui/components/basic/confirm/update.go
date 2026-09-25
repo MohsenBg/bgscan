@@ -19,6 +19,9 @@ import (
 //   - If the current selection is "Yes", the configured confirmation
 //     command is executed.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch {

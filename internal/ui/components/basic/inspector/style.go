@@ -6,28 +6,28 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-func fieldNameStyle() lipgloss.Style {
+func fieldNameStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Text).
+		Foreground(th.Text).
 		Padding(0, 1)
 }
 
-func selectedFieldNameStyle() lipgloss.Style {
+func selectedFieldNameStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Primary).
+		Foreground(th.Primary).
 		Padding(0, 0).
 		Bold(true)
 }
 
-func valueStyle() lipgloss.Style {
+func valueStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Text)
+		Foreground(th.Text)
 }
 
-func titleStyle() lipgloss.Style {
+func (m *Model) titleStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Align(lipgloss.Center).
-		Foreground(theme.Current().Info).
+		Foreground(m.theme.Info).
 		Bold(true)
 }
 

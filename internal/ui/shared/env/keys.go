@@ -15,6 +15,7 @@ const (
 	KeyTab       = "tab"
 	KeyShiftTab  = "shift+tab"
 	KeyCtrlT     = "ctrl+t"
+	KeyF2        = "f2"
 )
 
 var backKeys = map[Mode][]string{

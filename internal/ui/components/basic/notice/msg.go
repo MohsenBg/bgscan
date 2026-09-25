@@ -2,7 +2,7 @@ package notice
 
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -10,7 +10,7 @@ import (
 // NewNoticeCmd opens a Notice overlay centered horizontally near the top
 // of the screen.
 func NewNoticeCmd(
-	l *layout.Layout,
+	deps ui.Deps,
 	title string,
 	message string,
 	level LEVEL,
@@ -25,7 +25,7 @@ func NewNoticeCmd(
 		opts = append(opts, options...)
 
 		return dialog.OpenDialog(
-			New(l, title, message, level),
+			New(deps, title, message, level),
 			opts...,
 		)
 	}

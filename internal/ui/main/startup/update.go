@@ -9,6 +9,11 @@ import (
 )
 
 func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if _, ok := msg.(ui.ThemeChangedMsg); ok {
+		m.progressBar = rebuildProgressBar(m.state, m.progressBar)
+		m.spinner.Style = m.spinnerStyle()
+		return m, nil
+	}
 	switch msg := msg.(type) {
 	case categoryStartMsg:
 		m.startCategory(msg.categoryID)

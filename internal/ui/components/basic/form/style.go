@@ -1,13 +1,11 @@
 package form
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
 	"charm.land/lipgloss/v2"
 )
 
-func keyHintStyle() lipgloss.Style {
+func (m *Model) keyHintStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Muted).
+		Foreground(m.theme.Muted).
 		Padding(1, 0)
 }

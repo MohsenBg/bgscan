@@ -6,42 +6,50 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-func itemTitleStyle() lipgloss.Style {
+func resolveTheme(th *theme.Theme) *theme.Theme {
+	if th != nil {
+		return th
+	}
+	t, _ := theme.Get("")
+	return t
+}
+
+func itemTitleStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Text).
+		Foreground(resolveTheme(th).Text).
 		Padding(0, 0, 0, 0)
 }
 
-func selectedItemTitleStyle() lipgloss.Style {
+func selectedItemTitleStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Primary).
+		Foreground(resolveTheme(th).Primary).
 		Padding(0, 1).
 		Bold(true)
 }
 
-func shortcutStyle() lipgloss.Style {
+func shortcutStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Text)
+		Foreground(resolveTheme(th).Text)
 }
 
-func iconStyle() lipgloss.Style {
+func iconStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Text).
+		Foreground(resolveTheme(th).Text).
 		Width(3).
 		Bold(true)
 }
 
-func selectedIconStyle() lipgloss.Style {
+func selectedIconStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Primary).
+		Foreground(resolveTheme(th).Primary).
 		Width(3).
 		Bold(true)
 }
 
-func titleStyle() lipgloss.Style {
+func titleStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Align(lipgloss.Center).
-		Foreground(theme.Current().Info).
+		Foreground(resolveTheme(th).Info).
 		Bold(true)
 }
 

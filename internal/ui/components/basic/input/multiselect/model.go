@@ -3,6 +3,7 @@ package multiselect
 import (
 	"errors"
 
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
@@ -24,6 +25,9 @@ type Model[T comparable] struct {
 
 	layout *layout.Layout
 
+	theme *theme.Theme
+	log   logger.Set
+
 	title    string
 	errorMsg string
 
@@ -32,6 +36,7 @@ type Model[T comparable] struct {
 	limit    int
 	huhInput *huh.MultiSelect[T]
 	readOnly bool
+	focused  bool
 
 	validationFunc func(value []T) error
 
@@ -41,16 +46,17 @@ type Model[T comparable] struct {
 	required bool
 }
 
-// New creates a new multi-select input component.
 func New[T comparable](
-	l *layout.Layout,
+	deps ui.Deps,
 	title string,
 	options ...Option[T],
 ) input.Input[[]T] {
 	m := &Model[T]{
 		id:     ui.NewComponentID(),
 		name:   "multiselect",
-		layout: l,
+		layout: deps.Layout,
+		theme:  deps.Theme,
+		log:    deps.Log,
 		title:  title,
 	}
 
@@ -65,7 +71,7 @@ func New[T comparable](
 	inp := m.huhInput.Options(m.options...).WithWidth(m.Width())
 	m.huhInput = inp.(*huh.MultiSelect[T])
 	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
-	m.huhInput.WithTheme(theme.NewHuhTheme())
+	m.huhInput.WithTheme(theme.NewHuhTheme(m.theme))
 
 	if m.limit > 0 {
 		m.huhInput = m.huhInput.Limit(m.limit)
@@ -105,6 +111,7 @@ func WithValidation[T comparable](fn func([]T) error) Option[T] {
 // WithFocus focuses the input on creation.
 func WithFocus[T comparable]() Option[T] {
 	return func(m *Model[T]) {
+		m.focused = true
 		m.huhInput.Focus()
 	}
 }
@@ -153,6 +160,30 @@ func (m *Model[T]) CloseCmd() tea.Cmd {
 
 func (m *Model[T]) OnClose() tea.Cmd { return nil }
 
+func (m *Model[T]) Theme() *theme.Theme { return m.theme }
+
+// SetTheme rebuilds the huh field: huh's WithTheme is set-once and ignores
+// later calls, so a fresh field is built preserving value, options and
+// focus.
+func (m *Model[T]) SetTheme(th *theme.Theme) {
+	m.theme = th
+	m.huhInput = huh.NewMultiSelect[T]().
+		Title(m.title).
+		Value(&m.value)
+	inp := m.huhInput.Options(m.options...).WithWidth(m.Width())
+	m.huhInput = inp.(*huh.MultiSelect[T])
+	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
+	m.huhInput.WithTheme(theme.NewHuhTheme(th))
+	if m.limit > 0 {
+		m.huhInput = m.huhInput.Limit(m.limit)
+	}
+	if m.readOnly {
+		m.huhInput.Blur()
+	} else if m.focused {
+		m.huhInput.Focus()
+	}
+}
+
 func (m *Model[T]) Value() []T { return m.value }
 
 func (m *Model[T]) SetValue(value []T) {
@@ -170,8 +201,8 @@ func (m *Model[T]) OnChange(fn func([]T) tea.Cmd) { m.onChange = fn }
 
 func (m *Model[T]) OnSubmit(fn func([]T) tea.Cmd) { m.onSubmit = fn }
 
-// AppendOnSubmit implements [input.Input]. It chains fn after any
-// previously registered onSubmit callback rather than replacing it.
+// AppendOnSubmit chains fn after any previously registered onSubmit
+// callback instead of replacing it.
 func (m *Model[T]) AppendOnSubmit(fn func() tea.Cmd) {
 	prev := m.onSubmit
 	m.onSubmit = func(value []T) tea.Cmd {
@@ -185,6 +216,7 @@ func (m *Model[T]) AppendOnSubmit(fn func() tea.Cmd) {
 func (m *Model[T]) setReadOnly(ro bool) {
 	m.readOnly = ro
 	if ro {
+		m.focused = false
 		m.huhInput.Blur()
 	}
 }

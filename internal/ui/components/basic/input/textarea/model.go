@@ -3,16 +3,17 @@ package textarea
 import (
 	"strings"
 
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
 )
 
-// Option configures a Model at construction time.
 type Option func(*Model)
 
 // Model is the multi-line string implementation of [input.Input].
@@ -21,6 +22,9 @@ type Model struct {
 	name string
 
 	layout *layout.Layout
+
+	theme *theme.Theme
+	log   logger.Set
 
 	title       string
 	placeholder string
@@ -39,9 +43,8 @@ type Model struct {
 	allowNewline bool
 }
 
-// New creates a new multi-line text input component.
 func New(
-	layout *layout.Layout,
+	deps ui.Deps,
 	title string,
 	options ...Option,
 ) input.Input[string] {
@@ -49,7 +52,9 @@ func New(
 	m := &Model{
 		id:                ui.NewComponentID(),
 		name:              "textarea",
-		layout:            layout,
+		layout:            deps.Layout,
+		theme:             deps.Theme,
+		log:               deps.Log,
 		title:             title,
 		textarea:          ta,
 		height:            3,
@@ -70,7 +75,6 @@ func New(
 	return m
 }
 
-// WithPlaceholder sets the placeholder text shown when the input is empty.
 func WithPlaceholder(p string) Option {
 	return func(m *Model) {
 		m.placeholder = p
@@ -78,28 +82,24 @@ func WithPlaceholder(p string) Option {
 	}
 }
 
-// WithValue sets the initial value of the input.
 func WithValue(value string) Option {
 	return func(m *Model) {
 		m.textarea.SetValue(value)
 	}
 }
 
-// WithValidation sets the function used to validate the input's value.
 func WithValidation(fn func(string) error) Option {
 	return func(m *Model) {
 		m.validationFunc = fn
 	}
 }
 
-// WithCharLimit sets the maximum number of characters the input will accept.
 func WithCharLimit(limit int) Option {
 	return func(m *Model) {
 		m.textarea.CharLimit = limit
 	}
 }
 
-// WithHeight sets the maximum height of the textarea.
 func WithHeight(height int) Option {
 	return func(m *Model) {
 		m.height = height
@@ -142,27 +142,22 @@ func WithOnSubmit(fn func(string) tea.Cmd) Option {
 	}
 }
 
-// Init initializes the component.
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-// ID returns the component identifier.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
-// Name returns the component name.
 func (m *Model) Name() string {
 	return m.name
 }
 
-// Mode returns the input mode used by this component.
 func (m *Model) Mode() env.Mode {
 	return env.InputMode
 }
 
-// Width calculates the maximum width of the input field.
 func (m *Model) Width() int {
 	if m.layout == nil {
 		return 50
@@ -170,34 +165,32 @@ func (m *Model) Width() int {
 	return min(50, m.layout.Body.Width)
 }
 
-// CloseCmd returns a command that closes this component.
 func (m *Model) CloseCmd() tea.Cmd {
 	return func() tea.Msg {
 		return ui.CloseComponentMsg{ID: m.ID()}
 	}
 }
 
-// OnClose is called when the component is removed.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-// Value implements [input.Input].
+func (m *Model) Theme() *theme.Theme { return m.theme }
+
+func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
+
 func (m *Model) Value() string {
 	return m.textarea.Value()
 }
 
-// SetValue implements [input.Input].
 func (m *Model) SetValue(value string) {
 	m.textarea.SetValue(value)
 }
 
-// ReadOnly implements [input.Input].
 func (m *Model) ReadOnly() bool {
 	return m.readOnly
 }
 
-// SetReadOnly implements [input.Input].
 func (m *Model) SetReadOnly(ro bool) {
 	m.setReadOnly(ro)
 }
@@ -206,18 +199,16 @@ func (m *Model) OnValidate(fn func(string) error) {
 	m.validationFunc = fn
 }
 
-// OnChange implements [input.Input].
 func (m *Model) OnChange(fn func(string) tea.Cmd) {
 	m.onChange = fn
 }
 
-// OnSubmit implements [input.Input].
 func (m *Model) OnSubmit(fn func(string) tea.Cmd) {
 	m.onSubmit = fn
 }
 
-// AppendOnSubmit implements [input.Input]. It chains fn after any
-// previously registered onSubmit callback rather than replacing it.
+// AppendOnSubmit chains fn after any previously registered onSubmit
+// callback instead of replacing it.
 func (m *Model) AppendOnSubmit(fn func() tea.Cmd) {
 	prev := m.onSubmit
 	m.onSubmit = func(value string) tea.Cmd {

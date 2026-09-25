@@ -15,6 +15,9 @@ import (
 // tabs component, then handling group switches, then forwarding everything
 // else to the field list.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	var cmds []tea.Cmd
 
 	if m.tabs != nil {
@@ -56,7 +59,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			field, ok := m.SelectedField()
 			if ok && field.Input != nil {
 				title := fmt.Sprintf("Description %s", field.Name)
-				return m, notice.NewNoticeCmd(m.layout, title, field.Description, notice.NOTICE_INFO)
+				return m, notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log}, title, field.Description, notice.NOTICE_INFO)
 			}
 		}
 	}

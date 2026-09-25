@@ -5,15 +5,16 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/main/splash"
 	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	ui.SyncState(msg, m.state)
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -26,7 +27,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if msg.String() == env.KeyCtrlT {
-			logger.DebugInfo("%s", dumpGoroutines())
+			m.state.Log.Debug.Info("%s", dumpGoroutines())
 		}
 
 	case splash.SplashDoneMsg:

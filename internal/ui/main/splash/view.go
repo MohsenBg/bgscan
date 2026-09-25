@@ -20,7 +20,7 @@ func (m model) View() string {
 
 	lines := make([]string, len(logoArt))
 	for li, line := range logoArt {
-		lines[li] = renderLine(line, progress, intensity, holding)
+		lines[li] = m.renderLine(line, progress, intensity, holding)
 	}
 
 	if intensity > shakeCutoff {
@@ -32,13 +32,13 @@ func (m model) View() string {
 
 	var bottom string
 	if holding {
-		bottom = "\n" + versionLine(m.frame-animFrames)
+		bottom = "\n" + m.versionLine(m.frame-animFrames)
 	} else {
-		bottom = artifactRow(intensity)
+		bottom = m.artifactRow(intensity)
 	}
 
 	content := strings.Join([]string{
-		artifactRow(intensity),
+		m.artifactRow(intensity),
 		strings.Join(lines, "\n"),
 		bottom,
 	}, "\n")
@@ -51,7 +51,7 @@ func (m model) View() string {
 	)
 }
 
-func renderLine(line string, progress, intensity float64, holding bool) string {
+func (m model) renderLine(line string, progress, intensity float64, holding bool) string {
 	runes := []rune(line)
 
 	corrChance := intensity * corruptionChance
@@ -73,10 +73,10 @@ func renderLine(line string, progress, intensity float64, holding bool) string {
 		s = shiftLine(s, shift)
 	}
 
-	return colorize(s, progress, holding)
+	return m.colorize(s, progress, holding)
 }
 
-func colorize(s string, progress float64, holding bool) string {
+func (m model) colorize(s string, progress float64, holding bool) string {
 	sweepActive := progress > sweepStartProgress
 	sweepPos := -10
 	if sweepActive {
@@ -95,26 +95,26 @@ func colorize(s string, progress float64, holding bool) string {
 		var st lipgloss.Style
 		switch {
 		case col >= sweepPos-1 && col <= sweepPos+1:
-			st = lipgloss.NewStyle().Bold(true).Foreground(accentColor())
+			st = lipgloss.NewStyle().Bold(true).Foreground(m.accentColor())
 		case strings.ContainsRune(glitchSet, ch):
 			if holding {
-				st = lipgloss.NewStyle().Foreground(accentColor())
+				st = lipgloss.NewStyle().Foreground(m.accentColor())
 			} else {
-				st = lipgloss.NewStyle().Foreground(glitchColor())
+				st = lipgloss.NewStyle().Foreground(m.glitchColor())
 			}
 		default:
-			st = lipgloss.NewStyle().Foreground(baseColor())
+			st = lipgloss.NewStyle().Foreground(m.baseColor())
 		}
 		sb.WriteString(st.Render(string(ch)))
 	}
 	return sb.String()
 }
 
-func artifactRow(intensity float64) string {
+func (m model) artifactRow(intensity float64) string {
 	if intensity <= 0 || rand.Float64() > intensity*artifactRowChance {
 		return " "
 	}
-	st := lipgloss.NewStyle().Foreground(glitchColor())
+	st := lipgloss.NewStyle().Foreground(m.glitchColor())
 	var sb strings.Builder
 	for i := 0; i < 1+rand.Intn(12); i++ {
 		sb.WriteString(st.Render(string(glitchChars[rand.Intn(len(glitchChars))])))
@@ -122,17 +122,19 @@ func artifactRow(intensity float64) string {
 	return strings.Repeat(" ", rand.Intn(20)) + sb.String()
 }
 
-func versionLine(holdFrame int) string {
-	var color string
+func (m model) versionLine(holdFrame int) string {
+	th := m.state.Theme()
+
+	// Theme-driven fade-in: faint muted, then muted, then full text.
+	st := lipgloss.NewStyle().Foreground(th.Muted)
 	switch {
 	case holdFrame < 7:
-		color = "#232833"
-	case holdFrame < 14:
-		color = "#4c566a"
-	default:
-		color = "#7b8794"
+		st = st.Faint(true)
+	case holdFrame >= 14:
+		st = st.Foreground(th.Text)
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Render(config.AppVersion)
+
+	return st.Render(config.AppVersion)
 }
 
 func shiftLine(s string, shift int) string {

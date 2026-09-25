@@ -44,9 +44,9 @@ func New(state *ui.AppState) ui.Component {
 		state:            state,
 		dialog:           make([]ui.Component, 0, 5),
 		dialogPlacements: make(map[ui.ComponentID]*dialogOptions),
-		header:           header.New(state.Layout),
+		header:           header.New(state.Deps()),
 		body:             body.New(state),
-		footer:           footer.New(state.Layout),
+		footer:           footer.New(state.Deps()),
 	}
 }
 

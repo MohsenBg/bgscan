@@ -16,7 +16,7 @@ func (m *Model) View() string {
 	noBtn, yesBtn := m.renderButtons()
 	buttons := m.layoutButtons(noBtn, yesBtn)
 
-	message := MessageStyle(lipgloss.Width(buttons)).Render(m.message)
+	message := m.messageStyle(lipgloss.Width(buttons)).Render(m.message)
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -28,15 +28,15 @@ func (m *Model) View() string {
 // renderButtons builds the styled "No" and "Yes" buttons.
 //
 // The button corresponding to the current selection state is rendered
-// using SelectButtonStyle while the other uses the normal ButtonStyle.
+// using selectButtonStyle while the other uses the normal buttonStyle.
 func (m *Model) renderButtons() (string, string) {
-	no := ButtonStyle().Render("No")
-	yes := ButtonStyle().Render("Yes")
+	no := m.buttonStyle().Render("No")
+	yes := m.buttonStyle().Render("Yes")
 
 	if m.confirm {
-		yes = SelectButtonStyle().Render("Yes")
+		yes = m.selectButtonStyle().Render("Yes")
 	} else {
-		no = SelectButtonStyle().Render("No")
+		no = m.selectButtonStyle().Render("No")
 	}
 
 	return no, yes
@@ -67,10 +67,7 @@ func (m *Model) layoutButtons(noBtn, yesBtn string) string {
 	)
 }
 
-// Mode returns the UI mode in which the confirmation dialog operates.
-//
-// Confirmation dialogs run in NormalMode because they handle their
-// own keyboard interactions and do not require special input modes.
+// Mode returns NormalMode because confirmations handle their own keys.
 func (m *Model) Mode() env.Mode {
 	return env.NormalMode
 }

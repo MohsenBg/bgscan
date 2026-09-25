@@ -1,11 +1,13 @@
 package form
 
 import (
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -63,6 +65,8 @@ func WithCancel(fn tea.Cmd) Option {
 type Model struct {
 	id        ui.ComponentID
 	layout    *layout.Layout
+	theme     *theme.Theme
+	log       logger.Set
 	inspector *inspector.Model
 
 	name   string
@@ -77,16 +81,18 @@ type Model struct {
 }
 
 func New(
-	layout *layout.Layout,
+	deps ui.Deps,
 	inspector *inspector.Model,
 	opts ...Option,
 ) *Model {
 	m := &Model{
 		id:        ui.NewComponentID(),
-		layout:    layout,
+		layout:    deps.Layout,
+		theme:     deps.Theme,
+		log:       deps.Log,
 		inspector: inspector,
-		height:    layout.BodyContentHeight(),
-		width:     layout.BodyContentWidth(),
+		height:    deps.Layout.BodyContentHeight(),
+		width:     deps.Layout.BodyContentWidth(),
 	}
 
 	for _, opt := range opts {
@@ -141,6 +147,15 @@ func (m *Model) Mode() env.Mode {
 	return env.ManagedMode
 }
 
+func (m *Model) Theme() *theme.Theme { return m.theme }
+
+func (m *Model) SetTheme(th *theme.Theme) {
+	m.theme = th
+	if m.inspector != nil {
+		m.inspector.SetTheme(th)
+	}
+}
+
 func (m *Model) OnClose() tea.Cmd {
 	if m.inspector == nil {
 		return nil
@@ -159,8 +174,7 @@ func (m *Model) Validate() error {
 
 func (m *Model) Save() tea.Cmd {
 	if err := m.Validate(); err != nil {
-		return notice.NewNoticeCmd(
-			m.layout,
+		return notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log},
 			"Validation Error",
 			err.Error(),
 			notice.NOTICE_ERROR,

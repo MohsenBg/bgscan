@@ -1,7 +1,6 @@
 package body
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
 	"github.com/MohsenBg/bgscan/internal/ui/main/footer"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
@@ -14,18 +13,27 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	lastIdx := len(m.components) - 1
 
 	switch msg := msg.(type) {
+	case ui.ThemeChangedMsg:
+		var cmds []tea.Cmd
+		for i := 0; i < len(m.components); i++ {
+			var cmd tea.Cmd
+			m.components[i], cmd = m.components[i].Update(msg)
+			cmds = append(cmds, cmd)
+		}
+		return m, tea.Batch(cmds...)
+
 	case tea.KeyPressMsg:
 		if env.IsBackKey(msg, m.components[lastIdx].Mode()) && len(m.components) > 1 {
 			return m.popComponent()
 		}
 
 		if env.IsQuitKey(msg, m.components[lastIdx].Mode()) {
-			return m, confirm.ExitConfirmCmd(m.state.Layout)
+			return m, confirm.ExitConfirmCmd(m.state.Deps())
 		}
 
 	case ui.OpenComponentMsg:
 		if msg.Component != nil {
-			logger.UIInfo("Opening screen: %s", msg.Component.Name())
+			m.state.Log.UI.Info("Opening screen: %s", msg.Component.Name())
 			return m.pushComponent(msg.Component)
 		}
 

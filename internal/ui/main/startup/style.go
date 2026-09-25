@@ -3,157 +3,155 @@ package startup
 import (
 	"image/color"
 
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
 	"charm.land/lipgloss/v2"
 )
 
-func titleBarStyle(width int) lipgloss.Style {
+func (m *model) titleBarStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).
 		Padding(0, 1).
-		BorderForeground(theme.Current().BorderActive)
+		BorderForeground(m.state.Theme().BorderActive)
 }
 
-func titleTextStyle(width int) lipgloss.Style {
+func (m *model) titleTextStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).
 		Align(lipgloss.Center).
 		Bold(true).
-		Foreground(theme.Current().Text)
+		Foreground(m.state.Theme().Text)
 }
 
-func sidebarContainerStyle(height int) lipgloss.Style {
+func (m *model) sidebarContainerStyle(height int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(sidebarWidth).
 		Height(height).
 		Padding(0, 1).
 		Border(lipgloss.RoundedBorder(), false, true, false, false).
-		BorderForeground(theme.Current().BorderActive)
+		BorderForeground(m.state.Theme().BorderActive)
 }
 
-func sidebarItemStyle() lipgloss.Style {
+func (m *model) sidebarItemStyle() lipgloss.Style {
 	return lipgloss.NewStyle().Width(sidebarWidth - 2)
 }
 
-func sidebarItemActiveStyle() lipgloss.Style {
-	return sidebarItemStyle().
-		Foreground(theme.Current().Primary).
+func (m *model) sidebarItemActiveStyle() lipgloss.Style {
+	return m.sidebarItemStyle().
+		Foreground(m.state.Theme().Primary).
 		Bold(true)
 }
 
-func contentContainerStyle(width int) lipgloss.Style {
+func (m *model) contentContainerStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().Width(width)
 }
 
-func contentPaddingStyle() lipgloss.Style {
+func (m *model) contentPaddingStyle() lipgloss.Style {
 	return lipgloss.NewStyle().Padding(0, 1)
 }
 
-func categoryLabelStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Bold(true).Foreground(theme.Current().Text)
+func (m *model) categoryLabelStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Bold(true).Foreground(m.state.Theme().Text)
 }
 
-func categoryLabelActiveStyle() lipgloss.Style {
-	return categoryLabelStyle().Foreground(theme.Current().Primary)
+func (m *model) categoryLabelActiveStyle() lipgloss.Style {
+	return m.categoryLabelStyle().Foreground(m.state.Theme().Primary)
 }
 
-func categoryLabelDoneStyle(status categoryStatus) lipgloss.Style {
-	return categoryLabelStyle().Foreground(statusColor(status))
+func (m *model) categoryLabelDoneStyle(status categoryStatus) lipgloss.Style {
+	return m.categoryLabelStyle().Foreground(m.statusColor(status))
 }
 
-func categoryLineStyle(width int) lipgloss.Style {
+func (m *model) categoryLineStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		PaddingLeft(2).
 		Width(width).
-		Foreground(theme.Current().Muted)
+		Foreground(m.state.Theme().Muted)
 }
 
-func statusColor(status categoryStatus) color.Color {
+func (m *model) statusColor(status categoryStatus) color.Color {
 	switch status {
 	case catOK:
-		return theme.Current().Success
+		return m.state.Theme().Success
 	case catWarn:
-		return theme.Current().Yellow
+		return m.state.Theme().Yellow
 	case catError:
-		return theme.Current().Error
+		return m.state.Theme().Error
 	case catWait:
-		return theme.Current().Primary
+		return m.state.Theme().Primary
 	default:
-		return theme.Current().Info
+		return m.state.Theme().Info
 	}
 }
 
-func statusPrefixStyle(status categoryStatus) lipgloss.Style {
+func (m *model) statusPrefixStyle(status categoryStatus) lipgloss.Style {
 	switch status {
 	case catOK:
-		return lipgloss.NewStyle().Foreground(theme.Current().Success)
+		return lipgloss.NewStyle().Foreground(m.state.Theme().Success)
 	case catWarn:
-		return lipgloss.NewStyle().Foreground(theme.Current().Yellow)
+		return lipgloss.NewStyle().Foreground(m.state.Theme().Yellow)
 	case catError:
-		return lipgloss.NewStyle().Foreground(theme.Current().Error)
+		return lipgloss.NewStyle().Foreground(m.state.Theme().Error)
 	case catWait:
-		return lipgloss.NewStyle().Foreground(theme.Current().Primary)
+		return lipgloss.NewStyle().Foreground(m.state.Theme().Primary)
 	default:
-		return lipgloss.NewStyle().Foreground(theme.Current().Info)
+		return lipgloss.NewStyle().Foreground(m.state.Theme().Info)
 	}
 }
 
-func spinnerStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(theme.Current().Primary)
+func (m *model) spinnerStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(m.state.Theme().Primary)
 }
 
-func pendingDotStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(theme.Current().Muted)
+func (m *model) pendingDotStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(m.state.Theme().Muted)
 }
 
-func helpHintStyle(width int) lipgloss.Style {
+func (m *model) helpHintStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).
 		Padding(1, 0).
 		Align(lipgloss.Center).
-		Foreground(theme.Current().Muted).
+		Foreground(m.state.Theme().Muted).
 		Faint(true)
 }
 
-func helpOverlayStyle() lipgloss.Style {
+func (m *model) helpOverlayStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Text).
+		Foreground(m.state.Theme().Text).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(theme.Current().BorderActive).
+		BorderForeground(m.state.Theme().BorderActive).
 		Padding(1, 2)
 }
 
-func helpTitleStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Bold(true).Foreground(theme.Current().Primary)
+func (m *model) helpTitleStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Bold(true).Foreground(m.state.Theme().Primary)
 }
 
-func keyStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(theme.Current().Info).Bold(true)
+func (m *model) keyStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(m.state.Theme().Info).Bold(true)
 }
 
-func descStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(theme.Current().Muted)
+func (m *model) descStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(m.state.Theme().Muted)
 }
 
-func fatalOverlayStyle() lipgloss.Style {
+func (m *model) fatalOverlayStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Text).
+		Foreground(m.state.Theme().Text).
 		Border(lipgloss.ThickBorder()).
-		BorderForeground(theme.Current().Error).
+		BorderForeground(m.state.Theme().Error).
 		Padding(1, 3)
 }
 
-func fatalTitleStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Bold(true).Foreground(theme.Current().Error)
+func (m *model) fatalTitleStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Bold(true).Foreground(m.state.Theme().Error)
 }
 
-func fatalCategoryStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Bold(true).Foreground(theme.Current().Text)
+func (m *model) fatalCategoryStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Bold(true).Foreground(m.state.Theme().Text)
 }
 
-func fatalMessageStyle(width int) lipgloss.Style {
-	return lipgloss.NewStyle().Width(width).Foreground(theme.Current().Muted)
+func (m *model) fatalMessageStyle(width int) lipgloss.Style {
+	return lipgloss.NewStyle().Width(width).Foreground(m.state.Theme().Muted)
 }
 
 func fatalContentWidth(termWidth int) int {

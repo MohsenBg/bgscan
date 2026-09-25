@@ -2,7 +2,6 @@ package picker
 
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/lipgloss/v2"
 )
@@ -21,35 +20,35 @@ func containerStyle(width, height int) lipgloss.Style {
 		Margin(1, 0)
 }
 
-func TitleStyle(width int) lipgloss.Style {
+func (m *Model) titleStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width-5).
 		Align(lipgloss.Center).
 		Bold(true).
-		Foreground(theme.Current().Info).
+		Foreground(m.theme.Info).
 		Padding(0, 0, 2, 0).
-		BorderForeground(lipgloss.Color("240"))
+		BorderForeground(m.theme.Border)
 }
 
-func currentDirStyle(width int) lipgloss.Style {
+func (m *Model) currentDirStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width-5).
 		Align(lipgloss.Left).
 		Bold(true).
-		Foreground(theme.Current().Yellow).
+		Foreground(m.theme.Yellow).
 		Border(lipgloss.NormalBorder(), false, false, true, false)
 }
 
-func helpStyle(width int) lipgloss.Style {
+func (m *Model) helpStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width - 5).
-		Foreground(theme.Current().Muted).
+		Foreground(m.theme.Muted).
 		Align(lipgloss.Center).
 		PaddingTop(1)
 }
 
-func helpKeyStyle() lipgloss.Style {
+func (m *Model) helpKeyStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Secondary).
+		Foreground(m.theme.Secondary).
 		Bold(true)
 }

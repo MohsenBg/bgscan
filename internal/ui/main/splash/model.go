@@ -7,7 +7,6 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -88,6 +87,6 @@ func tickCmd() tea.Cmd {
 	return tea.Tick(tickInterval, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
 
-func baseColor() color.Color   { return theme.Current().Success }
-func glitchColor() color.Color { return theme.Current().Muted }
-func accentColor() color.Color { return theme.Current().Secondary }
+func (m model) baseColor() color.Color   { return m.state.Theme().Success }
+func (m model) glitchColor() color.Color { return m.state.Theme().Muted }
+func (m model) accentColor() color.Color { return m.state.Theme().Secondary }

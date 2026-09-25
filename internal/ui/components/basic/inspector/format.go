@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 func FormatInt(v any) string {
@@ -82,7 +81,6 @@ func FormatStringList(value any) string {
 
 	items, ok := value.([]string)
 	if !ok {
-		logger.UIError("Error while casting type to []string")
 		return ""
 	}
 
@@ -112,7 +110,6 @@ func FormatStringList(value any) string {
 func FormatIntList(value any) string {
 	items, ok := value.([]int)
 	if !ok {
-		logger.UIError("Error while casting type to []int")
 		return ""
 	}
 
@@ -132,7 +129,6 @@ func FormatDataSpeed(v any) string {
 
 	kpbs, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		logger.UIError("Error while casting type to uint64")
 		return ""
 	}
 
@@ -205,6 +201,19 @@ func FormatZeroAsAuto(v any) string {
 	}
 
 	if f == 0 {
+		return "Auto"
+	}
+
+	return s
+}
+
+func FormatEmptyStringAuto(v any) string {
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	if s == "" {
 		return "Auto"
 	}
 

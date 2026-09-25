@@ -1,14 +1,12 @@
 package form
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
 	"charm.land/lipgloss/v2"
 )
 
 func (m *Model) renderTitle() string {
 	return lipgloss.NewStyle().
-		Foreground(theme.Current().Primary).
+		Foreground(m.theme.Primary).
 		Bold(true).Padding(1, 0).
 		Align(lipgloss.Center).
 		Width(m.width).
@@ -24,8 +22,8 @@ func (m *Model) renderInspector() string {
 }
 
 func (m *Model) renderKeyHints() string {
-	save := keyHintStyle().Render("•s save")
-	cancel := keyHintStyle().Render("•esc/b cancel")
+	save := m.keyHintStyle().Render("•s save")
+	cancel := m.keyHintStyle().Render("•esc/b cancel")
 
 	return lipgloss.NewStyle().
 		Width(m.width).

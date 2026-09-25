@@ -13,6 +13,10 @@ import (
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmd tea.Cmd
 
+	if ui.HandleTheme(msg, m) {
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.updateMenuLayout()
@@ -58,7 +62,7 @@ func (m *Model) updateMenuLayout() {
 	height := m.height
 
 	if m.widthAuto {
-		width = min(m.Layout.BodyContentWidth(), 50)
+		width = min(m.Layout.BodyContentWidth(), 55)
 	}
 
 	if m.heightAuto {

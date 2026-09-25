@@ -9,6 +9,9 @@ import (
 // Update closes the notice on Enter and forwards all messages to the internal
 // viewport so long messages remain scrollable.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if msg.Code == tea.KeyEnter {
@@ -16,7 +19,6 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		}
 	}
 
-	// Delegate message handling to the viewport
 	var cmd tea.Cmd
 	m.viewport, cmd = m.viewport.Update(msg)
 

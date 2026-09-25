@@ -1,8 +1,10 @@
 package confirm
 
 import (
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -13,6 +15,8 @@ type Model struct {
 	name string
 
 	layout *layout.Layout
+	theme  *theme.Theme
+	log    logger.Set
 
 	message string
 	confirm bool
@@ -20,9 +24,8 @@ type Model struct {
 	confirmFunc tea.Cmd
 }
 
-// New creates a new confirmation dialog.
 func New(
-	layout *layout.Layout,
+	deps ui.Deps,
 	message string,
 	onConfirm func() tea.Msg,
 	defaultYes bool,
@@ -30,29 +33,31 @@ func New(
 	return &Model{
 		id:          ui.NewComponentID(),
 		name:        "confirm",
-		layout:      layout,
+		layout:      deps.Layout,
+		theme:       deps.Theme,
+		log:         deps.Log,
 		message:     message,
 		confirm:     defaultYes,
 		confirmFunc: onConfirm,
 	}
 }
 
-// ID returns the component identifier.
+func (m *Model) Theme() *theme.Theme { return m.theme }
+
+func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
+
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
-// Init initializes the component.
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-// Name returns the component name.
 func (m *Model) Name() string {
 	return m.name
 }
 
-// OnClose is called when the component is removed.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }

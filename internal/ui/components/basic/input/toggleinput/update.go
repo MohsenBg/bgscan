@@ -10,6 +10,9 @@ import (
 // Update processes incoming Bubble Tea messages and updates the state
 // of the toggle component.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
+	if ui.HandleTheme(msg, m) {
+		return m, nil
+	}
 	prev := m.value
 
 	updated, cmd := m.huhInput.Update(msg)

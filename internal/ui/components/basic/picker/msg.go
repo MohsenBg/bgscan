@@ -2,7 +2,7 @@ package picker
 
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -19,7 +19,7 @@ type OnSelect func(path string) tea.Cmd
 // is executed.
 //
 // Parameters:
-//   - l           : layout manager used for sizing and positioning
+//   - deps        : shared UI dependencies (layout, theme, logs)
 //   - title       : title displayed in the picker header
 //   - baseDir     : initial directory (defaults to home directory if empty)
 //   - allowedExt  : list of allowed file extensions (e.g. ".txt", ".csv")
@@ -28,7 +28,7 @@ type OnSelect func(path string) tea.Cmd
 //
 // The picker is centered by default unless overridden via options.
 func OpenFilePickerCmd(
-	l *layout.Layout,
+	deps ui.Deps,
 	title string,
 	baseDir string,
 	allowedExt []string,
@@ -36,7 +36,7 @@ func OpenFilePickerCmd(
 	options ...dialog.DialogOption,
 ) tea.Cmd {
 	return func() tea.Msg {
-		p := New(l, title, baseDir, allowedExt, onSelect)
+		p := New(deps, title, baseDir, allowedExt, onSelect)
 
 		return dialog.OpenDialog(
 			p,

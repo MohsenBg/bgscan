@@ -9,6 +9,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -30,7 +31,6 @@ func (i MenuItem) Icon() string           { return i.icon }
 func (i MenuItem) Shortcut() string       { return i.shortcut }
 func (i MenuItem) Action() func() tea.Cmd { return i.action }
 
-// NewMenuItem creates a new menu item.
 func NewMenuItem(
 	icon string,
 	title string,
@@ -49,12 +49,14 @@ func NewMenuItem(
 type ItemDelegate struct {
 	showIcon     bool
 	showShortcut bool
+	theme        *theme.Theme
 }
 
-func NewItemDelegate(showIcon, showShortcut bool) ItemDelegate {
+func NewItemDelegate(showIcon, showShortcut bool, th *theme.Theme) ItemDelegate {
 	return ItemDelegate{
 		showIcon:     showIcon,
 		showShortcut: showShortcut,
+		theme:        th,
 	}
 }
 
@@ -83,23 +85,23 @@ func (d ItemDelegate) Render(
 	// Icon column.
 	if d.showIcon {
 		if selected {
-			left += selectedIconStyle().Render(item.icon)
+			left += selectedIconStyle(d.theme).Render(item.icon)
 		} else {
-			left += iconStyle().Render(item.icon)
+			left += iconStyle(d.theme).Render(item.icon)
 		}
 	}
 
 	// Title.
 	if selected {
-		left += selectedItemTitleStyle().Render(item.title)
+		left += selectedItemTitleStyle(d.theme).Render(item.title)
 	} else {
-		left += itemTitleStyle().Render(item.title)
+		left += itemTitleStyle(d.theme).Render(item.title)
 	}
 
 	// Shortcut.
 	var right string
 	if d.showShortcut && item.shortcut != "" {
-		right = shortcutStyle().Render(item.shortcut)
+		right = shortcutStyle(d.theme).Render(item.shortcut)
 	}
 
 	// Keep the shortcut aligned to the right edge.
@@ -115,10 +117,7 @@ func (d ItemDelegate) Render(
 		right,
 	)
 
-	_, err := fmt.Fprint(w, PaddingCell().Render(line))
-	if err != nil {
-		logger.UIError("Error while rendering menu: %v", err)
-	}
+	_, _ = fmt.Fprint(w, PaddingCell().Render(line))
 }
 
 // Option configures a menu.
@@ -169,6 +168,8 @@ type Model struct {
 	List     list.Model
 	onSelect func(MenuItem) tea.Cmd
 	Layout   *layout.Layout
+	theme    *theme.Theme
+	log      logger.Set
 	items    []MenuItem
 
 	showIcon     bool
@@ -184,18 +185,20 @@ type Model struct {
 func New(
 	items []MenuItem,
 	title string,
-	layout *layout.Layout,
+	deps ui.Deps,
 	options ...Option,
 ) *Model {
 	m := &Model{
 		id:           ui.NewComponentID(),
 		name:         "menu",
 		items:        items,
-		Layout:       layout,
+		Layout:       deps.Layout,
+		theme:        deps.Theme,
+		log:          deps.Log,
 		showIcon:     true,
 		showShortcut: true,
-		width:        layout.BodyContentWidth(),
-		height:       layout.BodyContentHeight(),
+		width:        deps.Layout.BodyContentWidth(),
+		height:       deps.Layout.BodyContentHeight(),
 		widthAuto:    true,
 		heightAuto:   true,
 	}
@@ -213,6 +216,7 @@ func New(
 	delegate := NewItemDelegate(
 		m.showIcon,
 		m.showShortcut,
+		m.theme,
 	)
 
 	m.List = list.New(
@@ -223,7 +227,7 @@ func New(
 	)
 
 	m.List.Title = title
-	m.List.Styles.Title = titleStyle()
+	m.List.Styles.Title = titleStyle(m.theme)
 
 	m.List.SetShowStatusBar(false)
 	m.List.SetFilteringEnabled(false)
@@ -235,6 +239,10 @@ func New(
 			key.NewBinding(
 				key.WithKeys(env.KeyEnter),
 				key.WithHelp(env.KeyEnter, "select"),
+			),
+			key.NewBinding(
+				key.WithKeys("q"),
+				key.WithHelp("q", "quite"),
 			),
 		}
 	}
@@ -255,6 +263,15 @@ func New(
 
 func (m *Model) Init() tea.Cmd {
 	return nil
+}
+
+func (m *Model) Theme() *theme.Theme { return m.theme }
+
+// SetTheme refreshes the cached list styles.
+func (m *Model) SetTheme(th *theme.Theme) {
+	m.theme = th
+	m.List.Styles.Title = titleStyle(m.theme)
+	m.List.SetDelegate(NewItemDelegate(m.showIcon, m.showShortcut, th))
 }
 
 func (m *Model) ID() ui.ComponentID {

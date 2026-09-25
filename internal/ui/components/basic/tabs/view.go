@@ -59,10 +59,10 @@ func (m *Model[T]) View() string {
 		}
 
 		var b strings.Builder
-		b.WriteString(inactiveBorderStyle().Render(strings.Repeat("─", offset)))
-		b.WriteString(activeBorderStyle().Render(strings.Repeat("─", widths[m.idx])))
+		b.WriteString(m.inactiveBorderStyle().Render(strings.Repeat("─", offset)))
+		b.WriteString(m.activeBorderStyle().Render(strings.Repeat("─", widths[m.idx])))
 		if rest := lineWidth - activeEnd; rest > 0 {
-			b.WriteString(inactiveBorderStyle().Render(strings.Repeat("─", rest)))
+			b.WriteString(m.inactiveBorderStyle().Render(strings.Repeat("─", rest)))
 		}
 
 		out = lipgloss.JoinVertical(lipgloss.Left, row, b.String())

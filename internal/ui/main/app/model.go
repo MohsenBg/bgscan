@@ -1,11 +1,13 @@
 package app
 
 import (
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/main/splash"
 	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
 	"github.com/MohsenBg/bgscan/internal/ui/main/workspace"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -31,9 +33,17 @@ type model struct {
 	stage     AppStage
 }
 
-func New() Application {
+func New(logs logger.Set) Application {
 	l := layout.New()
-	state := &ui.AppState{Layout: l}
+	theme.Init()
+
+	settings := ui.LoadSettings(logs.UI)
+	if lvl, err := logger.ParseLevel(settings.LogLevel); err == nil {
+		logs.SetLevel(lvl)
+	}
+
+	state := &ui.AppState{Layout: l, Log: logs, Settings: settings}
+
 	return &model{
 		state:     state,
 		splash:    splash.New(state),

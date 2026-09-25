@@ -18,7 +18,7 @@ func (m model) View() string {
 
 	content = m.renderOverlays(content)
 	view := containerStyle(termWidth, termHeight).Render(
-		mainStyle(m.state.Layout.Content.Width, m.state.Layout.Content.Height).Render(content),
+		m.mainStyle(m.state.Layout.Content.Width, m.state.Layout.Content.Height).Render(content),
 	)
 
 	return view
@@ -31,7 +31,7 @@ func (m *model) renderOverlays(baseView string) string {
 		placement := m.getDialogPlacement(layer.ID())
 
 		view = overlay.Composite(
-			WindowStyle(m.state.Layout.Body.Width).Render(layer.View()),
+			m.windowStyle(m.state.Layout.Body.Width).Render(layer.View()),
 			view,
 			placement.XPos,
 			placement.YPos,

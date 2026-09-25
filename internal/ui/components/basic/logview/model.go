@@ -43,7 +43,6 @@ type Model struct {
 	cancel context.CancelFunc
 }
 
-// New creates a new log viewer component.
 func New(state *ui.AppState, log *logger.Logger, title string) *Model {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -141,7 +140,7 @@ func (m *Model) setSize() {
 
 	m.viewport.SetWidth(width)
 	helpHeight := lipgloss.Height(
-		helpStyle(m.viewport.Width()).Render(helpView()),
+		m.helpStyle(m.viewport.Width()).Render(m.helpView()),
 	)
 
 	height := m.state.Layout.Body.Height -
@@ -151,12 +150,10 @@ func (m *Model) setSize() {
 	m.viewport.SetHeight(height)
 }
 
-// ID returns the component identifier.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
-// Name returns the component name.
 func (m *Model) Name() string {
 	return m.name
 }

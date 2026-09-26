@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 
-		tea "charm.land/bubbletea/v2"
+	tea "charm.land/bubbletea/v2"
 )
 
 func (m *model) View() tea.View {

@@ -6,7 +6,7 @@
   <img src="./images/logo-light.svg" alt="BGSCAN" width="520" style="max-width:100%;">
 </picture>
 
-Blazing-fast multi-protocol IP scanner with modular chain architecture
+multi-protocol IP scanner with modular chain architecture
 
 [English](./README.md) | [فارسی](./README.fa.md)
 

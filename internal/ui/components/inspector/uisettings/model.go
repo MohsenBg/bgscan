@@ -1,6 +1,7 @@
 package uisettings
 
 import (
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -96,6 +97,9 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			if n <= 0 {
 				return errPositiveRows
+			}
+			if n > math.MaxUint32 {
+				return errMaxRows
 			}
 			return nil
 		}),

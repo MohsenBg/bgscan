@@ -91,14 +91,14 @@ func New(state *ui.AppState, name string) *Model {
 	maxRow := textinput.New(state.Deps(), "Enter Max Rows",
 		textinput.WithValue(strconv.FormatUint(uint64(cfg.MaxRow), 10)),
 		textinput.WithValidation(func(v string) error {
-			n, err := strconv.Atoi(v)
+			n, err := strconv.ParseInt(v, 10, 64)
 			if err != nil {
 				return err
 			}
 			if n <= 0 {
 				return errPositiveRows
 			}
-			if n > math.MaxUint32 {
+			if n > int64(math.MaxUint32) {
 				return errMaxRows
 			}
 			return nil

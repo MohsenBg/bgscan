@@ -9,8 +9,6 @@ import (
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 const cloudflareUpURL = "https://speed.cloudflare.com/__up"
@@ -46,9 +44,9 @@ type UploadConfig struct {
 	) (net.Conn, error)
 }
 
-// MeasureUploadSpeed uploads cfg.Bytes and measures the throughput.
+// measureUploadSpeed uploads cfg.Bytes and measures the throughput.
 //
-// Unlike MeasureDownloadSpeed, connection setup and TLS handshake are
+// Unlike measureDownloadSpeed, connection setup and TLS handshake are
 // included in the measurement window here, since the upload body starts
 // streaming as part of the same request/response round trip and can't be
 // cleanly separated from connection setup without a second connection.
@@ -104,11 +102,7 @@ func measureUploadSpeed(ctx context.Context, cfg UploadConfig) (SpeedResult, err
 
 		return SpeedResult{}, fmt.Errorf("upload probe failed: %w", err)
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			logger.CoreError("error closing response body: %v", err)
-		}
-	}()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return SpeedResult{}, fmt.Errorf("upload probe unexpected status: %s", resp.Status)

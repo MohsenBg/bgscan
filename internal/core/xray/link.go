@@ -1,8 +1,7 @@
 package xray
 
-// Derived from the original implementation at:
-// https://github.com/MHSanaei/3x-ui/blob/main/util/link/outbound.go
-// Modified and fix some problem to specifically parse user outbound configurations.
+// Adapted from https://github.com/MHSanaei/3x-ui/blob/main/util/link/outbound.go
+// to parse user outbound configurations.
 
 import (
 	"encoding/base64"
@@ -53,14 +52,11 @@ func ParseLink(link string) (*ParseResult, error) {
 	}
 }
 
-// --- vmess ---
-
 func parseVmess(link string) (*ParseResult, error) {
 	b64 := strings.TrimPrefix(link, "vmess://")
-	// vmess:// base64(json)
+	// vmess:// is base64(json); some providers use raw URL-safe encoding.
 	raw, err := base64.StdEncoding.DecodeString(padBase64(b64))
 	if err != nil {
-		// Some providers use raw URL-safe
 		raw, err = base64.RawURLEncoding.DecodeString(b64)
 	}
 	if err != nil {
@@ -80,7 +76,7 @@ func parseVmess(link string) (*ParseResult, error) {
 	}
 	stream := buildStream(network, security)
 
-	// Map known fields (best effort, matching frontend parser coverage)
+	// Best effort, matching frontend parser coverage.
 	switch network {
 	case "ws":
 		if host, ok := j["host"].(string); ok {
@@ -172,8 +168,6 @@ func vmessIdentity(j map[string]any) string {
 	return "vmess:" + string(b)
 }
 
-// --- vless / trojan (URL forms) ---
-
 func parseVless(link string) (*ParseResult, error) {
 	u, err := url.Parse(link)
 	if err != nil {
@@ -264,8 +258,6 @@ func parseTrojan(link string) (*ParseResult, error) {
 	return &ParseResult{Outbound: ob, Identity: identity}, nil
 }
 
-// --- shadowsocks ---
-
 func parseShadowsocks(link string) (*ParseResult, error) {
 	// Two shapes:
 	//   ss://base64(method:pass)@host:port#remark
@@ -278,7 +270,7 @@ func parseShadowsocks(link string) (*ParseResult, error) {
 	core := strings.TrimPrefix(link, "ss://")
 	at := strings.Index(core, "@")
 	if at >= 0 {
-		// modern
+		// Modern form: userinfo@host.
 		userB64 := core[:at]
 		hp := core[at+1:]
 		userInfo, err := base64DecodeFlexible(userB64)
@@ -304,7 +296,7 @@ func parseShadowsocks(link string) (*ParseResult, error) {
 		}
 		return &ParseResult{Outbound: ob, Identity: identity}, nil
 	}
-	// legacy: whole thing b64
+	// Legacy form: the whole link body is base64.
 	dec, err := base64DecodeFlexible(core)
 	if err != nil {
 		return nil, err
@@ -342,8 +334,6 @@ func splitMethodPass(userInfo string) (string, string) {
 	}
 	return before, after
 }
-
-// --- hysteria2 ---
 
 func parseHysteria2(link string) (*ParseResult, error) {
 	u, err := url.Parse(link)
@@ -387,8 +377,6 @@ func parseHysteria2(link string) (*ParseResult, error) {
 	}
 	return &ParseResult{Outbound: ob, Identity: identity}, nil
 }
-
-// --- wireguard ---
 
 func parseWireguard(link string) (*ParseResult, error) {
 	u, err := url.Parse(link)
@@ -465,8 +453,6 @@ func parseWireguard(link string) (*ParseResult, error) {
 	return &ParseResult{Outbound: ob, Identity: identity}, nil
 }
 
-// --- helpers ---
-
 func buildStream(network, security string) map[string]any {
 	stream := map[string]any{"network": network, "security": security}
 	switch network {
@@ -536,7 +522,6 @@ func applyTransport(stream map[string]any, p url.Values) {
 	case "xhttp":
 		xh := stream["xhttpSettings"].(map[string]any)
 
-		// host / path / mode (required fields)
 		if host := p.Get("host"); host != "" {
 			xh["host"] = host
 		}
@@ -549,10 +534,9 @@ func applyTransport(stream map[string]any, p url.Values) {
 			xh["mode"] = mode
 		}
 
-		// ---- EXTRA FIX ----
 		extra := map[string]any{}
 
-		// decode JSON string inside query param
+		// "extra" carries a JSON string inside the query param.
 		if raw := p.Get("extra"); raw != "" {
 			var obj map[string]any
 			if err := json.Unmarshal([]byte(raw), &obj); err == nil {
@@ -741,12 +725,11 @@ func firstParam(p url.Values, keys ...string) string {
 }
 
 func canonicalQuery(p url.Values) string {
-	// Sort keys for stable identity
+	// Sort keys for a stable identity.
 	keys := make([]string, 0, len(p))
 	for k := range p {
 		keys = append(keys, k)
 	}
-	// simple sort
 	for i := 0; i < len(keys); i++ {
 		for j := i + 1; j < len(keys); j++ {
 			if keys[j] < keys[i] {

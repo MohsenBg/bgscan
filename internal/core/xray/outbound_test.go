@@ -229,7 +229,7 @@ func TestLoadOutboundFileMetadata(t *testing.T) {
 
 func TestSaveOutboundFromFile_Errors(t *testing.T) {
 	t.Run("missing source", func(t *testing.T) {
-		_, err := SaveOutboundFromFile(filepath.Join(t.TempDir(), "missing.json"), "node")
+		_, err := SaveOutboundFromFile(nil, filepath.Join(t.TempDir(), "missing.json"), "node")
 		if err == nil {
 			t.Fatal("expected error")
 		}
@@ -237,7 +237,7 @@ func TestSaveOutboundFromFile_Errors(t *testing.T) {
 
 	t.Run("source is directory", func(t *testing.T) {
 		dir := t.TempDir()
-		_, err := SaveOutboundFromFile(dir, "node")
+		_, err := SaveOutboundFromFile(nil, dir, "node")
 		if err == nil {
 			t.Fatal("expected error")
 		}
@@ -250,7 +250,7 @@ func TestSaveOutboundFromFile_Errors(t *testing.T) {
 			t.Fatalf("os.WriteFile() error = %v", err)
 		}
 
-		_, err := SaveOutboundFromFile(src, "node")
+		_, err := SaveOutboundFromFile(nil, src, "node")
 		if err == nil {
 			t.Fatal("expected error")
 		}
@@ -271,7 +271,7 @@ func TestSaveOutboundFromFile_Errors(t *testing.T) {
 			},
 		})
 
-		_, err := SaveOutboundFromFile(src, "node")
+		_, err := SaveOutboundFromFile(nil, src, "node")
 		if err == nil {
 			t.Fatal("expected error")
 		}

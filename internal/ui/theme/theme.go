@@ -1,49 +1,13 @@
-// Package theme provides a centralized color palette and theme management
-// system for the terminal UI.
-//
-// It supports three modes:
-//
-//   - ModeDark  – forces the dark color palette
-//   - ModeLight – forces the light color palette
-//   - ModeAuto  – automatically selects a palette based on terminal background
-//
-// The package exposes a minimal API used by UI components to retrieve
-// the active theme and react to theme changes.
-//
-// Example:
-//
-//	th := theme.Current()
-//
-//	title := lipgloss.NewStyle().
-//		Foreground(th.Primary).
-//		Bold(true)
-//
-//	fmt.Println(title.Render("BGScan"))
 package theme
 
 import (
 	"image/color"
 	"os"
-
-	"charm.land/lipgloss/v2"
 )
 
-type ThemeMode int
-
-const (
-	// ModeAuto selects the theme automatically based on terminal detection.
-	ModeAuto ThemeMode = iota
-
-	// ModeDark forces the dark color palette.
-	ModeDark
-
-	// ModeLight forces the light color palette.
-	ModeLight
-)
-
-// Theme is the app's active color palette. Components should use it rather
-// than hardcoding colors so the UI stays consistent across theme modes.
 type Theme struct {
+	Name string `toml:"-"`
+
 	Primary   color.Color
 	Secondary color.Color
 
@@ -62,88 +26,93 @@ type Theme struct {
 	Yellow color.Color
 	Purple color.Color
 
+	Selected color.Color
+	Warning  color.Color
+
+	Background color.Color
+
 	ProgressStart color.Color
 	ProgressEnd   color.Color
 }
 
-// Dark defines the dark terminal color palette.
-var Dark = Theme{
-	Primary:       lipgloss.Color("#D75FD7"),
-	Secondary:     lipgloss.Color("#8A8A8A"),
-	Border:        lipgloss.Color("#585858"),
-	BorderActive:  lipgloss.Color("#5F5FD7"),
-	Text:          lipgloss.Color("#D0D0D0"),
-	Muted:         lipgloss.Color("#626262"),
-	Timestamp:     lipgloss.Color("#CE9178"),
-	Error:         lipgloss.Color("#FF0000"),
-	Success:       lipgloss.Color("#00D787"),
-	Info:          lipgloss.Color("#00AFFF"),
-	Orange:        lipgloss.Color("#FF8700"),
-	Yellow:        lipgloss.Color("#FFD700"),
-	Purple:        lipgloss.Color("#5F5FD7"),
-	ProgressStart: lipgloss.Color("#A78BFA"),
-	ProgressEnd:   lipgloss.Color("#7DD3FC"),
-}
-
-// Light defines the light terminal color palette.
-var Light = Theme{
-	Primary:       lipgloss.Color("#D75FD7"),
-	Secondary:     lipgloss.Color("#A8A8A8"),
-	Border:        lipgloss.Color("#808080"),
-	BorderActive:  lipgloss.Color("#5F5FD7"),
-	Text:          lipgloss.Color("#1C1C1C"),
-	Muted:         lipgloss.Color("#949494"),
-	Timestamp:     lipgloss.Color("#1E3A8A"),
-	Info:          lipgloss.Color("#005FFF"),
-	Error:         lipgloss.Color("#D70000"),
-	Success:       lipgloss.Color("#008700"),
-	Orange:        lipgloss.Color("#FF8700"),
-	Yellow:        lipgloss.Color("#FFD700"),
-	Purple:        lipgloss.Color("#5F5FD7"),
-	ProgressStart: lipgloss.Color("#6D28D9"),
-	ProgressEnd:   lipgloss.Color("#0369A1"),
-}
-
 var (
-	current Theme
-	mode    = ModeAuto
+	registry = map[string]Theme{}
+	order    []string
 )
 
-// Current returns the active theme palette.
-//
-// The returned Theme is a copy of internal state and is safe for concurrent reads.
-func Current() Theme {
-	return current
-}
-
-// Mode returns the currently configured ThemeMode.
-func Mode() ThemeMode {
-	return mode
-}
-
-// SetMode updates the active theme mode and resolves the matching palette.
-func SetMode(m ThemeMode) {
-	mode = m
-	resolve()
-}
-
-func resolve() {
-	switch mode {
-
-	case ModeDark:
-		current = Dark
-
-	case ModeLight:
-		current = Light
-
-	case ModeAuto:
-		if terminalLooksDark() {
-			current = Dark
-		} else {
-			current = Light
+func Register(themes ...Theme) {
+	for _, t := range themes {
+		if t.Name == "" {
+			continue
 		}
 
+		if _, ok := registry[t.Name]; !ok {
+			order = append(order, t.Name)
+		}
+
+		registry[t.Name] = t
 	}
+}
+
+// Init registers the built-in themes in List order.
+func Init() {
+	Register(
+		BGScanDark,
+		TokyoNight,
+		GruvboxDark,
+		OneDark,
+		Dracula,
+		Monokai,
+		SolarizedDark,
+		RosePineDark,
+		Kanagawa,
+		GithubDark,
+		MaterialDark,
+		EverforestDark,
+		AyuDark,
+
+		BGScanLight,
+		GruvboxLight,
+		OneLight,
+		SolarizedLight,
+		RosePineDawn,
+		EverforestLight,
+		AyuLight,
+		GithubLight,
+	)
+}
+
+// List returns registered theme names in cycle order.
+func List() []string {
+	return append([]string(nil), order...)
+}
+
+// Get returns the named theme. An empty name auto-detects from the
+// terminal; unknown names return an UnknownThemeError.
+func Get(name string) (*Theme, error) {
+	if name == "" {
+		if terminalLooksDark() {
+			name = BGScanDark.Name
+		} else {
+			name = BGScanLight.Name
+		}
+	}
+
+	t, ok := registry[name]
+	if !ok {
+		return nil, &UnknownThemeError{Name: name}
+	}
+	return &t, nil
+}
+
+// UnknownThemeError reports an attempt to activate a theme that is not
+// registered.
+type UnknownThemeError struct {
+	Name string
+}
+
+func (e *UnknownThemeError) Error() string {
+	return "unknown theme " + e.Name
 }
 
 // terminalLooksDark detects terminal background darkness from COLORFGBG.
@@ -167,9 +136,4 @@ func terminalLooksDark() bool {
 	default:
 		return false
 	}
-}
-
-// Init initializes the active theme from the configured mode.
-func Init() {
-	resolve()
 }

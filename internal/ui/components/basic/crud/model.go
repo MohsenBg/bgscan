@@ -11,9 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-
 type MsgRefresh struct{}
-
 
 type actionEntry[T any] struct {
 	needsItem bool

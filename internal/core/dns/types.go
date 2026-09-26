@@ -58,9 +58,8 @@ func (t ResolverType) IsValid() bool {
 	}
 }
 
-// ParseResolverType parses a resolver type.
-// Parsing is case-insensitive and ignores surrounding whitespace.
-// Unknown values default to ResolverTypeUDP.
+// ParseResolverType parses a resolver type case-insensitively, defaulting to
+// ResolverTypeUDP for unknown values.
 func ParseResolverType(s string) ResolverType {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case string(ResolverTypeTCP):

@@ -107,7 +107,6 @@ func DefaultSlipstreamConfig() SlipstreamConfig {
 	}
 }
 
-// Validate validates the Slipstream configuration.
 func (c SlipstreamConfig) Validate() map[string]error {
 	errs := make(map[string]error)
 
@@ -198,10 +197,8 @@ func WithSlipstreamStarter(start slipstreamStarter) SlipstreamServiceOption {
 	}
 }
 
-// NewSlipstreamService creates a Slipstream service.
-//
-// Unless WithSlipstreamClientLib (or WithSlipstreamStarter) is provided, it
-// loads libslipstream before returning the service.
+// NewSlipstreamService loads libslipstream before returning the service,
+// unless WithSlipstreamClientLib (or WithSlipstreamStarter) is provided.
 func NewSlipstreamService(
 	opts ...SlipstreamServiceOption,
 ) (SlipstreamService, error) {

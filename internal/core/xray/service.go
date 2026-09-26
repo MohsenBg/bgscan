@@ -13,8 +13,8 @@ import (
 	core "github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/shared"
 
-	// Registers all proxies/transports, otherwise the core rejects
-	// configs with "proxy not registered".
+	// Registers all proxies/transports; without it the core rejects configs
+	// with "proxy not registered".
 	_ "github.com/xtls/xray-core/main/distro/all"
 	_ "github.com/xtls/xray-core/main/json"
 )

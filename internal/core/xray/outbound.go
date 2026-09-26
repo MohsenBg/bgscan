@@ -67,7 +67,7 @@ func applyOutboundTemplate(templatePath string, ip netip.Addr) (any, error) {
 }
 
 // SaveOutboundFromFile validates and stores a new outbound template from a disk source file.
-func SaveOutboundFromFile(src, name string) (*XrayOutboundsFile, error) {
+func SaveOutboundFromFile(log *logger.Logger, src, name string) (*XrayOutboundsFile, error) {
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -116,7 +116,7 @@ func SaveOutboundFromFile(src, name string) (*XrayOutboundsFile, error) {
 	if err := ValidateOutbound(name); err != nil {
 		defer func() {
 			if err := os.Remove(dst); err != nil {
-				logger.CoreError("failed to remove config file: %v", err)
+				log.Error("failed to remove config file: %v", err)
 			}
 		}()
 
@@ -128,7 +128,7 @@ func SaveOutboundFromFile(src, name string) (*XrayOutboundsFile, error) {
 
 // SaveOutboundFromLink parses an outbound sharing URL link, converts it to an
 // address-templated JSON file, validates it, and saves it to disk.
-func SaveOutboundFromLink(link, name string) (*XrayOutboundsFile, error) {
+func SaveOutboundFromLink(log *logger.Logger, link, name string) (*XrayOutboundsFile, error) {
 	parsed, err := ParseLink(link)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse sharing link: %w", err)
@@ -161,7 +161,7 @@ func SaveOutboundFromLink(link, name string) (*XrayOutboundsFile, error) {
 
 	if err := ValidateOutbound(name); err != nil {
 		if err := os.Remove(dst); err != nil {
-			logger.CoreError("failed to remove outbound file: %v", err)
+			log.Error("failed to remove outbound file: %v", err)
 		}
 
 		return nil, fmt.Errorf("outbound validation failed: %w", err)
@@ -180,7 +180,7 @@ func GetOutboundTemplateByName(name string) (*XrayOutboundsFile, error) {
 }
 
 // ListOutboundTemplates returns a list of all existing template metadata objects saved on disk.
-func ListOutboundTemplates() ([]XrayOutboundsFile, error) {
+func ListOutboundTemplates(log *logger.Logger) ([]XrayOutboundsFile, error) {
 	filter := func(name string, info os.FileInfo) bool {
 		return !info.IsDir() && strings.HasSuffix(name, ".json")
 	}
@@ -195,7 +195,7 @@ func ListOutboundTemplates() ([]XrayOutboundsFile, error) {
 	for _, f := range files {
 		meta, err := loadOutboundFileMetadata(f.Path)
 		if err != nil {
-			logger.CoreError("failed to parse outbound metadata: %v", err)
+			log.Error("failed to parse outbound metadata: %v", err)
 			continue
 		}
 

@@ -2,9 +2,11 @@ package footer
 
 import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 	"runtime"
 	"time"
 
@@ -13,6 +15,8 @@ import (
 
 type Model struct {
 	layout      *layout.Layout
+	theme       *theme.Theme
+	log         logger.Set
 	id          ui.ComponentID
 	name        string
 	appVersion  string
@@ -30,11 +34,13 @@ type RuntimeStats struct {
 
 type timesTickMsg time.Time
 
-func New(l *layout.Layout) *Model {
+func New(deps ui.Deps) *Model {
 	return &Model{
 		id:         ui.NewComponentID(),
 		name:       "footer",
-		layout:     l,
+		layout:     deps.Layout,
+		theme:      deps.Theme,
+		log:        deps.Log,
 		appVersion: config.AppVersion,
 		status:     "Main Menu",
 	}
@@ -46,6 +52,10 @@ func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
 func (m *Model) Init() tea.Cmd { return tickCmd() }
+
+func (m *Model) Theme() *theme.Theme { return m.theme }
+
+func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
 
 func tickCmd() tea.Cmd {
 	return tea.Tick(time.Second, func(t time.Time) tea.Msg { return timesTickMsg(t) })

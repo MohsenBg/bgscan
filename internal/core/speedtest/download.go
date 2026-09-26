@@ -8,8 +8,6 @@ import (
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 const cloudflareDownURL = "https://speed.cloudflare.com/__down?bytes=%d"
@@ -47,7 +45,7 @@ type DownloadConfig struct {
 	) (net.Conn, error)
 }
 
-// MeasureDownloadSpeed downloads cfg.Bytes and measures the throughput.
+// measureDownloadSpeed downloads cfg.Bytes and measures the throughput.
 //
 // Connection setup and TLS handshake use connectTimeout and are excluded
 // from the transfer measurement window.
@@ -80,11 +78,7 @@ func measureDownloadSpeed(ctx context.Context, cfg DownloadConfig) (SpeedResult,
 
 		return SpeedResult{}, fmt.Errorf("download probe failed: %w", err)
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			logger.CoreError("error closing response body: %v", err)
-		}
-	}()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return SpeedResult{}, fmt.Errorf("download probe unexpected status: %s", resp.Status)

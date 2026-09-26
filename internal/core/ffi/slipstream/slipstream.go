@@ -219,13 +219,11 @@ func (c *client) Stop() error {
 	return nil
 }
 
-// Kill implements process.Killable.
 func (c *client) Kill() error {
 	return c.Stop()
 }
 
-// getSlipstreamPaths returns the directories searched for the
-// libslipstream shared library.
+// getSlipstreamPaths returns the directories searched for libslipstream.
 func getSlipstreamPaths() []string {
 	base, err := fileutil.BasePath()
 	if err != nil {
@@ -240,8 +238,8 @@ func getSlipstreamPaths() []string {
 	}
 }
 
-// libFilePatterns returns the filename patterns searched per platform.
-// Versioned/arch-suffixed builds are matched via wildcard entries.
+// libFilePatterns returns per-platform filename patterns; versioned and
+// arch-suffixed builds match via wildcards.
 func libFilePatterns() []string {
 	switch runtime.GOOS {
 	case "linux", "android":
@@ -268,8 +266,7 @@ func libFilePatterns() []string {
 	}
 }
 
-// FindLibSlipstream locates the libslipstream shared library
-// in the known locations.
+// FindLibSlipstream locates libslipstream in the known locations.
 func FindLibSlipstream() (string, error) {
 	patterns := libFilePatterns()
 
@@ -315,8 +312,7 @@ func FindLibSlipstream() (string, error) {
 	)
 }
 
-// VerifyLibSlipstream loads the library and reports its version,
-// proving it can be opened and queried.
+// VerifyLibSlipstream loads the library and reports its version.
 func VerifyLibSlipstream() (string, error) {
 	lib, err := Load()
 	if err != nil {

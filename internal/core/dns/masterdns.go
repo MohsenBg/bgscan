@@ -40,8 +40,8 @@ type MasterDNSConfig struct {
 	RxTxWorkers    uint8 `toml:"rx_tx_workers" comment:"Number of RX/TX worker goroutines."`
 }
 
-// DefaultMasterDNSConfig returns a MasterDNS configuration with recommended
-// defaults. Domain and EncryptionKey must be provided for a usable config.
+// DefaultMasterDNSConfig returns recommended defaults. Domain and
+// EncryptionKey must be provided for a usable config.
 func DefaultMasterDNSConfig() MasterDNSConfig {
 	return MasterDNSConfig{
 		Domain:        "",
@@ -64,7 +64,6 @@ func DefaultMasterDNSConfig() MasterDNSConfig {
 	}
 }
 
-// Validate validates the MasterDNS configuration.
 func (c MasterDNSConfig) Validate() map[string]error {
 	errs := make(map[string]error)
 
@@ -160,7 +159,6 @@ func WithMasterDNSDir(dir string) MasterDNSServiceOption {
 	}
 }
 
-// NewMasterDNSService creates a MasterDNS service.
 func NewMasterDNSService(options ...MasterDNSServiceOption) MasterDNSService {
 	service := &masterDNSService{
 		configs: newConfigStore[MasterDNSConfig](tunnelConfigDir(masterdnsDir), "MasterDNS"),

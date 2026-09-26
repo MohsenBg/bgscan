@@ -33,7 +33,6 @@ func NewSSHService() SSHService {
 }
 
 // Connect performs the SSH handshake and authentication over conn.
-
 func (s *sshService) Connect(
 	ctx context.Context,
 	conn net.Conn,

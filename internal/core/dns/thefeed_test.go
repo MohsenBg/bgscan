@@ -80,7 +80,6 @@ func TestTheFeedService_Defaults(t *testing.T) {
 		t.Fatal("expected error for nonexistent config")
 	}
 
-	// ConfigDir returns the correct directory path
 	files, err := svc.GetAllConfigFiles()
 	if err != nil {
 		t.Fatalf("GetAllConfigFiles() error: %v", err)
@@ -101,7 +100,6 @@ func TestTheFeedProbeResolverNeedsServer(t *testing.T) {
 		ResolverPort: 5300,
 	}, netip.MustParseAddr("127.0.0.1"), 2*time.Second)
 
-	// Should return an error (no server running)
 	if err == nil {
 		t.Fatal("expected error when probing without server")
 	}

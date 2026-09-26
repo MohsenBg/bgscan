@@ -1,24 +1,22 @@
 package footer
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
 	"charm.land/lipgloss/v2"
 )
 
-func containerStyle(width, height int) lipgloss.Style {
-	t := theme.Current()
+func (m *Model) containerStyle(width, height int) lipgloss.Style {
+	t := m.theme
 	return lipgloss.NewStyle().
 		Width(width).
 		Height(height).
 		Foreground(t.Text)
 }
 
-func separatorStyle(width int) lipgloss.Style {
-	t := theme.Current()
+func (m *Model) separatorStyle(width int) lipgloss.Style {
+	t := m.theme
 	return lipgloss.NewStyle().
 		Width(width).
-		Foreground(t.Border)
+		Foreground(t.BorderActive)
 }
 
 func leftSectionStyle(width int) lipgloss.Style {
@@ -42,29 +40,35 @@ func rightSectionStyle(width int) lipgloss.Style {
 		Align(lipgloss.Right)
 }
 
-func appNameStyle() lipgloss.Style {
-	t := theme.Current()
-	return lipgloss.NewStyle().
-		Foreground(t.Yellow).
-		Bold(true)
-}
-
-func versionStyle() lipgloss.Style {
-	t := theme.Current()
+func (m *Model) appNameStyle() lipgloss.Style {
+	t := m.theme
 	return lipgloss.NewStyle().
 		Foreground(t.Success).
-		Faint(true)
-}
-
-func statusTextStyle() lipgloss.Style {
-	t := theme.Current()
-	return lipgloss.NewStyle().
-		Foreground(t.Primary).
 		Bold(true)
 }
 
-func iconStyle() lipgloss.Style {
-	t := theme.Current()
+func (m *Model) versionStyle() lipgloss.Style {
+	t := m.theme
 	return lipgloss.NewStyle().
-		Foreground(t.Orange)
+		Foreground(t.Muted)
+}
+
+func (m *Model) statusTextStyle() lipgloss.Style {
+	t := m.theme
+	return lipgloss.NewStyle().
+		Foreground(t.Info).
+		Bold(true)
+}
+
+func (m *Model) statsStyle() lipgloss.Style {
+	t := m.theme
+	return lipgloss.NewStyle().
+		Foreground(t.Secondary)
+}
+
+func (m *Model) statsValueStyle() lipgloss.Style {
+	t := m.theme
+	return lipgloss.NewStyle().
+		Foreground(t.Text).
+		Bold(true)
 }

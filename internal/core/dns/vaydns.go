@@ -71,8 +71,7 @@ func DefaultVayDNSConfig() VayDNSConfig {
 	}
 }
 
-// Validate validates the configuration and returns all validation errors
-// keyed by configuration field.
+// Validate returns all validation errors, keyed by configuration field.
 func (c VayDNSConfig) Validate() map[string]error {
 	errs := make(map[string]error)
 
@@ -157,7 +156,6 @@ func WithVayDNSDir(dir string) VayDNSServiceOption {
 	}
 }
 
-// NewVayDNSService creates a VayDNS service.
 func NewVayDNSService(options ...VayDNSServiceOption) VayDNSService {
 	service := &vayDNSService{
 		configs: newConfigStore[VayDNSConfig](tunnelConfigDir(vaydnsDir), "VayDNS"),

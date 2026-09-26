@@ -37,9 +37,8 @@ type DNSTTConfig struct {
 	KnownHostsFile string            `toml:"known_hosts_file" comment:"Path to the SSH known_hosts file."`
 }
 
-// DefaultDNSTTConfig returns a DNSTT configuration with recommended defaults.
-//
-// Domain and PubKey are deployment-specific and must be provided by the user.
+// DefaultDNSTTConfig returns recommended defaults. Domain and PubKey are
+// deployment-specific and must be provided by the user.
 func DefaultDNSTTConfig() DNSTTConfig {
 	return DNSTTConfig{
 		Domain:         "",
@@ -58,10 +57,7 @@ func DefaultDNSTTConfig() DNSTTConfig {
 	}
 }
 
-// Validate validates the DNSTT configuration.
-//
-// All validation errors are returned, keyed by the corresponding
-// configuration field.
+// Validate returns all validation errors, keyed by configuration field.
 func (c DNSTTConfig) Validate() map[string]error {
 	errs := make(map[string]error)
 
@@ -127,7 +123,6 @@ func WithDNSTTDir(dir string) DNSTTServiceOption {
 	}
 }
 
-// NewDNSTTService creates a DNSTT service.
 func NewDNSTTService(options ...DNSTTServiceOption) DNSTTService {
 	service := &dnsttService{
 		configs: newConfigStore[DNSTTConfig](tunnelConfigDir(dnsttDir), "DNSTT"),

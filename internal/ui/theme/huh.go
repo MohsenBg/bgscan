@@ -4,12 +4,21 @@ import (
 	"charm.land/huh/v2"
 )
 
-// NewHuhTheme returns a huh theme derived from the app's active palette so
-// form fields visually match the rest of the TUI.
-func NewHuhTheme() huh.Theme {
-	return huh.ThemeFunc(func(_ bool) *huh.Styles {
-		t := Current()
+// NewHuhTheme derives huh styles from the given palette so form fields
+// match the rest of the TUI.
+func NewHuhTheme(theme *Theme) huh.Theme {
+	var t Theme
+	if theme == nil || theme.Name == "" {
+		if terminalLooksDark() {
+			t = BGScanDark
+		} else {
+			t = BGScanLight
+		}
+	} else {
+		t = *theme
+	}
 
+	return huh.ThemeFunc(func(_ bool) *huh.Styles {
 		th := huh.ThemeBase(false)
 
 		focused := &th.Focused

@@ -50,14 +50,12 @@ func (f Field) value() string {
 	return fmt.Sprint(v)
 }
 
-
 func (f Field) visible() bool {
 	if f.Visible == nil {
 		return true
 	}
 	return f.Visible()
 }
-
 
 type FieldItem struct {
 	Field Field
@@ -123,9 +121,7 @@ type Model struct {
 	heightOverride int
 }
 
-
 type Option func(*Model)
-
 
 func WithWidth(width int) Option {
 	return func(m *Model) {
@@ -134,7 +130,6 @@ func WithWidth(width int) Option {
 		}
 	}
 }
-
 
 func WithHeight(height int) Option {
 	return func(m *Model) {
@@ -293,7 +288,6 @@ func (m *Model) Width() int {
 	return min(m.maxWidth, m.layout.BodyContentWidth())
 }
 
-
 func (m *Model) Height() int {
 	padding := 4
 
@@ -318,7 +312,6 @@ func (m *Model) Height() int {
 	return max(15, available)
 }
 
-
 func (m *Model) SetWidth(width int) {
 	m.widthOverride = width
 	if tb, ok := m.tabs.(*tabs.Model[[]Field]); ok {
@@ -326,7 +319,6 @@ func (m *Model) SetWidth(width int) {
 	}
 	m.list.SetWidth(width)
 }
-
 
 func (m *Model) SetHeight(height int) {
 	m.heightOverride = height
@@ -339,7 +331,6 @@ func (m *Model) CloseCmd() tea.Cmd {
 	}
 }
 
-
 func (m *Model) SelectedField() (Field, bool) {
 	item, ok := m.list.SelectedItem().(FieldItem)
 	if !ok {
@@ -347,7 +338,6 @@ func (m *Model) SelectedField() (Field, bool) {
 	}
 	return item.Field, true
 }
-
 
 func (m *Model) Fields() []Field {
 	return m.groups[m.Title]

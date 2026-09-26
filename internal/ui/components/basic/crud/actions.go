@@ -7,7 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-
 type MsgActionTrigger struct{ ActionType string }
 
 // registerActions builds the name → handler table; only non-nil hooks are
@@ -30,7 +29,6 @@ func (m *Model[T]) registerActions() {
 		m.actions[a.Name] = actionEntry[T]{needsItem: a.NeedsItem, run: a.Handler}
 	}
 }
-
 
 func (m *Model[T]) configureKeymaps() {
 	var keys []table.ActionKey

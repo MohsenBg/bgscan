@@ -53,8 +53,8 @@ type StormDNSConfig struct {
 	RxTxWorkers    uint8 `toml:"rx_tx_workers" comment:"Number of RX/TX worker goroutines."`
 }
 
-// DefaultStormDNSConfig returns a StormDNS configuration with recommended
-// defaults. Domain and EncryptionKey must be provided for a usable config.
+// DefaultStormDNSConfig returns recommended defaults. Domain and
+// EncryptionKey must be provided for a usable config.
 func DefaultStormDNSConfig() StormDNSConfig {
 	return StormDNSConfig{
 		Domain:        "",
@@ -77,7 +77,6 @@ func DefaultStormDNSConfig() StormDNSConfig {
 	}
 }
 
-// Validate validates the StormDNS configuration.
 func (c StormDNSConfig) Validate() map[string]error {
 	errs := make(map[string]error)
 
@@ -176,7 +175,6 @@ func WithStormDNSDir(dir string) StormDNSServiceOption {
 	}
 }
 
-// NewStormDNSService creates a StormDNS service.
 func NewStormDNSService(options ...StormDNSServiceOption) StormDNSService {
 	service := &stormDNSService{
 		configs: newConfigStore[StormDNSConfig](tunnelConfigDir(stormdnsDir), "StormDNS"),

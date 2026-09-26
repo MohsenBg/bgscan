@@ -7,8 +7,6 @@ import (
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 const (
@@ -108,11 +106,7 @@ func measureLatency(ctx context.Context, cfg LatencyConfig) (LatencyResult, erro
 		return LatencyResult{}, fmt.Errorf("latency probe failed: %w", err)
 	}
 
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			logger.CoreError("error closing response body: %v", err)
-		}
-	}()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Cloudflare trace returns 200, Google generate_204 returns 204.
 	if resp.StatusCode != http.StatusOK &&

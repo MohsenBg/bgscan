@@ -18,28 +18,29 @@ func (m *Model) View() string {
 	rightWidth := width - leftWidth - centerWidth
 
 	leftSection := leftSectionStyle(leftWidth).Render(
-		fmt.Sprintf("%s %s %s",
-			iconStyle().Render("⚡"),
-			appNameStyle().Render("BGScan"),
-			versionStyle().Render("v"+m.appVersion),
+		fmt.Sprintf("%s %s",
+			m.appNameStyle().Render("⚡ BGScan"),
+			m.versionStyle().Render("v"+m.appVersion),
 		),
 	)
 
 	centerSection := centerSectionStyle(centerWidth - 2).Render(
-		statusTextStyle().Render(m.status),
+		m.statusTextStyle().Render(m.status),
 	)
 
-	runtimeInfo := fmt.Sprintf("%s GR:%d | %s Mem:%s",
-		iconStyle().Render("⚙"), m.goroutines,
-		iconStyle().Render("🧠"), humanize.Bytes(m.memoryBytes),
+	runtimeInfo := fmt.Sprintf("%s %s %s %s",
+		m.statsStyle().Render("GR:"),
+		m.statsValueStyle().Render(fmt.Sprintf("%d", m.goroutines)),
+		m.statsStyle().Render("Mem:"),
+		m.statsValueStyle().Render(humanize.Bytes(m.memoryBytes)),
 	)
 
 	rightSection := rightSectionStyle(rightWidth + 2).Render(runtimeInfo)
 
 	footerContent := lipgloss.JoinHorizontal(lipgloss.Left, leftSection, centerSection, rightSection)
-	separator := separatorStyle(width).Render(strings.Repeat("─", width))
+	separator := m.separatorStyle(width).Render(strings.Repeat("─", width))
 
-	return containerStyle(width, height).Render(
+	return m.containerStyle(width, height).Render(
 		lipgloss.JoinVertical(lipgloss.Left, separator, footerContent),
 	)
 }

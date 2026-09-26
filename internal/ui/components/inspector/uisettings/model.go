@@ -105,8 +105,8 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
-			n, err := strconv.Atoi(v)
-			if err != nil || n <= 0 {
+			n, err := strconv.ParseUint(v, 10, 32)
+			if err != nil || n == 0 {
 				return notice.NewNoticeCmd(state.Deps(), "Invalid Max Rows", "enter a positive number", notice.NOTICE_ERROR)
 			}
 			state.Settings.MaxRow = uint32(n)

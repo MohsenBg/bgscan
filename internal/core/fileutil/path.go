@@ -101,7 +101,10 @@ func BasePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return basePathFor(exe)
+}
 
+func basePathFor(exe string) (string, error) {
 	resolved, err := filepath.EvalSymlinks(exe)
 	if err == nil {
 		exe = resolved
@@ -114,6 +117,7 @@ func BasePath() (string, error) {
 	return filepath.Dir(exe), nil
 }
 
+// isGoRunTempBinary stays exactly as you have it.
 func isGoRunTempBinary(path string) bool {
 	dir := filepath.Dir(path)
 	base := filepath.Base(dir)

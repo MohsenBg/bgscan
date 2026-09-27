@@ -2,148 +2,116 @@ package fileutil
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
 
-// helperProcess markers for the subprocess variants of the BasePath tests.
-const (
-	basePathHelperEnv       = "BGSCAN_BASEPATH_HELPER"
-	basePathHelperReal      = "real"
-	basePathHelperSymlinked = "symlinked"
-)
-
-// initialWorkingDir captures the working directory before any test can
-// chdir into a temp dir that later gets removed.
-var initialWorkingDir = func() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	return wd
-}()
-
-// runHelperBinary copies the test binary out of the Go build temp
-// directory so it behaves like a real built executable, runs it as a
-// subprocess in helper mode, and returns the reported base path.
-func runHelperBinary(t *testing.T, mode string) (string, string) {
+func makeFile(t *testing.T, path string) {
 	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Skipf("cannot determine test binary: %v", err)
+func TestIsGoRunTempBinary(t *testing.T) {
+	sep := string(os.PathSeparator)
+	tests := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{"go-build in path", filepath.Join(sep+"tmp", "go-build123", "b001", "app.test"), true},
+		{"exe dir under b0", filepath.Join(sep+"tmp", "x", "b001", "exe", "app"), true},
+		{"exe dir but no b0", filepath.Join(sep+"tmp", "x", "exe", "app"), false},
+		{"normal install", filepath.Join(sep+"usr", "local", "bin", "app"), false},
+		{"b0 dir but not exe", filepath.Join(sep+"tmp", "b001", "app"), false},
 	}
 
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isGoRunTempBinary(tt.path); got != tt.want {
+				t.Fatalf("isGoRunTempBinary(%q) = %v, want %v", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBasePathFor_RealBinary(t *testing.T) {
 	dir := t.TempDir()
-	bin := filepath.Join(dir, "bgscan-testapp")
+	bin := filepath.Join(dir, "app")
+	makeFile(t, bin)
 
-	data, err := os.ReadFile(exe)
+	got, err := basePathFor(bin)
 	if err != nil {
-		t.Fatalf("read test binary: %v", err)
-	}
-	if err := os.WriteFile(bin, data, 0o755); err != nil {
-		t.Fatalf("write copy of test binary: %v", err)
+		t.Fatal(err)
 	}
 
-	cmd := exec.Command(bin)
-	cmd.Env = append(os.Environ(), basePathHelperEnv+"="+mode)
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("helper subprocess failed: %v", err)
-	}
-	return string(out), dir
-}
-
-// TestBasePath_UnderGoTest verifies the development rule: when the test
-// binary is a temporary `go test` build, BasePath falls back to the
-// working directory so application-relative resources resolve from the
-// project tree.
-func TestBasePath_UnderGoTest(t *testing.T) {
-	wd := initialWorkingDir
-	if wd == "" {
-		t.Skip("working directory unavailable")
-	}
-
-	got, err := BasePath()
-	if err != nil {
-		t.Fatalf("BasePath() error = %v", err)
-	}
-
-	resolvedWD, err := filepath.EvalSymlinks(wd)
-	if err != nil {
-		t.Fatalf("EvalSymlinks(%q): %v", wd, err)
-	}
-
-	if got != resolvedWD && got != wd {
-		t.Fatalf("BasePath() = %q, want working directory %q", got, wd)
+	want, _ := filepath.EvalSymlinks(dir)
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 }
 
-// TestBasePath_RealBinary verifies that for a real built executable,
-// BasePath returns the directory containing the binary — even when the
-// process is started from a different working directory.
-func TestBasePath_RealBinary(t *testing.T) {
-	t.Chdir(t.TempDir())
-
-	got, binDir := runHelperBinary(t, "real")
-
-	resolvedBinDir, err := filepath.EvalSymlinks(binDir)
-	if err != nil {
-		t.Fatalf("EvalSymlinks(%q): %v", binDir, err)
-	}
-
-	if got != resolvedBinDir && got != binDir {
-		t.Fatalf("BasePath() = %q, want executable directory %q", got, binDir)
-	}
-}
-
-// TestBasePath_SymlinkedBinary verifies that a symlink pointing at the
-// executable resolves to the real binary's directory before deriving the
-// base path.
-func TestBasePath_SymlinkedBinary(t *testing.T) {
-	exe, err := os.Executable()
-	if err != nil {
-		t.Skipf("cannot determine test binary: %v", err)
-	}
-
+func TestBasePathFor_Symlink(t *testing.T) {
 	realDir := t.TempDir()
-	bin := filepath.Join(realDir, "bgscan-testapp")
-	data, err := os.ReadFile(exe)
-	if err != nil {
-		t.Fatalf("read test binary: %v", err)
-	}
-	if err := os.WriteFile(bin, data, 0o755); err != nil {
-		t.Fatalf("write test binary: %v", err)
-	}
+	bin := filepath.Join(realDir, "app")
+	makeFile(t, bin)
 
-	linkDir := t.TempDir()
-	link := filepath.Join(linkDir, "bgscan-link")
+	link := filepath.Join(t.TempDir(), "app-link")
 	if err := os.Symlink(bin, link); err != nil {
 		t.Skipf("symlinks unsupported: %v", err)
 	}
 
-	cmd := exec.Command(link)
-	cmd.Env = append(os.Environ(), basePathHelperEnv+"=symlinked")
-	out, err := cmd.Output()
+	got, err := basePathFor(link)
 	if err != nil {
-		t.Fatalf("helper subprocess failed: %v", err)
-	}
-	got := string(out)
-
-	resolvedRealDir, err := filepath.EvalSymlinks(realDir)
-	if err != nil {
-		t.Fatalf("EvalSymlinks(%q): %v", realDir, err)
-	}
-	resolvedLinkDir, err := filepath.EvalSymlinks(linkDir)
-	if err != nil {
-		t.Fatalf("EvalSymlinks(%q): %v", linkDir, err)
+		t.Fatal(err)
 	}
 
-	if got != resolvedRealDir && got != realDir {
-		t.Fatalf(
-			"BasePath() = %q, want resolved binary directory %q (not symlink dir %q)",
-			got, resolvedRealDir, resolvedLinkDir,
-		)
+	want, _ := filepath.EvalSymlinks(realDir)
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestBasePathFor_GoRunBinary(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "go-build123", "b001", "exe", "app")
+	makeFile(t, bin)
+
+	got, err := basePathFor(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wd, _ := os.Getwd()
+	if got != wd {
+		t.Fatalf("got %q, want working dir %q", got, wd)
+	}
+}
+
+func TestBasePathFor_UnresolvableFallsBack(t *testing.T) {
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "does-not-exist")
+
+	got, err := basePathFor(missing)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// EvalSymlinks fails, so the original path's directory is used.
+	if got != dir {
+		t.Fatalf("got %q, want %q", got, dir)
+	}
+}
+
+func TestBasePath_Smoke(t *testing.T) {
+	got, err := BasePath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == "" {
+		t.Fatal("empty base path")
 	}
 }

@@ -2,6 +2,7 @@ package fileutil
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -106,7 +107,8 @@ func TestReadTOMLFile_ReturnsErrorForMissingFile(t *testing.T) {
 func TestReadTOMLFile_ReturnsErrorForInvalidTOML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "broken.toml")
 
-	if err := WriteTextFile(path, "invalid = ["); err != nil {
+	data := []byte("invalid = [")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 

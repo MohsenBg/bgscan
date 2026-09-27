@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+const (
+	minBufferSize     = 4 * 1024
+	defaultBufferSize = 64 * 1024
+	maxBufferSize     = 4 * 1024 * 1024
+)
+
 // CSVConfig controls CSV reader and writer behavior.
 type CSVConfig struct {
 	HasHeader        bool
@@ -17,6 +23,7 @@ type CSVConfig struct {
 	TrimLeadingSpace bool
 	Comma            rune
 	FieldsPerRecord  int
+	BufferSize       int
 }
 
 func applyReaderConfig(r *csv.Reader, cfg CSVConfig) {
@@ -57,7 +64,7 @@ func StreamCSV(path string, cfg CSVConfig, handler func([]string) error) error {
 		_ = f.Close()
 	}()
 
-	r := csv.NewReader(f)
+	r := csv.NewReader(bufio.NewReaderSize(f, clampBufferSize(cfg.BufferSize)))
 	applyReaderConfig(r, cfg)
 
 	if cfg.HasHeader {
@@ -162,15 +169,16 @@ func WriteCSVFile(path string, cfg CSVConfig, records [][]string) error {
 		_ = f.Close()
 	}()
 
-	w := csv.NewWriter(f)
+	bw := bufio.NewWriterSize(f, clampBufferSize(cfg.BufferSize))
+	w := csv.NewWriter(bw)
 	applyWriterConfig(w, cfg)
 
+	// WriteAll flushes the csv writer and returns its error.
 	if err := w.WriteAll(records); err != nil {
 		return fmt.Errorf("write csv records: %w", err)
 	}
 
-	w.Flush()
-	return w.Error()
+	return bw.Flush()
 }
 
 // StreamWriteCSV provides fn with a callback that writes CSV records to path.
@@ -188,7 +196,8 @@ func StreamWriteCSV(path string, cfg CSVConfig, fn func(write func([]string) err
 		_ = f.Close()
 	}()
 
-	w := csv.NewWriter(f)
+	bw := bufio.NewWriterSize(f, clampBufferSize(cfg.BufferSize))
+	w := csv.NewWriter(bw)
 	applyWriterConfig(w, cfg)
 
 	writeFunc := func(rec []string) error {
@@ -200,7 +209,11 @@ func StreamWriteCSV(path string, cfg CSVConfig, fn func(write func([]string) err
 	}
 
 	w.Flush()
-	return w.Error()
+	if err := w.Error(); err != nil {
+		return err
+	}
+
+	return bw.Flush()
 }
 
 // AppendCSVRow appends row to path.
@@ -223,7 +236,8 @@ func AppendCSVRows(path string, cfg CSVConfig, rows [][]string) error {
 		_ = f.Close()
 	}()
 
-	w := csv.NewWriter(f)
+	bw := bufio.NewWriterSize(f, clampBufferSize(cfg.BufferSize))
+	w := csv.NewWriter(bw)
 	applyWriterConfig(w, cfg)
 
 	for _, row := range rows {
@@ -233,5 +247,20 @@ func AppendCSVRows(path string, cfg CSVConfig, rows [][]string) error {
 	}
 
 	w.Flush()
-	return w.Error()
+	if err := w.Error(); err != nil {
+		return err
+	}
+
+	return bw.Flush()
+}
+
+func clampBufferSize(n int) int {
+	if n <= 0 {
+		return defaultBufferSize
+	}
+	return min(maxBufferSize, max(minBufferSize, n))
+}
+
+func NewBufferedWriter(w io.Writer, size int) *bufio.Writer {
+	return bufio.NewWriterSize(w, clampBufferSize(size))
 }

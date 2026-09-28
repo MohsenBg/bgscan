@@ -23,7 +23,6 @@ import (
 func mergeResults(
 	log *logger.Logger,
 	resultPath string,
-	batchSize int,
 	schema ResultSchema,
 	results []Result,
 ) error {
@@ -60,7 +59,7 @@ func mergeResults(
 		return err
 	}
 
-	bw := bufio.NewWriterSize(out, batchSize)
+	bw := fileutil.NewBufferedWriter(out, 0)
 	cw := csv.NewWriter(bw)
 
 	cleanup := func(err error) error {

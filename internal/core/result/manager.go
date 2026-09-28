@@ -120,8 +120,8 @@ func (w *writer) Write(r Result) {
 
 func (w *writer) writeLoop() {
 	defer w.wg.Done()
-	ticker := time.NewTicker(w.config.MergeFlushInterval.Duration())
-	defer ticker.Stop()
+	timer := time.NewTimer(w.config.MergeFlushInterval.Duration())
+	defer timer.Stop()
 
 	for {
 		select {
@@ -130,12 +130,25 @@ func (w *writer) writeLoop() {
 				w.flush()
 				return
 			}
+
 			w.batch = append(w.batch, r)
+
 			if len(w.batch) >= w.batchSize {
 				w.flush()
+
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				timer.Reset(w.config.MergeFlushInterval.Duration())
 			}
-		case <-ticker.C:
+
+		case <-timer.C:
 			w.flush()
+			timer.Reset(w.config.MergeFlushInterval.Duration())
+
 		case <-w.ctx.Done():
 			w.drain()
 			w.flush()
@@ -166,7 +179,7 @@ func (w *writer) flush() {
 	copy(tmp, w.batch)
 	w.batch = w.batch[:0]
 
-	if err := mergeResults(w.log, w.resultPath, w.batchSize, w.schema, tmp); err != nil {
+	if err := mergeResults(w.log, w.resultPath, w.schema, tmp); err != nil {
 		w.debugLog.Error("failed to flush results: %v", err)
 	}
 }

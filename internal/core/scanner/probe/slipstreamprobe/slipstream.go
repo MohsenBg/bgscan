@@ -156,7 +156,7 @@ func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result
 		if ctx.Err() != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("%w: lease port for Slipstream: %w", probe.ErrEnvironment, err)
+		return nil, fmt.Errorf("lease port for Slipstream: %w", err)
 	}
 	defer s.pm.Release(localPort)
 
@@ -175,17 +175,17 @@ func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result
 		}
 	}
 
-	return nil, err
+	return nil, probe.NormalizeErr(err)
 }
 
 func (s *SlipstreamProbe) runOnce(ctx context.Context, ip netip.Addr, localPort uint16) (result.Result, error) {
 	client, err := s.slipstreamSvc.RunTunnel(ctx, s.config, ip, localPort, uint16(s.timeout.Seconds()))
 	if err != nil {
-		return nil, fmt.Errorf("start Slipstream tunnel: %w", err)
+		return nil, err
 	}
 	defer func() {
 		if err := client.Stop(); err != nil {
-			s.log.Error("close Slipstream tunnel: %v", err)
+			s.log.Debug("close Slipstream tunnel: %v", err)
 		}
 	}()
 
@@ -195,7 +195,7 @@ func (s *SlipstreamProbe) runOnce(ctx context.Context, ip netip.Addr, localPort 
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
 		}
-		return nil, fmt.Errorf("%w: wait for Slipstream proxy: %w", probe.ErrEnvironment, err)
+		return nil, fmt.Errorf("wait for Slipstream proxy: %w", err)
 	}
 
 	dialContext, err := s.buildDialer(proxyAddr)
@@ -232,7 +232,7 @@ func (s *SlipstreamProbe) buildDialer(proxyAddr string) (func(context.Context, s
 	case dns.ResolverProxySOCKS:
 		return s.dialSOCKS(proxyAddr)
 	default:
-		return nil, fmt.Errorf("%w: unsupported proxy type: %v", probe.ErrEnvironment, s.config.ProxyType)
+		return nil, fmt.Errorf("unsupported proxy type: %v", s.config.ProxyType)
 	}
 }
 
@@ -240,7 +240,7 @@ func (s *SlipstreamProbe) buildDialer(proxyAddr string) (func(context.Context, s
 // listener on each call and proxies the dial through it.
 func (s *SlipstreamProbe) dialSSH(proxyAddr string) (func(context.Context, string, string) (net.Conn, error), error) {
 	if s.config.AuthMethod == dns.AuthNone {
-		return nil, fmt.Errorf("%w: SSH authentication is required", probe.ErrEnvironment)
+		return nil, errors.New("SSH authentication is required")
 	}
 
 	auth := ssh.SSHConfig{
@@ -278,7 +278,7 @@ func (s *SlipstreamProbe) dialSSH(proxyAddr string) (func(context.Context, strin
 // listener on each call.
 func (s *SlipstreamProbe) dialSOCKS(proxyAddr string) (func(context.Context, string, string) (net.Conn, error), error) {
 	if s.config.AuthMethod == dns.AuthKey {
-		return nil, fmt.Errorf("%w: SOCKS proxy does not support key authentication", probe.ErrEnvironment)
+		return nil, errors.New("SOCKS proxy does not support key authentication")
 	}
 
 	socksConfig := socks.Config{

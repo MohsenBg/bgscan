@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
 // mockRoundTripCloser implements http.RoundTripper and io.Closer for testing HTTP/3 probes.
@@ -330,8 +331,11 @@ func TestHTTP3Run_StatusNotAccepted(t *testing.T) {
 		t.Fatal("expected error for rejected status")
 	}
 	want := "status 503 not accepted"
-	if err.Error() != want {
-		t.Errorf("error = %q, want %q", err.Error(), want)
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("error = %q, want containing %q", err.Error(), want)
+	}
+	if !errors.Is(err, probe.ErrBadResponse) {
+		t.Errorf("error = %v, want errors.Is ErrBadResponse", err)
 	}
 }
 

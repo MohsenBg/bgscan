@@ -14,6 +14,7 @@ import (
 	"golang.org/x/net/http2"
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
 // utlsDialContext connects to addr using uTLS and forces the connection
@@ -55,7 +56,7 @@ func utlsDialContext(
 
 	if err := uconn.HandshakeContext(ctx); err != nil {
 		_ = uconn.Close()
-		return nil, err
+		return nil, fmt.Errorf("%w: tls handshake: %w", probe.ErrBadResponse, err)
 	}
 
 	return uconn, nil

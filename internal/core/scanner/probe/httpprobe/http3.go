@@ -10,11 +10,12 @@ import (
 
 	"github.com/quic-go/quic-go/http3"
 
-	"github.com/MohsenBg/bgscan/internal/core/netutil"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
+
+const defaultHTTPSPort = "443"
 
 // roundTripCloser abstracts the HTTP/3 transport, allowing tests to inject
 // a mock without requiring a real QUIC connection.
@@ -34,24 +35,20 @@ type HTTP3Probe struct {
 // NewHTTP3Probe creates an HTTP3Probe. If acceptedCodes is empty or covers all
 // known codes, all response status codes are accepted.
 func NewHTTP3Probe(req HTTPRequest, acceptedCodes []int, log *logger.Logger) (probe.Probe, error) {
-	tlsCfg := newTLSConfig(req)
-
 	return &HTTP3Probe{
 		log:    log,
 		req:    req,
 		filter: newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
 		transport: &http3.Transport{
-			TLSClientConfig: tlsCfg,
+			TLSClientConfig: newTLSConfig(req),
 		},
 	}, nil
 }
 
 // Init implements probe.Probe. It is a no-op.
-func (p *HTTP3Probe) Init(_ context.Context) error {
-	return nil
-}
+func (p *HTTP3Probe) Init(context.Context) error { return nil }
 
-// Close implements probe.Probe, releasing the underlying QUIC transport resources.
+// Close implements probe.Probe, releasing the underlying QUIC transport.
 func (p *HTTP3Probe) Close() error {
 	if err := p.transport.Close(); err != nil {
 		return fmt.Errorf("close http3 transport: %w", err)
@@ -59,14 +56,12 @@ func (p *HTTP3Probe) Close() error {
 	return nil
 }
 
-// Schema returns the result schema for HTTP/3 probes.
-func (p *HTTP3Probe) Schema() result.ResultSchema {
-	return Schema
-}
+// Schema implements probe.Probe.
+func (p *HTTP3Probe) Schema() result.ResultSchema { return Schema }
 
-// Run implements probe.Probe. It executes an HTTP/3 HEAD request against the target IP.
-// It forces the QUIC connection to the specified IP while preserving the original
-// hostname in the Host header for virtual hosting.
+// Run executes an HTTP/3 HEAD request against the target IP. The QUIC
+// connection is forced to the given IP while the original hostname is kept
+// in the Host header for virtual hosting.
 func (p *HTTP3Probe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -77,10 +72,13 @@ func (p *HTTP3Probe) Run(ctx context.Context, ip netip.Addr) (result.Result, err
 		return nil, fmt.Errorf("build request: %w", err)
 	}
 
-	// Force the QUIC connection to target the specific IP.
-	req.URL.Host = net.JoinHostPort(ip.String(), req.URL.Port())
+	port := req.URL.Port()
+	if port == "" {
+		port = defaultHTTPSPort
+	}
 
-	// Preserve the original hostname for virtual hosting.
+	// Dial the target IP, but keep the original hostname for virtual hosting.
+	req.URL.Host = net.JoinHostPort(ip.String(), port)
 	req.Host = p.req.Host
 
 	client := &http.Client{
@@ -89,14 +87,11 @@ func (p *HTTP3Probe) Run(ctx context.Context, ip netip.Addr) (result.Result, err
 	}
 
 	start := time.Now()
-
 	resp, err := client.Do(req)
 	if err != nil {
-		if netutil.IsUnreachable(err) {
-			return nil, fmt.Errorf("%w: execute request: %w", probe.ErrEnvironment, err)
-		}
-		return nil, fmt.Errorf("execute request: %w", err)
+		return nil, probe.NormalizeErr(err)
 	}
+	latency := time.Since(start)
 
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -105,7 +100,7 @@ func (p *HTTP3Probe) Run(ctx context.Context, ip netip.Addr) (result.Result, err
 	}()
 
 	if !p.filter.isAccepted(resp.StatusCode) {
-		return nil, fmt.Errorf("status %d not accepted", resp.StatusCode)
+		return nil, fmt.Errorf("%w: status %d not accepted", probe.ErrBadResponse, resp.StatusCode)
 	}
 
 	return HTTPResult{
@@ -113,6 +108,6 @@ func (p *HTTP3Probe) Run(ctx context.Context, ip netip.Addr) (result.Result, err
 		StatusCode:  resp.StatusCode,
 		HTTPVersion: "HTTP/3.0",
 		UseTLS:      true,
-		Latency:     time.Since(start),
+		Latency:     latency,
 	}, nil
 }

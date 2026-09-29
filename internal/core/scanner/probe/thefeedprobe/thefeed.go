@@ -108,7 +108,7 @@ func (p *TheFeedProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, e
 		}
 	}
 
-	return nil, err
+	return nil, probe.NormalizeErr(err)
 }
 
 func (p *TheFeedProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result, error) {

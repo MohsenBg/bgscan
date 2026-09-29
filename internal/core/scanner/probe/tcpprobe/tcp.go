@@ -74,10 +74,7 @@ func (p *TCPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error
 			if netutil.IsTimeout(err) {
 				continue
 			}
-			if netutil.IsUnreachable(err) {
-				return nil, fmt.Errorf("%w: tcp dial: %w", probe.ErrEnvironment, err)
-			}
-			return nil, err
+			return nil, probe.NormalizeErr(err)
 		}
 
 		rtt := time.Since(start)
@@ -94,7 +91,7 @@ func (p *TCPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error
 		}, nil
 	}
 
-	return nil, fmt.Errorf("tcp probe failed after %d tries: %w", p.tries, lastErr)
+	return nil, probe.NormalizeErr(fmt.Errorf("tcp probe failed after %d tries: %w", p.tries, lastErr))
 }
 
 // Close implements probe.Probe. It is a no-op, as connections are released

@@ -3,6 +3,7 @@ package httpprobe
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
 // --- helpers ---
@@ -240,8 +242,11 @@ func TestRun_StatusNotAccepted(t *testing.T) {
 	}
 
 	want := "status 404 not accepted"
-	if err.Error() != want {
-		t.Errorf("error = %q, want %q", err.Error(), want)
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("error = %q, want containing %q", err.Error(), want)
+	}
+	if !errors.Is(err, probe.ErrBadResponse) {
+		t.Errorf("error = %v, want errors.Is ErrBadResponse", err)
 	}
 }
 
@@ -374,7 +379,7 @@ func TestTLSNextProto_H1H2(t *testing.T) {
 	}
 }
 
-// --- buildClient ---
+// --- newStdClient ---
 
 func TestBuildClient_TransportConfig(t *testing.T) {
 	tlsCfg := &tls.Config{ServerName: "example.com"}
@@ -388,7 +393,13 @@ func TestBuildClient_TransportConfig(t *testing.T) {
 		dialer: &net.Dialer{Timeout: 5 * time.Second},
 	}
 
-	tr, client := p.buildClient(mustParseAddr("1.2.3.4"))
+	res := p.newStdClient(mustParseAddr("1.2.3.4"))
+	defer res.close()
+	client := res.client
+	tr, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatal("transport is not *http.Transport")
+	}
 
 	if client.Timeout != 7*time.Second {
 		t.Errorf("client.Timeout = %v, want 7s", client.Timeout)
@@ -420,7 +431,12 @@ func TestBuildClient_H2_ForcesHTTP2(t *testing.T) {
 		dialer: &net.Dialer{},
 	}
 
-	tr, _ := p.buildClient(mustParseAddr("1.2.3.4"))
+	res := p.newStdClient(mustParseAddr("1.2.3.4"))
+	defer res.close()
+	tr, ok := res.client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatal("transport is not *http.Transport")
+	}
 
 	if !tr.ForceAttemptHTTP2 {
 		t.Error("ForceAttemptHTTP2 = false, want true for H2")
@@ -441,7 +457,12 @@ func TestBuildClient_DialRedirectsToIP(t *testing.T) {
 		dialer: &net.Dialer{},
 	}
 
-	tr, _ := p.buildClient(mustParseAddr("10.20.30.40"))
+	res := p.newStdClient(mustParseAddr("10.20.30.40"))
+	defer res.close()
+	tr, ok := res.client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatal("transport is not *http.Transport")
+	}
 	if tr == nil {
 		t.Fatal("transport is nil")
 	}

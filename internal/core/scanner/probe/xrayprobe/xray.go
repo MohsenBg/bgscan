@@ -183,18 +183,18 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 		if ctx.Err() != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("%w: lease port for Xray: %w", probe.ErrEnvironment, err)
+		return nil, probe.NormalizeErr(fmt.Errorf("lease port for Xray: %w", err))
 	}
 	defer p.pm.Release(port)
 
 	cfg, err := p.xray.GenerateConfig(p.outbound, ip, port)
 	if err != nil {
-		return nil, fmt.Errorf("%w: generate Xray config: %w", probe.ErrEnvironment, err)
+		return nil, probe.NormalizeErr(fmt.Errorf("generate Xray config: %w", err))
 	}
 
 	inst, err := p.xray.Start(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("%w: start Xray: %w", probe.ErrEnvironment, err)
+		return nil, probe.NormalizeErr(fmt.Errorf("start Xray: %w", err))
 	}
 
 	// Always closed via defer below.
@@ -211,7 +211,7 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 			return nil, ctxErr
 		}
 
-		return nil, fmt.Errorf("%w: wait for Xray proxy: %w", probe.ErrEnvironment, err)
+		return nil, probe.NormalizeErr(fmt.Errorf("wait for Xray proxy: %w", err))
 	}
 
 	latency, err := p.speed.MeasureLatency(ctx, speedtest.LatencyConfig{
@@ -219,7 +219,7 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 		ProxyPort: port,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("measure latency for %s: %w", ip, err)
+		return nil, probe.NormalizeErr(fmt.Errorf("measure latency: %w", err))
 	}
 
 	result := XrayResult{
@@ -234,7 +234,7 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	case config.DownloadSpeedOnly:
 		download, err := p.measureDownload(ctx, port)
 		if err != nil {
-			return nil, fmt.Errorf("measure download for %s: %w", ip, err)
+			return nil, probe.NormalizeErr(fmt.Errorf("measure download: %w", err))
 		}
 
 		result.Download = download.Speed
@@ -242,7 +242,7 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	case config.UploadSpeedOnly:
 		upload, err := p.measureUpload(ctx, port)
 		if err != nil {
-			return nil, fmt.Errorf("measure upload for %s: %w", ip, err)
+			return nil, probe.NormalizeErr(fmt.Errorf("measure upload: %w", err))
 		}
 
 		result.Upload = upload.Speed
@@ -250,13 +250,13 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	case config.Both:
 		download, err := p.measureDownload(ctx, port)
 		if err != nil {
-			return nil, fmt.Errorf("measure download for %s: %w", ip, err)
+			return nil, probe.NormalizeErr(fmt.Errorf("measure download: %w", err))
 		}
 		result.Download = download.Speed
 
 		upload, err := p.measureUpload(ctx, port)
 		if err != nil {
-			return nil, fmt.Errorf("measure upload for %s: %w", ip, err)
+			return nil, probe.NormalizeErr(fmt.Errorf("measure upload: %w", err))
 		}
 		result.Upload = upload.Speed
 	}

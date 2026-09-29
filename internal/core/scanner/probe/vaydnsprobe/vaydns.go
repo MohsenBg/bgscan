@@ -151,7 +151,7 @@ func (v *VayDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, er
 		}
 	}
 
-	return nil, err
+	return nil, probe.NormalizeErr(err)
 }
 
 func (v *VayDNSProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result, error) {
@@ -159,11 +159,11 @@ func (v *VayDNSProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result
 	// Slipstream and DNSTT probes.
 	tunnel, err := v.vaydnsService.NewTunnel(ctx, v.cfg, ip)
 	if err != nil {
-		return nil, fmt.Errorf("create VayDNS tunnel: %w", err)
+		return nil, err
 	}
 	defer func() {
 		if err := tunnel.Close(); err != nil {
-			v.log.Error("close VayDNS tunnel: %v", err)
+			v.log.Debug("close VayDNS tunnel: %v", err)
 		}
 	}()
 
@@ -175,7 +175,7 @@ func (v *VayDNSProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result
 	case dns.ResolverProxySOCKS:
 		dialContext, err = v.dialSOCKS(tunnel)
 	default:
-		err = fmt.Errorf("%w: unsupported proxy type: %v", probe.ErrEnvironment, v.cfg.ProxyType)
+		return nil, fmt.Errorf("unsupported proxy type: %v", v.cfg.ProxyType)
 	}
 	if err != nil {
 		return nil, err
@@ -188,7 +188,7 @@ func (v *VayDNSProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result
 // DialContext that proxies connections through it.
 func (v *VayDNSProbe) dialSSH(ctx context.Context, tunnel net.Conn) (func(context.Context, string, string) (net.Conn, error), error) {
 	if v.cfg.AuthMethod == dns.AuthNone {
-		return nil, fmt.Errorf("%w: SSH authentication is required", probe.ErrEnvironment)
+		return nil, errors.New("SSH authentication is required")
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -221,7 +221,10 @@ func (v *VayDNSProbe) dialSSH(ctx context.Context, tunnel net.Conn) (func(contex
 
 	select {
 	case <-ctx.Done():
-		_ = tunnel.Close()
+		err := tunnel.Close()
+		if err != nil {
+			v.log.Debug("close tunnel: %s", err.Error())
+		}
 		return nil, fmt.Errorf("connect SSH proxy: %w", ctx.Err())
 	case res := <-resultCh:
 		if res.err != nil {
@@ -235,7 +238,7 @@ func (v *VayDNSProbe) dialSSH(ctx context.Context, tunnel net.Conn) (func(contex
 // tunnel using the real destination address requested by the caller.
 func (v *VayDNSProbe) dialSOCKS(tunnel net.Conn) (func(context.Context, string, string) (net.Conn, error), error) {
 	if v.cfg.AuthMethod == dns.AuthKey {
-		return nil, fmt.Errorf("%w: SOCKS proxy does not support key authentication", probe.ErrEnvironment)
+		return nil, errors.New("SOCKS proxy does not support key authentication")
 	}
 
 	socksConfig := socks.Config{

@@ -101,7 +101,7 @@ func NewICMPProbe(opts Options) (*ICMPProbe, error) {
 
 	conn4, mode4, id4, err := opts.Factory("ip4:icmp", "udp4", "0.0.0.0")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create IPv4 ICMP socket: %w", err)
 	}
 
 	conn6, mode6, id6, _ := opts.Factory("ip6:ipv6-icmp", "udp6", "::")
@@ -255,7 +255,7 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Durati
 		proto = icmpProtocol
 	} else {
 		if p.conn6 == nil {
-			return fmt.Errorf("%w: IPv6 is not available on this system", probe.ErrEnvironment)
+			return errors.New("IPv6 is not available on this system")
 		}
 		conn = p.conn6
 		id = p.id6
@@ -289,11 +289,11 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Durati
 
 	data, err := msg.Marshal(nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal icmp message: %w", err)
 	}
 
 	if _, err = conn.WriteTo(data, destination(ip, mode)); err != nil {
-		return fmt.Errorf("%w: icmp write: %w", probe.ErrEnvironment, err)
+		return fmt.Errorf("icmp write: %w", err)
 	}
 
 	timer := p.clock.NewTimer(timeout)
@@ -303,11 +303,11 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Durati
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-p.done:
-		return fmt.Errorf("%w: icmp probe closed", probe.ErrEnvironment)
+		return errors.New("icmp probe closed")
 	case <-w.ch:
 		return nil
 	case <-timer.C:
-		return errors.New("timeout")
+		return probe.ErrTimeout
 	}
 }
 
@@ -353,7 +353,7 @@ func (p *ICMPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 		}, nil
 	}
 
-	return nil, lastErr
+	return nil, probe.NormalizeErr(lastErr)
 }
 
 // Close stops the background readers and closes the ICMP sockets.
@@ -389,7 +389,7 @@ func defaultFactory(privileged, unprivileged, addr string) (socket, string, int,
 
 	conn, err = icmp.ListenPacket(unprivileged, addr)
 	if err != nil {
-		return nil, "", 0, err
+		return nil, "", 0, fmt.Errorf("listen icmp socket: %w", err)
 	}
 
 	id := conn.LocalAddr().(*net.UDPAddr).Port

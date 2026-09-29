@@ -135,7 +135,7 @@ func (p *StormDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, 
 		if ctx.Err() != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("%w: lease port for StormDNS: %w", probe.ErrEnvironment, err)
+		return nil, fmt.Errorf("lease port for StormDNS: %w", err)
 	}
 	defer p.pm.Release(localPort)
 
@@ -154,18 +154,18 @@ func (p *StormDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, 
 		}
 	}
 
-	return nil, err
+	return nil, probe.NormalizeErr(err)
 }
 
 func (p *StormDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort uint16) (result.Result, error) {
 	// RunTunnel blocks until the tunnel session is ready.
 	handle, err := p.stormDNSService.RunTunnel(ctx, p.config, ip.String(), localPort)
 	if err != nil {
-		return nil, fmt.Errorf("start StormDNS tunnel: %w", err)
+		return nil, err
 	}
 	defer func() {
 		if err := handle.Close(); err != nil {
-			p.log.Error("close StormDNS tunnel: %v", err)
+			p.log.Debug("close StormDNS tunnel: %v", err)
 		}
 	}()
 
@@ -174,7 +174,7 @@ func (p *StormDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort ui
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
 		}
-		return nil, fmt.Errorf("%w: wait for StormDNS proxy: %w", probe.ErrEnvironment, err)
+		return nil, fmt.Errorf("wait for StormDNS proxy: %w", err)
 	}
 
 	latency, err := p.speedtestSvc.MeasureLatency(ctx, speedtest.LatencyConfig{

@@ -198,3 +198,8 @@ func resolveTLSVersions(cfg config.HTTPConfig) (uint16, uint16, error) {
 
 	return minTLS, maxTLS, nil
 }
+
+func isHTTPS(s string) bool {
+	s = strings.TrimSpace(s)
+	return len(s) >= len("https") && strings.EqualFold(s[:len("https")], "https")
+}

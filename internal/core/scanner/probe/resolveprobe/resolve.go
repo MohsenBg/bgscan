@@ -119,11 +119,15 @@ func (r *ResolverProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, 
 
 	if r.request.DpiCheck {
 		if err := r.verifyResolverHonesty(ctx, ip); err != nil {
-			return nil, err
+			return nil, probe.NormalizeErr(err)
 		}
 	}
 
-	return r.executeNormalProbe(ctx, ip)
+	res, err := r.executeNormalProbe(ctx, ip)
+	if err != nil {
+		return nil, probe.NormalizeErr(err)
+	}
+	return res, nil
 }
 
 // verifyResolverHonesty queries a guaranteed-invalid .invalid domain; rcode 0
@@ -161,13 +165,13 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip netip.Addr
 		}
 
 		if resp.Rcode == 0 {
-			return fmt.Errorf("dpi detected: resolver returned rcode 0 for %s", fakeDomain)
+			return fmt.Errorf("%w: resolver returned rcode 0", probe.ErrBadResponse)
 		}
 
 		return nil
 	}
 
-	return fmt.Errorf("dpi verification failed after %d tries: %w", r.request.DpiTries, lastErr)
+	return fmt.Errorf("verify resolver honesty after %d tries: %w", r.request.DpiTries, lastErr)
 }
 
 // executeNormalProbe returns the first CheckType yielding an AcceptedRcode.
@@ -224,7 +228,7 @@ func (r *ResolverProbe) executeNormalProbe(ctx context.Context, ip netip.Addr) (
 		_ = lastErr
 	}
 
-	return nil, fmt.Errorf("no accepted response for %s", target)
+	return nil, fmt.Errorf("%w: no accepted rcode", probe.ErrBadResponse)
 }
 
 func (r *ResolverProbe) isRcodeAccepted(code uint16) bool {

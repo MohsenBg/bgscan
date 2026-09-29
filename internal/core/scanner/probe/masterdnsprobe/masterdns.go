@@ -134,7 +134,7 @@ func (p *MasterDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result,
 		if ctx.Err() != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("%w: lease port for MasterDNS: %w", probe.ErrEnvironment, err)
+		return nil, fmt.Errorf("lease port for MasterDNS: %w", err)
 	}
 	defer p.pm.Release(localPort)
 
@@ -153,18 +153,18 @@ func (p *MasterDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result,
 		}
 	}
 
-	return nil, err
+	return nil, probe.NormalizeErr(err)
 }
 
 func (p *MasterDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort uint16) (result.Result, error) {
 	// RunTunnel blocks until the tunnel session is ready.
 	handle, err := p.masterDNSService.RunTunnel(ctx, p.config, ip.String(), localPort)
 	if err != nil {
-		return nil, fmt.Errorf("start MasterDNS tunnel: %w", err)
+		return nil, err
 	}
 	defer func() {
 		if err := handle.Close(); err != nil {
-			p.log.Error("close MasterDNS tunnel: %v", err)
+			p.log.Debug("close MasterDNS tunnel: %v", err)
 		}
 	}()
 
@@ -173,7 +173,7 @@ func (p *MasterDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort u
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
 		}
-		return nil, fmt.Errorf("%w: wait for MasterDNS proxy: %w", probe.ErrEnvironment, err)
+		return nil, fmt.Errorf("wait for MasterDNS proxy: %w", err)
 	}
 
 	latency, err := p.speedtestService.MeasureLatency(ctx, speedtest.LatencyConfig{

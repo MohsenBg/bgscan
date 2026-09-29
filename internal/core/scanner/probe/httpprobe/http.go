@@ -7,21 +7,22 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"strings"
 	"time"
 
-	"github.com/MohsenBg/bgscan/internal/core/netutil"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
+// httpClientResult bundles a client with the function that releases its
+// resources.
 type httpClientResult struct {
 	client *http.Client
 	close  func()
 }
 
-// httpClientFactory abstracts HTTP client creation, primarily to allow mocking in tests.
+// httpClientFactory abstracts HTTP client creation, primarily to allow
+// mocking in tests.
 type httpClientFactory func(ip netip.Addr) httpClientResult
 
 // HTTPProbe validates HTTP/HTTPS connectivity to a target IP, preserving
@@ -46,34 +47,9 @@ func NewHTTPProbe(req HTTPRequest, acceptedCodes []int, log *logger.Logger) prob
 		filter: newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
 	}
 
+	p.clientFactory = p.newStdClient
 	if req.Fingerprint != "" {
-		p.clientFactory = func(ip netip.Addr) httpClientResult {
-			client, err := utlsHTTPClientFactory(
-				ip,
-				req.Timeout,
-				req.Fingerprint,
-				req.MinTLSVersion,
-				req.MaxTLSVersion,
-				req.SkipTLSVerify,
-				req.Version,
-			)
-			if err != nil {
-				t, c := p.buildClient(ip)
-				return httpClientResult{client: c, close: t.CloseIdleConnections}
-			}
-			return httpClientResult{
-				client: client,
-				close:  client.CloseIdleConnections,
-			}
-		}
-	} else {
-		p.clientFactory = func(ip netip.Addr) httpClientResult {
-			t, client := p.buildClient(ip)
-			return httpClientResult{
-				client: client,
-				close:  t.CloseIdleConnections,
-			}
-		}
+		p.clientFactory = p.newUTLSClient
 	}
 
 	return p
@@ -85,9 +61,12 @@ func (p *HTTPProbe) Init(context.Context) error { return nil }
 // Close implements probe.Probe. It is a no-op.
 func (p *HTTPProbe) Close() error { return nil }
 
-// Run executes an HTTP HEAD request against the target IP.
-// It returns an HTTPResult on success, or an error if the request fails
-// or the response status code is not in the accepted list.
+// Schema implements probe.Probe.
+func (p *HTTPProbe) Schema() result.ResultSchema { return Schema }
+
+// Run executes an HTTP HEAD request against the target IP. It returns an
+// HTTPResult on success, or an error if the request fails or the response
+// status code is not accepted.
 func (p *HTTPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -98,19 +77,16 @@ func (p *HTTPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
+	c := p.clientFactory(ip)
+	defer c.close()
+
 	start := time.Now()
-
-	r := p.clientFactory(ip)
-	resp, err := r.client.Do(req)
-
-	r.close()
-
+	resp, err := c.client.Do(req)
 	if err != nil {
-		if netutil.IsUnreachable(err) {
-			return nil, fmt.Errorf("%w: request failed: %w", probe.ErrEnvironment, err)
-		}
-		return nil, fmt.Errorf("request failed: %w", err)
+		return nil, probe.NormalizeErr(err)
 	}
+	latency := time.Since(start)
+
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			p.log.Error("close response body: %v", err)
@@ -118,7 +94,7 @@ func (p *HTTPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	}()
 
 	if !p.filter.isAccepted(resp.StatusCode) {
-		return nil, fmt.Errorf("status %d not accepted", resp.StatusCode)
+		return nil, fmt.Errorf("%w: status %d not accepted", probe.ErrBadResponse, resp.StatusCode)
 	}
 
 	return HTTPResult{
@@ -126,18 +102,34 @@ func (p *HTTPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 		StatusCode:  resp.StatusCode,
 		HTTPVersion: resp.Proto,
 		UseTLS:      p.req.UseTLS,
-		Latency:     time.Since(start),
+		Latency:     latency,
 	}, nil
 }
 
-func (p *HTTPProbe) Schema() result.ResultSchema {
-	return Schema
+// newUTLSClient builds a client with a spoofed TLS fingerprint, falling back
+// to the standard client if the uTLS client cannot be created.
+func (p *HTTPProbe) newUTLSClient(ip netip.Addr) httpClientResult {
+	client, err := utlsHTTPClientFactory(
+		ip,
+		p.req.Timeout,
+		p.req.Fingerprint,
+		p.req.MinTLSVersion,
+		p.req.MaxTLSVersion,
+		p.req.SkipTLSVerify,
+		p.req.Version,
+	)
+	if err != nil {
+		p.log.Error("utls client for %s failed, falling back to std client: %v", ip, err)
+		return p.newStdClient(ip)
+	}
+
+	return httpClientResult{client: client, close: client.CloseIdleConnections}
 }
 
-// buildClient returns a transport + client bound to ip. A fresh transport
-// per call avoids HTTP/2 readLoop goroutine leaks; callers must
-// CloseIdleConnections when done.
-func (p *HTTPProbe) buildClient(ip netip.Addr) (*http.Transport, *http.Client) {
+// newStdClient returns a net/http client bound to ip. A fresh transport per
+// call avoids HTTP/2 readLoop goroutine leaks; callers must invoke close
+// when done.
+func (p *HTTPProbe) newStdClient(ip netip.Addr) httpClientResult {
 	t := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			_, port, err := net.SplitHostPort(addr)
@@ -154,23 +146,17 @@ func (p *HTTPProbe) buildClient(ip netip.Addr) (*http.Transport, *http.Client) {
 		TLSNextProto:          tlsNextProto(p.req.Version),
 	}
 
-	return t, &http.Client{
-		Transport: t,
-		Timeout:   p.req.Timeout,
+	return httpClientResult{
+		client: &http.Client{Transport: t, Timeout: p.req.Timeout},
+		close:  t.CloseIdleConnections,
 	}
 }
 
 // tlsNextProto disables HTTP/2 upgrades in H1-only mode (empty map); nil
 // keeps default negotiation.
-func tlsNextProto(v HTTPVersion) map[string]func(authority string, c *tls.Conn) http.RoundTripper {
+func tlsNextProto(v HTTPVersion) map[string]func(string, *tls.Conn) http.RoundTripper {
 	if v == HTTPVersionH1 {
-		return map[string]func(authority string, c *tls.Conn) http.RoundTripper{}
+		return map[string]func(string, *tls.Conn) http.RoundTripper{}
 	}
 	return nil
-}
-
-func isHTTPS(proto string) bool {
-	p := strings.ToLower(proto)
-	p = strings.TrimSpace(p)
-	return strings.HasPrefix(p, "https")
 }

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
-	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
 func TestRunScan_EmptyInput(t *testing.T) {
@@ -20,14 +19,19 @@ func TestRunScan_EmptyInput(t *testing.T) {
 	w := &mockWriter{}
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, ScanConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
-		Workers:      2,
-		Probe:        prb,
-		Writer:       w,
-		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-		Shuffled:     false,
-		Pause:        NewPauseController(),
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: 2,
+				Probe:   prb,
+				Writer:  w,
+				Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+			},
+		},
+		Shuffled: false,
+		Pause:    NewPauseController(),
 	})
 
 	select {
@@ -50,14 +54,19 @@ func TestRunScan_ScansAllIPs(t *testing.T) {
 	var successCount atomic.Int32
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, ScanConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
-		Workers:      2,
-		Probe:        prb,
-		Writer:       w,
-		Hooks: ScanHooks{
-			OnSuccess: func(r result.Result) { successCount.Add(1) },
-			OnScanEnd: func() { endCh <- struct{}{} },
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: 2,
+				Probe:   prb,
+				Writer:  w,
+				Hooks: ScanHooks{
+					OnSuccess: func(r result.Result) { successCount.Add(1) },
+					OnScanEnd: func() { endCh <- struct{}{} },
+				},
+			},
 		},
 		Shuffled: false,
 		Pause:    NewPauseController(),
@@ -81,14 +90,19 @@ func TestRunScan_ProbeInitError(t *testing.T) {
 	var gotErr error
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, ScanConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
-		Workers:      1,
-		Probe:        prb,
-		Writer:       w,
-		Hooks: ScanHooks{
-			OnError:   func(e error) { gotErr = e },
-			OnScanEnd: func() { endCh <- struct{}{} },
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: 1,
+				Probe:   prb,
+				Writer:  w,
+				Hooks: ScanHooks{
+					OnError:   func(e error) { gotErr = e },
+					OnScanEnd: func() { endCh <- struct{}{} },
+				},
+			},
 		},
 		Shuffled: false,
 		Pause:    NewPauseController(),
@@ -112,14 +126,19 @@ func TestRunScan_ProbeRunError(t *testing.T) {
 	var successCount atomic.Int32
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, ScanConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
-		Workers:      1,
-		Probe:        prb,
-		Writer:       w,
-		Hooks: ScanHooks{
-			OnSuccess: func(r result.Result) { successCount.Add(1) },
-			OnScanEnd: func() { endCh <- struct{}{} },
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: 1,
+				Probe:   prb,
+				Writer:  w,
+				Hooks: ScanHooks{
+					OnSuccess: func(r result.Result) { successCount.Add(1) },
+					OnScanEnd: func() { endCh <- struct{}{} },
+				},
+			},
 		},
 		Shuffled: false,
 		Pause:    NewPauseController(),
@@ -143,14 +162,19 @@ func TestRunScan_WriterStartError(t *testing.T) {
 	var gotErr error
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, ScanConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
-		Workers:      1,
-		Probe:        prb,
-		Writer:       w,
-		Hooks: ScanHooks{
-			OnError:   func(e error) { gotErr = e },
-			OnScanEnd: func() { endCh <- struct{}{} },
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: 1,
+				Probe:   prb,
+				Writer:  w,
+				Hooks: ScanHooks{
+					OnError:   func(e error) { gotErr = e },
+					OnScanEnd: func() { endCh <- struct{}{} },
+				},
+			},
 		},
 		Shuffled: false,
 		Pause:    NewPauseController(),
@@ -181,14 +205,19 @@ func TestRunScan_ContextCancellation(t *testing.T) {
 		cancel()
 	}()
 
-	RunScan(ctx, path, ScanConfig{
+	RunScanWithChain(ctx, path, ChainConfig{
 		MaxIPsToTest: 0,
-		Workers:      4,
-		Probe:        prb,
-		Writer:       w,
-		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-		Shuffled:     false,
-		Pause:        NewPauseController(),
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: 4,
+				Probe:   prb,
+				Writer:  w,
+				Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+			},
+		},
+		Shuffled: false,
+		Pause:    NewPauseController(),
 	})
 
 	select {
@@ -211,14 +240,19 @@ func TestRunScan_MaxIPLimit(t *testing.T) {
 	const maxIPs uint64 = 2
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, ScanConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: maxIPs,
-		Workers:      1,
-		Probe:        prb,
-		Writer:       w,
-		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-		Shuffled:     false,
-		Pause:        NewPauseController(),
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: 1,
+				Probe:   prb,
+				Writer:  w,
+				Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+			},
+		},
+		Shuffled: false,
+		Pause:    NewPauseController(),
 	})
 
 	<-endCh
@@ -247,14 +281,19 @@ func TestRunScan_PauseAndResumeDuringRun(t *testing.T) {
 		pc.Resume()
 	}()
 
-	RunScan(context.Background(), path, ScanConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
-		Workers:      2,
-		Probe:        prb,
-		Writer:       w,
-		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-		Shuffled:     false,
-		Pause:        pc,
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: 2,
+				Probe:   prb,
+				Writer:  w,
+				Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+			},
+		},
+		Shuffled: false,
+		Pause:    pc,
 	})
 
 	select {
@@ -280,23 +319,28 @@ func TestRunScan_OnProgressCallback(t *testing.T) {
 	var progressCalls atomic.Int32
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, ScanConfig{
-		MaxIPsToTest:     0,
-		Workers:          2,
-		Probe:            prb,
-		Writer:           w,
-		ProgressInterval: 10 * time.Millisecond,
-		Hooks: ScanHooks{
-			OnProgress: func(p Progress) {
-				progressCalls.Add(1)
-				if p.RatePerSec < 0 {
-					panic("negative rate")
-				}
-				if p.Percent < 0 || p.Percent > 100 {
-					panic("percent out of range")
-				}
+	RunScanWithChain(context.Background(), path, ChainConfig{
+		MaxIPsToTest: 0,
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers:          2,
+				Probe:            prb,
+				Writer:           w,
+				ProgressInterval: 10 * time.Millisecond,
+				Hooks: ScanHooks{
+					OnProgress: func(p Progress) {
+						progressCalls.Add(1)
+						if p.RatePerSec < 0 {
+							panic("negative rate")
+						}
+						if p.Percent < 0 || p.Percent > 100 {
+							panic("percent out of range")
+						}
+					},
+					OnScanEnd: func() { endCh <- struct{}{} },
+				},
 			},
-			OnScanEnd: func() { endCh <- struct{}{} },
 		},
 		Shuffled: false,
 		Pause:    NewPauseController(),
@@ -342,14 +386,19 @@ func TestWorkerPool_ConcurrencyRespected(t *testing.T) {
 	w := &mockWriter{}
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, ScanConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
-		Workers:      workerCount,
-		Probe:        prb,
-		Writer:       w,
-		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-		Shuffled:     false,
-		Pause:        NewPauseController(),
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: workerCount,
+				Probe:   prb,
+				Writer:  w,
+				Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+			},
+		},
+		Shuffled: false,
+		Pause:    NewPauseController(),
 	})
 
 	<-endCh
@@ -371,14 +420,19 @@ func TestWorkerPool_ZeroWorkersDefaultsToOne(t *testing.T) {
 	w := &mockWriter{}
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, ScanConfig{
+	RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
-		Workers:      0,
-		Probe:        prb,
-		Writer:       w,
-		Hooks:        ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
-		Shuffled:     false,
-		Pause:        NewPauseController(),
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: 0,
+				Probe:   prb,
+				Writer:  w,
+				Hooks:   ScanHooks{OnScanEnd: func() { endCh <- struct{}{} }},
+			},
+		},
+		Shuffled: false,
+		Pause:    NewPauseController(),
 	})
 
 	select {
@@ -407,19 +461,24 @@ func TestProgress_FieldsViaScan(t *testing.T) {
 	)
 	endCh := make(chan struct{}, 1)
 
-	RunScan(context.Background(), path, ScanConfig{
-		MaxIPsToTest:     0,
-		Workers:          1,
-		Probe:            prb,
-		Writer:           w,
-		ProgressInterval: 5 * time.Millisecond,
-		Hooks: ScanHooks{
-			OnProgress: func(p Progress) {
-				mu.Lock()
-				snapshots = append(snapshots, p)
-				mu.Unlock()
+	RunScanWithChain(context.Background(), path, ChainConfig{
+		MaxIPsToTest: 0,
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers:          1,
+				Probe:            prb,
+				Writer:           w,
+				ProgressInterval: 5 * time.Millisecond,
+				Hooks: ScanHooks{
+					OnProgress: func(p Progress) {
+						mu.Lock()
+						snapshots = append(snapshots, p)
+						mu.Unlock()
+					},
+					OnScanEnd: func() { endCh <- struct{}{} },
+				},
 			},
-			OnScanEnd: func() { endCh <- struct{}{} },
 		},
 		Shuffled: false,
 		Pause:    NewPauseController(),
@@ -450,66 +509,5 @@ func TestProgress_FieldsViaScan(t *testing.T) {
 	}
 	if last.RatePerSec <= 0 {
 		t.Fatalf("last progress RatePerSec = %v, want > 0", last.RatePerSec)
-	}
-}
-
-func TestRunScan_EnvironmentFailureAborts(t *testing.T) {
-	const totalIPs = 100
-
-	ips := make([]string, totalIPs)
-	for i := range ips {
-		ips[i] = fmt.Sprintf("10.3.%d.%d", i/256, i%256)
-	}
-	path := ipFile(t, ips...)
-
-	prb := &mockProbe{
-		runErr: fmt.Errorf("%w: local port pool exhausted", probe.ErrEnvironment),
-	}
-	w := &mockWriter{}
-
-	var gotErr error
-	var errCount atomic.Int32
-	endCh := make(chan struct{}, 1)
-
-	RunScan(context.Background(), path, ScanConfig{
-		Workers: 1,
-		Probe:   prb,
-		Writer:  w,
-		Hooks: ScanHooks{
-			OnError: func(e error) {
-				gotErr = e
-				errCount.Add(1)
-			},
-			OnScanEnd: func() { endCh <- struct{}{} },
-		},
-		Shuffled: false,
-		Pause:    NewPauseController(),
-	})
-
-	select {
-	case <-endCh:
-	case <-time.After(3 * time.Second):
-		t.Fatal("RunScan did not end after environment abort")
-	}
-
-	if gotErr == nil {
-		t.Fatal("expected OnError on environment abort")
-	}
-	if !errors.Is(gotErr, probe.ErrEnvironment) {
-		t.Fatalf("OnError err = %v, want errors.Is ErrEnvironment", gotErr)
-	}
-	if errCount.Load() != 1 {
-		t.Fatalf("OnError calls = %d, want exactly 1", errCount.Load())
-	}
-
-	called := int(prb.runCalled.Load())
-	if called < envFailThreshold {
-		t.Fatalf("runCalled = %d, want at least %d before abort", called, envFailThreshold)
-	}
-	if called > envFailThreshold+10 {
-		t.Fatalf("runCalled = %d, scan did not abort early (limit %d)", called, envFailThreshold+10)
-	}
-	if len(w.results()) != 0 {
-		t.Fatalf("expected no written results, got %d", len(w.results()))
 	}
 }

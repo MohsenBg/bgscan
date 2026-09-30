@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// PauseController controls pause, resume, and shutdown state for scanning work.
+// PauseController manages pause, resume, and shutdown state for background tasks.
 type PauseController interface {
 	Pause()
 	Resume()
@@ -29,7 +29,7 @@ type pauseController struct {
 	doneCh       chan struct{}
 }
 
-// NewPauseController creates a controller in the running state.
+// NewPauseController returns an initialized PauseController in the running state.
 func NewPauseController() PauseController {
 	return &pauseController{
 		resumeCh: make(chan struct{}),
@@ -37,7 +37,6 @@ func NewPauseController() PauseController {
 	}
 }
 
-// Pause blocks workers at their next Wait call until Resume or Stop is called.
 func (p *pauseController) Pause() {
 	if !p.isPaused.CompareAndSwap(false, true) {
 		return
@@ -49,14 +48,12 @@ func (p *pauseController) Pause() {
 	p.mu.Unlock()
 }
 
-// Resume releases workers blocked by Wait.
 func (p *pauseController) Resume() {
 	if !p.isPaused.CompareAndSwap(true, false) {
 		return
 	}
 
 	p.mu.Lock()
-
 	if !p.pausedAt.IsZero() {
 		p.totalPauseNs.Add(time.Since(p.pausedAt).Nanoseconds())
 		p.pausedAt = time.Time{}
@@ -66,7 +63,6 @@ func (p *pauseController) Resume() {
 	p.mu.Unlock()
 }
 
-// Stop permanently stops the controller and releases waiting workers.
 func (p *pauseController) Stop() {
 	p.stopOnce.Do(func() {
 		p.Resume()
@@ -74,19 +70,15 @@ func (p *pauseController) Stop() {
 	})
 }
 
-// IsPaused reports whether workers are currently paused.
 func (p *pauseController) IsPaused() bool {
 	return p.isPaused.Load()
 }
 
-// PausedDuration reports the total time spent paused, including the current
-// pause interval when the controller is paused.
 func (p *pauseController) PausedDuration() time.Duration {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	total := p.totalPauseNs.Load()
-
 	if !p.pausedAt.IsZero() {
 		total += time.Since(p.pausedAt).Nanoseconds()
 	}
@@ -94,9 +86,6 @@ func (p *pauseController) PausedDuration() time.Duration {
 	return time.Duration(total)
 }
 
-// Wait blocks while paused.
-//
-// It returns false when ctx is canceled or the controller has stopped.
 func (p *pauseController) Wait(ctx context.Context) bool {
 	if !p.isPaused.Load() {
 		select {
@@ -121,8 +110,7 @@ func (p *pauseController) Wait(ctx context.Context) bool {
 		return false
 
 	case <-resume:
-		// Stop calls Resume before closing doneCh. Check done again so a worker
-		// does not continue after shutdown if both channels became ready.
+		// Guard against race if Stop closed doneCh immediately after Resume.
 		select {
 		case <-p.doneCh:
 			return false

@@ -776,36 +776,12 @@ func (w *fakeWriter) GetResultPath() string { return w.path }
 type fakeRunner struct {
 	mu sync.Mutex
 
-	singleCalls int
-	chainCalls  int
-	singleInput string
-	chainInput  string
-	singleCfg   engine.ScanConfig
-	chainCfg    engine.ChainConfig
+	chainCalls int
+	chainInput string
+	chainCfg   engine.ChainConfig
 
 	started chan struct{}
 	wait    bool
-}
-
-func (r *fakeRunner) RunSingle(
-	ctx context.Context,
-	input string,
-	cfg engine.ScanConfig,
-) {
-	r.mu.Lock()
-	r.singleCalls++
-	r.singleInput = input
-	r.singleCfg = cfg
-	started := r.started
-	wait := r.wait
-	r.mu.Unlock()
-
-	if started != nil {
-		close(started)
-	}
-	if wait {
-		<-ctx.Done()
-	}
 }
 
 func (r *fakeRunner) RunChain(ctx context.Context, input string, cfg engine.ChainConfig) {
@@ -843,14 +819,17 @@ func TestRun_OneStageUsesSingleRunner(t *testing.T) {
 
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
-	if runner.singleCalls != 1 || runner.chainCalls != 0 {
-		t.Fatalf("runner calls = single %d, chain %d; want single 1, chain 0", runner.singleCalls, runner.chainCalls)
+	if runner.chainCalls != 1 {
+		t.Fatalf("runner calls = chain %d; want chain 1", runner.chainCalls)
 	}
-	if runner.singleInput != "127.0.0.1" {
-		t.Fatalf("single input = %q", runner.singleInput)
+	if runner.chainInput != "127.0.0.1" {
+		t.Fatalf("chain input = %q", runner.chainInput)
 	}
-	if runner.singleCfg.Workers != 3 {
-		t.Fatalf("single config = %+v", runner.singleCfg)
+	if len(runner.chainCfg.Stages) != 1 {
+		t.Fatalf("chain stages = %d, want 1", len(runner.chainCfg.Stages))
+	}
+	if runner.chainCfg.Stages[0].Workers != 3 {
+		t.Fatalf("single stage config = %+v", runner.chainCfg.Stages[0])
 	}
 }
 
@@ -873,8 +852,8 @@ func TestRun_MultipleStagesUsesChainRunner(t *testing.T) {
 
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
-	if runner.singleCalls != 0 || runner.chainCalls != 1 {
-		t.Fatalf("runner calls = single %d, chain %d; want single 0, chain 1", runner.singleCalls, runner.chainCalls)
+	if runner.chainCalls != 1 {
+		t.Fatalf("runner calls = chain %d; want chain 1", runner.chainCalls)
 	}
 	if runner.chainInput != "targets.txt" {
 		t.Fatalf("chain input = %q", runner.chainInput)
@@ -1246,15 +1225,15 @@ func TestUpdateStageHooks_HooksPassedToRunner(t *testing.T) {
 		t.Fatalf("Run() error = %v", err)
 	}
 
-	// The hook reference must have reached the runner's ScanConfig.
+	// The hook reference must have reached the runner's ChainConfig.
 	runner.mu.Lock()
-	cfg := runner.singleCfg
+	cfg := runner.chainCfg
 	runner.mu.Unlock()
 
-	if cfg.Hooks.OnScanEnd == nil {
-		t.Fatal("OnScanEnd hook not propagated to runner ScanConfig")
+	if len(cfg.Stages) != 1 || cfg.Stages[0].Hooks.OnScanEnd == nil {
+		t.Fatal("OnScanEnd hook not propagated to runner ChainConfig")
 	}
-	cfg.Hooks.OnScanEnd()
+	cfg.Stages[0].Hooks.OnScanEnd()
 	if !endFired {
 		t.Fatal("OnScanEnd hook did not fire when invoked via runner config")
 	}

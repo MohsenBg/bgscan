@@ -2,59 +2,56 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"net/netip"
-	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 	"github.com/MohsenBg/bgscan/internal/logger"
 
 	"golang.org/x/time/rate"
 )
 
-// stageExecutor manages execution state, metrics, and lifecycle of a single scan stage.
+// ErrResultLimitReached signals that the target success goal has been met.
+var ErrResultLimitReached = errors.New("result limit reached")
+
 type stageExecutor struct {
 	log              *logger.Logger
 	stage            StageConfig
 	pause            PauseController
 	rateLimiter      *rate.Limiter
 	minProbeDuration time.Duration
-
-	// maxSuccessful stops the whole chain once the LAST stage reaches it.
-	// Zero means unlimited. Only set on the last stage executor.
-	maxSuccessful uint64
-	stop          context.CancelFunc
-	stopOnce      sync.Once
-
-	// fails tripwires per-IP probe errors and aborts on an environment
-	// failure streak.
-	fails *probeFailures
+	resultLimit      uint64
 
 	start        time.Time
 	total        atomic.Uint64
 	processed    atomic.Uint64
-	succeed      atomic.Uint64
-	progressDone chan struct{}
+	succeeded    atomic.Uint64
+	stopProgress chan struct{}
+
+	errs errStats
 }
 
-// newStageExecutor initialises a stage executor and starts background progress reporting.
-func newStageExecutor(ctx context.Context, stage StageConfig, cfg ChainConfig, total uint64) (*stageExecutor, error) {
+func newStageExecutor(ctx context.Context, stage StageConfig, cfg ChainConfig, total, resultLimit uint64) (*stageExecutor, error) {
 	exec := &stageExecutor{
 		log:              cfg.Log,
 		stage:            stage,
 		pause:            cfg.Pause,
 		rateLimiter:      cfg.RateLimiter,
 		minProbeDuration: cfg.MinProbeDuration,
+		resultLimit:      resultLimit,
 		start:            time.Now(),
 	}
-	exec.fails = newProbeFailures(exec.log, exec.requestStop, exec.stage.Hooks)
 	exec.total.Store(total)
 
 	if err := exec.stage.Writer.Start(); err != nil {
 		return nil, err
 	}
 	if err := exec.stage.Probe.Init(ctx); err != nil {
-		_ = exec.stage.Writer.Stop()
+		if stopErr := exec.stage.Writer.Stop(); stopErr != nil {
+			exec.log.Error("stopping writer after probe init failure: %v", stopErr)
+		}
 		return nil, err
 	}
 
@@ -62,13 +59,12 @@ func newStageExecutor(ctx context.Context, stage StageConfig, cfg ChainConfig, t
 	return exec, nil
 }
 
-// startProgressReporter emits progress at regular intervals until the stage ends or ctx is cancelled.
 func (e *stageExecutor) startProgressReporter(ctx context.Context, interval time.Duration) {
 	if e.stage.Hooks.OnProgress == nil || interval <= 0 {
 		return
 	}
 
-	e.progressDone = make(chan struct{})
+	e.stopProgress = make(chan struct{})
 
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -76,7 +72,7 @@ func (e *stageExecutor) startProgressReporter(ctx context.Context, interval time
 
 		for {
 			select {
-			case <-e.progressDone:
+			case <-e.stopProgress:
 				return
 			case <-ctx.Done():
 				return
@@ -90,14 +86,12 @@ func (e *stageExecutor) startProgressReporter(ctx context.Context, interval time
 	}()
 }
 
-// cleanup stops the writer, emits a final progress snapshot, and closes the probe.
-// Always call this via defer after newStageExecutor succeeds.
-func (e *stageExecutor) cleanup() {
-	if e.progressDone != nil {
+func (e *stageExecutor) close() {
+	if e.stopProgress != nil {
 		select {
-		case <-e.progressDone:
+		case <-e.stopProgress:
 		default:
-			close(e.progressDone)
+			close(e.stopProgress)
 		}
 	}
 
@@ -114,18 +108,14 @@ func (e *stageExecutor) cleanup() {
 	e.stage.Hooks.callOnScanEnd()
 }
 
-// processIP acquires a rate-limit token, runs the probe, then enforces the minimum
-// probe duration to prevent socket bursts on limited devices such as Android/Termux.
-// Returns true if the probe matched.
-func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) bool {
-	if e.maxSuccessful > 0 && e.succeed.Load() >= e.maxSuccessful {
-		e.requestStop()
-		return false
+func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) error {
+	if e.resultLimitReached() {
+		return ErrResultLimitReached
 	}
 
 	if e.rateLimiter != nil {
 		if err := e.rateLimiter.Wait(ctx); err != nil {
-			return false
+			return err
 		}
 	}
 
@@ -134,40 +124,55 @@ func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) bool {
 	res, err := e.stage.Probe.Run(ctx, ip)
 	e.processed.Add(1)
 
+	e.waitMinProbeDuration(ctx, probeStart)
+
 	if err != nil {
-		if ctx.Err() == nil {
-			e.fails.note(ip, err)
+		if ctx.Err() != nil {
+			return err
 		}
-		e.enforceMinProbeDuration(ctx, probeStart)
-		return false
+		return probe.NormalizeErr(err)
 	}
 
-	e.fails.resetEnv()
-	if e.succeed.Add(1) >= e.maxSuccessful && e.maxSuccessful > 0 {
-		e.requestStop()
+	n, ok := e.claimResultSlot()
+	if !ok {
+		return ErrResultLimitReached
 	}
+
 	e.stage.Hooks.callOnSuccess(res)
 	e.stage.Writer.Write(res)
 
-	e.enforceMinProbeDuration(ctx, probeStart)
-	return true
+	if e.resultLimit > 0 && n >= e.resultLimit {
+		return ErrResultLimitReached
+	}
+
+	return nil
 }
 
-// requestStop cancels the shared chain ctx once the last stage has enough successes.
-func (e *stageExecutor) requestStop() {
-	e.stopOnce.Do(func() {
-		if e.stop != nil {
-			e.stop()
+func (e *stageExecutor) resultLimitReached() bool {
+	return e.resultLimit > 0 && e.succeeded.Load() >= e.resultLimit
+}
+
+func (e *stageExecutor) claimResultSlot() (uint64, bool) {
+	if e.resultLimit == 0 {
+		return e.succeeded.Add(1), true
+	}
+
+	for {
+		cur := e.succeeded.Load()
+		if cur >= e.resultLimit {
+			return cur, false
 		}
-	})
+		if e.succeeded.CompareAndSwap(cur, cur+1) {
+			return cur + 1, true
+		}
+	}
 }
 
-// enforceMinProbeDuration sleeps for the remainder of MinProbeDuration if the
-// probe finished early. Gives the kernel time to recycle TIME_WAIT sockets.
-func (e *stageExecutor) enforceMinProbeDuration(ctx context.Context, probeStart time.Time) {
+func (e *stageExecutor) waitMinProbeDuration(ctx context.Context, probeStart time.Time) {
 	if e.minProbeDuration <= 0 {
 		return
 	}
+
 	if remaining := e.minProbeDuration - time.Since(probeStart); remaining > 0 {
 		select {
 		case <-time.After(remaining):
@@ -176,22 +181,21 @@ func (e *stageExecutor) enforceMinProbeDuration(ctx context.Context, probeStart 
 	}
 }
 
-// emitProgress reports the current scan metrics to the progress hook.
+func (e *stageExecutor) pausedDuration() time.Duration {
+	if e.pause == nil {
+		return 0
+	}
+	return e.pause.PausedDuration()
+}
+
 func (e *stageExecutor) emitProgress() {
 	reportProgress(
 		e.start,
 		e.pausedDuration(),
 		e.total.Load(),
 		e.processed.Load(),
-		e.succeed.Load(),
+		e.succeeded.Load(),
+		e.errs.snapshot(),
 		e.stage.Hooks.OnProgress,
 	)
-}
-
-// pausedDuration returns the cumulative paused duration, or zero if pause is disabled.
-func (e *stageExecutor) pausedDuration() time.Duration {
-	if e.pause == nil {
-		return 0
-	}
-	return e.pause.PausedDuration()
 }

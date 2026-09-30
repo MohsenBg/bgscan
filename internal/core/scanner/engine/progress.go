@@ -5,27 +5,43 @@ import (
 	"time"
 )
 
-// Progress represents a thread-safe snapshot of the current execution status of the engine.
-type Progress struct {
-	Total      uint64        // Total number of tasks/IPs to process
-	Processed  uint64        // Number of tasks already processed
-	Succeed    uint64        // Number of successful tasks
-	Percent    float64       // Completion percentage (0.0 to 100.0)
-	Elapsed    time.Duration // Active elapsed time (excluding pause durations)
-	RatePerSec float64       // Processing throughput rate (items/second)
-	ETA        time.Duration // Estimated time remaining until completion
+// ErrorStats tracks probe failures categorized by failure mode.
+type ErrorStats struct {
+	Timeout     uint64
+	Unreachable uint64
+	Refused     uint64
+	BadResponse uint64
+	Closed      uint64
+	Other       uint64
 }
 
-// maxETASeconds caps ETA to ~292 years, the largest value that fits in time.Duration (int64 nanoseconds).
+// Total returns the cumulative count of all errors.
+func (e ErrorStats) Total() uint64 {
+	return e.Timeout + e.Unreachable + e.Refused + e.BadResponse + e.Closed + e.Other
+}
+
+// Progress represents an instantaneous snapshot of execution metrics.
+type Progress struct {
+	Total      uint64
+	Processed  uint64
+	Succeed    uint64
+	Errors     ErrorStats
+	Percent    float64
+	Elapsed    time.Duration
+	RatePerSec float64
+	ETA        time.Duration
+}
+
+// maxETASeconds avoids int64 overflow when casting to time.Duration.
 const maxETASeconds = float64(math.MaxInt64) / float64(time.Second)
 
-// reportProgress calculates current progress statistics and invokes the provided callback.
 func reportProgress(
 	start time.Time,
 	paused time.Duration,
 	total uint64,
 	processed uint64,
 	succeed uint64,
+	errs ErrorStats,
 	cb func(p Progress),
 ) {
 	if cb == nil {
@@ -65,8 +81,8 @@ func reportProgress(
 		Percent:    percent,
 		Elapsed:    elapsed,
 		RatePerSec: rate,
+		Errors:     errs,
 		ETA:        eta,
 	}
-
 	cb(p)
 }

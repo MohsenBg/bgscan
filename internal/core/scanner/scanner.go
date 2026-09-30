@@ -74,19 +74,10 @@ type WriterFactory func(context.Context, result.WriterOptions) (result.Writer, e
 
 // scanRunner abstracts engine execution for testing.
 type scanRunner interface {
-	RunSingle(context.Context, string, engine.ScanConfig)
 	RunChain(context.Context, string, engine.ChainConfig)
 }
 
 type engineRunner struct{}
-
-func (engineRunner) RunSingle(
-	ctx context.Context,
-	input string,
-	cfg engine.ScanConfig,
-) {
-	engine.RunScan(ctx, input, cfg)
-}
 
 func (engineRunner) RunChain(
 	ctx context.Context,
@@ -416,7 +407,9 @@ func (s *scanner) Run() error {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 
-			_ = exec.CommandContext(ctx, "termux-wake-unlock").Run()
+			if err := exec.CommandContext(ctx, "termux-wake-unlock").Run(); err != nil {
+				s.logs.Core.Warn("termux-wake-unlock failed: %v", err)
+			}
 		}()
 	}
 	s.started = true
@@ -441,17 +434,22 @@ func (s *scanner) Run() error {
 func (s *scanner) runSingle(stage StageConfig) {
 	general := s.config.General
 
-	s.runner.RunSingle(s.ctx, s.input, engine.ScanConfig{
-		Workers:          stage.Workers,
+	s.runner.RunChain(s.ctx, s.input, engine.ChainConfig{
 		MaxIPsToTest:     uint64(max(general.MaxIPsToTest, 0)),
 		MaxSuccessfulIPs: uint64(max(general.MaxSuccessfulIPs, 0)),
-		Probe:            stage.Probe,
-		Writer:           stage.Writer,
-		MinProbeDuration: general.MinProbeDuration.Duration(),
-		ProgressInterval: general.StatusInterval.Duration(),
-		Hooks:            stage.Hooks,
-		Shuffled:         general.Shuffled,
+		Mode:             engine.ModeSequential,
+		Stages: []engine.StageConfig{
+			{
+				Workers:          stage.Workers,
+				Probe:            stage.Probe,
+				Writer:           stage.Writer,
+				ProgressInterval: general.StatusInterval.Duration(),
+				Hooks:            stage.Hooks,
+			},
+		},
 		Pause:            s.pause,
+		Shuffled:         general.Shuffled,
+		MinProbeDuration: general.MinProbeDuration.Duration(),
 		RateLimiter:      s.newRateLimiter(),
 		Log:              s.logs.Core,
 	})

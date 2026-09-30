@@ -1,145 +1,68 @@
-// Package engine provides the low-level scan execution engine.
+// Package engine provides the scan execution engine.
 package engine
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
-
 	"strings"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/logger"
 
 	"golang.org/x/time/rate"
 )
 
-// PipelineMode defines how data streams and flows across multi-stage scans.
+// PipelineMode defines the data flow strategy across stages.
 type PipelineMode string
 
 const (
-	// ModeSequential runs stages one after another.
-	// Stage N+1 starts only after Stage N completely finishes and writes to disk.
+	// ModeSequential executes stages sequentially, writing each stage to disk before starting the next.
 	ModeSequential PipelineMode = "sequential"
 
-	// ModeStreaming runs all stages concurrently using independent worker pools.
-	// Successful IPs from Stage N are pushed instantly into a memory channel for Stage N+1.
+	// ModeStreaming executes stages concurrently, streaming successes directly between stages via channels.
 	ModeStreaming PipelineMode = "streaming"
 
-	// ModeBatch chunks incoming IPs into fixed-size arrays.
-	// A batch must traverse all stages sequentially before the next batch is fetched.
+	// ModeBatch routes discrete batches of targets through all stages sequentially.
 	ModeBatch PipelineMode = "batch"
 )
 
-// ChainConfig controls the execution strategy for a multi-stage scan sequence.
+// ChainConfig configures a multi-stage scan pipeline.
 type ChainConfig struct {
-	// Mode selects the pipeline execution strategy (sequential, streaming, or batch).
-	Mode PipelineMode
-
-	// MaxBuffer is the channel buffer size between streaming stages.
-	// Larger values reduce inter-stage blocking at the cost of memory.
-	MaxBuffer int
-
-	// BatchSize is the number of IPs grouped together when Mode is ModeBatch.
-	BatchSize int
-
-	// MaxIPsToTest caps the total number of IPs processed across all stages.
-	MaxIPsToTest uint64
-
-	// Stages defines the ordered list of scan stages to execute.
-	Stages []StageConfig
-
-	// MinProbeDuration enforces a minimum duration for each probe, useful for
-	// normalizing timing-based side channels.
+	Mode             PipelineMode
+	MaxBuffer        int
+	BatchSize        int
+	MaxIPsToTest     uint64
+	Stages           []StageConfig
 	MinProbeDuration time.Duration
-
-	// Pause allows external control to pause/resume the scan chain.
-	Pause PauseController
-
-	// Shuffled randomizes IP order before scanning when true.
-	Shuffled bool
-
-	// RateLimiter throttles the rate of outgoing probes, if set.
-	RateLimiter *rate.Limiter
-
-	// MaxSuccessfulIPs caps the number of successful IPs to find.
-	// The scan stops once this limit is reached.
+	Pause            PauseController
+	Shuffled         bool
+	RateLimiter      *rate.Limiter
 	MaxSuccessfulIPs uint64
-
-	// Log receives engine lifecycle events (nil-safe).
-	Log *logger.Logger
+	Log              *logger.Logger
 }
 
-// ScanConfig controls the execution of a single, standalone scan.
-type ScanConfig struct {
-	// Workers is the number of concurrent probe workers.
-	Workers int
-
-	// MaxIPsToTest caps the total number of IPs processed.
-	MaxIPsToTest uint64
-
-	// MinProbeDuration enforces a minimum duration for each probe.
-	MinProbeDuration time.Duration
-
-	// ProgressInterval sets how often OnProgress hooks fire.
-	ProgressInterval time.Duration
-
-	// Probe is the protocol-specific probe implementation to run against each IP.
-	Probe probe.Probe
-
-	// Writer persists successful scan results.
-	Writer result.Writer
-
-	// Hooks provides optional lifecycle callbacks.
-	Hooks ScanHooks
-
-	// Pause allows external control to pause/resume the scan.
-	Pause PauseController
-
-	// Shuffled randomizes IP order before scanning when true.
-	Shuffled bool
-
-	// RateLimiter throttles the rate of outgoing probes, if set.
-	RateLimiter *rate.Limiter
-
-	// MaxSuccessfulIPs caps the number of successful IPs to find.
-	// The scan stops once this limit is reached.
-	MaxSuccessfulIPs uint64
-
-	// Log receives engine lifecycle events (nil-safe).
-	Log *logger.Logger
-}
-
-// StageConfig defines settings and dependencies for a single scan stage.
+// StageConfig defines the execution parameters for a single scan stage.
 type StageConfig struct {
-	// Workers is the number of concurrent probe workers for this stage.
-	Workers int
-
-	// ProgressInterval sets how often OnProgress hooks fire for this stage.
+	Workers          int
 	ProgressInterval time.Duration
-
-	// Probe is the protocol-specific probe implementation for this stage.
-	Probe probe.Probe
-
-	// Writer persists successful results for this stage.
-	Writer result.Writer
-
-	// Hooks provides optional lifecycle callbacks for this stage.
-	Hooks ScanHooks
+	Probe            probe.Probe
+	Writer           result.Writer
+	Hooks            ScanHooks
 }
 
-// ScanHooks provides optional lifecycle callbacks for the scanning engine.
-// All fields are optional — nil means the hook is disabled.
+// ScanHooks defines lifecycle callbacks for stage execution.
 type ScanHooks struct {
-	// OnProgress is called periodically with a scan progress snapshot.
+	// OnProgress is invoked periodically with progress metrics.
+	// Implementations must be safe for concurrent execution.
 	OnProgress func(Progress)
 
-	// OnSuccess is called for each successfully scanned IP.
+	// OnSuccess is invoked for each probe success.
 	OnSuccess func(result.Result)
 
-	// OnScanEnd is called once after the entire scan finishes.
+	// OnScanEnd is invoked when the stage completes.
 	OnScanEnd func()
 
-	// OnError is called when a non-fatal engine error occurs.
+	// OnError is invoked when a fatal error occurs.
 	OnError func(error)
 }
 
@@ -161,17 +84,14 @@ func (h ScanHooks) callOnScanEnd() {
 	}
 }
 
-// ParsePipelineMode maps a config string to a PipelineMode, defaulting to
-// ModeSequential for empty or unrecognized input.
+// ParsePipelineMode returns the PipelineMode matching s, defaulting to ModeSequential.
 func ParsePipelineMode(s string) PipelineMode {
-	s = strings.TrimSpace(strings.ToLower(s))
-
-	switch s {
-	case "sequential", "simple":
+	switch strings.TrimSpace(strings.ToLower(s)) {
+	case "sequential":
 		return ModeSequential
-	case "streaming", "parallel":
+	case "streaming":
 		return ModeStreaming
-	case "batch", "pipeline":
+	case "batch":
 		return ModeBatch
 	default:
 		return ModeSequential

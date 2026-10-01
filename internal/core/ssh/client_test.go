@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"errors"
 	"net"
 	"testing"
 
@@ -54,8 +55,9 @@ func TestSSHService_Connect_Success(t *testing.T) {
 		conn,
 		listener.Addr().String(),
 		SSHConfig{
-			User:     "testuser",
-			Password: "secret123",
+			User:                  "testuser",
+			Password:              "secret123",
+			InsecureIgnoreHostKey: true,
 		},
 	)
 	if err != nil {
@@ -119,8 +121,9 @@ func TestSSHService_Connect_AuthenticationFailure(t *testing.T) {
 		conn,
 		listener.Addr().String(),
 		SSHConfig{
-			User:     "wronguser",
-			Password: "wrongpassword",
+			User:                  "wronguser",
+			Password:              "wrongpassword",
+			InsecureIgnoreHostKey: true,
 		},
 	)
 	if err == nil {
@@ -162,6 +165,33 @@ func runMockServer(conn net.Conn, config *ssh.ServerConfig) error {
 	}
 
 	return nil
+}
+
+func TestSSHService_Connect_RequiresKnownHosts(t *testing.T) {
+	service := NewSSHService()
+
+	serverConn, clientConn := net.Pipe()
+	defer func() { _ = clientConn.Close() }()
+	defer func() { _ = serverConn.Close() }()
+
+	client, err := service.Connect(
+		t.Context(),
+		clientConn,
+		"127.0.0.1:22",
+		SSHConfig{
+			User:     "testuser",
+			Password: "secret123",
+		},
+	)
+	if err == nil {
+		if client != nil {
+			_ = client.Close()
+		}
+		t.Fatal("Connect() expected error when no known_hosts and insecure mode off")
+	}
+	if !errors.Is(err, ErrLoadKnownHosts) {
+		t.Fatalf("Connect() error = %v, want ErrLoadKnownHosts", err)
+	}
 }
 
 func newTestServerConfig(

@@ -124,9 +124,10 @@ func measureLatency(ctx context.Context, cfg LatencyConfig) (LatencyResult, erro
 
 	if result.AboveMaximum() {
 		return result, fmt.Errorf(
-			"latency %s exceeds maximum %s",
+			"latency %s exceeds maximum %s: %w",
 			result.RTT,
 			cfg.MaxLatency,
+			context.DeadlineExceeded,
 		)
 	}
 

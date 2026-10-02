@@ -77,7 +77,7 @@ func formatLogLines(th *theme.Theme, lines []string) string {
 	var b strings.Builder
 	for i, line := range lines {
 		if i > 0 {
-			b.WriteString("\n\n")
+			b.WriteString("\n")
 		}
 		b.WriteString(formatLogLine(th, line))
 	}

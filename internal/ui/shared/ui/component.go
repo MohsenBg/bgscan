@@ -55,6 +55,12 @@ type OpenComponentMsg struct {
 // ResetComponentStacksMsg clears all component stacks.
 type ResetComponentStacksMsg struct{}
 
+// HeaderVisibilityMsg requests showing or hiding the header region.
+// The main menu is the only screen that shows the header.
+type HeaderVisibilityMsg struct {
+	Visible bool
+}
+
 // OpenComponentCmd returns a command that emits an OpenComponentMsg to mount
 // the given component.
 func OpenComponentCmd(component Component) tea.Cmd {

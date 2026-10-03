@@ -43,7 +43,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 				cmd := c.OnClose()
 				m.components[i] = nil
 				m.components = append(m.components[:i], m.components[i+1:]...)
-				return m, cmd
+				return m, tea.Batch(cmd, m.headerVisibilityCmd(), m.updateStatusCmd(m.topName()))
 			}
 		}
 
@@ -55,7 +55,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 		m.components = m.components[:1]
-		return m, tea.Batch(cmds...)
+		return m, tea.Batch(append(cmds, m.headerVisibilityCmd(), m.updateStatusCmd(m.topName()))...)
 	}
 
 	activeComp, cmd := m.components[lastIdx].Update(msg)
@@ -66,7 +66,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 func (m *Model) pushComponent(c ui.Component) (ui.Component, tea.Cmd) {
 	m.components = append(m.components, c)
-	return m, tea.Batch(c.Init(), m.forceResize(), m.updateStatusCmd(c.Name()))
+	return m, tea.Batch(c.Init(), m.forceResize(), m.updateStatusCmd(c.Name()), m.headerVisibilityCmd())
 }
 
 func (m *Model) popComponent() (ui.Component, tea.Cmd) {
@@ -79,7 +79,21 @@ func (m *Model) popComponent() (ui.Component, tea.Cmd) {
 
 	newTop := m.components[len(m.components)-1]
 
-	return m, tea.Batch(closeCmd, m.updateStatusCmd(newTop.Name()))
+	return m, tea.Batch(closeCmd, m.updateStatusCmd(newTop.Name()), m.headerVisibilityCmd())
+}
+
+func (m *Model) topName() string {
+	if len(m.components) == 0 {
+		return ""
+	}
+	return m.components[len(m.components)-1].Name()
+}
+
+// headerVisibilityCmd requests the workspace to show the header only on
+// the main menu screen.
+func (m *Model) headerVisibilityCmd() tea.Cmd {
+	visible := m.topName() == "Main Menu"
+	return func() tea.Msg { return ui.HeaderVisibilityMsg{Visible: visible} }
 }
 
 func (m *Model) updateStatusCmd(name string) tea.Cmd {

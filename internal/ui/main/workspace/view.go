@@ -9,11 +9,15 @@ func (m model) View() string {
 	termWidth := m.state.Layout.Terminal.Width
 	termHeight := m.state.Layout.Terminal.Height
 
+	parts := []string{}
+	if m.state.Layout.ShowHeader {
+		parts = append(parts, m.header.View())
+	}
+	parts = append(parts, m.body.View(), m.footer.View())
+
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		m.header.View(),
-		m.body.View(),
-		m.footer.View(),
+		parts...,
 	)
 
 	content = m.renderOverlays(content)

@@ -13,6 +13,10 @@ type Layout struct {
 	Header ComponentSize
 	Body   ComponentSize
 	Footer ComponentSize
+
+	// ShowHeader controls whether the header region reserves rows.
+	// When false the body expands to take the freed space.
+	ShowHeader bool
 }
 
 // TerminalSize represents the raw terminal dimensions.
@@ -48,6 +52,7 @@ func New() *Layout {
 			Width:  75,
 			Height: 35,
 		},
+		ShowHeader: true,
 	}
 }
 
@@ -63,18 +68,23 @@ func (l *Layout) Update(termWidth, termHeight int) {
 		Padding: 1,
 	}
 
+	headerHeight := 0
+	if l.ShowHeader {
+		headerHeight = 8
+	}
+
 	l.Header = ComponentSize{
 		Width:  l.Content.Width,
-		Height: 8,
+		Height: headerHeight,
 		X:      0,
 		Y:      0,
 	}
 
 	l.Body = ComponentSize{
 		Width:  l.Content.Width,
-		Height: l.Content.Height - (l.Header.Height + 2),
+		Height: l.Content.Height - (headerHeight + 2),
 		X:      0,
-		Y:      l.Header.Height,
+		Y:      headerHeight,
 	}
 
 	l.Footer = ComponentSize{
@@ -83,6 +93,13 @@ func (l *Layout) Update(termWidth, termHeight int) {
 		X:      0,
 		Y:      l.Body.Y + l.Body.Height,
 	}
+}
+
+// SetHeaderVisible toggles header visibility and recalculates regions
+// from the current terminal dimensions.
+func (l *Layout) SetHeaderVisible(visible bool) {
+	l.ShowHeader = visible
+	l.Update(l.Terminal.Width, l.Terminal.Height)
 }
 
 func (l *Layout) BodyContentWidth() int {

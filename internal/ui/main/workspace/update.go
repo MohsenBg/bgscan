@@ -30,6 +30,16 @@ func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			}
 		}
 
+	case ui.HeaderVisibilityMsg:
+		if m.state.Layout.ShowHeader != msg.Visible {
+			m.state.Layout.SetHeaderVisible(msg.Visible)
+			termW := m.state.Layout.Terminal.Width
+			termH := m.state.Layout.Terminal.Height
+			cmds = append(cmds, func() tea.Msg {
+				return tea.WindowSizeMsg{Width: termW, Height: termH}
+			})
+		}
+
 	case dialog.OpenDialogMsg:
 		m.dialog = append(m.dialog, msg.Component)
 		m.dialogPlacements[msg.Component.ID()] = &dialogOptions{

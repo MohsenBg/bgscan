@@ -74,17 +74,17 @@ func New(state *ui.AppState, input string) *Model {
 	}
 
 	m.menu = menu.New([]menu.MenuItem{
-		menu.NewMenuItem("◉", "ICMP Scan", "i", m.open(ICMPScan)),
-		menu.NewMenuItem("→", "TCP Scan", "t", m.open(TCPScan)),
-		menu.NewMenuItem("◌", "HTTP Scan", "h", m.open(HTTPScan)),
-		menu.NewMenuItem("◇", "Xray Scan", "x", m.openXrayTemplates()),
-		menu.NewMenuItem("?", "DNS Resolve", "r", m.open(DNSResolveScan)),
-		menu.NewMenuItem("≈", "DNS Tunneling", "d", m.openDNSTunConfig()),
+		menu.NewMenuItem("◉", "ICMP Scan", "i", m.open(ICMPScan)).WithDescription("Ping sweep to find live hosts"),
+		menu.NewMenuItem("→", "TCP Scan", "t", m.open(TCPScan)).WithDescription("Probe ports on the selected IPs"),
+		menu.NewMenuItem("◌", "HTTP Scan", "h", m.open(HTTPScan)).WithDescription("Check HTTP reachability of each IP"),
+		menu.NewMenuItem("◇", "Xray Scan", "x", m.openXrayTemplates()).WithDescription("Test outbounds against Xray templates"),
+		menu.NewMenuItem("?", "DNS Resolve", "r", m.open(DNSResolveScan)).WithDescription("Resolve IPs through configured resolvers"),
+		menu.NewMenuItem("≈", "DNS Tunneling", "d", m.openDNSTunConfig()).WithDescription("Scan through a DNS tunneling client"),
 	}, "Select Scan Type", state.Deps())
 	return m
 }
 
-func (m *Model) Init() tea.Cmd      { return nil }
+func (m *Model) Init() tea.Cmd      { return m.menu.Init() }
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) Mode() env.Mode     { return env.NormalMode }

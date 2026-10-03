@@ -35,9 +35,9 @@ func New(state *ui.AppState) *Model {
 	return entry
 }
 
-// Init is a no-op for the entry menu.
+// Init starts the main menu, which restarts its entrance animation.
 func (m *Model) Init() tea.Cmd {
-	return nil
+	return m.menu.Init()
 }
 
 func (m *Model) ID() ui.ComponentID {
@@ -68,7 +68,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 					Component: targetsource.New(state),
 				}
 			},
-		),
+		).WithDescription("Start a new scan from an IP list or a saved result"),
 		menu.NewMenuItem(
 			"▣",
 			"IP Files",
@@ -78,7 +78,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 					Component: iplist.New(state, "IP Files", nil),
 				}
 			},
-		),
+		).WithDescription("Manage the IP ranges loaded for scanning"),
 		menu.NewMenuItem(
 			"◆",
 			"Result Files",
@@ -94,7 +94,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 					),
 				}
 			},
-		),
+		).WithDescription("Browse and export previous scan results"),
 		menu.NewMenuItem(
 			"→",
 			"Xray Outbound",
@@ -108,7 +108,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 					),
 				}
 			},
-		),
+		).WithDescription("Import and manage Xray outbound configs"),
 		menu.NewMenuItem(
 			"≈",
 			"DNS Tunneling",
@@ -122,7 +122,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 					),
 				}
 			},
-		),
+		).WithDescription("Configure DNS tunneling clients"),
 		menu.NewMenuItem(
 			"⚙",
 			"Settings",
@@ -132,7 +132,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 					Component: settings.New(state),
 				}
 			},
-		),
+		).WithDescription("Theme, table and scanner preferences"),
 		menu.NewMenuItem(
 			"≡",
 			"Logs",
@@ -142,7 +142,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 					Component: logs.New(state),
 				}
 			},
-		),
+		).WithDescription("Inspect application and scanner logs"),
 	}
 
 	return menu.New(items, "Main Menu", state.Deps())

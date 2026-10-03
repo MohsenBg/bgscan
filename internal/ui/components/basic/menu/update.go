@@ -5,74 +5,81 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
-// Update handles resize and key input. Unhandled messages are forwarded to
-// the underlying list to preserve its built-in navigation behavior.
+// Update handles input and animation ticks.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	var cmd tea.Cmd
-
 	if ui.HandleTheme(msg, m) {
-		return m, cmd
+		return m, m.nextFrame()
 	}
 
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.updateMenuLayout()
-
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "enter":
-			if item, ok := m.GetSelected(); ok {
-				if item.action != nil {
-					return m, item.action()
-				}
-				if m.onSelect != nil {
-					return m, m.onSelect(item)
-				}
-			}
-		case "q", env.KeyEsc:
+	if key, ok := msg.(tea.KeyPressMsg); ok {
+		if cmd, handled := m.handleKey(key); handled {
 			return m, cmd
 		}
-
-		for i, l := range m.items {
-			if l.shortcut == msg.String() {
-				m.List.Select(i)
-				if item, ok := m.GetSelected(); ok {
-					if item.action != nil {
-						return m, item.action()
-					}
-					if m.onSelect != nil {
-						return m, m.onSelect(item)
-					}
-				}
-			}
-		}
 	}
 
-	m.List, cmd = m.List.Update(msg)
-	return m, cmd
+	// Ticks and unhandled keys just advance the animation.
+	return m, m.nextFrame()
 }
 
-// updateMenuLayout clamps the menu to a maximum size so it doesn't expand
-// unboundedly on large terminals while still shrinking on small ones.
-func (m *Model) updateMenuLayout() {
-	width := m.width
-	height := m.height
-
-	if m.widthAuto {
-		width = min(m.Layout.BodyContentWidth(), 55)
+// handleKey handles a key press and reports whether it was consumed.
+func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	key := msg.String()
+	switch key {
+	case env.KeyEnter:
+		if item, ok := m.GetSelected(); ok {
+			return m.selectItem(item), true
+		}
+	case "q", env.KeyEsc:
+		return m.nextFrame(), true
+	default:
+		if item, ok := m.itemForShortcut(key); ok {
+			return m.selectItem(item), true
+		}
+		m.navigate(key)
 	}
+	return nil, false
+}
 
-	if m.heightAuto {
-		height = min(m.Layout.BodyContentHeight(), 20)
+func (m *Model) navigate(key string) {
+	switch key {
+	case "up", "k":
+		m.setSelection(m.index - 1)
+	case "down", "j":
+		m.setSelection(m.index + 1)
+	case "pgup":
+		m.setSelection(m.index - m.visibleItems())
+	case "pgdown":
+		m.setSelection(m.index + m.visibleItems())
+	case "home", "g":
+		m.setSelection(0)
+	case "end", "G":
+		m.setSelection(len(m.items) - 1)
 	}
+}
 
-	m.List.Styles.TitleBar = m.List.Styles.TitleBar.
-		Width(width).
-		Align(lipgloss.Center, lipgloss.Center)
+func (m *Model) setSelection(to int) {
+	if len(m.items) == 0 {
+		return
+	}
+	m.index = max(0, min(to, len(m.items)-1))
+}
 
-	m.List.SetWidth(width)
-	m.List.SetHeight(height)
+// itemForShortcut finds the item bound to key and moves the selection to it.
+func (m *Model) itemForShortcut(key string) (MenuItem, bool) {
+	for i, item := range m.items {
+		if item.shortcut != "" && item.shortcut == key {
+			m.setSelection(i)
+			return item, true
+		}
+	}
+	return MenuItem{}, false
+}
+
+func (m *Model) selectItem(item MenuItem) tea.Cmd {
+	if m.onSelect != nil {
+		return m.onSelect(item)
+	}
+	return item.action
 }

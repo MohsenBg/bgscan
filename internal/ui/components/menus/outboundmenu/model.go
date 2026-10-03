@@ -65,7 +65,7 @@ func (m *Model) Mode() env.Mode {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return nil
+	return m.menu.Init()
 }
 
 func (m *Model) Theme() *theme.Theme { return m.theme }

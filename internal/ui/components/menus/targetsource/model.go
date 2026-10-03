@@ -34,12 +34,12 @@ func New(state *ui.AppState) *Model {
 			return m.OpenIPList(func(i *iplist.IPFileInfo) tea.Cmd {
 				return ui.OpenComponentCmd(scantype.New(state, i.Path))
 			})
-		}),
+		}).WithDescription("Pick a list of IP ranges to scan"),
 		menu.NewMenuItem("▤", "Result List", "r", func() tea.Msg {
 			return m.OpenResultIPList(func(r *result.ResultFile) tea.Cmd {
 				return ui.OpenComponentCmd(scantype.New(state, r.Path))
 			})
-		}),
+		}).WithDescription("Reuse IPs from a previous scan result"),
 	}
 
 	m.menu = menu.New(items, "Select Target Source", state.Deps())
@@ -60,7 +60,7 @@ func (m *Model) OpenResultIPList(onSelect func(*result.ResultFile) tea.Cmd) tea.
 }
 
 func (m *Model) Init() tea.Cmd {
-	return nil
+	return m.menu.Init()
 }
 
 func (m *Model) ID() ui.ComponentID {

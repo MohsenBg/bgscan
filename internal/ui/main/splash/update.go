@@ -16,6 +16,9 @@ func (m model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			return m, func() tea.Msg { return SplashDoneMsg{} }
 		}
 		return m, tickCmd()
+
+	case tea.KeyMsg:
+		return m, func() tea.Msg { return SplashDoneMsg{} }
 	}
 	return m, nil
 }

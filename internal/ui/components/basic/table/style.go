@@ -51,8 +51,9 @@ func (m *Model) tableViewStyle(_ int) lipgloss.Style {
 func (m *Model) helpViewStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width-2).
+		MaxWidth(width).
 		Align(lipgloss.Center).
-		Padding(0, 1).
+		Padding(0, 2).
 		Foreground(m.theme.Secondary).
 		MarginTop(1)
 }

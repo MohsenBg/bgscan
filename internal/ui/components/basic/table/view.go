@@ -2,8 +2,10 @@ package table
 
 import (
 	"fmt"
+	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func (m *Model) View() string {
@@ -28,12 +30,63 @@ func (m *Model) renderHelpView() string {
 
 	helpView := ""
 	if m.FullHelp {
-		helpView = m.helpViewStyle(width).Render(m.Help.FullHelpView(m.Keys.FullHelp(m.Layout.Body.Width)))
+		helpView = m.helpViewStyle(width).Render(
+			truncateLines(m.Help.FullHelpView(m.Keys.FullHelp(width)), width-8),
+		)
 	} else {
-		helpView = m.helpViewStyle(width).Render(m.Help.ShortHelpView(m.Keys.ShortHelp()))
+		helpView = m.helpViewStyle(width).Render(m.shortHelpText(width - 8))
 	}
 
 	return helpView
+}
+
+// shortHelpText builds a single-line help string that always fits within
+// width cells. Items that don't fit are dropped and truncation is marked
+// with an ellipsis, so the help never wraps or overflows its line.
+func (m *Model) shortHelpText(width int) string {
+	var items []string
+	for _, a := range m.Keys.Actions {
+		if a.ShortHelp == "" {
+			continue
+		}
+		items = append(items, a.ShortHelp)
+	}
+
+	const sep = " • "
+	out := ""
+	shown := 0
+	for _, it := range items {
+		candidate := it
+		if shown > 0 {
+			candidate = out + sep + it
+		}
+		if lipgloss.Width(candidate) > width {
+			break
+		}
+		out = candidate
+		shown++
+	}
+
+	if shown < len(items) {
+		if out != "" {
+			out += sep
+		}
+		out += "…"
+	}
+	return out
+}
+
+// truncateLines crops every line of s to at most width cells, preserving
+// ANSI styling and never producing wrapped output.
+func truncateLines(s string, width int) string {
+	if width < 1 {
+		return ""
+	}
+	lines := strings.Split(s, "\n")
+	for i := range lines {
+		lines[i] = ansi.Truncate(lines[i], width, "")
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m *Model) renderTitle() string {

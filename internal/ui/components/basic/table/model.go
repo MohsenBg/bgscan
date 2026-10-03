@@ -464,7 +464,18 @@ func (m *Model) updateTableSizeLocked() {
 	helpHeight := lipgloss.Height(m.renderHelpView())
 	titleHeight := lipgloss.Height(m.renderTitle())
 	filterHeight := 1
-	height := max(1, m.tableHeightLocked()-helpHeight-titleHeight-filterHeight-m.paddingY)
+
+	// The table grows with its row count: at least 25 rows of total
+	// box, never taller than the body region.
+	total := max(25, len(m.BubbleTable.Rows())+helpHeight+titleHeight+filterHeight+m.paddingY+1)
+	if m.Layout != nil && m.Layout.Body.Height > 0 && total > m.Layout.Body.Height {
+		total = m.Layout.Body.Height
+	}
+	if m.maxHeight > 0 && total > m.maxHeight {
+		total = m.maxHeight
+	}
+
+	height := max(1, total-helpHeight-titleHeight-filterHeight-m.paddingY)
 	m.BubbleTable.SetHeight(height)
 	m.BubbleTable.SetWidth(m.tableWidthLocked())
 }
@@ -478,17 +489,6 @@ func (m *Model) tableWidthLocked() int {
 		w = min(w, m.maxWidth)
 	}
 	return w
-}
-
-func (m *Model) tableHeightLocked() int {
-	if m.Layout == nil || m.Layout.Body.Height == 0 {
-		return 15
-	}
-	h := max(15, m.Layout.Body.Height)
-	if m.maxHeight > 0 {
-		h = min(h, m.maxHeight)
-	}
-	return h
 }
 
 // ActionKey binds a set of keys to a command and its help text.

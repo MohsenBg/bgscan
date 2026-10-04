@@ -58,7 +58,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Workers = n
-			return fieldErr(validate.ValidateICMP(tmp), "Workers")
+			return fieldErr(validate.ValidateICMP(tmp), validate.FieldWorkers)
 		},
 		func(n int) { cfg.Workers = n },
 	)
@@ -72,7 +72,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateICMP(tmp), "Timeout")
+			return fieldErr(validate.ValidateICMP(tmp), validate.FieldTimeout)
 		},
 		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) },
 	)
@@ -86,7 +86,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Tries = uint16(n)
-			return fieldErr(validate.ValidateICMP(tmp), "Tries")
+			return fieldErr(validate.ValidateICMP(tmp), validate.FieldTries)
 		},
 		func(n int) { cfg.Tries = uint16(n) },
 	)
@@ -96,7 +96,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(v string) error {
 			tmp := *cfg
 			tmp.OutputPrefix = v
-			return fieldErr(validate.ValidateICMP(tmp), "OutputPrefix")
+			return fieldErr(validate.ValidateICMP(tmp), validate.FieldOutputPrefix)
 		},
 		func(v string) { cfg.OutputPrefix = v },
 	)
@@ -113,7 +113,7 @@ func New(state *ui.AppState, name string) *Model {
 
 func alwaysVisible() bool { return true }
 
-func fieldErr(errs map[string]error, field string) error { return errs[field] }
+func fieldErr(errs map[validate.Field]error, field validate.Field) error { return errs[field] }
 
 func intInput(state *ui.AppState, title string, value int, validate func(string) error, set func(int)) input.Input[string] {
 	return textinput.New(state.Deps(), title, textinput.WithValue(strconv.Itoa(value)), textinput.WithValidation(validate), textinput.WithFocus(), textinput.WithOnSubmit(func(v string) tea.Cmd {

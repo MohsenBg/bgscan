@@ -109,7 +109,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Workers = n
-			return fieldErr(validate.ValidateXray(tmp), "Workers")
+			return fieldErr(validate.ValidateXray(tmp), validate.FieldWorkers)
 		},
 		func(n int) { cfg.Workers = n })
 
@@ -143,7 +143,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.DownloadSpeed = n
-			return fieldErr(validate.ValidateXray(tmp), "DownloadSpeed")
+			return fieldErr(validate.ValidateXray(tmp), validate.FieldDownloadSpeed)
 		},
 		func(n int) { cfg.DownloadSpeed = n })
 
@@ -155,7 +155,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.UploadSpeed = n
-			return fieldErr(validate.ValidateXray(tmp), "UploadSpeed")
+			return fieldErr(validate.ValidateXray(tmp), validate.FieldUploadSpeed)
 		},
 		func(n int) { cfg.UploadSpeed = n })
 
@@ -167,7 +167,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateXray(tmp), "Timeout")
+			return fieldErr(validate.ValidateXray(tmp), validate.FieldTimeout)
 		},
 		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) })
 
@@ -179,7 +179,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.SpeedTestTimeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateXray(tmp), "SpeedTestTimeout")
+			return fieldErr(validate.ValidateXray(tmp), validate.FieldSpeedTestTimeout)
 		},
 		func(d time.Duration) { cfg.SpeedTestTimeout = config.NewDurationMS(d) })
 
@@ -202,7 +202,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(v string) error {
 			tmp := *cfg
 			tmp.OutputPrefix = v
-			return fieldErr(validate.ValidateXray(tmp), "OutputPrefix")
+			return fieldErr(validate.ValidateXray(tmp), validate.FieldOutputPrefix)
 		},
 		func(v string) { cfg.OutputPrefix = v })
 
@@ -214,7 +214,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.MaxConcurrentDials = n
-			return fieldErr(validate.ValidateXray(tmp), "MaxConcurrentDials")
+			return fieldErr(validate.ValidateXray(tmp), validate.FieldMaxConcurrentDials)
 		},
 		func(n int) { cfg.MaxConcurrentDials = n })
 
@@ -226,7 +226,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.DialMaxAttempts = n
-			return fieldErr(validate.ValidateXray(tmp), "DialMaxAttempts")
+			return fieldErr(validate.ValidateXray(tmp), validate.FieldDialMaxAttempts)
 		},
 		func(n int) { cfg.DialMaxAttempts = n })
 
@@ -253,6 +253,6 @@ func New(state *ui.AppState, name string) *Model {
 
 func alwaysVisible() bool { return true }
 
-func fieldErr(errs map[string]error, field string) error {
+func fieldErr(errs map[validate.Field]error, field validate.Field) error {
 	return errs[field]
 }

@@ -72,7 +72,7 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 	m.BuildForm(
 		title,
 		m.buildInspector(),
-		func() map[string]error { return m.cfg.Validate() },
+		func() map[dns.Field]error { return m.cfg.Validate() },
 		m.saveConfig,
 	)
 }
@@ -105,7 +105,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		selectinput.WithValidation(func(v dns.DNSResolution) error {
 			tmp := *cfg
 			tmp.DNSResolution = v
-			if e, ok := tmp.Validate()["dns_resolution"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldDNSResolution]; ok {
 				return e
 			}
 			return nil
@@ -127,7 +127,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		selectinput.WithValidation(func(v dns.CongestionControl) error {
 			tmp := *cfg
 			tmp.CongestionControl = v
-			if e, ok := tmp.Validate()["congestion_control"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldCongestionControl]; ok {
 				return e
 			}
 			return nil

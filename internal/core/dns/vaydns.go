@@ -72,51 +72,51 @@ func DefaultVayDNSConfig() VayDNSConfig {
 }
 
 // Validate returns all validation errors, keyed by configuration field.
-func (c VayDNSConfig) Validate() map[string]error {
-	errs := make(map[string]error)
+func (c VayDNSConfig) Validate() map[Field]error {
+	errs := make(map[Field]error)
 
 	if err := netutil.ValidateDomain(c.Domain); err != nil {
-		errs["domain"] = err
+		errs[FieldDomain] = err
 	}
 
 	if err := validatePubKey(c.PubKey); err != nil {
-		errs["pub_key"] = err
+		errs[FieldPubKey] = err
 	}
 
 	if c.ClientIDSize < 1 || c.ClientIDSize > 8 {
-		errs["client_id_size"] = fmt.Errorf("must be between 1 and 8")
+		errs[FieldClientIDSize] = fmt.Errorf("must be between 1 and 8")
 	}
 
 	if c.MaxQnameLen > 253 {
-		errs["max_qname_len"] = fmt.Errorf("must be between 0 and 253")
+		errs[FieldMaxQNameLen] = fmt.Errorf("must be between 0 and 253")
 	}
 
 	if c.MaxNumLabels > 4 {
-		errs["max_num_labels"] = fmt.Errorf("must be between 0 and 4")
+		errs[FieldMaxNumLabels] = fmt.Errorf("must be between 0 and 4")
 	}
 
 	if c.MTU > 1452 {
-		errs["mtu"] = fmt.Errorf("must be between 0 and 1452")
+		errs[FieldMTU] = fmt.Errorf("must be between 0 and 1452")
 	}
 
 	if err := validateRPS(c.RPS); err != nil {
-		errs["rps"] = err
+		errs[FieldRPS] = err
 	}
 
 	if !c.RecordType.IsValid() {
-		errs["record_type"] = fmt.Errorf("invalid record type")
+		errs[FieldRecordType] = fmt.Errorf("invalid record type")
 	}
 
 	if !c.ResolverType.IsValid() {
-		errs["resolver_type"] = fmt.Errorf("invalid resolver type")
+		errs[FieldResolverType] = fmt.Errorf("invalid resolver type")
 	}
 
 	if c.ResolverPort == 0 {
-		errs["resolver_port"] = fmt.Errorf("must be greater than zero")
+		errs[FieldResolverPort] = fmt.Errorf("must be greater than zero")
 	}
 
 	if err := validateFingerprint(c.Fingerprint); err != nil {
-		errs["fingerprint"] = err
+		errs[FieldFingerprint] = err
 	}
 
 	for field, err := range validateProxyAuth(

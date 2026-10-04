@@ -37,7 +37,7 @@ func ConfigNameField(deps ui.Deps, name string, set func(string)) input.Input[st
 func StringField[C TunnelConfig](
 	deps ui.Deps,
 	cfg *C,
-	title, errKey string,
+	title string, errKey dns.Field,
 	get func(C) string,
 	set func(*C, string),
 ) input.Input[string] {
@@ -60,7 +60,7 @@ func StringField[C TunnelConfig](
 func SecretField[C TunnelConfig](
 	deps ui.Deps,
 	cfg *C,
-	title, errKey string,
+	title string, errKey dns.Field,
 	get func(C) string,
 	set func(*C, string),
 	opts ...textarea.Option,
@@ -89,7 +89,7 @@ func SecretField[C TunnelConfig](
 func Uint8Field[C TunnelConfig](
 	deps ui.Deps,
 	cfg *C,
-	title, errKey string,
+	title string, errKey dns.Field,
 	get func(C) uint8,
 	set func(*C, uint8),
 	opts ...textinput.Option,
@@ -109,7 +109,7 @@ func Uint8Field[C TunnelConfig](
 func Uint16Field[C TunnelConfig](
 	deps ui.Deps,
 	cfg *C,
-	title, errKey string,
+	title string, errKey dns.Field,
 	get func(C) uint16,
 	set func(*C, uint16),
 	opts ...textinput.Option,
@@ -127,7 +127,7 @@ func Uint16Field[C TunnelConfig](
 func FloatField[C TunnelConfig](
 	deps ui.Deps,
 	cfg *C,
-	title, errKey string,
+	title string, errKey dns.Field,
 	get func(C) float64,
 	set func(*C, float64),
 	opts ...textinput.Option,
@@ -174,7 +174,7 @@ func FingerprintField[C TunnelConfig](
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			set(&tmp, v)
-			if e, ok := tmp.Validate()["fingerprint"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldFingerprint]; ok {
 				return e
 			}
 			return nil
@@ -209,7 +209,7 @@ func EncMethodField[C TunnelConfig](
 		selectinput.WithValidation(func(v dns.EncMethod) error {
 			tmp := *cfg
 			set(&tmp, v)
-			if e, ok := tmp.Validate()["enc_method"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldEncMethod]; ok {
 				return e
 			}
 			return nil

@@ -40,13 +40,13 @@ func NormalizeAll(cfg *config.ScannerConfig) AllWarnings {
 
 // AllErrors groups strict validation errors by configuration section.
 type AllErrors struct {
-	General map[string]error
-	Writer  map[string]error
-	ICMP    map[string]error
-	TCP     map[string]error
-	HTTP    map[string]error
-	Xray    map[string]error
-	DNS     map[string]error
+	General map[Field]error
+	Writer  map[Field]error
+	ICMP    map[Field]error
+	TCP     map[Field]error
+	HTTP    map[Field]error
+	Xray    map[Field]error
+	DNS     map[Field]error
 }
 
 // HasErrors reports whether any configuration section contains validation errors.

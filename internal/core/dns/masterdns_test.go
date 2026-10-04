@@ -19,7 +19,7 @@ func TestMasterDNSValidate(t *testing.T) {
 
 	empty := validMasterConfig()
 	empty.Domain = ""
-	if errs := empty.Validate(); errs["domain"] == nil {
+	if errs := empty.Validate(); errs[FieldDomain] == nil {
 		t.Error("expected domain error")
 	}
 }

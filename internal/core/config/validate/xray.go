@@ -37,8 +37,8 @@ const (
 )
 
 // ValidateXray strictly validates an XrayConfig and returns errors by field name.
-func ValidateXray(cfg config.XrayConfig) map[string]error {
-	errs := map[string]error{}
+func ValidateXray(cfg config.XrayConfig) map[Field]error {
+	errs := map[Field]error{}
 
 	if err := checkInt(
 		"Workers",
@@ -46,11 +46,11 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 		MinXrayWorkers,
 		MaxXrayWorkers,
 	); err != nil {
-		errs["Workers"] = err
+		errs[FieldWorkers] = err
 	}
 
 	if !cfg.ConnectivityTestType.IsValid() {
-		errs["ConnectivityTestType"] = errInvalidConnectivityTest()
+		errs[FieldConnectivityTestType] = errInvalidConnectivityTest()
 	}
 
 	if err := checkInt(
@@ -59,7 +59,7 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 		MinXrayDownloadSpeed,
 		MaxXrayDownloadSpeed,
 	); err != nil {
-		errs["DownloadSpeed"] = err
+		errs[FieldDownloadSpeed] = err
 	}
 
 	if err := checkInt(
@@ -68,7 +68,7 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 		MinXrayUploadSpeed,
 		MaxXrayUploadSpeed,
 	); err != nil {
-		errs["UploadSpeed"] = err
+		errs[FieldUploadSpeed] = err
 	}
 
 	if err := checkDuration(
@@ -77,7 +77,7 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 		MinXrayTimeout,
 		MaxXrayTimeout,
 	); err != nil {
-		errs["Timeout"] = err
+		errs[FieldTimeout] = err
 	}
 
 	if err := checkDuration(
@@ -86,7 +86,7 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 		MinXrayTimeout,
 		MaxXrayTimeout,
 	); err != nil {
-		errs["SpeedTestTimeout"] = err
+		errs[FieldSpeedTestTimeout] = err
 	}
 
 	if err := checkEnum(
@@ -94,14 +94,14 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 		cfg.PreScanType,
 		allowedPreScanTypes,
 	); err != nil {
-		errs["PreScanType"] = err
+		errs[FieldPreScanType] = err
 	}
 
 	if err := checkPrefix(
 		"OutputPrefix",
 		cfg.OutputPrefix,
 	); err != nil {
-		errs["OutputPrefix"] = err
+		errs[FieldOutputPrefix] = err
 	}
 
 	if err := checkInt(
@@ -110,7 +110,7 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 		MinXrayMaxConcurrentDials,
 		MaxXrayMaxConcurrentDials,
 	); err != nil {
-		errs["MaxConcurrentDials"] = err
+		errs[FieldMaxConcurrentDials] = err
 	}
 
 	if err := checkInt(
@@ -119,7 +119,7 @@ func ValidateXray(cfg config.XrayConfig) map[string]error {
 		MinXrayDialMaxAttempts,
 		MaxXrayDialMaxAttempts,
 	); err != nil {
-		errs["DialMaxAttempts"] = err
+		errs[FieldDialMaxAttempts] = err
 	}
 
 	return errs

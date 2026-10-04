@@ -58,91 +58,91 @@ func TestDNSTTConfigValidate(t *testing.T) {
 	tests := []struct {
 		name  string
 		mut   func(*DNSTTConfig)
-		field string
+		field Field
 	}{
 		{
 			name: "missing domain",
 			mut: func(c *DNSTTConfig) {
 				c.Domain = ""
 			},
-			field: "domain",
+			field: FieldDomain,
 		},
 		{
 			name: "invalid domain",
 			mut: func(c *DNSTTConfig) {
 				c.Domain = "invalid domain"
 			},
-			field: "domain",
+			field: FieldDomain,
 		},
 		{
 			name: "missing public key",
 			mut: func(c *DNSTTConfig) {
 				c.PubKey = ""
 			},
-			field: "pub_key",
+			field: FieldPubKey,
 		},
 		{
 			name: "invalid resolver type",
 			mut: func(c *DNSTTConfig) {
 				c.ResolverType = ResolverType("invalid")
 			},
-			field: "resolver_type",
+			field: FieldResolverType,
 		},
 		{
 			name: "zero resolver port",
 			mut: func(c *DNSTTConfig) {
 				c.ResolverPort = 0
 			},
-			field: "resolver_port",
+			field: FieldResolverPort,
 		},
 		{
 			name: "negative rps",
 			mut: func(c *DNSTTConfig) {
 				c.RPS = -1
 			},
-			field: "rps",
+			field: FieldRPS,
 		},
 		{
 			name: "rps too large",
 			mut: func(c *DNSTTConfig) {
 				c.RPS = 501
 			},
-			field: "rps",
+			field: FieldRPS,
 		},
 		{
 			name: "rps nan",
 			mut: func(c *DNSTTConfig) {
 				c.RPS = math.NaN()
 			},
-			field: "rps",
+			field: FieldRPS,
 		},
 		{
 			name: "rps positive infinity",
 			mut: func(c *DNSTTConfig) {
 				c.RPS = math.Inf(1)
 			},
-			field: "rps",
+			field: FieldRPS,
 		},
 		{
 			name: "rps negative infinity",
 			mut: func(c *DNSTTConfig) {
 				c.RPS = math.Inf(-1)
 			},
-			field: "rps",
+			field: FieldRPS,
 		},
 		{
 			name: "missing fingerprint",
 			mut: func(c *DNSTTConfig) {
 				c.Fingerprint = ""
 			},
-			field: "fingerprint",
+			field: FieldFingerprint,
 		},
 		{
 			name: "invalid fingerprint",
 			mut: func(c *DNSTTConfig) {
 				c.Fingerprint = "definitely-invalid"
 			},
-			field: "fingerprint",
+			field: FieldFingerprint,
 		},
 	}
 

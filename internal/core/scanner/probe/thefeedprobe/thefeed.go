@@ -69,7 +69,7 @@ func NewTheFeedProbe(
 	return p, nil
 }
 
-func joinConfigErrors(errs map[string]error) error {
+func joinConfigErrors(errs map[dns.Field]error) error {
 	var joined error
 	for field, err := range errs {
 		joined = fmt.Errorf("%s: %w", field, err)

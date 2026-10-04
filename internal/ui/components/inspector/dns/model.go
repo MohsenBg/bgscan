@@ -131,7 +131,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Resolver.Workers = n
-			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Workers")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldResolverWorkers)
 		},
 		func(n int) { cfg.Resolver.Workers = n })
 
@@ -146,7 +146,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Resolver.Port = uint16(n)
-			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Port")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldResolverPort)
 		},
 		func(n int) { cfg.Resolver.Port = uint16(n) },
 	)
@@ -200,7 +200,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(v string) error {
 			tmp := *cfg
 			tmp.Resolver.Domain = v
-			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Domain")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldResolverDomain)
 		}, func(v string) { cfg.Resolver.Domain = v },
 	)
 
@@ -216,7 +216,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Resolver.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Timeout")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldResolverTimeout)
 		},
 		func(d time.Duration) { cfg.Resolver.Timeout = config.NewDurationMS(d) })
 
@@ -228,7 +228,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Resolver.Tries = n
-			return fieldErr(validate.ValidateDNS(tmp), "Resolver.Tries")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldResolverTries)
 		},
 		func(n int) { cfg.Resolver.Tries = n })
 
@@ -266,7 +266,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(s string) error {
 			tmp := *cfg
 			tmp.Resolver.OutputPrefix = s
-			return fieldErr(validate.ValidateDNS(tmp), "Resolver.OutputPrefix")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldResolverOutputPrefix)
 		},
 		func(v string) { cfg.Resolver.OutputPrefix = v })
 
@@ -289,7 +289,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Resolver.DPI.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateDNS(tmp), "Resolver.DPI.Timeout")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldResolverDPITimeout)
 		},
 		func(dur time.Duration) { cfg.Resolver.DPI.Timeout = config.NewDurationMS(dur) })
 
@@ -301,7 +301,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Resolver.DPI.Tries = n
-			return fieldErr(validate.ValidateDNS(tmp), "Resolver.DPI.Tries")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldResolverDPITries)
 		},
 		func(n int) { cfg.Resolver.DPI.Tries = n })
 
@@ -316,7 +316,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.DNSTunneling.Workers = n
-			return fieldErr(validate.ValidateDNS(tmp), "DNSTunneling.Workers")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldDNSTunnelingWorkers)
 		},
 		func(n int) { cfg.DNSTunneling.Workers = n })
 
@@ -328,7 +328,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.DNSTunneling.Tries = n
-			return fieldErr(validate.ValidateDNS(tmp), "DNSTunneling.Tries")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldDNSTunnelingTries)
 		},
 		func(n int) { cfg.DNSTunneling.Tries = n })
 
@@ -340,7 +340,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.DNSTunneling.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateDNS(tmp), "DNSTunneling.Timeout")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldDNSTunnelingTimeout)
 		},
 		func(dur time.Duration) { cfg.DNSTunneling.Timeout = config.NewDurationMS(dur) })
 
@@ -368,7 +368,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(s string) error {
 			tmp := *cfg
 			tmp.DNSTunneling.OutputPrefix = s
-			return fieldErr(validate.ValidateDNS(tmp), "DNSTunneling.OutputPrefix")
+			return fieldErr(validate.ValidateDNS(tmp), validate.FieldDNSTunnelingOutputPrefix)
 		}, func(v string) { cfg.DNSTunneling.OutputPrefix = v })
 
 	m := &Model{
@@ -420,7 +420,7 @@ func toUpper(values []string) []string {
 	return out
 }
 
-func fieldErr(errs map[string]error, field string) error {
+func fieldErr(errs map[validate.Field]error, field validate.Field) error {
 	return errs[field]
 }
 

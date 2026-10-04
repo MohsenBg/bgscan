@@ -775,7 +775,7 @@ func TestVayDNSClientIDSizeRange(t *testing.T) {
 
 	config.ClientIDSize = 0
 	errs := config.Validate()
-	if _, ok := errs["client_id_size"]; !ok {
+	if _, ok := errs[FieldClientIDSize]; !ok {
 		t.Fatal("client id size 0 should be invalid (range 1-8)")
 	}
 

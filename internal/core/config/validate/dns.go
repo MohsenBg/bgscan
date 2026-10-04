@@ -48,22 +48,22 @@ const (
 
 // ValidateDNS strictly validates a DNSConfig and returns errors by field name.
 // Nested field names use dot notation, such as "Resolver.Workers".
-func ValidateDNS(cfg config.DNSConfig) map[string]error {
-	errs := map[string]error{}
+func ValidateDNS(cfg config.DNSConfig) map[Field]error {
+	errs := map[Field]error{}
 
 	for k, v := range validateResolver(cfg.Resolver) {
-		errs["Resolver."+k] = v
+		errs[Field("Resolver."+string(k))] = v
 	}
 
 	for k, v := range validateDNSTunneling(cfg.DNSTunneling) {
-		errs["DNSTunneling."+k] = v
+		errs[Field("DNSTunneling."+string(k))] = v
 	}
 
 	return errs
 }
 
-func validateResolver(r config.ResolverConfig) map[string]error {
-	errs := map[string]error{}
+func validateResolver(r config.ResolverConfig) map[Field]error {
+	errs := map[Field]error{}
 
 	if err := checkInt(
 		"Workers",
@@ -71,15 +71,15 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 		MinDNSResolverWorkers,
 		MaxDNSResolverWorkers,
 	); err != nil {
-		errs["Workers"] = err
+		errs[FieldWorkers] = err
 	}
 
 	if err := checkEnum("Protocol", r.Transport, allowedDNSTransport); err != nil {
-		errs["Transport"] = err
+		errs[FieldTransport] = err
 	}
 
 	if err := checkDomain("Domain", r.Domain); err != nil {
-		errs["Domain"] = err
+		errs[FieldDomain] = err
 	}
 
 	if err := checkUint16(
@@ -88,11 +88,11 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 		MinDNSResolverPort,
 		MaxDNSResolverPort,
 	); err != nil {
-		errs["Port"] = err
+		errs[FieldPort] = err
 	}
 
 	if err := checkStringSlice("CheckTypes", r.CheckTypes); err != nil {
-		errs["CheckTypes"] = err
+		errs[FieldCheckTypes] = err
 	}
 
 	if err := checkDuration(
@@ -101,7 +101,7 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 		MinDNSResolverTimeout,
 		MaxDNSResolverTimeout,
 	); err != nil {
-		errs["Timeout"] = err
+		errs[FieldTimeout] = err
 	}
 
 	if err := checkInt(
@@ -110,7 +110,7 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 		MinDNSResolverTries,
 		MaxDNSResolverTries,
 	); err != nil {
-		errs["Tries"] = err
+		errs[FieldTries] = err
 	}
 
 	if err := checkInt(
@@ -119,7 +119,7 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 		MinDNSResolverDPITries,
 		MaxDNSResolverDPITries,
 	); err != nil {
-		errs["DPI.Tries"] = err
+		errs[FieldDPITries] = err
 	}
 
 	if err := checkDuration(
@@ -128,18 +128,18 @@ func validateResolver(r config.ResolverConfig) map[string]error {
 		MinDNSResolverDPITimeout,
 		MaxDNSResolverDPITimeout,
 	); err != nil {
-		errs["DPI.Timeout"] = err
+		errs[FieldDPITimeout] = err
 	}
 
 	if err := checkPrefix("OutputPrefix", r.OutputPrefix); err != nil {
-		errs["OutputPrefix"] = err
+		errs[FieldOutputPrefix] = err
 	}
 
 	return errs
 }
 
-func validateDNSTunneling(d config.DNSTunneling) map[string]error {
-	errs := map[string]error{}
+func validateDNSTunneling(d config.DNSTunneling) map[Field]error {
+	errs := map[Field]error{}
 
 	if err := checkInt(
 		"Workers",
@@ -147,7 +147,7 @@ func validateDNSTunneling(d config.DNSTunneling) map[string]error {
 		MinDNSTunnelingWorkers,
 		MaxDNSTunnelingWorkers,
 	); err != nil {
-		errs["Workers"] = err
+		errs[FieldWorkers] = err
 	}
 
 	if err := checkDuration(
@@ -156,7 +156,7 @@ func validateDNSTunneling(d config.DNSTunneling) map[string]error {
 		MinDNSTunnelingTimeout,
 		MaxDNSTunnelingTimeout,
 	); err != nil {
-		errs["Timeout"] = err
+		errs[FieldTimeout] = err
 	}
 
 	if err := checkInt(
@@ -165,11 +165,11 @@ func validateDNSTunneling(d config.DNSTunneling) map[string]error {
 		MinDNSResolverTries,
 		MaxDNSResolverTries,
 	); err != nil {
-		errs["Tries"] = err
+		errs[FieldTries] = err
 	}
 
 	if err := checkPrefix("OutputPrefix", d.OutputPrefix); err != nil {
-		errs["OutputPrefix"] = err
+		errs[FieldOutputPrefix] = err
 	}
 
 	return errs

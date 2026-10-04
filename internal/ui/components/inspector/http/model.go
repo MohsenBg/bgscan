@@ -278,7 +278,7 @@ func New(state *ui.AppState, name string) *Model {
 		id:    ui.NewComponentID(),
 	}
 
-	valField := func(tmp config.HTTPConfig, field string) error {
+	valField := func(tmp config.HTTPConfig, field validate.Field) error {
 		return fieldErr(validate.ValidateHTTP(tmp), field)
 	}
 
@@ -286,7 +286,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(n int) error {
 			tmp := *cfg
 			tmp.Workers = n
-			return valField(tmp, "Workers")
+			return valField(tmp, validate.FieldWorkers)
 		},
 		func(n int) { cfg.Workers = n })
 
@@ -294,21 +294,21 @@ func New(state *ui.AppState, name string) *Model {
 		func(v string) error {
 			tmp := *cfg
 			tmp.Host = v
-			return valField(tmp, "Host")
+			return valField(tmp, validate.FieldHost)
 		}, func(v string) { cfg.Host = v })
 
 	serverName := newStringInput(state, "Enter server name (SNI)", cfg.ServerName,
 		func(v string) error {
 			tmp := *cfg
 			tmp.ServerName = v
-			return valField(tmp, "ServerName")
+			return valField(tmp, validate.FieldServerName)
 		}, func(v string) { cfg.ServerName = v })
 
 	port := newIntInput(state, "Enter HTTP port", cfg.Port,
 		func(n int) error {
 			tmp := *cfg
 			tmp.Port = n
-			return valField(tmp, "Port")
+			return valField(tmp, validate.FieldPort)
 		}, func(n int) { cfg.Port = n })
 
 	protocol := selectinput.New(state.Deps(), "Protocol",
@@ -365,7 +365,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Fingerprint = v
-			return valField(tmp, "Fingerprint")
+			return valField(tmp, validate.FieldFingerprint)
 		}),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.Fingerprint = v
@@ -377,7 +377,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(d time.Duration) error {
 			tmp := *cfg
 			tmp.Timeout = config.NewDurationMS(d)
-			return valField(tmp, "Timeout")
+			return valField(tmp, validate.FieldTimeout)
 		},
 		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) })
 
@@ -385,7 +385,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(v string) error {
 			tmp := *cfg
 			tmp.OutputPrefix = v
-			return valField(tmp, "OutputPrefix")
+			return valField(tmp, validate.FieldOutputPrefix)
 		}, func(v string) { cfg.OutputPrefix = v })
 
 	minTLSVersion := selectinput.New(state.Deps(), "Min TLS Version",
@@ -400,7 +400,7 @@ func New(state *ui.AppState, name string) *Model {
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			tmp.MinTLSVersion = v
-			return valField(tmp, "MinTLSVersion")
+			return valField(tmp, validate.FieldMinTLSVersion)
 		}),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.MinTLSVersion = v
@@ -420,7 +420,7 @@ func New(state *ui.AppState, name string) *Model {
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			tmp.MaxTLSVersion = v
-			return valField(tmp, "MaxTLSVersion")
+			return valField(tmp, validate.FieldMaxTLSVersion)
 		}),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.MaxTLSVersion = v
@@ -524,7 +524,7 @@ func New(state *ui.AppState, name string) *Model {
 
 func alwaysVisible() bool { return true }
 
-func fieldErr(errs map[string]error, field string) error {
+func fieldErr(errs map[validate.Field]error, field validate.Field) error {
 	if errs == nil {
 		return nil
 	}

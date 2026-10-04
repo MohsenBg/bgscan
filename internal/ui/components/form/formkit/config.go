@@ -3,6 +3,7 @@ package formkit
 import (
 	"strings"
 
+	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
@@ -12,7 +13,7 @@ import (
 // TunnelConfig is the validation contract shared by every tunnel
 // configuration type stored by the dns package.
 type TunnelConfig interface {
-	Validate() map[string]error
+	Validate() map[dns.Field]error
 }
 
 // Service is the configuration CRUD surface shared by every tunnel service.

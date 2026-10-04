@@ -37,7 +37,7 @@ func ResolverTypePort[C TunnelConfig](
 			}
 			tmp := *cfg
 			setPort(&tmp, uint16(n))
-			if e, ok := tmp.Validate()["resolver_port"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldResolverPort]; ok {
 				return e
 			}
 			return nil
@@ -61,7 +61,7 @@ func ResolverTypePort[C TunnelConfig](
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			setType(&tmp, dns.ResolverType(v))
-			if e, ok := tmp.Validate()["resolver_type"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldResolverType]; ok {
 				return e
 			}
 			return nil

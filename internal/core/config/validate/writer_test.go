@@ -13,7 +13,7 @@ func TestWriterConfig(t *testing.T) {
 	tests := []struct {
 		name          string
 		mutateCfg     func(*config.WriterConfig)
-		wantErrKeys   []string
+		wantErrKeys   []Field
 		wantWarnCount int
 		checkFixed    func(t *testing.T, cfg *config.WriterConfig)
 	}{
@@ -31,7 +31,7 @@ func TestWriterConfig(t *testing.T) {
 					MinWriterMergeFlushInterval - 2*time.Millisecond,
 				)
 			},
-			wantErrKeys:   []string{"MergeFlushInterval"},
+			wantErrKeys:   []Field{FieldMergeFlushInterval},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.WriterConfig) {
 				if c.MergeFlushInterval.Duration() != def.MergeFlushInterval.Duration() {
@@ -50,7 +50,7 @@ func TestWriterConfig(t *testing.T) {
 					MaxWriterMergeFlushInterval + time.Second,
 				)
 			},
-			wantErrKeys:   []string{"MergeFlushInterval"},
+			wantErrKeys:   []Field{FieldMergeFlushInterval},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.WriterConfig) {
 				if c.MergeFlushInterval.Duration() != def.MergeFlushInterval.Duration() {
@@ -67,7 +67,7 @@ func TestWriterConfig(t *testing.T) {
 			mutateCfg: func(c *config.WriterConfig) {
 				c.ChanSize = MaxWriterChanSize + 1
 			},
-			wantErrKeys:   []string{"ChanSize"},
+			wantErrKeys:   []Field{FieldChanSize},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.WriterConfig) {
 				if c.ChanSize != def.ChanSize {
@@ -84,7 +84,7 @@ func TestWriterConfig(t *testing.T) {
 			mutateCfg: func(c *config.WriterConfig) {
 				c.ChanSize = MinWriterChanSize - 1
 			},
-			wantErrKeys:   []string{"ChanSize"},
+			wantErrKeys:   []Field{FieldChanSize},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.WriterConfig) {
 				if c.ChanSize != def.ChanSize {
@@ -101,7 +101,7 @@ func TestWriterConfig(t *testing.T) {
 			mutateCfg: func(c *config.WriterConfig) {
 				c.BatchSize = MaxWriterBatchSize + 1
 			},
-			wantErrKeys:   []string{"BatchSize"},
+			wantErrKeys:   []Field{FieldBatchSize},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.WriterConfig) {
 				if c.BatchSize != def.BatchSize {
@@ -118,7 +118,7 @@ func TestWriterConfig(t *testing.T) {
 			mutateCfg: func(c *config.WriterConfig) {
 				c.BatchSize = MinWriterBatchSize - 1
 			},
-			wantErrKeys:   []string{"BatchSize"},
+			wantErrKeys:   []Field{FieldBatchSize},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.WriterConfig) {
 				if c.BatchSize != def.BatchSize {
@@ -135,7 +135,7 @@ func TestWriterConfig(t *testing.T) {
 			mutateCfg: func(c *config.WriterConfig) {
 				c.ResultBaseDir = "invalid\\dir?"
 			},
-			wantErrKeys:   []string{"ResultBaseDir"},
+			wantErrKeys:   []Field{FieldResultBaseDir},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.WriterConfig) {
 				if c.ResultBaseDir != def.ResultBaseDir {

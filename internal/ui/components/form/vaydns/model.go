@@ -66,7 +66,7 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 	m.BuildForm(
 		title,
 		m.buildInspector(),
-		func() map[string]error { return m.cfg.Validate() },
+		func() map[dns.Field]error { return m.cfg.Validate() },
 		m.saveConfig,
 	)
 }
@@ -103,7 +103,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			tmp.RecordType = dns.RecordType(v)
-			if e, ok := tmp.Validate()["record_type"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldRecordType]; ok {
 				return e
 			}
 			return nil

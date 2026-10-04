@@ -102,7 +102,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Workers = n
-			return fieldErr(validate.ValidateTCP(tmp), "Workers")
+			return fieldErr(validate.ValidateTCP(tmp), validate.FieldWorkers)
 		},
 		func(n int) { cfg.Workers = n })
 
@@ -114,7 +114,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Port = n
-			return fieldErr(validate.ValidateTCP(tmp), "Port")
+			return fieldErr(validate.ValidateTCP(tmp), validate.FieldPort)
 		},
 		func(n int) { cfg.Port = n })
 
@@ -126,7 +126,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateTCP(tmp), "Timeout")
+			return fieldErr(validate.ValidateTCP(tmp), validate.FieldTimeout)
 		},
 		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) })
 
@@ -138,7 +138,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Tries = uint16(n)
-			return fieldErr(validate.ValidateTCP(tmp), "Tries")
+			return fieldErr(validate.ValidateTCP(tmp), validate.FieldTries)
 		},
 		func(n int) { cfg.Tries = uint16(n) })
 
@@ -146,7 +146,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(v string) error {
 			tmp := *cfg
 			tmp.OutputPrefix = v
-			return fieldErr(validate.ValidateTCP(tmp), "OutputPrefix")
+			return fieldErr(validate.ValidateTCP(tmp), validate.FieldOutputPrefix)
 		},
 		func(v string) { cfg.OutputPrefix = v })
 
@@ -168,6 +168,6 @@ func New(state *ui.AppState, name string) *Model {
 
 func alwaysVisible() bool { return true }
 
-func fieldErr(errs map[string]error, field string) error {
+func fieldErr(errs map[validate.Field]error, field validate.Field) error {
 	return errs[field]
 }

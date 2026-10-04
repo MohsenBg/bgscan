@@ -5,6 +5,7 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/form"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
@@ -98,7 +99,7 @@ func (b *Base) Inspector() *inspector.Model { return b.inspector }
 func (b *Base) BuildForm(
 	title string,
 	ins *inspector.Model,
-	validate func() map[string]error,
+	validate func() map[dns.Field]error,
 	onSave func() tea.Msg,
 ) {
 	b.inspector = ins

@@ -19,7 +19,7 @@ func TestStormDNSValidate(t *testing.T) {
 
 	bad := validStormConfig()
 	bad.DNSQueryType = "FTP"
-	if errs := bad.Validate(); errs["dns_query_type"] == nil {
+	if errs := bad.Validate(); errs[FieldDNSQueryType] == nil {
 		t.Error("expected dns_query_type error for FTP")
 	}
 
@@ -31,7 +31,7 @@ func TestStormDNSValidate(t *testing.T) {
 
 	empty := validStormConfig()
 	empty.Domain = ""
-	if errs := empty.Validate(); errs["domain"] == nil {
+	if errs := empty.Validate(); errs[FieldDomain] == nil {
 		t.Error("expected domain error")
 	}
 }

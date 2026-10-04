@@ -11,7 +11,7 @@ func TestDNSConfig(t *testing.T) {
 	tests := []struct {
 		name          string
 		mutate        func(*config.DNSConfig)
-		wantErrKeys   []string
+		wantErrKeys   []Field
 		wantWarnCount int
 		checkFixed    func(*testing.T, config.DNSConfig, config.DNSConfig)
 	}{
@@ -34,7 +34,7 @@ func TestDNSConfig(t *testing.T) {
 				cfg.Resolver.DPI.Timeout = config.NewDurationMS(MinDNSResolverDPITimeout - 2*time.Millisecond)
 				cfg.Resolver.OutputPrefix = ""
 			},
-			wantErrKeys: []string{
+			wantErrKeys: []Field{
 				"Resolver.Workers",
 				"Resolver.Transport",
 				"Resolver.Domain",
@@ -87,7 +87,7 @@ func TestDNSConfig(t *testing.T) {
 				cfg.Resolver.Domain = "invalid domain!"
 				// DNSTunneling doesn't have a Domain field
 			},
-			wantErrKeys: []string{
+			wantErrKeys: []Field{
 				"Resolver.Domain",
 			},
 			wantWarnCount: 1,
@@ -108,7 +108,7 @@ func TestDNSConfig(t *testing.T) {
 				cfg.DNSTunneling.Timeout = config.NewDurationMS(MinDNSTunnelingTimeout - 2*time.Millisecond)
 				cfg.DNSTunneling.Tries = MinDNSResolverTries - 1
 			},
-			wantErrKeys: []string{
+			wantErrKeys: []Field{
 				"DNSTunneling.Workers",
 				"DNSTunneling.Timeout",
 				"DNSTunneling.Tries",

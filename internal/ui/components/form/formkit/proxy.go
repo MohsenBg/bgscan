@@ -66,7 +66,7 @@ func BuildProxy[C TunnelConfig](
 			}
 			tmp := *cfg
 			setPort(&tmp, uint16(n))
-			if e, ok := tmp.Validate()["proxy_port"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldProxyPort]; ok {
 				return e
 			}
 			return nil
@@ -89,7 +89,7 @@ func BuildProxy[C TunnelConfig](
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			setType(&tmp, dns.ResolverProxyType(v))
-			if e, ok := tmp.Validate()["proxy_type"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldProxyType]; ok {
 				return e
 			}
 			return nil
@@ -123,7 +123,7 @@ func BuildProxy[C TunnelConfig](
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			setAuth(&tmp, dns.AuthMethod(v))
-			if e, ok := tmp.Validate()["auth_method"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldAuthMethod]; ok {
 				return e
 			}
 			return nil
@@ -141,7 +141,7 @@ func BuildProxy[C TunnelConfig](
 		textinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			setUser(&tmp, v)
-			if e, ok := tmp.Validate()["username"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldUsername]; ok {
 				return e
 			}
 			return nil
@@ -159,7 +159,7 @@ func BuildProxy[C TunnelConfig](
 		textinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			setPass(&tmp, v)
-			if e, ok := tmp.Validate()["password"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldPassword]; ok {
 				return e
 			}
 			return nil
@@ -179,7 +179,7 @@ func BuildProxy[C TunnelConfig](
 		textarea.WithValidation(func(v string) error {
 			tmp := *cfg
 			setPriv(&tmp, v)
-			if e, ok := tmp.Validate()["private_key"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldPrivateKey]; ok {
 				return e
 			}
 			return nil

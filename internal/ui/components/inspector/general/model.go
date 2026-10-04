@@ -124,7 +124,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := cfg.General
 			tmp.StatusInterval = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateGeneral(tmp), "StatusInterval")
+			return fieldErr(validate.ValidateGeneral(tmp), validate.FieldStatusInterval)
 		},
 		func(d time.Duration) { cfg.General.StatusInterval = config.NewDurationMS(d) }, saveGeneralCmd)
 
@@ -136,7 +136,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := cfg.General
 			tmp.MaxSuccessfulIPs = n
-			return fieldErr(validate.ValidateGeneral(tmp), "MaxSuccessfulIPs")
+			return fieldErr(validate.ValidateGeneral(tmp), validate.FieldMaxSuccessfulIPs)
 		},
 		func(n int) { cfg.General.MaxSuccessfulIPs = n }, saveGeneralCmd)
 
@@ -148,7 +148,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := cfg.General
 			tmp.MaxIPsToTest = n
-			return fieldErr(validate.ValidateGeneral(tmp), "MaxIPsToTest")
+			return fieldErr(validate.ValidateGeneral(tmp), validate.FieldMaxIPsToTest)
 		},
 		func(n int) { cfg.General.MaxIPsToTest = n }, saveGeneralCmd)
 
@@ -175,7 +175,7 @@ func New(state *ui.AppState, name string) *Model {
 			tmp := cfg.General
 			tmp.MinProbeDuration = config.NewDurationMS(time.Duration(n) * time.Millisecond)
 
-			return fieldErr(validate.ValidateGeneral(tmp), "MinProbeDuration")
+			return fieldErr(validate.ValidateGeneral(tmp), validate.FieldMinProbeDuration)
 		},
 		func(d time.Duration) {
 			cfg.General.MinProbeDuration = config.NewDurationMS(d)
@@ -196,7 +196,7 @@ func New(state *ui.AppState, name string) *Model {
 			tmp := cfg.General
 			tmp.ProbePerSec = n
 
-			return fieldErr(validate.ValidateGeneral(tmp), "ProbePerSec")
+			return fieldErr(validate.ValidateGeneral(tmp), validate.FieldProbePerSec)
 		},
 		func(n int) {
 			cfg.General.ProbePerSec = n
@@ -217,7 +217,7 @@ func New(state *ui.AppState, name string) *Model {
 			tmp := cfg.General
 			tmp.ProbeBurst = n
 
-			return fieldErr(validate.ValidateGeneral(tmp), "ProbeBurst")
+			return fieldErr(validate.ValidateGeneral(tmp), validate.FieldProbeBurst)
 		},
 		func(n int) {
 			cfg.General.ProbeBurst = n
@@ -247,7 +247,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := cfg.General
 			tmp.MaxIPsPerStage = n
-			return fieldErr(validate.ValidateGeneral(tmp), "MaxIPsPerStage")
+			return fieldErr(validate.ValidateGeneral(tmp), validate.FieldMaxIPsPerStage)
 		},
 		func(n int) { cfg.General.MaxIPsPerStage = n }, saveGeneralCmd)
 
@@ -259,7 +259,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := cfg.General
 			tmp.BatchSize = n
-			return fieldErr(validate.ValidateGeneral(tmp), "BatchSize")
+			return fieldErr(validate.ValidateGeneral(tmp), validate.FieldBatchSize)
 		},
 		func(n int) { cfg.General.BatchSize = n }, saveGeneralCmd)
 
@@ -272,7 +272,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := cfg.Writer
 			tmp.MergeFlushInterval = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateWriter(tmp), "MergeFlushInterval")
+			return fieldErr(validate.ValidateWriter(tmp), validate.FieldMergeFlushInterval)
 		},
 		func(d time.Duration) { cfg.Writer.MergeFlushInterval = config.NewDurationMS(d) }, saveWriterCmd)
 
@@ -284,7 +284,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := cfg.Writer
 			tmp.ChanSize = n
-			return fieldErr(validate.ValidateWriter(tmp), "ChanSize")
+			return fieldErr(validate.ValidateWriter(tmp), validate.FieldChanSize)
 		},
 		func(n int) { cfg.Writer.ChanSize = n }, saveWriterCmd)
 
@@ -296,7 +296,7 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := cfg.Writer
 			tmp.BatchSize = n
-			return fieldErr(validate.ValidateWriter(tmp), "BatchSize")
+			return fieldErr(validate.ValidateWriter(tmp), validate.FieldBatchSize)
 		},
 		func(n int) { cfg.Writer.BatchSize = n }, saveWriterCmd)
 
@@ -305,7 +305,7 @@ func New(state *ui.AppState, name string) *Model {
 		textinput.WithValidation(func(v string) error {
 			tmp := cfg.Writer
 			tmp.ResultBaseDir = v
-			return fieldErr(validate.ValidateWriter(tmp), "ResultDirectory")
+			return fieldErr(validate.ValidateWriter(tmp), validate.FieldResultBaseDir)
 		}),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
@@ -346,6 +346,6 @@ func visibleWhenMode(cfg *config.GeneralConfig, want pipelineMode) func() bool {
 	return func() bool { return cfg.PipelineMode == want }
 }
 
-func fieldErr(errs map[string]error, field string) error {
+func fieldErr(errs map[validate.Field]error, field validate.Field) error {
 	return errs[field]
 }

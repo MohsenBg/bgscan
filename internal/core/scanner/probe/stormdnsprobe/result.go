@@ -10,7 +10,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
-func joinConfigErrors(errs map[string]error) error {
+func joinConfigErrors(errs map[dns.Field]error) error {
 	var joined error
 	for field, err := range errs {
 		joined = errors.Join(joined, fmt.Errorf("%s: %w", field, err))

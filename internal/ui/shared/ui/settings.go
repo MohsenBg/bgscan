@@ -35,10 +35,8 @@ func DefaultUISettings() UISettings {
 	}
 }
 
-// LoadSettings reads the settings file, creating it with defaults when
-// missing. A corrupt file falls back to defaults without overwriting the
-// user's file; invalid fields (zero max rows, unknown log level) are
-// normalized.
+// LoadSettings reads the settings file and creates it with defaults when missing.
+// Invalid settings are normalized before being returned.
 func LoadSettings(log *logger.Logger) UISettings {
 	path := uiSettingsPath()
 	if path == "" {
@@ -64,9 +62,7 @@ func LoadSettings(log *logger.Logger) UISettings {
 	return normalize(cfg)
 }
 
-// SaveSettings persists s to disk (normalized), so the file never
-// carries values that would brick the UI. Best effort: a failed write
-// must never break the caller.
+// SaveSettings writes normalized settings to disk. Write errors are ignored.
 func SaveSettings(s UISettings) {
 	path := uiSettingsPath()
 	if path == "" {

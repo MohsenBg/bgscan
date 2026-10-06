@@ -2,47 +2,20 @@ package workspace
 
 import (
 	"charm.land/lipgloss/v2"
-	overlay "github.com/rmhubbert/bubbletea-overlay"
 )
 
-func (m model) View() string {
-	termWidth := m.state.Layout.Terminal.Width
-	termHeight := m.state.Layout.Terminal.Height
+// View renders the workspace layout.
+func (m *model) View() string {
+	layout := m.state.Layout
 
-	parts := []string{}
-	if m.state.Layout.ShowHeader {
+	parts := make([]string, 0, 3)
+	if layout.ShowHeader {
 		parts = append(parts, m.header.View())
 	}
 	parts = append(parts, m.body.View(), m.footer.View())
 
-	content := lipgloss.JoinVertical(
-		lipgloss.Left,
-		parts...,
-	)
+	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
 
-	content = m.renderOverlays(content)
-	view := containerStyle(termWidth, termHeight).Render(
-		m.mainStyle(m.state.Layout.Content.Width, m.state.Layout.Content.Height).Render(content),
-	)
-
-	return view
-}
-
-func (m *model) renderOverlays(baseView string) string {
-	view := baseView
-
-	for _, layer := range m.dialog {
-		placement := m.getDialogPlacement(layer.ID())
-
-		view = overlay.Composite(
-			m.windowStyle(m.state.Layout.Body.Width).Render(layer.View()),
-			view,
-			placement.XPos,
-			placement.YPos,
-			placement.XOffset,
-			placement.YOffset,
-		)
-	}
-
-	return view
+	main := m.contentStyle(layout.Content.Width, layout.Content.Height).Render(content)
+	return screenStyle(layout.Terminal.Width, layout.Terminal.Height).Render(main)
 }

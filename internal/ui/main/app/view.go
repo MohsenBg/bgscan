@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
+	overlay "github.com/rmhubbert/bubbletea-overlay"
 )
 
 func (m *model) View() tea.View {
@@ -25,6 +26,7 @@ func (m *model) View() tea.View {
 	case StageWorkspace:
 		view = m.workspace.View()
 	}
+	view = m.renderDialogs(view)
 	t := tea.NewView(view)
 	if m.state.Settings.SolidBackground {
 		th := m.state.Theme()
@@ -49,4 +51,23 @@ func (m *model) renderLimitSize(termWidth, termHeight int) string {
 		Render(
 			m.warningStyle().Render(msg),
 		)
+}
+
+// renderDialogs composites the open dialogs over the base view.
+func (m *model) renderDialogs(base string) string {
+	view := base
+
+	for _, layer := range m.layers {
+		opts := m.frameFor(layer.ID())
+		hints := m.renderHints(append(opts.Hints, m.state.Deps().Keys.Dialog.Cancel.ShortItem()))
+
+		view = overlay.Composite(
+			m.frameView(layer.View(), opts, hints),
+			view,
+			opts.XPos, opts.YPos,
+			opts.XOffset, opts.YOffset,
+		)
+	}
+
+	return view
 }

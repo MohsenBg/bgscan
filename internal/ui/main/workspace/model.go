@@ -1,64 +1,50 @@
+// Package workspace composes the root application screen.
 package workspace
 
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/main/body"
 	"github.com/MohsenBg/bgscan/internal/ui/main/footer"
 	"github.com/MohsenBg/bgscan/internal/ui/main/header"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
 
-type dialogOptions struct {
-	XPos    dialog.DialogPosition
-	YPos    dialog.DialogPosition
-	XOffset int
-	YOffset int
-	OnClose tea.Cmd
+// model is the root layout component.
+type model struct {
+	id    ui.ComponentID
+	name  string
+	state *ui.AppState
+
+	header ui.Component
+	body   ui.Component
+	footer ui.Component
 }
 
-type model struct {
-	id               ui.ComponentID
-	name             string
-	state            *ui.AppState
-	dialog           []ui.Component
-	dialogPlacements map[ui.ComponentID]*dialogOptions
-	header           ui.Component
-	body             ui.Component
-	footer           ui.Component
+// New builds the workspace root component.
+func New(state *ui.AppState) ui.Component {
+	return &model{
+		id:     ui.NewComponentID(),
+		name:   "workspace",
+		state:  state,
+		header: header.New(state.Deps()),
+		body:   body.New(state),
+		footer: footer.New(state.Deps()),
+	}
 }
 
 func (m *model) ID() ui.ComponentID { return m.id }
-func (m *model) Mode() env.Mode     { return env.NormalMode }
 func (m *model) Name() string       { return m.name }
-func (m *model) OnClose() tea.Cmd {
-	return tea.Batch(m.header.OnClose(), m.body.OnClose(), m.footer.OnClose())
-}
 
-func New(state *ui.AppState) ui.Component {
-	return &model{
-		id:               ui.NewComponentID(),
-		name:             "workspace",
-		state:            state,
-		dialog:           make([]ui.Component, 0, 5),
-		dialogPlacements: make(map[ui.ComponentID]*dialogOptions),
-		header:           header.New(state.Deps()),
-		body:             body.New(state),
-		footer:           footer.New(state.Deps()),
-	}
-}
+// Mode returns the workspace mode.
+func (m *model) Mode() env.Mode { return env.NormalMode }
 
 func (m *model) Init() tea.Cmd {
 	return tea.Batch(m.header.Init(), m.body.Init(), m.footer.Init())
 }
 
-func (m *model) getDialogPlacement(id ui.ComponentID) *dialogOptions {
-	if p, ok := m.dialogPlacements[id]; ok {
-		return p
-	}
-	p := &dialogOptions{XPos: dialog.Center, YPos: dialog.Center}
-	m.dialogPlacements[id] = p
-	return p
+// OnClose shuts down the workspace's children.
+func (m *model) OnClose() tea.Cmd {
+	return tea.Batch(m.header.OnClose(), m.body.OnClose(), m.footer.OnClose())
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/ui/main/splash"
 	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
@@ -30,6 +31,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state.Log.Debug.Info("%s", dumpGoroutines())
 		}
 
+		if cmd, closed := m.closeTopDialog(msg); closed {
+			return m, cmd
+		}
+
 	case splash.SplashDoneMsg:
 		cmds = append(cmds, m.splash.OnClose(), m.startup.Init())
 		m.stage = StageStartUP
@@ -37,6 +42,22 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case startup.StartupChecksDoneMsg:
 		cmds = append(cmds, m.startup.OnClose(), m.workspace.Init())
 		m.stage = StageWorkspace
+
+	case dialog.OpenDialogMsg:
+		m.push(msg)
+		return m, msg.Component.Init()
+
+	case ui.CloseComponentMsg:
+		cmds = append(cmds, m.close(msg.ID))
+	}
+
+	if _, themed := msg.(ui.ThemeChangedMsg); themed {
+		cmds = append(cmds, m.updateAll(msg)...)
+	} else if cmd, active := m.updateTop(msg); active {
+		if _, isKey := msg.(tea.KeyMsg); isKey {
+			return m, cmd
+		}
+		cmds = append(cmds, cmd)
 	}
 
 	var cmd tea.Cmd
@@ -51,6 +72,20 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	cmds = append(cmds, cmd)
 	return m, tea.Sequence(cmds...)
+}
+
+// closeTopDialog closes the active dialog for a back or quit key.
+func (m *model) closeTopDialog(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	top := m.top()
+	if top == nil {
+		return nil, false
+	}
+
+	if !env.IsBackKey(msg, top.Mode()) && !env.IsQuitKey(msg, top.Mode()) {
+		return nil, false
+	}
+
+	return m.popTop(), true
 }
 
 func dumpGoroutines() string {

@@ -40,6 +40,11 @@ type Model struct {
 	titleHeight    int
 	viewportHeight int
 	footerHeight   int
+
+	// inDialog is true while the notice is hosted inside a dialog
+	// frame: the title and the continue hint then live in the frame's
+	// border lines instead of the body.
+	inDialog bool
 }
 
 // New displays a titled message, scrolling when it exceeds the viewport
@@ -106,8 +111,13 @@ func (m *Model) Height() int {
 // UpdateSize recomputes viewport dimensions from the current layout;
 // call it after a resize.
 func (m *Model) UpdateSize() {
-	m.titleHeight = lipgloss.Height(m.headerView(m.Width()))
-	m.footerHeight = lipgloss.Height(m.footerView(m.Width()))
+	m.titleHeight = 0
+	m.footerHeight = 0
+
+	if !m.inDialog {
+		m.titleHeight = lipgloss.Height(m.headerView(m.Width()))
+		m.footerHeight = lipgloss.Height(m.footerView(m.Width()))
+	}
 
 	m.viewportHeight = max(
 		m.Height()-m.titleHeight-m.footerHeight,
@@ -138,4 +148,11 @@ func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
 
 func (m *Model) Mode() env.Mode {
 	return env.NormalMode
+}
+
+// SetInDialog moves the notice's title and continue hint into the dialog
+// frame's border lines.
+func (m *Model) SetInDialog(inDialog bool) {
+	m.inDialog = inDialog
+	m.UpdateSize()
 }

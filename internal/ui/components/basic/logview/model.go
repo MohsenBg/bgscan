@@ -41,6 +41,8 @@ type Model struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	inDialog bool
 }
 
 func New(state *ui.AppState, log *logger.Logger, title string) *Model {
@@ -162,6 +164,9 @@ func (m *Model) Name() string {
 func (m *Model) Mode() env.Mode {
 	return env.NormalMode
 }
+
+// SetInDialog marks the viewer as hosted inside a dialog frame.
+func (m *Model) SetInDialog(inDialog bool) { m.inDialog = inDialog }
 
 // OnClose cleans up resources when the component is removed.
 func (m *Model) OnClose() tea.Cmd {

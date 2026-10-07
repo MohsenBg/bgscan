@@ -34,8 +34,13 @@ func (m *Model) renderKeyHints() string {
 }
 
 func (m *Model) View() string {
-	title := m.renderTitle()
 	inspector := m.renderInspector()
+
+	if m.inDialog {
+		return lipgloss.NewStyle().Padding(0, 2).Render(inspector)
+	}
+
+	title := m.renderTitle()
 	hints := m.renderKeyHints()
 
 	return lipgloss.JoinVertical(

@@ -3,6 +3,7 @@ package dnstun
 import (
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/form"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/dnstt"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/masterdns"
@@ -50,11 +51,29 @@ func (m *Model) OnClose() tea.Cmd   { return m.crudTable.OnClose() }
 func (m *Model) Mode() env.Mode     { return m.crudTable.Mode() }
 
 func (m *Model) selectDNSTunMethod() tea.Cmd {
-	menu := dnstunmenu.New(m.state.Deps())
-	m.dnsTunMenu = menu
+	protoMenu := dnstunmenu.New(m.state.Deps())
+	m.dnsTunMenu = protoMenu
 	return func() tea.Msg {
-		return dialog.OpenDialog(menu)
+		return dialog.OpenDialog(protoMenu,
+			dialog.WithTitle(dnstunmenu.Title),
+		)
 	}
+}
+
+// openFormDialog opens a formkit-based form as a dialog. The frame
+// title is read from the form itself so "New X" vs "Edit name" stays
+// in one place; hints are the shared form hints. Extra options
+// (e.g. WithOnClose) still apply after the defaults.
+func openFormDialog(frm ui.Component, opts ...dialog.DialogOption) dialog.OpenDialogMsg {
+	title := ""
+	if t, ok := frm.(interface{ Title() string }); ok {
+		title = t.Title()
+	}
+	base := []dialog.DialogOption{
+		dialog.WithTitle(title),
+		dialog.WithHints(form.Hints()...),
+	}
+	return dialog.OpenDialog(frm, append(base, opts...)...)
 }
 
 func (m *Model) closeDNSTunMenu() tea.Cmd {
@@ -75,7 +94,7 @@ func (m *Model) openSlipstreamForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm,
+		return openFormDialog(frm,
 			dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
 }
@@ -86,7 +105,7 @@ func (m *Model) openDNSTTForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
 }
 
@@ -96,7 +115,7 @@ func (m *Model) openVayDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
 }
 
@@ -106,7 +125,7 @@ func (m *Model) openMasterDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
 }
 
@@ -116,7 +135,7 @@ func (m *Model) openStormDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
 }
 
@@ -126,7 +145,7 @@ func (m *Model) openTheFeedForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
 }
 
@@ -160,7 +179,7 @@ func (m *Model) openDNSTunForm(original *dns.DNSTunConfigFile) tea.Cmd {
 			)
 		}
 
-		return dialog.OpenDialog(frm,
+		return openFormDialog(frm,
 			dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
 	}
 }

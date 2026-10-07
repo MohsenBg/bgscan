@@ -6,6 +6,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
@@ -38,6 +39,10 @@ type Model struct {
 
 	onChange func(string) tea.Cmd
 	onSubmit func(string) tea.Cmd
+
+	// inDialog is true while the input is hosted inside a dialog frame:
+	// the title and key hints then live in the frame's border lines.
+	inDialog bool
 }
 
 func New(
@@ -128,6 +133,20 @@ func (m *Model) Name() string {
 
 func (m *Model) Mode() env.Mode {
 	return env.InputMode
+}
+
+// SetInDialog moves the input's title and key hints into the dialog
+// frame's border lines.
+func (m *Model) SetInDialog(inDialog bool) { m.inDialog = inDialog }
+
+// Title returns the input prompt as raw data for the dialog frame.
+func (m *Model) Title() string { return m.title }
+
+// Hints returns the input's key hints as raw data, excluding Cancel.
+func (m *Model) Hints() []keys.Hint {
+	return []keys.Hint{
+		{Key: "⏎", Label: "confirm"},
+	}
 }
 
 func (m *Model) Width() int {

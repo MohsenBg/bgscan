@@ -6,6 +6,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
@@ -144,6 +145,18 @@ func (m *Model[T]) ID() ui.ComponentID { return m.id }
 func (m *Model[T]) Name() string { return m.name }
 
 func (m *Model[T]) Mode() env.Mode { return env.NormalMode }
+
+// Title returns the raw dialog-frame title.
+func (m *Model[T]) Title() string { return m.title }
+
+// Hints returns the raw frame hints, excluding Cancel.
+func (m *Model[T]) Hints() []keys.Hint {
+	return []keys.Hint{
+		{Key: "↑/↓", Label: "move"},
+		{Key: "space", Label: "select"},
+		{Key: "⏎", Label: "confirm"},
+	}
+}
 
 func (m *Model[T]) Width() int {
 	if m.layout == nil {

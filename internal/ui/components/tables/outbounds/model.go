@@ -52,7 +52,9 @@ func (m *Model) Mode() env.Mode     { return m.crudTable.Mode() }
 func (m *Model) ShowAdditionMethod() tea.Cmd {
 	return func() tea.Msg {
 		m.outboundMenu = outboundmenu.New(m.state.Deps())
-		return dialog.OpenDialog(m.outboundMenu)
+		return dialog.OpenDialog(m.outboundMenu,
+			dialog.WithTitle(outboundmenu.Title),
+		)
 	}
 }
 

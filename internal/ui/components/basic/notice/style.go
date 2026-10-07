@@ -17,6 +17,27 @@ type levelStyle struct {
 	FooterText string
 }
 
+// iconFor returns the severity icon prefix for a notice level.
+// Icons are static strings; colors stay with the workspace theme.
+func iconFor(level LEVEL) string {
+	switch level {
+	case NOTICE_ERROR:
+		return "[×] "
+	case NOTICE_SUCCESS:
+		return "[✓] "
+	case NOTICE_INFO:
+		fallthrough
+	default:
+		return "[i] "
+	}
+}
+
+// FrameTitle returns the raw dialog-frame title for a notice:
+// severity icon plus title. The workspace styles it.
+func FrameTitle(level LEVEL, title string) string {
+	return iconFor(level) + title
+}
+
 // levelPalette maps a notice level to its rendering palette.
 func (m *Model) levelPalette(level LEVEL) levelStyle {
 	th := m.theme
@@ -27,7 +48,7 @@ func (m *Model) levelPalette(level LEVEL) levelStyle {
 			TitleColor:  th.Error,
 			BorderColor: th.Error,
 			AccentColor: th.Error,
-			Icon:        "[×] ",
+			Icon:        iconFor(level),
 			FooterText:  "Continue",
 		}
 
@@ -36,7 +57,7 @@ func (m *Model) levelPalette(level LEVEL) levelStyle {
 			TitleColor:  th.Success,
 			BorderColor: th.Success,
 			AccentColor: th.Success,
-			Icon:        "[✓] ",
+			Icon:        iconFor(level),
 			FooterText:  "Done",
 		}
 
@@ -48,7 +69,7 @@ func (m *Model) levelPalette(level LEVEL) levelStyle {
 			TitleColor:  th.Info,
 			BorderColor: th.Info,
 			AccentColor: th.Info,
-			Icon:        "[i] ",
+			Icon:        iconFor(level),
 			FooterText:  "Continue",
 		}
 	}

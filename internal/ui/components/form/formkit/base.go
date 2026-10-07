@@ -3,10 +3,11 @@ package formkit
 import (
 	"fmt"
 
+	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/form"
-	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
@@ -79,6 +80,23 @@ func (b *Base) ID() ui.ComponentID { return b.id }
 
 func (b *Base) Mode() env.Mode { return env.ManagedMode }
 
+// SetInDialog moves the form's title and key hints into the dialog
+// frame's border lines.
+func (b *Base) SetInDialog(inDialog bool) {
+	if b.form != nil {
+		b.form.SetInDialog(inDialog)
+	}
+}
+
+// Title returns the underlying form's heading as raw data for the
+// dialog frame. Empty before BuildForm.
+func (b *Base) Title() string {
+	if b.form == nil {
+		return ""
+	}
+	return b.form.Name()
+}
+
 // CalculateSize derives the form body size from the layout.
 func (b *Base) CalculateSize() {
 	w := b.layout.BodyContentWidth() - FormPadding
@@ -122,6 +140,7 @@ func (b *Base) BuildForm(
 			"Save configuration?",
 			onSave,
 			true,
+			dialog.WithTitle("Save configuration"),
 		)),
 		form.WithCancel(b.CancelCmd()),
 	)
@@ -186,5 +205,6 @@ func (b *Base) CancelCmd() tea.Cmd {
 			return ui.CloseComponentMsg{ID: b.ID()}
 		},
 		false,
+		dialog.WithTitle("Discard changes"),
 	)
 }

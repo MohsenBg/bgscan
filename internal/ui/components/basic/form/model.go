@@ -5,6 +5,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
@@ -78,6 +79,10 @@ type Model struct {
 	validation ValidationFunc
 	onSave     tea.Cmd
 	onCancel   tea.Cmd
+
+	// inDialog is true while the form is hosted inside a dialog frame:
+	// the title and key hints then live in the frame's border lines.
+	inDialog bool
 }
 
 func New(
@@ -149,6 +154,24 @@ func (m *Model) Mode() env.Mode {
 
 func (m *Model) Theme() *theme.Theme { return m.theme }
 
+// SetInDialog moves the form's title and key hints into the dialog
+// frame's border lines.
+func (m *Model) SetInDialog(inDialog bool) {
+	m.inDialog = inDialog
+	m.recalculateSize()
+}
+
+// Title returns the form heading as raw data for the dialog frame.
+func (m *Model) Title() string { return m.name }
+
+// Hints returns the form's key hints as raw data, excluding Cancel.
+// The workspace appends Cancel itself.
+func Hints() []keys.Hint {
+	return []keys.Hint{
+		{Key: "s", Label: "save"},
+	}
+}
+
 func (m *Model) SetTheme(th *theme.Theme) {
 	m.theme = th
 	if m.inspector != nil {
@@ -217,8 +240,14 @@ func (m *Model) recalculateSize() {
 	m.height = height
 	m.width = width
 
-	titleHeight := lipgloss.Height(m.renderTitle())
-	hintsHeight := lipgloss.Height(m.renderKeyHints())
+	titleHeight := 0
+	if !m.inDialog {
+		titleHeight = lipgloss.Height(m.renderTitle())
+	}
+	hintsHeight := 0
+	if !m.inDialog {
+		hintsHeight = lipgloss.Height(m.renderKeyHints())
+	}
 	spacing := 2
 
 	inspectorHeight := height - titleHeight - hintsHeight - spacing

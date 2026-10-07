@@ -24,6 +24,10 @@ func (m *Model) View() string {
 
 	m.viewport.SetContent(wrapped)
 
+	if m.inDialog {
+		return containerStyle(width).Render(m.viewport.View())
+	}
+
 	content := lipgloss.JoinVertical(
 		lipgloss.Top,
 		m.headerView(width),

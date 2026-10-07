@@ -9,6 +9,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/validation"
 
@@ -93,6 +94,8 @@ func (m *Model[T]) requestDeletion(item T) tea.Cmd {
 		fmt.Sprintf("Delete %s '%s'?", m.source.Title(), m.source.Identity(item)),
 		tea.Sequence(m.hooks.OnDelete(item), func() tea.Msg { return MsgRefresh{} }),
 		false,
+		dialog.WithTitle("⚠ Delete "+m.source.Title()),
+		dialog.WithDanger(),
 	)
 }
 

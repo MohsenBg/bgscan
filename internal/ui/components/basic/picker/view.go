@@ -21,7 +21,7 @@ func (m *Model) View() string {
 	height := pickerHeight(m.Layout)
 
 	title := ""
-	if m.Title != "" {
+	if !m.inDialog && m.Title != "" {
 		title = m.titleStyle(width).Render(m.Title)
 	}
 
@@ -34,8 +34,14 @@ func (m *Model) View() string {
 		title,
 		currentDir,
 		m.FilePicker.View(),
-		m.helpStyle(width).Render(m.helpView()),
 	)
+	if !m.inDialog {
+		content = lipgloss.JoinVertical(
+			lipgloss.Top,
+			content,
+			m.helpStyle(width).Render(m.helpView()),
+		)
+	}
 
 	return containerStyle(width, height).Render(content)
 }

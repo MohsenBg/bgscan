@@ -3,6 +3,7 @@ package scanner
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/progress"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -77,6 +78,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 				return tea.BatchMsg{m.asyncClose()}
 			},
 			false,
+			dialog.WithTitle("Exit scan"),
 		)
 	case "p":
 		m.togglePause()

@@ -10,7 +10,7 @@ import (
 func (m *Model) View() string {
 	content := make([]string, 0, 4)
 
-	if m.title != "" {
+	if !m.inDialog && m.title != "" {
 		content = append(content, input.MessageStyle(m.theme).Render(m.title))
 	}
 
@@ -20,8 +20,10 @@ func (m *Model) View() string {
 		content = append(content, input.ErrorStyle(m.theme).Render("✗ "+m.errorMsg))
 	}
 
-	hints := input.KeyHintStyle(m.theme).Render("←/→ to toggle • Enter to confirm • Esc to cancel")
-	content = append(content, hints)
+	if !m.inDialog {
+		hints := input.KeyHintStyle(m.theme).Render("←/→ to toggle • Enter to confirm • Esc to cancel")
+		content = append(content, hints)
+	}
 
 	body := lipgloss.JoinVertical(lipgloss.Top, content...)
 	return input.ContainerStyle(m.Width()).Render(body)

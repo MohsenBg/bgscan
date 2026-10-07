@@ -10,8 +10,7 @@ import (
 
 const maxButtonGap = 20
 
-// View renders the confirmation dialog: the message and the "No"/"Yes" buttons,
-// with the focused button highlighted. Buttons are spaced by available width.
+// View renders the confirmation dialog.
 func (m *Model) View() string {
 	noBtn, yesBtn := m.renderButtons()
 	buttons := m.layoutButtons(noBtn, yesBtn)
@@ -25,10 +24,7 @@ func (m *Model) View() string {
 	)
 }
 
-// renderButtons builds the styled "No" and "Yes" buttons.
-//
-// The button corresponding to the current selection state is rendered
-// using selectButtonStyle while the other uses the normal buttonStyle.
+// renderButtons renders the No and Yes buttons with the current selection highlighted.
 func (m *Model) renderButtons() (string, string) {
 	no := m.buttonStyle().Render("No")
 	yes := m.buttonStyle().Render("Yes")
@@ -42,11 +38,7 @@ func (m *Model) renderButtons() (string, string) {
 	return no, yes
 }
 
-// layoutButtons arranges the confirmation buttons horizontally.
-//
-// The spacing between buttons is dynamically calculated based on the
-// terminal width while being clamped between 1 and maxButtonGap to
-// prevent excessive spacing on large terminals.
+// layoutButtons lays out the confirmation buttons with dynamic spacing.
 func (m *Model) layoutButtons(noBtn, yesBtn string) string {
 	width := 80
 	if m.layout != nil && m.layout.Terminal.Width > 0 {

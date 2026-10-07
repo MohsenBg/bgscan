@@ -40,7 +40,10 @@ func OpenFilePickerCmd(
 
 		return dialog.OpenDialog(
 			p,
-			options...,
+			append([]dialog.DialogOption{
+				dialog.WithTitle(title),
+				dialog.WithHints(Hints()...),
+			}, options...)...,
 		)
 	}
 }

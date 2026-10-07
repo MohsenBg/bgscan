@@ -5,6 +5,7 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
@@ -32,6 +33,10 @@ type Model struct {
 
 	// Callback triggered when a file is selected
 	OnSelect OnSelect
+
+	// inDialog is true while the picker is hosted inside a dialog
+	// frame: the title and key hints then live in the frame's borders.
+	inDialog bool
 }
 
 // Init initializes the underlying file picker component.
@@ -45,6 +50,19 @@ func (m *Model) ID() ui.ComponentID {
 
 func (m *Model) Name() string {
 	return m.name
+}
+
+// SetInDialog moves the picker's title and key hints into the dialog
+// frame's border lines.
+func (m *Model) SetInDialog(inDialog bool) { m.inDialog = inDialog }
+
+// Hints returns the picker's key hints as raw data, excluding Cancel.
+func Hints() []keys.Hint {
+	return []keys.Hint{
+		{Key: "← →", Label: "dir"},
+		{Key: "↑ ↓", Label: "move"},
+		{Key: "⏎", Label: "select"},
+	}
 }
 
 // CloseCmd emits CloseComponentMsg; the router removes the overlay.

@@ -1,6 +1,7 @@
 package input
 
 import (
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -9,9 +10,16 @@ import (
 // Dialog is the subset of Input needed to host a component as a dialog:
 // identity plus the ability to chain a callback after submit succeeds,
 // without depending on the input's value type.
+//
+// Title and Hints expose raw frame chrome as data. The dialog frame
+// owns styling; callers pass them via WithTitle/WithHints.
 type Dialog interface {
 	ui.Component
 	AppendOnSubmit(fn func() tea.Cmd)
+	// Title returns the raw dialog-frame title.
+	Title() string
+	// Hints returns raw frame hints, excluding Cancel.
+	Hints() []keys.Hint
 }
 
 // Input is a generic, focusable form field component that holds a value of

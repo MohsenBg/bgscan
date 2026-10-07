@@ -77,6 +77,16 @@ func (m *Model) SetTheme(th *theme.Theme) {
 	}
 }
 
+// SetInDialog forwards the frame state to the wrapped menu.
+func (m *Model) SetInDialog(inDialog bool) {
+	if f, ok := m.menu.(interface{ SetInDialog(bool) }); ok {
+		f.SetInDialog(inDialog)
+	}
+}
+
+// Title is the dialog-frame title for the outbound import menu.
+const Title = "Addition Method"
+
 func newMenu(deps ui.Deps) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
@@ -98,7 +108,7 @@ func newMenu(deps ui.Deps) *menu.Model {
 	}
 
 	return menu.New(
-		items, "Addition Method", deps,
+		items, Title, deps,
 		menu.WithHeight(12),
 		menu.WithWidth(40),
 	)

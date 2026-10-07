@@ -144,6 +144,5 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 			},
 		).WithDescription("Inspect application and scanner logs"),
 	}
-
-	return menu.New(items, "Main Menu", state.Deps())
+	return menu.New(items, "Main Menu", state.Deps(), menu.WithBackHint(false))
 }

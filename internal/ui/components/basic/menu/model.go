@@ -4,38 +4,43 @@ package menu
 import (
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/help"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 const (
-	// Maximum menu size.
-	maxMenuWidth  = 60
-	maxMenuHeight = 25
+	maxMenuWidth    = 65
+	maxMenuHeight   = 25
+	fallbackWidth   = 40
+	fallbackHeight  = 12
+	minSidebarWidth = 40
+	minMenuWidth    = 20
+	minMenuHeight   = 15
 
-	// Fallback size when no layout is attached and no fixed size is set.
-	fallbackWidth  = 40
-	fallbackHeight = 12
-
-	// Minimum width for the sidebar layout.
-	minSidebarWidth = 50
-
-	// Lines used by everything except the item rows:
-	// title, blank, (items), blank, help.
-	chromeRows = 4
-
-	// Blank lines between two item rows.
-	rowGap = 1
-
-	// Lines taken by one item row including its gap.
-	rowStride = 1 + rowGap
-
-	// Fewest item lines we ever render.
+	helpRows        = 1
+	rowGap          = 1
+	rowStride       = 1 + rowGap
 	minVisibleLines = 1
+
+	contentPadding = 1
+
+	iconColumnWidth         = 3
+	keycapHorizontalPadding = 2
+	shortcutGapWidth        = 1
+	helpSeparatorWidth      = 3
+
+	rowPrefixWidth   = 1
+	rowLeadWidth     = 1
+	rowSuffixWidth   = 1
+	rowOverheadWidth = rowPrefixWidth + rowSuffixWidth
+	rowChromeWidth   = rowOverheadWidth + rowLeadWidth
+	minRowWidth      = 10
 )
 
 // MenuItem is a selectable menu row.
@@ -49,10 +54,15 @@ type MenuItem struct {
 
 // NewMenuItem creates a menu item.
 func NewMenuItem(icon, title, shortcut string, action tea.Cmd) MenuItem {
-	return MenuItem{icon: icon, title: title, shortcut: shortcut, action: action}
+	return MenuItem{
+		icon:     icon,
+		title:    title,
+		shortcut: shortcut,
+		action:   action,
+	}
 }
 
-// WithDescription sets the item's description.
+// WithDescription sets the item description.
 func (i MenuItem) WithDescription(desc string) MenuItem {
 	i.desc = desc
 	return i
@@ -69,22 +79,46 @@ type Option func(*Model)
 
 // WithIcon shows or hides the icon column.
 func WithIcon(show bool) Option {
-	return func(m *Model) { m.showIcon = show }
+	return func(m *Model) {
+		m.showIcon = show
+	}
 }
 
 // WithShortcut shows or hides shortcuts.
 func WithShortcut(show bool) Option {
-	return func(m *Model) { m.showShortcut = show }
+	return func(m *Model) {
+		m.showShortcut = show
+	}
 }
 
 // WithWidth sets a fixed menu width.
 func WithWidth(width int) Option {
-	return func(m *Model) { m.width = width; m.widthAuto = false }
+	return func(m *Model) {
+		m.width = max(1, width)
+	}
 }
 
 // WithHeight sets a fixed menu height.
 func WithHeight(height int) Option {
-	return func(m *Model) { m.height = height; m.heightAuto = false }
+	return func(m *Model) {
+		m.height = max(1, height)
+	}
+}
+
+// WithHelp shows or hides the built-in help bar.
+// Disable it when a parent, such as a dialog frame, owns the help.
+func WithHelp(show bool) Option {
+	return func(m *Model) {
+		m.showHelp = show
+	}
+}
+
+// WithBackHint controls whether the built-in back hint is shown.
+// Disable it when a parent, such as a dialog frame, provides its own back hint.
+func WithBackHint(show bool) Option {
+	return func(m *Model) {
+		m.showBackHint = show
+	}
 }
 
 // Model is a selectable menu.
@@ -95,19 +129,23 @@ type Model struct {
 	items    []MenuItem
 	index    int
 	onSelect func(MenuItem) tea.Cmd
-	Layout   *layout.Layout
-	theme    *theme.Theme
+
+	Layout *layout.Layout
+	theme  *theme.Theme
+	keys   *keys.Keys
 
 	showIcon     bool
 	showShortcut bool
+	showHelp     bool
+	showBackHint bool
 
-	width      int
-	height     int
-	widthAuto  bool
-	heightAuto bool
+	width  int
+	height int
 
-	// enterAt is when the menu opened. Only the entrance fade-in uses
-	// it; selection and activation are instant.
+	help ui.Component
+
+	// enterAt is used only for the entrance animation.
+	// Selection itself is instant.
 	enterAt time.Time
 }
 
@@ -120,15 +158,34 @@ func New(items []MenuItem, title string, deps ui.Deps, options ...Option) *Model
 		items:        items,
 		Layout:       deps.Layout,
 		theme:        deps.Theme,
+		keys:         deps.Keys,
 		showIcon:     true,
 		showShortcut: true,
-		widthAuto:    true,
-		heightAuto:   true,
+		showHelp:     true,
+		showBackHint: true,
 		enterAt:      time.Now(),
 	}
+
 	for _, option := range options {
 		option(m)
 	}
+
+	if m.showHelp {
+		w, _ := m.effectiveSize()
+		innerWidth := max(1, w-2*contentPadding)
+
+		m.help = help.New(
+			deps,
+			title,
+			help.HelpSet{
+				Short: m.ShortHints(),
+				Long:  m.LongHints(),
+			},
+			help.WithShortHelpWidth(innerWidth),
+			help.WithShortHelpHeight(helpRows),
+		)
+	}
+
 	return m
 }
 
@@ -146,79 +203,170 @@ func (m *Model) OnClose() tea.Cmd   { return nil }
 // Theme returns the current theme.
 func (m *Model) Theme() *theme.Theme { return m.theme }
 
-// SetTheme updates the theme.
-func (m *Model) SetTheme(theme *theme.Theme) { m.theme = theme }
+// Title returns the menu heading.
+func (m *Model) Title() string { return m.title }
 
 // SetOnSelect sets the selection callback.
-func (m *Model) SetOnSelect(fn func(MenuItem) tea.Cmd) { m.onSelect = fn }
+func (m *Model) SetOnSelect(fn func(MenuItem) tea.Cmd) {
+	m.onSelect = fn
+}
 
 // GetSelected returns the selected item.
 func (m *Model) GetSelected() (MenuItem, bool) {
 	if m.index < 0 || m.index >= len(m.items) {
 		return MenuItem{}, false
 	}
+
 	return m.items[m.index], true
 }
 
-// SetItems replaces the menu items and resets the entrance animation.
+// SetItems replaces the menu items and restarts the entrance animation.
 func (m *Model) SetItems(items []MenuItem) tea.Cmd {
 	m.items = items
+
 	if m.index >= len(m.items) {
 		m.index = max(len(m.items)-1, 0)
 	}
+
 	m.enterAt = time.Now()
 	return m.nextFrame()
 }
 
-// hasDescriptions reports whether any item has a description.
+// SetTheme updates the theme.
+func (m *Model) SetTheme(t *theme.Theme) {
+	m.theme = t
+}
+
 func (m *Model) hasDescriptions() bool {
 	for _, item := range m.items {
 		if item.desc != "" {
 			return true
 		}
 	}
+
 	return false
 }
 
-// effectiveSize returns the menu's outer size in terminal cells.
-// The height is at least the chrome plus one item row.
+// effectiveSize returns the total menu size including outer padding.
 func (m *Model) effectiveSize() (width, height int) {
-	width, height = m.width, m.height
-	if m.widthAuto && m.Layout != nil {
-		width = min(m.Layout.BodyContentWidth(), maxMenuWidth)
+	availWidth := fallbackWidth
+	availHeight := fallbackHeight
+
+	if m.Layout != nil {
+		if w := m.Layout.BodyContentWidth(); w > 0 {
+			availWidth = w
+		}
+
+		if h := m.Layout.BodyContentHeight(); h > 0 {
+			availHeight = h
+		}
 	}
-	if m.heightAuto && m.Layout != nil {
-		height = min(m.Layout.BodyContentHeight(), maxMenuHeight)
-	}
-	if width <= 0 {
-		width = fallbackWidth
-	}
-	if height <= 0 {
-		height = fallbackHeight
-	}
-	return width, max(height, chromeRows+minVisibleLines)
+
+	width = min(availWidth, maxMenuWidth)
+	width = max(width, minMenuWidth, 2*contentPadding+1)
+
+	desiredHeight := max(m.chromeRows()+itemsHeight(len(m.items)), minMenuHeight)
+
+	height = min(desiredHeight, maxMenuHeight, availHeight)
+	// height = max(availHeight, m.chromeRows()+minVisibleLines)
+
+	return width, height
 }
 
-// visibleLines returns the number of lines available for item rows.
-func visibleLines(height int) int {
-	return max(height-chromeRows, minVisibleLines)
+// chromeRows counts non-item rows: title, spacers, and help.
+func (m *Model) chromeRows() int {
+	rows := 2 // head spacer + foot spacer
+
+	if m.title != "" {
+		rows++
+	}
+
+	if m.showHelp {
+		rows += helpRows
+	}
+
+	return rows
 }
 
-// visibleItems returns how many items fit on one page.
+func (m *Model) visibleLines(height int) int {
+	return max(height-m.chromeRows(), minVisibleLines)
+}
+
 func (m *Model) visibleItems() int {
 	_, height := m.effectiveSize()
-	return itemsThatFit(visibleLines(height))
+	return itemsThatFit(m.visibleLines(height))
 }
 
-// itemsThatFit returns how many rows (with gaps between them) fit in lines.
 func itemsThatFit(lines int) int {
 	return max((lines+rowGap)/rowStride, 1)
 }
 
-// itemsHeight returns the lines needed to show n rows with gaps.
 func itemsHeight(n int) int {
 	if n == 0 {
 		return 0
 	}
+
 	return n*rowStride - rowGap
+}
+
+func (m *Model) handleResize() {
+	if m.help == nil {
+		return
+	}
+
+	h, ok := m.help.(*help.Model)
+	if !ok {
+		return
+	}
+
+	w, _ := m.effectiveSize()
+	h.SetShortWidth(max(1, w-2*contentPadding))
+}
+
+// ShortHints are the compact hints shown under the menu.
+func (m *Model) ShortHints() keys.Hints {
+	k := m.keys
+	if k == nil {
+		return nil
+	}
+
+	hints := keys.Hints{
+		keys.Combine("move", k.Nav.Up, k.Nav.Down),
+	}
+
+	back := k.Global.Back
+	back.Hidden = !m.showBackHint
+	back.Disabled = !m.showBackHint
+
+	hints = append(hints, keys.Short(
+		k.Menu.Select,
+		back,
+		k.Global.Quit,
+	)...)
+
+	if m.showHelp {
+		hints = append(hints, keys.Short(k.Global.Help)...)
+	}
+
+	return hints
+}
+
+// LongHints are everything the menu handles, for the full help dialog.
+func (m *Model) LongHints() keys.Hints {
+	k := m.keys
+	if k == nil {
+		return nil
+	}
+
+	back := k.Global.Back
+	back.Hidden = !m.showBackHint
+	back.Disabled = !m.showBackHint
+
+	return keys.Long(
+		k.Nav.Up,
+		k.Nav.Down,
+		k.Menu.Select,
+		back,
+		k.Global.Quit,
+	)
 }

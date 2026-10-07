@@ -1,18 +1,21 @@
+// Package startup runs preflight checks before entering the workspace.
 package startup
 
 import (
 	"sync/atomic"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	"charm.land/bubbles/v2/progress"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/help"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
 type categoryStatus int
@@ -42,22 +45,20 @@ const (
 )
 
 type model struct {
-	id         ui.ComponentID
-	name       string
-	categories []category
-	state      *ui.AppState
-
+	id          ui.ComponentID
+	name        string
+	categories  []category
+	state       *ui.AppState
 	viewport    viewport.Model
 	spinner     spinner.Model
 	progressBar progress.Model
 	width       int
 	height      int
-
-	showHelp bool
-
-	logCh   chan tea.Msg
-	checked bool
-	fatal   *fatalError
+	helpSet     help.HelpSet
+	help        ui.Component
+	logCh       chan tea.Msg
+	checked     bool
+	fatal       *fatalError
 }
 
 type fatalError struct {
@@ -70,14 +71,17 @@ func (m *model) Mode() env.Mode     { return env.NormalMode }
 func (m *model) Name() string       { return m.name }
 func (m *model) OnClose() tea.Cmd   { return nil }
 
+// New creates the startup preflight component.
 func New(state *ui.AppState) ui.Component {
+	th := state.Theme()
+
 	pb := progress.New(
 		progress.WithoutPercentage(),
-		progress.WithColors(state.Theme().ProgressEnd, state.Theme().ProgressStart),
+		progress.WithColors(th.ProgressEnd, th.ProgressStart),
 	)
 	pb.Full = '▬'
 	pb.Empty = '─'
-	pb.EmptyColor = state.Theme().BorderActive
+	pb.EmptyColor = th.BorderActive
 
 	vp := viewport.New()
 	if state.Layout != nil {
@@ -88,7 +92,7 @@ func New(state *ui.AppState) ui.Component {
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
-	sp.Style = lipgloss.NewStyle().Foreground(state.Theme().Primary)
+	sp.Style = lipgloss.NewStyle().Foreground(th.Primary)
 
 	m := &model{
 		id:          ui.NewComponentID(),
@@ -112,26 +116,58 @@ func New(state *ui.AppState) ui.Component {
 		},
 	}
 
-	if state != nil && state.Layout != nil {
-		m.applyLayout(state.Layout)
-	}
+	deps := state.Deps()
+	m.helpSet = startupHelpSet(deps.Keys)
+	m.help = help.New(deps, "Startup", m.helpSet)
+	m.applyLayout(state.Layout)
 
 	return m
 }
 
+func startupHelpSet(k *keys.Keys) help.HelpSet {
+	if k == nil {
+		return help.HelpSet{}
+	}
+
+	scroll := keys.Combine("scroll", k.Nav.Up, k.Nav.Down)
+
+	short := keys.Hints{scroll}
+	short = append(short, keys.Short(
+		k.Notice.Continue,
+		k.Global.Quit,
+		k.Global.Help,
+	)...)
+
+	long := keys.Hints{scroll}
+	long = append(long, keys.Long(
+		k.Notice.Continue,
+		k.Global.Quit,
+		k.Global.Help,
+	)...)
+
+	return help.HelpSet{Short: short, Long: long}
+}
+
 func rebuildProgressBar(state *ui.AppState, old progress.Model) progress.Model {
+	th := state.Theme()
+
 	pb := progress.New(
 		progress.WithoutPercentage(),
-		progress.WithColors(state.Theme().ProgressEnd, state.Theme().ProgressStart),
+		progress.WithColors(th.ProgressEnd, th.ProgressStart),
 	)
 	pb.Full = old.Full
 	pb.Empty = old.Empty
-	pb.EmptyColor = state.Theme().BorderActive
+	pb.EmptyColor = th.BorderActive
 	pb.SetWidth(old.Width())
+
 	return pb
 }
 
 func (m *model) applyLayout(l *layout.Layout) {
+	if m == nil || l == nil {
+		return
+	}
+
 	m.width = l.Terminal.Width
 	m.height = l.Terminal.Height
 	m.progressBar.SetWidth(l.Terminal.Width)
@@ -141,12 +177,102 @@ func (m *model) applyLayout(l *layout.Layout) {
 
 	m.viewport.SetWidth(vpWidth)
 	m.viewport.SetHeight(vpHeight)
+
+	if h, ok := m.help.(*help.Model); ok {
+		h.SetShortWidth(m.width)
+	}
 }
 
-// runCheck sends categoryStartMsg, runs fn, then sends categoryEndMsg with
-// the reporter's final status — unless the run was aborted (critical error),
-// in which case the fatal logMsg already sent is enough and no end message
-// is emitted. Returns false when the pipeline should stop.
+// Init starts background checks and the spinner/log listeners.
+func (m *model) Init() tea.Cmd {
+	go m.runChecks()
+
+	if m.state != nil {
+		m.applyLayout(m.state.Layout)
+	}
+
+	return tea.Batch(
+		listenForLogs(m.logCh),
+		m.spinner.Tick,
+	)
+}
+
+func listenForLogs(ch <-chan tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		msg, ok := <-ch
+		if !ok {
+			return allChecksDoneMsg{}
+		}
+
+		return msg
+	}
+}
+
+func (m *model) runChecks() {
+	defer close(m.logCh)
+
+	var abort atomic.Bool
+
+	if !m.runCheck("logger", &abort, func(r *reporter) {
+		checkLoggerHealth(r, m.loggerSet())
+	}) {
+		return
+	}
+
+	if !m.runConfigCheck(&abort) {
+		return
+	}
+
+	if !m.runCheck("xray", &abort, func(r *reporter) {
+		checkXrayHealth(r, m.coreLogger())
+	}) {
+		return
+	}
+
+	if !m.runCheck("dnstt", &abort, checkDNSTTHealth) {
+		return
+	}
+
+	if !m.runCheck("slipstream", &abort, checkSlipstreamHealth) {
+		return
+	}
+
+	if !m.runCheck("vaydns", &abort, checkVayDNSHealth) {
+		return
+	}
+
+	if !m.runCheck("masterdns", &abort, checkMasterDNSHealth) {
+		return
+	}
+
+	if !m.runCheck("stormdns", &abort, checkStormDNSHealth) {
+		return
+	}
+
+	if !m.runCheck("thefeed", &abort, checkTheFeedHealth) {
+		return
+	}
+
+	m.runCheck("app", &abort, checkAppHealth)
+}
+
+func (m *model) loggerSet() logger.Set {
+	if m.state == nil {
+		return logger.Set{}
+	}
+
+	return m.state.Log
+}
+
+func (m *model) coreLogger() *logger.Logger {
+	if m.state == nil {
+		return nil
+	}
+
+	return m.state.Log.Core
+}
+
+// runCheck sends start/end messages around fn and stops on fatal abort.
 func (m *model) runCheck(id string, abort *atomic.Bool, fn func(r *reporter)) bool {
 	m.logCh <- categoryStartMsg{categoryID: id}
 
@@ -158,104 +284,55 @@ func (m *model) runCheck(id string, abort *atomic.Bool, fn func(r *reporter)) bo
 	}
 
 	m.logCh <- categoryEndMsg{categoryID: id, status: r.status}
+
 	return true
 }
 
-func (m *model) Init() tea.Cmd {
-	go func() {
-		defer close(m.logCh)
-
-		var abort atomic.Bool
-
-		if !m.runCheck("logger", &abort, func(r *reporter) {
-			var logs logger.Set
-			if m.state != nil {
-				logs = m.state.Log
-			}
-			checkLoggerHealth(r, logs)
-		}) {
-			return
-		}
-
-		if m.state != nil {
-			m.logCh <- categoryStartMsg{categoryID: "config"}
-
-			r := newReporter("config", m.logCh, &abort)
-			var logs logger.Set
-			if m.state != nil {
-				logs = m.state.Log
-			}
-			cfg, store := checkConfigHealth(r, logs)
-
-			if abort.Load() {
-				return
-			}
-
-			// Sent directly through the program instead of a mutex-guarded field.
-			m.state.Program.Send(configLoadedMsg{cfg: cfg, store: store})
-			m.logCh <- categoryEndMsg{categoryID: "config", status: r.status}
-		}
-
-		if !m.runCheck("xray", &abort, func(r *reporter) {
-			var core *logger.Logger
-			if m.state != nil {
-				core = m.state.Log.Core
-			}
-			checkXrayHealth(r, core)
-		}) {
-			return
-		}
-		if !m.runCheck("dnstt", &abort, checkDNSTTHealth) {
-			return
-		}
-		if !m.runCheck("slipstream", &abort, checkSlipstreamHealth) {
-			return
-		}
-		if !m.runCheck("vaydns", &abort, checkVayDNSHealth) {
-			return
-		}
-		if !m.runCheck("masterdns", &abort, checkMasterDNSHealth) {
-			return
-		}
-		if !m.runCheck("stormdns", &abort, checkStormDNSHealth) {
-			return
-		}
-		if !m.runCheck("thefeed", &abort, checkTheFeedHealth) {
-			return
-		}
-		m.runCheck("app", &abort, checkAppHealth)
-	}()
-
-	m.applyLayout(m.state.Layout)
-	return tea.Batch(listenForLogs(m.logCh), m.spinner.Tick)
-}
-
-func listenForLogs(ch <-chan tea.Msg) tea.Cmd {
-	return func() tea.Msg {
-		msg, ok := <-ch
-		if !ok {
-			return allChecksDoneMsg{}
-		}
-		return msg
+func (m *model) runConfigCheck(abort *atomic.Bool) bool {
+	if m.state == nil {
+		return true
 	}
+
+	m.logCh <- categoryStartMsg{categoryID: "config"}
+
+	r := newReporter("config", m.logCh, abort)
+	cfg, store := checkConfigHealth(r, m.state.Log)
+
+	if abort.Load() {
+		return false
+	}
+
+	if m.state.Program != nil {
+		m.state.Program.Send(configLoadedMsg{cfg: cfg, store: store})
+	}
+
+	m.logCh <- categoryEndMsg{categoryID: "config", status: r.status}
+
+	return true
 }
 
 func (m *model) startCategory(categoryID string) {
 	for i := range m.categories {
-		if m.categories[i].id == categoryID {
-			m.categories[i].started = true
-			m.categories[i].status = catRunning
-			return
+		if m.categories[i].id != categoryID {
+			continue
 		}
+
+		m.categories[i].started = true
+		m.categories[i].status = catRunning
+
+		return
 	}
 }
 
 func (m *model) endCategory(categoryID string, status categoryStatus) {
 	for i := range m.categories {
-		if m.categories[i].id == categoryID {
-			m.categories[i].status = status
-			return
+		if m.categories[i].id != categoryID {
+			continue
 		}
+
+		m.categories[i].status = status
+
+		return
 	}
 }
 
@@ -266,20 +343,9 @@ func (m *model) appendLine(categoryID string, status categoryStatus, line string
 			continue
 		}
 
-		var prefix string
-		switch status {
-		case catRunning:
-			prefix = m.statusPrefixStyle(catRunning).Render("[INFO]")
-		case catWait:
-			prefix = m.statusPrefixStyle(catWait).Render("[WAIT]")
-		case catOK:
-			prefix = m.statusPrefixStyle(catOK).Render("[SUCCESS]")
-		case catWarn:
-			prefix = m.statusPrefixStyle(catWarn).Render("[WARN]")
-		case catError:
-			prefix = m.statusPrefixStyle(catError).Render("[ERROR]")
-		}
+		prefix := m.statusPrefixStyle(status).Render(statusLabel(status))
 		cat.lines = append(cat.lines, prefix+" "+line)
+
 		return
 	}
 }
@@ -290,23 +356,29 @@ func (m *model) categoryLabel(categoryID string) string {
 			return cat.label
 		}
 	}
+
 	return categoryID
 }
 
+// overallStatus returns the worst terminal status across categories.
 func (m *model) overallStatus() categoryStatus {
 	worst := catOK
 	anyRunning := false
+
 	for _, cat := range m.categories {
 		if cat.status == catRunning {
 			anyRunning = true
 		}
+
 		if cat.status > worst {
 			worst = cat.status
 		}
 	}
+
 	if anyRunning && worst == catOK {
 		return catRunning
 	}
+
 	return worst
 }
 
@@ -315,18 +387,22 @@ func (m *model) statusIndicator(cat category) string {
 		if !cat.started {
 			return m.pendingDotStyle().Render("○")
 		}
+
 		return m.spinner.View()
 	}
+
 	return m.statusPrefixStyle(cat.status).Render("●")
 }
 
 func (m *model) completedCount() int {
 	n := 0
+
 	for _, cat := range m.categories {
 		if cat.status != catRunning {
 			n++
 		}
 	}
+
 	return n
 }
 
@@ -335,5 +411,23 @@ func (m *model) progressTarget() float64 {
 	if total == 0 {
 		return 1
 	}
+
 	return float64(m.completedCount()) / float64(total)
+}
+
+func statusLabel(status categoryStatus) string {
+	switch status {
+	case catRunning:
+		return "[INFO]"
+	case catWait:
+		return "[WAIT]"
+	case catOK:
+		return "[SUCCESS]"
+	case catWarn:
+		return "[WARN]"
+	case catError:
+		return "[ERROR]"
+	default:
+		return "[INFO]"
+	}
 }

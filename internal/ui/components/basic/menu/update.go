@@ -1,85 +1,140 @@
 package menu
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
-// Update handles input and animation ticks.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	if ui.HandleTheme(msg, m) {
+		if m.help != nil {
+			m.help, _ = m.help.Update(msg)
+		}
+
 		return m, m.nextFrame()
 	}
 
-	if key, ok := msg.(tea.KeyPressMsg); ok {
-		if cmd, handled := m.handleKey(key); handled {
+	switch msg := msg.(type) {
+	case menuTickMsg:
+		return m, m.nextFrame()
+
+	case tea.WindowSizeMsg:
+		m.handleResize()
+		return m, m.nextFrame()
+
+	case tea.KeyMsg:
+		if cmd, handled := m.handleKey(msg); handled {
 			return m, cmd
 		}
 	}
 
-	// Ticks and unhandled keys just advance the animation.
-	return m, m.nextFrame()
+	var helpCmd tea.Cmd
+
+	if m.help != nil {
+		m.help, helpCmd = m.help.Update(msg)
+	}
+
+	next := m.nextFrame()
+
+	switch {
+	case next == nil:
+		return m, helpCmd
+	case helpCmd == nil:
+		return m, next
+	default:
+		return m, tea.Sequence(next, helpCmd)
+	}
 }
 
 // handleKey handles a key press and reports whether it was consumed.
-func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
-	key := msg.String()
-	switch key {
-	case env.KeyEnter:
-		if item, ok := m.GetSelected(); ok {
-			return m.selectItem(item), true
-		}
-	case "q", env.KeyEsc:
-		return m.nextFrame(), true
-	default:
-		if item, ok := m.itemForShortcut(key); ok {
-			return m.selectItem(item), true
-		}
-		m.navigate(key)
+func (m *Model) handleKey(key tea.KeyMsg) (tea.Cmd, bool) {
+	if m.keys == nil {
+		return nil, false
 	}
+
+	if m.keys.Menu.Select.Matches(key) {
+		if item, ok := m.getSelected(); ok {
+			return m.selectItem(item), true
+		}
+
+		return nil, true
+	}
+
+	if item, ok := m.itemForShortcut(key); ok {
+		return m.selectItem(item), true
+	}
+
+	if m.navigate(key) {
+		return nil, true
+	}
+
 	return nil, false
 }
 
-func (m *Model) navigate(key string) {
-	switch key {
-	case "up", "k":
-		m.setSelection(m.index - 1)
-	case "down", "j":
-		m.setSelection(m.index + 1)
-	case "pgup":
-		m.setSelection(m.index - m.visibleItems())
-	case "pgdown":
-		m.setSelection(m.index + m.visibleItems())
-	case "home", "g":
-		m.setSelection(0)
-	case "end", "G":
-		m.setSelection(len(m.items) - 1)
+func (m *Model) navigate(key tea.KeyMsg) bool {
+	if m.keys == nil {
+		return false
 	}
+
+	nav := &m.keys.Nav
+
+	switch {
+	case nav.Up.Matches(key):
+		m.setSelection(m.index - 1)
+
+	case nav.Down.Matches(key):
+		m.setSelection(m.index + 1)
+
+	case nav.PageUp.Matches(key):
+		m.setSelection(m.index - m.visibleItems())
+
+	case nav.PageDown.Matches(key):
+		m.setSelection(m.index + m.visibleItems())
+
+	case nav.Top.Matches(key):
+		m.setSelection(0)
+
+	case nav.Bottom.Matches(key):
+		m.setSelection(len(m.items) - 1)
+
+	default:
+		return false
+	}
+
+	return true
 }
 
 func (m *Model) setSelection(to int) {
 	if len(m.items) == 0 {
 		return
 	}
+
 	m.index = max(0, min(to, len(m.items)-1))
 }
 
-// itemForShortcut finds the item bound to key and moves the selection to it.
-func (m *Model) itemForShortcut(key string) (MenuItem, bool) {
+// itemForShortcut finds the item bound to key and moves selection to it.
+func (m *Model) itemForShortcut(msg tea.KeyMsg) (MenuItem, bool) {
+	key := msg.String()
+
 	for i, item := range m.items {
 		if item.shortcut != "" && item.shortcut == key {
 			m.setSelection(i)
 			return item, true
 		}
 	}
+
 	return MenuItem{}, false
+}
+
+func (m *Model) getSelected() (MenuItem, bool) {
+	return m.GetSelected()
 }
 
 func (m *Model) selectItem(item MenuItem) tea.Cmd {
 	if m.onSelect != nil {
 		return m.onSelect(item)
 	}
+
 	return item.action
 }

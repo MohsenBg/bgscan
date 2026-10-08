@@ -31,37 +31,37 @@ func New(state *ui.AppState) *Model {
 			return ui.OpenComponentMsg{
 				Component: general.New(state, "General Settings"),
 			}
-		}),
+		}).WithDescription("Probe rates, concurrency limits and the result writer"),
 		menu.NewMenuItem("◈", "ICMP Settings", "i", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: icmp.New(state, "ICMP Settings"),
 			}
-		}),
+		}).WithDescription("Ping sweep workers, timeout and retry counts"),
 		menu.NewMenuItem("⇄", "TCP Settings", "t", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: tcp.New(state, "TCP Settings"),
 			}
-		}),
+		}).WithDescription("Target port, workers and retry behaviour"),
 		menu.NewMenuItem("◎", "HTTP Settings", "h", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: http.New(state, "HTTP Settings"),
 			}
-		}),
+		}).WithDescription("Host, port, TLS versions and request fingerprint"),
 		menu.NewMenuItem("◇", "Xray Settings", "x", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: xray.New(state, "Xray Settings"),
 			}
-		}),
+		}).WithDescription("Speed test thresholds, dial limits and connectivity"),
 		menu.NewMenuItem("⌘", "DNS Settings", "d", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: dns.New(state, "DNS Settings"),
 			}
-		}),
+		}).WithDescription("Resolver transport, query types and tunneling limits"),
 		menu.NewMenuItem("◐", "UI Settings", "u", func() tea.Msg {
 			return ui.OpenComponentMsg{
 				Component: uisettings.New(state, "UI Settings"),
 			}
-		}),
+		}).WithDescription("Theme, table row limit and log level"),
 	}
 	return &Model{
 		menu:  menu.New(items, "Settings", state.Deps()),

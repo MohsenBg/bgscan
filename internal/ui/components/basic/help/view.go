@@ -12,22 +12,24 @@ import (
 
 const ellipsis = "…"
 
-func joinLines(lines []string) string {
-	return strings.Join(lines, "\n")
-}
-
 func (m *Model) View() string {
 	if m.mode == LongHelp {
 		return m.longHelpStyle().Render(m.vp.View())
 	}
 
-	return joinLines(m.centerShortLines(m.shortLines()))
+	return strings.Join(m.centerShortLines(m.shortLines()), "\n")
 }
 
 func (m *Model) renderHint(hint keys.Hint) string {
-	return m.keyStyle().Render(hint.Key) +
-		" " +
-		m.labelStyle().Render(hint.Label)
+	return m.keyStyle().Render(hint.Key) + " " + m.labelStyle().Render(hint.Label)
+}
+
+func (m *Model) separator() string {
+	return m.sepStyle().Render(" • ")
+}
+
+func (m *Model) moreLabel(n int) string {
+	return m.labelStyle().Render(fmt.Sprintf("+%d more", n))
 }
 
 func (m *Model) shortPadding() int {
@@ -42,147 +44,105 @@ func (m *Model) shortContentWidth() int {
 	return max(1, m.shortHelpWidth-2*m.shortPadding())
 }
 
+// shortLine is one packed row of hints. used is the number of hints
 type shortLine struct {
 	text string
 	used int
 }
 
+// shortLines packs the short hints into at most shortHelpHeight rows.
 func (m *Model) shortLines() []string {
-	contentWidth := m.shortContentWidth()
-	if contentWidth <= 0 || m.shortHelpHeight <= 0 || len(m.help.Short) == 0 {
+	width := m.shortContentWidth()
+	height := m.shortHelpHeight
+	total := len(m.help.Short)
+
+	if width <= 0 || height <= 0 || total == 0 {
 		return nil
 	}
 
-	separator := m.sepStyle().Render(" • ")
-	separatorWidth := lipgloss.Width(separator)
+	lines := m.packShortHints(width)
+	if len(lines) <= height {
+		return lineTexts(lines)
+	}
+
+	// Everything fits on one row only if we squeeze the overflow marker in.
+	if height == 1 {
+		first := lines[0]
+		text := first.text + m.separator() + m.moreLabel(total-first.used)
+
+		return []string{ansi.Truncate(text, width, ellipsis)}
+	}
+
+	// Keep height-1 full rows and spend the last row on the overflow marker.
+	keep := height - 1
+	out := lineTexts(lines[:keep])
+	more := m.moreLabel(total - lines[keep-1].used)
+
+	return append(out, ansi.Truncate(more, width, ellipsis))
+}
+
+// packShortHints greedily fills rows of at most width cells.
+func (m *Model) packShortHints(width int) []shortLine {
+	sep := m.separator()
+	sepW := lipgloss.Width(sep)
 
 	var (
-		lines   []shortLine
-		current strings.Builder
-		curW    int
-		used    int
+		lines []shortLine
+		cur   strings.Builder
+		curW  int
 	)
 
-	flush := func() {
-		if current.Len() == 0 {
+	flush := func(used int) {
+		if cur.Len() == 0 {
 			return
 		}
 
-		lines = append(lines, shortLine{
-			text: current.String(),
-			used: used,
-		})
-
-		current.Reset()
+		lines = append(lines, shortLine{text: cur.String(), used: used})
+		cur.Reset()
 		curW = 0
 	}
 
 	for i, hint := range m.help.Short {
-		item := m.renderHint(hint)
+		item := ansi.Truncate(m.renderHint(hint), width, ellipsis)
 		itemW := lipgloss.Width(item)
 
-		if itemW > contentWidth {
-			item = ansi.Truncate(item, contentWidth, ellipsis)
-			itemW = lipgloss.Width(item)
+		if curW > 0 && curW+sepW+itemW > width {
+			flush(i)
 		}
 
-		if curW == 0 {
-			current.WriteString(item)
-			curW = itemW
-			used = i + 1
-			continue
+		if curW > 0 {
+			cur.WriteString(sep)
+			curW += sepW
 		}
 
-		if curW+separatorWidth+itemW <= contentWidth {
-			current.WriteString(separator)
-			current.WriteString(item)
-			curW += separatorWidth + itemW
-			used = i + 1
-			continue
-		}
-
-		flush()
-
-		current.WriteString(item)
-		curW = itemW
-		used = i + 1
+		cur.WriteString(item)
+		curW += itemW
 	}
 
-	flush()
+	flush(len(m.help.Short))
 
-	if len(lines) == 0 {
-		return nil
-	}
+	return lines
+}
 
-	if len(lines) <= m.shortHelpHeight {
-		out := make([]string, len(lines))
-		for i, line := range lines {
-			out[i] = line.text
-		}
-		return out
-	}
-
-	if m.shortHelpHeight == 1 {
-		line := lines[0]
-		if remaining := len(m.help.Short) - line.used; remaining > 0 {
-			suffix := separator + m.labelStyle().Render(fmt.Sprintf("+%d more", remaining))
-			line.text = ansi.Truncate(line.text+suffix, contentWidth, ellipsis)
-		}
-
-		return []string{line.text}
-	}
-
-	keep := m.shortHelpHeight - 1
-	out := make([]string, 0, m.shortHelpHeight)
-
-	for i := 0; i < keep && i < len(lines); i++ {
-		out = append(out, lines[i].text)
-	}
-
-	used = lines[keep-1].used
-	if remaining := len(m.help.Short) - used; remaining > 0 {
-		out = append(out, ansi.Truncate(
-			m.labelStyle().Render(fmt.Sprintf("+%d more", remaining)),
-			contentWidth,
-			ellipsis,
-		))
-	}
-
-	if len(out) > m.shortHelpHeight {
-		out = out[:m.shortHelpHeight]
+func lineTexts(lines []shortLine) []string {
+	out := make([]string, len(lines))
+	for i, line := range lines {
+		out[i] = line.text
 	}
 
 	return out
 }
 
+// centerShortLines centers each row inside the padded content area.
 func (m *Model) centerShortLines(lines []string) []string {
-	if len(lines) == 0 {
-		return nil
-	}
-
-	padWidth := m.shortPadding()
-	innerWidth := m.shortContentWidth()
-	pad := strings.Repeat(" ", padWidth)
+	inner := m.shortContentWidth()
+	pad := strings.Repeat(" ", m.shortPadding())
 
 	out := make([]string, len(lines))
-
 	for i, line := range lines {
-		w := lipgloss.Width(line)
-
-		if w > innerWidth {
-			line = ansi.Truncate(line, innerWidth, ellipsis)
-			w = lipgloss.Width(line)
-		}
-
-		gap := innerWidth - w
-		left := gap / 2
-		right := gap - left
-
-		out[i] = pad +
-			strings.Repeat(" ", left) +
-			line +
-			strings.Repeat(" ", right) +
-			pad
+		// PlaceHorizontal leaves over-wide lines alone, so clamp first.
+		line = ansi.Truncate(line, inner, ellipsis)
+		out[i] = pad + lipgloss.PlaceHorizontal(inner, lipgloss.Center, line) + pad
 	}
 
 	return out
@@ -205,18 +165,12 @@ func (m *Model) longLines(width int) []string {
 		keyPad := strings.Repeat(" ", max(0, keyWidth-lipgloss.Width(hint.Key)))
 
 		for i, labelLine := range wrapText(hint.Label, labelWidth) {
-			var line strings.Builder
-
+			prefix := blank
 			if i == 0 {
-				line.WriteString(key)
-				line.WriteString(keyPad)
-				line.WriteString(gap)
-			} else {
-				line.WriteString(blank)
+				prefix = key + keyPad + gap
 			}
 
-			line.WriteString(m.labelStyle().Render(labelLine))
-			lines = append(lines, line.String())
+			lines = append(lines, prefix+m.labelStyle().Render(labelLine))
 		}
 	}
 
@@ -226,21 +180,14 @@ func (m *Model) longLines(width int) []string {
 // wrapText splits plain text into visible-width-aware lines.
 func wrapText(s string, width int) []string {
 	s = strings.TrimSpace(s)
-
-	if width <= 0 {
+	if width <= 0 || s == "" {
 		return []string{s}
 	}
 
-	if s == "" {
-		return []string{""}
-	}
-
-	words := strings.Fields(s)
-
 	var (
-		lines     []string
-		line      strings.Builder
-		lineWidth int
+		lines []string
+		line  strings.Builder
+		lineW int
 	)
 
 	flush := func() {
@@ -250,57 +197,31 @@ func wrapText(s string, width int) []string {
 
 		lines = append(lines, line.String())
 		line.Reset()
-		lineWidth = 0
+		lineW = 0
 	}
 
-	for _, word := range words {
-		wordWidth := lipgloss.Width(word)
+	for word := range strings.FieldsSeq(s) {
+		wordW := lipgloss.Width(word)
 
-		if wordWidth <= width {
-			if lineWidth == 0 {
-				line.WriteString(word)
-				lineWidth = wordWidth
-				continue
-			}
-
-			if lineWidth+1+wordWidth <= width {
-				line.WriteString(" ")
-				line.WriteString(word)
-				lineWidth += 1 + wordWidth
-				continue
-			}
-
+		if wordW > width {
 			flush()
-
-			line.WriteString(word)
-			lineWidth = wordWidth
+			lines = append(lines, splitWord(word, width)...)
 
 			continue
 		}
 
-		flush()
-
-		var (
-			part      strings.Builder
-			partWidth int
-		)
-
-		for _, r := range word {
-			rWidth := lipgloss.Width(string(r))
-
-			if partWidth+rWidth > width && part.Len() > 0 {
-				lines = append(lines, part.String())
-				part.Reset()
-				partWidth = 0
-			}
-
-			part.WriteRune(r)
-			partWidth += rWidth
+		switch {
+		case lineW == 0:
+			// First word on the line: no leading space.
+		case lineW+1+wordW <= width:
+			line.WriteByte(' ')
+			lineW++
+		default:
+			flush()
 		}
 
-		if part.Len() > 0 {
-			lines = append(lines, part.String())
-		}
+		line.WriteString(word)
+		lineW += wordW
 	}
 
 	flush()
@@ -310,4 +231,32 @@ func wrapText(s string, width int) []string {
 	}
 
 	return lines
+}
+
+// splitWord breaks a single word into chunks of at most width cells.
+func splitWord(word string, width int) []string {
+	var (
+		parts []string
+		part  strings.Builder
+		partW int
+	)
+
+	for _, r := range word {
+		rw := lipgloss.Width(string(r))
+
+		if partW+rw > width && part.Len() > 0 {
+			parts = append(parts, part.String())
+			part.Reset()
+			partW = 0
+		}
+
+		part.WriteRune(r)
+		partW += rw
+	}
+
+	if part.Len() > 0 {
+		parts = append(parts, part.String())
+	}
+
+	return parts
 }

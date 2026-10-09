@@ -59,13 +59,20 @@ type Option func(*Model)
 
 // New creates a help component.
 func New(deps ui.Deps, title string, set HelpSet, opts ...Option) *Model {
+	// Layout is optional: a caller that has not been sized yet still gets
+	// a usable component, and the first resize corrects the width.
+	width := 1
+	if deps.Layout != nil {
+		width = max(1, deps.Layout.BodyContentWidth())
+	}
+
 	m := &Model{
 		id:              ui.NewComponentID(),
 		title:           title,
 		mode:            ShortHelp,
 		help:            set,
 		deps:            deps,
-		shortHelpWidth:  max(1, deps.Layout.BodyContentWidth()),
+		shortHelpWidth:  width,
 		shortHelpHeight: defaultShortHelpHeight,
 		shortWidthAuto:  true,
 		longHelpWidth:   defaultLongHelpWidth,
@@ -158,7 +165,7 @@ func (m *Model) longKeyWidth() int {
 }
 
 func (m *Model) longNaturalWidth() int {
-	labelWidth := 0
+	labelWidth := lipgloss.Width(m.title)
 	for _, hint := range m.help.Long {
 		labelWidth = max(labelWidth, lipgloss.Width(hint.Label))
 	}
@@ -174,14 +181,6 @@ type longLayout struct {
 func (m *Model) longLayout() longLayout {
 	width := max(1, min(m.longViewportWidth(), m.longNaturalWidth()))
 	lines := m.longLines(width)
-
-	actualWidth := 0
-	for _, line := range lines {
-		actualWidth = max(actualWidth, lipgloss.Width(line))
-	}
-	if actualWidth > 0 {
-		width = actualWidth
-	}
 
 	height := max(1, min(len(lines), m.longViewportHeight()))
 
@@ -222,6 +221,7 @@ func (m *Model) openDialogFullHelp() tea.Msg {
 		),
 		dialog.WithTitle(m.title+" [Help]"),
 		dialog.WithStyle(dialog.StyleInfo),
+		dialog.WithOffset(0, -2),
 	)
 }
 

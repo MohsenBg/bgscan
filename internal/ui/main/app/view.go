@@ -2,9 +2,12 @@ package app
 
 import (
 	"fmt"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
-	overlay "github.com/rmhubbert/bubbletea-overlay"
+
+	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 )
 
 func (m *model) View() tea.View {
@@ -53,21 +56,33 @@ func (m *model) renderLimitSize(termWidth, termHeight int) string {
 		)
 }
 
-// renderDialogs composites the open dialogs over the base view.
+// renderDialogs composites open dialogs over the base view.
 func (m *model) renderDialogs(base string) string {
 	view := base
+	now := time.Now()
 
-	for _, layer := range m.layers {
-		opts := m.frameFor(layer.ID())
-		hints := m.renderHints(append(opts.Hints, m.state.Deps().Keys.Dialog.Cancel.ShortItem()))
+	for _, l := range m.layers {
+		opts := l.frame()
+		hints := append(opts.Hints, m.state.Deps().Keys.Dialog.Cancel.ShortItem())
 
-		view = overlay.Composite(
-			m.frameView(layer.View(), opts, hints),
+		view = dialog.Composite(
+			m.frameView(l.component.View(), opts, hints),
 			view,
 			opts.XPos, opts.YPos,
 			opts.XOffset, opts.YOffset,
+			dialog.AnimDropIn,
+			l.progress(now),
 		)
 	}
 
 	return view
+}
+
+func (m *model) frameView(content string, opts *frameOptions, hints []keys.Hint) string {
+	return dialog.RenderFrame(content, dialog.FrameOptions{
+		Title: opts.Title,
+		Style: opts.Style,
+		Hints: hints,
+		Width: m.state.Layout.Body.Width,
+	}, m.state.Theme())
 }

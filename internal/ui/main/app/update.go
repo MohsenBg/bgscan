@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/MohsenBg/bgscan/internal/ui/main/splash"
 	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
@@ -45,10 +46,29 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case dialog.OpenDialogMsg:
 		m.push(msg)
-		return m, msg.Component.Init()
+
+		cmds = append(cmds, msg.Component.Init(), tickDialogFrames())
+
+		return m, tea.Sequence(cmds...)
+
+	case dialogFrameMsg:
+		now := time.Now()
+
+		// Closing layers are removed here rather than by whoever asked for
+		// the close, so they stay on the stack long enough to be drawn
+		// while they collapse away.
+		cmds = append(cmds, m.expire(now)...)
+
+		// Only reappear while something is still on screen. An idle
+		// stack schedules no timers at all.
+		if m.animating(now) {
+			cmds = append(cmds, tickDialogFrames())
+		}
+
+		return m, tea.Sequence(cmds...)
 
 	case ui.CloseComponentMsg:
-		cmds = append(cmds, m.close(msg.ID))
+		cmds = append(cmds, m.beginCloseByID(msg.ID))
 	}
 
 	if _, themed := msg.(ui.ThemeChangedMsg); themed {
@@ -76,16 +96,23 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // closeTopDialog closes the active dialog for a back or quit key.
 func (m *model) closeTopDialog(msg tea.KeyPressMsg) (tea.Cmd, bool) {
-	top := m.top()
-	if top == nil {
+	l := m.top()
+	if l == nil {
 		return nil, false
 	}
 
-	if !env.IsBackKey(msg, top.Mode()) && !env.IsQuitKey(msg, top.Mode()) {
+	// A dialog already on its way out owns the keyboard until it is gone,
+	// so a second back press cannot start a second close and fire
+	// OnClose twice.
+	if l.closing() {
+		return nil, true
+	}
+
+	if !env.IsBackKey(msg, l.component.Mode()) && !env.IsQuitKey(msg, l.component.Mode()) {
 		return nil, false
 	}
 
-	return m.popTop(), true
+	return m.beginCloseTop(), true
 }
 
 func dumpGoroutines() string {

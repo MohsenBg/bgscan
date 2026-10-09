@@ -9,6 +9,11 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/anim"
 )
 
+const (
+	RowDuration = 170 * time.Millisecond
+	RowStagger  = 60 * time.Millisecond
+)
+
 type menuTickMsg time.Time
 
 // nextFrame schedules the next animation frame.
@@ -23,19 +28,19 @@ func (m *Model) nextFrame() tea.Cmd {
 }
 
 func (m *Model) animating() bool {
-	entrance := anim.RowDuration + time.Duration(len(m.items))*anim.RowStagger
+	entrance := RowDuration + time.Duration(len(m.items))*RowStagger
 	return time.Since(m.enterAt) < entrance
 }
 
 // rowAlpha returns the entrance fade-in progress of row i.
 func (m *Model) rowAlpha(i int) float64 {
-	elapsed := time.Since(m.enterAt) - time.Duration(i)*anim.RowStagger
+	elapsed := time.Since(m.enterAt) - time.Duration(i)*RowStagger
 	if elapsed <= 0 {
 		return 0
 	}
 
 	return anim.EaseOutCubic(
-		anim.Clamp01(float64(elapsed) / float64(anim.RowDuration)),
+		anim.Clamp01(float64(elapsed) / float64(RowDuration)),
 	)
 }
 

@@ -5,6 +5,9 @@ package keys
 type Keys struct {
 	Global  GlobalKeys
 	Nav     NavKeys
+	Table   TableKeys
+	Crud    CrudKeys
+	Filter  FilterKeys
 	Confirm ConfirmKeys
 	Notice  NoticeKeys
 	Dialog  DialogKeys
@@ -14,7 +17,7 @@ type Keys struct {
 }
 
 type GlobalKeys struct {
-	Quit, Help, Back, BackInputMode Binding
+	Quit, ForceQuit, DumpGoroutines, Help, Back, BackFromInput Binding
 }
 
 type NavKeys struct {
@@ -29,21 +32,43 @@ type ConfirmKeys struct {
 }
 
 type NoticeKeys struct {
-	Continue Binding
+	Left, Right Binding
+	Continue    Binding
 }
 
 type DialogKeys struct {
-	Cancel Binding
-}
-
-type MenuKeys struct {
-	Select Binding
+	Left, Right Binding
+	Cancel      Binding
 }
 
 type FormKeys struct {
-	Save Binding
+	Up, Down Binding
+	Save     Binding
+}
+
+type MenuKeys struct {
+	Up, Down Binding
+	Select   Binding
 }
 
 type ScanKeys struct {
-	Pause, Logs, Cancel Binding
+	TogglePause, ToggleLogs, Cancel Binding
+}
+
+type TableKeys struct {
+	Up, Down                        Binding
+	PageUp, PageDown                Binding
+	HalfPageUp, HalfPageDown        Binding
+	Top, Bottom                     Binding
+	ChangeSort, ToggleOrder, Filter Binding
+}
+
+type CrudKeys struct {
+	Select, Add, Delete, Rename Binding
+}
+
+type FilterKeys struct {
+	Backspace Binding
+	Clear     Binding
+	Accept    Binding
 }

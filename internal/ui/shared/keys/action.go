@@ -4,10 +4,12 @@ type Action string
 
 // Global
 const (
-	ActionQuitNormal Action = "global.quit_normal"
-	ActionQuitInput  Action = "global.quit_input"
-	ActionHelp       Action = "global.help"
-	ActionBack       Action = "global.back"
+	ActionQuit           Action = "global.quit_normal"
+	ActionForceQuit      Action = "global.quit_force"
+	ActionDumpGoroutines Action = "global.dump_goroutines"
+	ActionHelp           Action = "global.help"
+	ActionBack           Action = "global.back"
+	ActionBackFromInput  Action = "global.back_from_input"
 )
 
 // Navigation
@@ -22,6 +24,23 @@ const (
 	ActionBottom   Action = "nav.bottom"
 	ActionNextTab  Action = "nav.next_tab"
 	ActionPrevTab  Action = "nav.prev_tab"
+)
+
+// Table
+const (
+	ActionTableHalfPageUp   Action = "table.half_page_up"
+	ActionTableHalfPageDown Action = "table.half_page_down"
+	ActionTableSort         Action = "table.sort"
+	ActionTableOrder        Action = "table.order"
+	ActionTableFilter       Action = "table.filter"
+)
+
+// CRUD
+const (
+	ActionCrudSelect Action = "crud.select"
+	ActionCrudAdd    Action = "crud.add"
+	ActionCrudDelete Action = "crud.delete"
+	ActionCrudRename Action = "crud.rename"
 )
 
 // Confirm

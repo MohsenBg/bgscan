@@ -16,7 +16,7 @@ type Deps struct {
 	Layout *layout.Layout
 	Theme  *theme.Theme
 	Log    logger.Set
-	Keys   *keys.Keys
+	Keys   keys.Keys
 }
 
 // Deps snapshots shared state for leaf construction.

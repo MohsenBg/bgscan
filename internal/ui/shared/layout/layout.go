@@ -1,5 +1,7 @@
 package layout
 
+const frameBorderWidth = 2
+
 // Layout represents the terminal screen geometry and component regions.
 //
 // It is recalculated on terminal resize so render paths can use precomputed
@@ -68,27 +70,29 @@ func (l *Layout) Update(termWidth, termHeight int) {
 		Padding: 1,
 	}
 
+	innerWidth := l.Content.Width - frameBorderWidth
+
 	headerHeight := 0
 	if l.ShowHeader {
 		headerHeight = 8
 	}
 
 	l.Header = ComponentSize{
-		Width:  l.Content.Width,
+		Width:  innerWidth,
 		Height: headerHeight,
 		X:      0,
 		Y:      0,
 	}
 
 	l.Body = ComponentSize{
-		Width:  l.Content.Width,
+		Width:  innerWidth,
 		Height: l.Content.Height - (headerHeight + 2),
 		X:      0,
 		Y:      headerHeight,
 	}
 
 	l.Footer = ComponentSize{
-		Width:  l.Content.Width,
+		Width:  innerWidth,
 		Height: 2,
 		X:      0,
 		Y:      l.Body.Y + l.Body.Height,

@@ -28,7 +28,7 @@ func NewNoticeCmd(
 			dialog.WithPosition(dialog.Center, dialog.Top),
 			dialog.WithOffset(0, 5),
 			dialog.WithTitle(FrameTitle(level, title)),
-			dialog.WithHints(NoticeHints(*deps.Keys)...),
+			dialog.WithHints(NoticeHints(deps.Keys)...),
 		}
 
 		// Errors and other destructive feedback get the danger frame.

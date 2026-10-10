@@ -166,10 +166,8 @@ func (m *Model) Title() string { return m.name }
 
 // Hints returns the form's key hints as raw data, excluding Cancel.
 // The workspace appends Cancel itself.
-func Hints() []keys.Hint {
-	return []keys.Hint{
-		{Key: "s", Label: "save"},
-	}
+func Hints(k keys.Keys) keys.Hints {
+	return keys.Hints{k.Form.Save.ShortItem()}
 }
 
 func (m *Model) SetTheme(th *theme.Theme) {

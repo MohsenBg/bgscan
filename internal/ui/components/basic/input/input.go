@@ -29,6 +29,7 @@ type Input[T any] interface {
 
 	// Value returns the current value of the input.
 	Value() T
+
 	// SetValue sets the current value of the input.
 	SetValue(value T)
 

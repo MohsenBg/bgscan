@@ -132,7 +132,7 @@ type Model struct {
 
 	Layout *layout.Layout
 	theme  *theme.Theme
-	keys   *keys.Keys
+	keys   keys.Keys
 
 	showIcon     bool
 	showShortcut bool
@@ -158,7 +158,7 @@ func New(items []MenuItem, title string, deps ui.Deps, options ...Option) *Model
 		items:        items,
 		Layout:       deps.Layout,
 		theme:        deps.Theme,
-		keys:         deps.Keys,
+		keys:         keys.OrDefault(deps.Keys),
 		showIcon:     true,
 		showShortcut: true,
 		showHelp:     true,
@@ -325,27 +325,25 @@ func (m *Model) handleResize() {
 
 // ShortHints are the compact hints shown under the menu.
 func (m *Model) ShortHints() keys.Hints {
-	k := m.keys
-	if k == nil {
-		return nil
-	}
+	k := m.keys.Menu
+	g := m.keys.Global
 
 	hints := keys.Hints{
-		keys.Combine("move", k.Nav.Up, k.Nav.Down),
+		keys.Combine("move", k.Up, k.Down),
 	}
 
-	back := k.Global.Back
+	back := g.Back
 	back.Hidden = !m.showBackHint
 	back.Disabled = !m.showBackHint
 
 	hints = append(hints, keys.Short(
-		k.Menu.Select,
+		k.Select,
 		back,
-		k.Global.Quit,
+		g.Quit,
 	)...)
 
 	if m.showHelp {
-		hints = append(hints, keys.Short(k.Global.Help)...)
+		hints = append(hints, keys.Short(g.Help)...)
 	}
 
 	return hints
@@ -353,20 +351,28 @@ func (m *Model) ShortHints() keys.Hints {
 
 // LongHints are everything the menu handles, for the full help dialog.
 func (m *Model) LongHints() keys.Hints {
-	k := m.keys
-	if k == nil {
-		return nil
-	}
+	k := m.keys.Menu
+	g := m.keys.Global
 
-	back := k.Global.Back
+	back := g.Back
 	back.Hidden = !m.showBackHint
 	back.Disabled = !m.showBackHint
 
-	return keys.Long(
-		k.Nav.Up,
-		k.Nav.Down,
-		k.Menu.Select,
+	hints := keys.Long(
+		k.Up,
+		k.Down,
+		k.Select,
 		back,
-		k.Global.Quit,
 	)
+
+	for _, item := range m.items {
+		hints = append(hints, keys.Hint{
+			Key:   item.shortcut,
+			Label: "open " + item.title,
+		})
+	}
+
+	hints = append(hints, keys.Long(g.Quit, g.Help)...)
+
+	return hints
 }

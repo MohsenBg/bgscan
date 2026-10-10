@@ -49,15 +49,12 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 // handleKey handles a key press and reports whether it was consumed.
 func (m *Model) handleKey(key tea.KeyMsg) (tea.Cmd, bool) {
-	if m.keys == nil {
-		return nil, false
-	}
+	k := &m.keys.Menu
 
-	if m.keys.Menu.Select.Matches(key) {
+	if k.Select.Matches(key) {
 		if item, ok := m.getSelected(); ok {
 			return m.selectItem(item), true
 		}
-
 		return nil, true
 	}
 
@@ -65,44 +62,24 @@ func (m *Model) handleKey(key tea.KeyMsg) (tea.Cmd, bool) {
 		return m.selectItem(item), true
 	}
 
-	if m.navigate(key) {
-		return nil, true
-	}
-
-	return nil, false
-}
-
-func (m *Model) navigate(key tea.KeyMsg) bool {
-	if m.keys == nil {
-		return false
-	}
-
-	nav := &m.keys.Nav
-
 	switch {
-	case nav.Up.Matches(key):
+	case k.Up.Matches(key):
 		m.setSelection(m.index - 1)
-
-	case nav.Down.Matches(key):
+	case k.Down.Matches(key):
 		m.setSelection(m.index + 1)
-
-	case nav.PageUp.Matches(key):
+	case m.keys.Nav.PageUp.Matches(key):
 		m.setSelection(m.index - m.visibleItems())
-
-	case nav.PageDown.Matches(key):
+	case m.keys.Nav.PageDown.Matches(key):
 		m.setSelection(m.index + m.visibleItems())
-
-	case nav.Top.Matches(key):
+	case m.keys.Nav.Top.Matches(key):
 		m.setSelection(0)
-
-	case nav.Bottom.Matches(key):
+	case m.keys.Nav.Bottom.Matches(key):
 		m.setSelection(len(m.items) - 1)
-
 	default:
-		return false
+		return nil, false
 	}
 
-	return true
+	return nil, true
 }
 
 func (m *Model) setSelection(to int) {

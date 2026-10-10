@@ -4,6 +4,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
@@ -12,11 +13,6 @@ import (
 )
 
 type MsgRefresh struct{}
-
-type actionEntry[T any] struct {
-	needsItem bool
-	run       func(item T) tea.Cmd
-}
 
 // Model is a generic CRUD controller backed by a sortable table. The
 // available commands derive entirely from hooks: zero-value Hooks means a
@@ -32,7 +28,7 @@ type Model[T any] struct {
 
 	items    []T
 	itemsMap map[string]T
-	actions  map[string]actionEntry[T]
+	actions  []actionEntry[T]
 }
 
 // New creates a CRUD model; maxWidth bounds the rendered table width.
@@ -50,8 +46,12 @@ func New[T any](
 		source:   source,
 		hooks:    hooks,
 		itemsMap: make(map[string]T),
-		actions:  make(map[string]actionEntry[T]),
+		actions:  make([]actionEntry[T], 0, 5),
 	}
+
+	// The verbs have to exist before the table is built, because the
+	// table's help lines are drawn from them.
+	m.bindActions(keys.OrDefault(deps.Keys))
 
 	m.table = table.New(
 		deps,
@@ -59,10 +59,9 @@ func New[T any](
 		table.WithColumns(source.Columns()),
 		table.WithRows([]table.Row{}),
 		table.WithMaxWidth(maxWidth),
+		table.WithKeyShortHints(m.shortHints()...),
+		table.WithKeyLongHints(m.longHints()...),
 	)
-
-	m.registerActions()
-	m.configureKeymaps()
 
 	return m
 }

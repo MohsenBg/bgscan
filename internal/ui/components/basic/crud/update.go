@@ -30,6 +30,14 @@ func (m *Model[T]) RefreshCmd() tea.Msg {
 	return msgLoaded[T]{items: items}
 }
 
+// notice opens an informational dialog. The CRUD builds its Deps by hand
+// because it holds layout, theme and log as plain fields rather than the
+// whole AppState.
+func (m *Model[T]) notice(title, message string) tea.Cmd {
+	return notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log},
+		title, message, notice.NOTICE_INFO)
+}
+
 func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	if ui.HandleTheme(msg, m) {
 		return m, nil
@@ -50,6 +58,16 @@ func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		return m, m.dispatchAction(msg.ActionType)
 	}
 
+	// Verbs win over the table's own keys, so a provider-registered verb
+	// cannot be shadowed by navigation or sorting. While the filter is
+	// being typed, though, the table owns every key -- including the ones
+	// verbs use, such as enter confirming a filter.
+	if key, ok := msg.(tea.KeyMsg); ok && !m.table.Filtering() {
+		if cmd, handled := m.handleAction(key); handled {
+			return m, cmd
+		}
+	}
+
 	updated, cmd := m.table.Update(msg)
 	m.table = updated.(*table.Model)
 	return m, cmd
@@ -67,26 +85,6 @@ func (m *Model[T]) replaceItems(items []T) {
 		rows = append(rows, m.source.RenderRow(item))
 	}
 	m.table.SetRows(rows)
-}
-
-// dispatchAction runs the handler for name, resolving the selected item
-// first when the action needs one.
-func (m *Model[T]) dispatchAction(name string) tea.Cmd {
-	entry, ok := m.actions[name]
-	if !ok {
-		return nil
-	}
-
-	var item T
-	if entry.needsItem {
-		selected, err := m.getSelected()
-		if err != nil {
-			return notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log}, "Selection", err.Error(), notice.NOTICE_INFO)
-		}
-		item = selected
-	}
-
-	return entry.run(item)
 }
 
 func (m *Model[T]) requestDeletion(item T) tea.Cmd {

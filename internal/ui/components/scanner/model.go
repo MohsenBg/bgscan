@@ -11,11 +11,11 @@ import (
 	logview "github.com/MohsenBg/bgscan/internal/ui/components/basic/logview"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/progress"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/tabs"
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/ipviewer"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -318,13 +318,19 @@ func (m *Model) errorCmd(title, message string) tea.Cmd {
 }
 
 func createIPViewer(state *ui.AppState, schema result.ResultSchema) ui.Component {
-	viewer := ipviewer.New(state.Deps(), "", nil, schema, ipviewer.WithMaxRow(state.Settings.MaxRow))
-	if t := viewer.Table(); t != nil {
-		t.SetKeys(
-			table.NewKey([]string{env.KeyTab}, "tab", "next tab", nil),
-			table.NewKey([]string{"p"}, "pause", "pause/resume scan", nil),
-			table.NewKey([]string{"l"}, "log", "view logs", nil),
-		)
-	}
+	// The viewer only renders rows; the scan screen owns the actual
+	// shortcuts. These hints advertise where to find them.
+	k := state.Deps().Keys
+
+	viewer := ipviewer.New(state.Deps(), "Results", nil, schema,
+		ipviewer.WithMaxRow(state.Settings.MaxRow),
+		ipviewer.WithShortHints(
+			keys.Short(k.Nav.NextTab, k.Scan.TogglePause, k.Scan.ToggleLogs)...,
+		),
+		ipviewer.WithLongHints(
+			keys.Long(k.Nav.NextTab, k.Scan.TogglePause, k.Scan.ToggleLogs)...,
+		),
+	)
+
 	return viewer
 }

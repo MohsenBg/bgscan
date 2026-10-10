@@ -5,6 +5,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
@@ -24,6 +25,9 @@ type Model struct {
 	layout *layout.Layout
 	theme  *theme.Theme
 	log    logger.Set
+
+	shortHints []keys.Hint
+	longHints  []keys.Hint
 }
 
 type Option func(*Model)
@@ -42,6 +46,16 @@ func WithMaxRow(max uint32) Option {
 			m.maxRow = max
 		}
 	}
+}
+
+// WithShortHints adds entries to the table's short help line.
+func WithShortHints(hints ...keys.Hint) Option {
+	return func(m *Model) { m.shortHints = hints }
+}
+
+// WithLongHints adds entries to the table's full help dialog.
+func WithLongHints(hints ...keys.Hint) Option {
+	return func(m *Model) { m.longHints = hints }
 }
 
 func (m *Model) ID() ui.ComponentID { return m.id }
@@ -88,6 +102,15 @@ func New(deps ui.Deps, name string, rows []result.Result, schema result.ResultSc
 	}
 	if m.height > 0 {
 		tableOpts = append(tableOpts, table.WithMaxHeight(m.height))
+	}
+	if m.name != "" {
+		tableOpts = append(tableOpts, table.WithTitle(m.name))
+	}
+	if len(m.shortHints) > 0 {
+		tableOpts = append(tableOpts, table.WithKeyShortHints(m.shortHints...))
+	}
+	if len(m.longHints) > 0 {
+		tableOpts = append(tableOpts, table.WithKeyLongHints(m.longHints...))
 	}
 
 	m.table = table.New(deps, tableOpts...)

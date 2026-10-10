@@ -5,108 +5,129 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 )
 
 func (m *Model) View() string {
-	width := m.Layout.Body.Width
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
-	tableView := m.tableViewStyle(width).Render(m.BubbleTable.View())
+	width := m.tableWidthLocked()
+	tableView := m.tableViewStyle().Render(m.renderTableBody())
+	helpView := m.helpStyle().Render(m.help.View())
+	statusView := m.renderStatus()
+
+	blocks := make([]string, 0, 5)
+
+	if t := m.renderTitle(); t != "" {
+		blocks = append(blocks, t)
+	}
+	if f := m.renderFilter(); f != "" {
+		blocks = append(blocks, f)
+	}
+
+	blocks = append(blocks, tableView, statusView, helpView)
 
 	return lipgloss.NewStyle().
 		Width(width).
-		Render(lipgloss.JoinVertical(
-			lipgloss.Center,
-			m.renderTitle(),
-			m.renderFilter(),
-			tableView,
-			m.renderHelpView(),
-		))
+		Align(lipgloss.Center).
+		Render(lipgloss.JoinVertical(lipgloss.Center, blocks...))
 }
 
-func (m *Model) renderHelpView() string {
-	width := m.Layout.Body.Width
-	m.Help.SetWidth(width)
+// renderTableBody renders the table body. When there are no rows, it keeps
+// the header visible and injects a centered message into the empty body.
+func (m *Model) renderTableBody() string {
+	view := m.BubbleTable.View()
+	if len(m.BubbleTable.Rows()) > 0 {
+		return m.markSelected(view)
+	}
 
-	helpView := ""
-	if m.FullHelp {
-		helpView = m.helpViewStyle(width).Render(
-			truncateLines(m.Help.FullHelpView(m.Keys.FullHelp(width)), width-8),
+	// bubbles/table renders header text, header border, then body lines.
+	lines := strings.Split(view, "\n")
+	const headerEnd = 2
+	if len(lines) <= headerEnd {
+		return view
+	}
+
+	bodyLines := len(lines) - headerEnd
+	contentWidth := m.contentWidthLocked()
+	base := lipgloss.NewStyle().
+		Width(contentWidth).
+		Align(lipgloss.Center)
+
+	var msgLines []string
+	if filter := m.filterValue(); filter != "" {
+		if runes := []rune(filter); len(runes) > maxFilterChar {
+			filter = string(runes[:maxFilterChar-3]) + "..."
+		}
+
+		msgLines = append(msgLines,
+			base.Foreground(m.theme.Text).Render(fmt.Sprintf("No matches for %q", filter)),
+			base.Foreground(m.theme.Muted).Render(fmt.Sprintf(
+				"press %s to clear the filter",
+				m.Keys.Filter.Clear.Keys[0],
+			)),
 		)
 	} else {
-		helpView = m.helpViewStyle(width).Render(m.shortHelpText(width - 8))
+		msgLines = append(msgLines,
+			base.Foreground(m.theme.Muted).Render(m.emptyMessage),
+		)
 	}
 
-	return helpView
-}
-
-// shortHelpText builds a single-line help string that always fits within
-// width cells. Items that don't fit are dropped and truncation is marked
-// with an ellipsis, so the help never wraps or overflows its line.
-func (m *Model) shortHelpText(width int) string {
-	var items []string
-	for _, a := range m.Keys.Actions {
-		if a.ShortHelp == "" {
-			continue
+	start := max(headerEnd, headerEnd+(bodyLines-len(msgLines))/2)
+	for i, line := range msgLines {
+		if start+i < len(lines) {
+			lines[start+i] = line
 		}
-		items = append(items, a.ShortHelp)
 	}
 
-	const sep = " • "
-	out := ""
-	shown := 0
-	for _, it := range items {
-		candidate := it
-		if shown > 0 {
-			candidate = out + sep + it
-		}
-		if lipgloss.Width(candidate) > width {
-			break
-		}
-		out = candidate
-		shown++
-	}
-
-	if shown < len(items) {
-		if out != "" {
-			out += sep
-		}
-		out += "…"
-	}
-	return out
-}
-
-// truncateLines crops every line of s to at most width cells, preserving
-// ANSI styling and never producing wrapped output.
-func truncateLines(s string, width int) string {
-	if width < 1 {
-		return ""
-	}
-	lines := strings.Split(s, "\n")
-	for i := range lines {
-		lines[i] = ansi.Truncate(lines[i], width, "")
-	}
 	return strings.Join(lines, "\n")
 }
 
 func (m *Model) renderTitle() string {
-	width := m.Layout.Body.Width
-	if m.Title != "" {
-		return m.titleStyles(width).Render(m.Title)
-	}
-	return ""
-}
-
-// renderFilter shows "filter: text [matched/total]" while editing or while
-// a filter is applied; empty otherwise so the layout doesn't shift.
-func (m *Model) renderFilter() string {
-	if !m.filtering && m.filter == "" {
+	if m.Title == "" {
 		return ""
 	}
-	text := m.filter
-	if m.filtering {
-		text += "▊"
+	return m.titleStyles(m.tableWidthLocked()).Render(m.Title)
+}
+
+func (m *Model) renderFilter() string {
+	if !m.filtering && m.filterValue() == "" {
+		return ""
 	}
-	return m.filterStyle().Render(fmt.Sprintf("filter: %s [%d/%d]",
-		text, len(m.BubbleTable.Rows()), len(m.originalRows)))
+
+	left := " / " + lipgloss.NewStyle().
+		Foreground(m.theme.Text).
+		Render(m.filter.View())
+
+	right := lipgloss.NewStyle().
+		Foreground(m.theme.Secondary).
+		Render(fmt.Sprintf(
+			"%d / %d ",
+			len(m.BubbleTable.Rows()),
+			len(m.originalRows),
+		))
+
+	style := m.filterStyle()
+	gap := max(1, style.GetWidth()-lipgloss.Width(left)-lipgloss.Width(right))
+
+	return style.Render(left + strings.Repeat(" ", gap) + right)
+}
+
+// renderStatus draws the bottom border and status text, continuing the
+// table's rounded border.
+func (m *Model) renderStatus() string {
+	total := len(m.originalRows)
+	selected := m.BubbleTable.Cursor() + 1
+
+	text := fmt.Sprintf(" Row %d of %d ──╯", selected, total)
+	width := m.tableWidthLocked()
+
+	left := "╰"
+	dashes := max(0, width-lipgloss.Width(text)-lipgloss.Width(left))
+	line := left + strings.Repeat("─", dashes) + text
+
+	return lipgloss.NewStyle().
+		Width(width).
+		Foreground(m.theme.Info).
+		Render(line)
 }

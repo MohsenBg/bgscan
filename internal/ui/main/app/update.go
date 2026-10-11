@@ -24,11 +24,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state.Layout.Update(msg.Width, msg.Height)
 
 	case tea.KeyPressMsg:
-		if msg.String() == env.KeyCtrlC {
+		if m.state.Deps().Keys.Global.ForceQuit.Matches(msg) {
 			return m, tea.Quit
 		}
 
-		if msg.String() == env.KeyCtrlT {
+		if m.state.Deps().Keys.Global.DumpGoroutines.Matches(msg) {
 			m.state.Log.Debug.Info("%s", dumpGoroutines())
 		}
 
@@ -94,25 +94,32 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Sequence(cmds...)
 }
 
-// closeTopDialog closes the active dialog for a back or quit key.
+// closeTopDialog closes the active dialog if a back or quit key is pressed.
+// It returns the close command and a boolean indicating if a close was triggered.
 func (m *model) closeTopDialog(msg tea.KeyPressMsg) (tea.Cmd, bool) {
-	l := m.top()
-	if l == nil {
+	topLayer := m.top()
+
+	//  nothing to close, or already in the process of closing
+	if topLayer == nil || topLayer.closing() {
 		return nil, false
 	}
 
-	// A dialog already on its way out owns the keyboard until it is gone,
-	// so a second back press cannot start a second close and fire
-	// OnClose twice.
-	if l.closing() {
-		return nil, true
+	keys := m.state.Deps().Keys.Global
+	mode := topLayer.component.Mode()
+
+	// Check if the current keypress should trigger a close based on the mode
+	switch mode {
+	case env.NormalMode:
+		if keys.Back.Matches(msg) || keys.Quit.Matches(msg) {
+			return m.beginCloseTop(), true
+		}
+	case env.InputMode:
+		if keys.BackFromInput.Matches(msg) {
+			return m.beginCloseTop(), true
+		}
 	}
 
-	if !env.IsBackKey(msg, l.component.Mode()) && !env.IsQuitKey(msg, l.component.Mode()) {
-		return nil, false
-	}
-
-	return m.beginCloseTop(), true
+	return nil, false
 }
 
 func dumpGoroutines() string {

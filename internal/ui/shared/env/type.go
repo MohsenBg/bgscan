@@ -1,21 +1,25 @@
 package env
 
 // Mode represents the current UI state of the application.
-//
-// The mode determines how keyboard input is interpreted and
-// what actions are available to the user.
 type Mode int
 
 const (
-	// NormalMode is the default navigation mode.
-	// Users can move through menus and trigger actions.
 	NormalMode Mode = iota
-
-	// InputMode is active when the user is typing input,
-	// such as entering a target IP range or configuration.
 	InputMode
-
-	// During this mode most UI actions are disabled and
-	// control is handled by scanning goroutines.
 	ManagedMode
 )
+
+// String returns the string representation of the Mode.
+// useful for logging and debugging the TUI state.
+func (m Mode) String() string {
+	switch m {
+	case NormalMode:
+		return "NormalMode"
+	case InputMode:
+		return "InputMode"
+	case ManagedMode:
+		return "ManagedMode"
+	default:
+		return "UnknownMode"
+	}
+}

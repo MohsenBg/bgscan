@@ -5,6 +5,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
@@ -97,16 +98,11 @@ func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			break
 		}
 
-		deps := m.state.Deps()
-		if deps.Keys == nil {
-			break
-		}
-
-		k := deps.Keys
+		k := m.state.Deps().Keys
 
 		switch {
 		case k.Global.Quit.Matches(t):
-			return m, tea.Quit
+			return m, confirm.ExitConfirmCmd(m.state.Deps())
 
 		case k.Nav.Up.Matches(t):
 			m.viewport.ScrollUp(1)

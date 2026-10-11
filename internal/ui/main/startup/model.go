@@ -124,11 +124,7 @@ func New(state *ui.AppState) ui.Component {
 	return m
 }
 
-func startupHelpSet(k *keys.Keys) help.HelpSet {
-	if k == nil {
-		return help.HelpSet{}
-	}
-
+func startupHelpSet(k keys.Keys) help.HelpSet {
 	scroll := keys.Combine("scroll", k.Nav.Up, k.Nav.Down)
 
 	short := keys.Hints{scroll}

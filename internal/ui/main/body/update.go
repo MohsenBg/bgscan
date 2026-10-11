@@ -23,14 +23,19 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 
 	case tea.KeyPressMsg:
-		if env.IsBackKey(msg, m.components[lastIdx].Mode()) && len(m.components) > 1 {
-			return m.popComponent()
+		switch m.components[lastIdx].Mode() {
+		case env.NormalMode:
+			if len(m.components) > 1 && m.state.Deps().Keys.Global.Back.Matches(msg) {
+				return m.popComponent()
+			}
+			if m.state.Deps().Keys.Global.Quit.Matches(msg) {
+				return m, confirm.ExitConfirmCmd(m.state.Deps())
+			}
+		case env.InputMode:
+			if m.state.Deps().Keys.Global.BackFromInput.Matches(msg) {
+				return m.popComponent()
+			}
 		}
-
-		if env.IsQuitKey(msg, m.components[lastIdx].Mode()) {
-			return m, confirm.ExitConfirmCmd(m.state.Deps())
-		}
-
 	case ui.OpenComponentMsg:
 		if msg.Component != nil {
 			m.state.Log.UI.Info("Opening screen: %s", msg.Component.Name())

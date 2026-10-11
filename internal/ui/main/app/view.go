@@ -70,7 +70,7 @@ func (m *model) renderDialogs(base string) string {
 			view,
 			opts.XPos, opts.YPos,
 			opts.XOffset, opts.YOffset,
-			dialog.AnimDropIn,
+			dialog.AnimSplit,
 			l.progress(now),
 		)
 	}

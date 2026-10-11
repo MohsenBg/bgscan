@@ -9,8 +9,7 @@ import (
 )
 
 func (m *Model) View() string {
-	padding := 2
-	width := m.layout.Footer.Width - padding
+	width := m.layout.Footer.Width
 	height := m.layout.Footer.Height
 
 	leftWidth := width / 3

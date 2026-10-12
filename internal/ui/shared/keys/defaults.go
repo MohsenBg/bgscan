@@ -53,7 +53,7 @@ func Default() Keys {
 		BackFromInput: Binding{
 			Action:        ActionBackFromInput,
 			Keys:          []string{"esc"},
-			HelpText:      "quit",
+			HelpText:      "back",
 			CaseSensitive: false,
 		},
 	}

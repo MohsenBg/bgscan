@@ -118,8 +118,8 @@ func (m *Model[T]) requestRename(item T) tea.Cmd {
 // getSelected resolves the highlighted row to its item via the identity in
 // the first column (see Source.RenderRow).
 func (m *Model[T]) getSelected() (T, error) {
-	row := m.table.BubbleTable.SelectedRow()
-	if len(row) == 0 {
+	row, ok := m.table.SelectedRow()
+	if !ok {
 		var zero T
 		return zero, errors.New("no row selected")
 	}

@@ -34,8 +34,8 @@ func (m *Model) copySelectedIP() tea.Cmd {
 		return nil
 	}
 
-	row := t.BubbleTable.SelectedRow()
-	if len(row) == 0 {
+	row, ok := t.SelectedRow()
+	if !ok {
 		return nil
 	}
 

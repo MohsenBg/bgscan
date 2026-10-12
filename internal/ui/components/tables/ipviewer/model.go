@@ -62,7 +62,7 @@ func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 func (m *Model) Mode() env.Mode     { return m.table.Mode() }
-func (m *Model) Init() tea.Cmd      { return nil }
+func (m *Model) Init() tea.Cmd      { return m.table.Init() }
 
 func (m *Model) Theme() *theme.Theme { return m.theme }
 

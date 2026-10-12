@@ -66,7 +66,7 @@ func New[T any](
 	return m
 }
 
-func (m *Model[T]) Init() tea.Cmd { return m.RefreshCmd }
+func (m *Model[T]) Init() tea.Cmd { return tea.Batch(m.RefreshCmd, m.table.Init()) }
 
 func (m *Model[T]) Theme() *theme.Theme { return m.theme }
 

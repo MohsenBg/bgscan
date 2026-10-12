@@ -18,7 +18,9 @@ func (m *Model) tableStyles() table.Styles {
 		BorderBottom(true).
 		Padding(0, 1, 0, cellPadLeft)
 
-	s.Cell = s.Cell.Padding(0, 1, 0, cellPadLeft).Bold(false)
+	s.Cell = s.Cell.
+		Padding(0, 1, 0, cellPadLeft).
+		Bold(false)
 
 	s.Selected = s.Selected.
 		Foreground(m.theme.Text).
@@ -98,7 +100,7 @@ func mixColor(fg, bg color.Color, opacity float64) color.Color {
 
 func (m *Model) applyStylesLocked() {
 	s := m.tableStyles()
-	m.BubbleTable.SetStyles(s)
+	m.bubble.SetStyles(s)
 
 	const sentinel = "§"
 	m.selPrefix, _, _ = strings.Cut(s.Selected.Render(sentinel), sentinel)
@@ -118,6 +120,7 @@ func (m *Model) markSelected(view string) string {
 	}
 
 	needle := m.selPrefix + strings.Repeat(" ", cellPadLeft)
+
 	before, after, ok := strings.Cut(view, needle)
 	if !ok {
 		return view

@@ -12,6 +12,7 @@ func (m *Model) View() string {
 	defer m.mu.RUnlock()
 
 	width := m.tableWidthLocked()
+
 	tableView := m.tableViewStyle().Render(m.renderTableBody())
 	helpView := m.helpStyle().Render(m.help.View())
 	statusView := m.renderStatus()
@@ -21,6 +22,7 @@ func (m *Model) View() string {
 	if t := m.renderTitle(); t != "" {
 		blocks = append(blocks, t)
 	}
+
 	if f := m.renderFilter(); f != "" {
 		blocks = append(blocks, f)
 	}
@@ -36,13 +38,15 @@ func (m *Model) View() string {
 // renderTableBody renders the table body. When there are no rows, it keeps
 // the header visible and injects a centered message into the empty body.
 func (m *Model) renderTableBody() string {
-	view := m.BubbleTable.View()
-	if len(m.BubbleTable.Rows()) > 0 {
+	view := m.bubble.View()
+
+	if !m.loading && len(m.bubble.Rows()) > 0 {
 		return m.markSelected(view)
 	}
 
 	// bubbles/table renders header text, header border, then body lines.
 	lines := strings.Split(view, "\n")
+
 	const headerEnd = 2
 	if len(lines) <= headerEnd {
 		return view
@@ -50,33 +54,52 @@ func (m *Model) renderTableBody() string {
 
 	bodyLines := len(lines) - headerEnd
 	contentWidth := m.contentWidthLocked()
+
 	base := lipgloss.NewStyle().
 		Width(contentWidth).
 		Align(lipgloss.Center)
 
 	var msgLines []string
-	if filter := m.filterValue(); filter != "" {
+
+	switch {
+	case m.loading:
+		msgLines = append(
+			msgLines,
+			base.Foreground(m.theme.Text).Render(m.renderLoading()),
+		)
+
+	case m.filterValue() != "":
+		filter := m.filterValue()
 		if runes := []rune(filter); len(runes) > maxFilterChar {
 			filter = string(runes[:maxFilterChar-3]) + "..."
 		}
 
-		msgLines = append(msgLines,
+		msgLines = append(
+			msgLines,
 			base.Foreground(m.theme.Text).Render(fmt.Sprintf("No matches for %q", filter)),
 			base.Foreground(m.theme.Muted).Render(fmt.Sprintf(
 				"press %s to clear the filter",
-				m.Keys.Filter.Clear.Keys[0],
+				m.keys.Filter.Clear.Keys[0],
 			)),
 		)
-	} else {
-		msgLines = append(msgLines,
+
+	default:
+		msgLines = append(
+			msgLines,
 			base.Foreground(m.theme.Muted).Render(m.emptyMessage),
 		)
 	}
 
 	start := max(headerEnd, headerEnd+(bodyLines-len(msgLines))/2)
-	for i, line := range msgLines {
-		if start+i < len(lines) {
-			lines[start+i] = line
+	msgLen := len(msgLines)
+
+	for i := headerEnd; i < len(lines); i++ {
+		idx := i - start
+
+		if idx >= 0 && idx < msgLen {
+			lines[i] = msgLines[idx]
+		} else if m.loading {
+			lines[i] = ""
 		}
 	}
 
@@ -84,10 +107,11 @@ func (m *Model) renderTableBody() string {
 }
 
 func (m *Model) renderTitle() string {
-	if m.Title == "" {
+	if m.title == "" {
 		return ""
 	}
-	return m.titleStyles(m.tableWidthLocked()).Render(m.Title)
+
+	return m.titleStyles(m.tableWidthLocked()).Render(m.title)
 }
 
 func (m *Model) renderFilter() string {
@@ -103,7 +127,7 @@ func (m *Model) renderFilter() string {
 		Foreground(m.theme.Secondary).
 		Render(fmt.Sprintf(
 			"%d / %d ",
-			len(m.BubbleTable.Rows()),
+			len(m.bubble.Rows()),
 			len(m.originalRows),
 		))
 
@@ -117,7 +141,11 @@ func (m *Model) renderFilter() string {
 // table's rounded border.
 func (m *Model) renderStatus() string {
 	total := len(m.originalRows)
-	selected := m.BubbleTable.Cursor() + 1
+
+	selected := 0
+	if !m.loading && total > 0 {
+		selected = m.bubble.Cursor() + 1
+	}
 
 	text := fmt.Sprintf(" Row %d of %d ──╯", selected, total)
 	width := m.tableWidthLocked()

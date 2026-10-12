@@ -1,7 +1,9 @@
 package table
 
 import (
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
@@ -14,19 +16,29 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	defer m.mu.Unlock()
 
 	switch msg := msg.(type) {
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+
 	case tea.KeyMsg:
+		if m.loading {
+			return m, nil
+		}
+
 		if cmd, handled := m.handleKey(msg); handled {
 			return m, cmd
 		}
+
 	case tea.WindowSizeMsg:
 		m.updateTableSizeLocked()
-		m.BubbleTable.SetStyles(m.tableStyles())
+		m.bubble.SetStyles(m.tableStyles())
 	}
 
 	var cmds []tea.Cmd
-
 	var cmd tea.Cmd
-	m.BubbleTable, cmd = m.BubbleTable.Update(msg)
+
+	m.bubble, cmd = m.bubble.Update(msg)
 	cmds = append(cmds, cmd)
 
 	m.help, cmd = m.help.Update(msg)
@@ -39,10 +51,11 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 // It must be called with m.mu held.
 func (m *Model) handleFilterKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	switch {
-	case m.Keys.Filter.Clear.Matches(msg):
+	case m.keys.Filter.Clear.Matches(msg):
 		m.clearFilterLocked()
 		return nil, true
-	case m.Keys.Filter.Accept.Matches(msg):
+
+	case m.keys.Filter.Accept.Matches(msg):
 		m.filtering = false
 		m.hideCursor()
 		return nil, true
@@ -51,6 +64,7 @@ func (m *Model) handleFilterKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	var cmd tea.Cmd
 	m.filter, cmd = m.filter.Update(msg)
 	m.refreshDisplayLocked(false)
+
 	return cmd, true
 }
 
@@ -61,30 +75,41 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 		return m.handleFilterKey(msg)
 	}
 
-	k := m.Keys.Table
+	k := m.keys.Table
+
 	switch {
 	case k.Up.Matches(msg):
-		m.BubbleTable.MoveUp(1)
+		m.bubble.MoveUp(1)
+
 	case k.Down.Matches(msg):
-		m.BubbleTable.MoveDown(1)
+		m.bubble.MoveDown(1)
+
 	case k.PageUp.Matches(msg):
-		m.BubbleTable.MoveUp(m.BubbleTable.Height())
+		m.bubble.MoveUp(m.bubble.Height())
+
 	case k.PageDown.Matches(msg):
-		m.BubbleTable.MoveDown(m.BubbleTable.Height())
+		m.bubble.MoveDown(m.bubble.Height())
+
 	case k.HalfPageUp.Matches(msg):
-		m.BubbleTable.MoveUp(max(1, m.BubbleTable.Height()/2))
+		m.bubble.MoveUp(max(1, m.bubble.Height()/2))
+
 	case k.HalfPageDown.Matches(msg):
-		m.BubbleTable.MoveDown(max(1, m.BubbleTable.Height()/2))
+		m.bubble.MoveDown(max(1, m.bubble.Height()/2))
+
 	case k.ChangeSort.Matches(msg):
 		m.cycleSortColumnLocked()
+
 	case k.ToggleOrder.Matches(msg):
 		m.toggleSortDirectionLocked()
+
 	case k.Filter.Matches(msg):
 		m.filtering = true
 		return m.showCursor(), true
-	case m.Keys.Filter.Clear.Matches(msg):
+
+	case m.keys.Filter.Clear.Matches(msg):
 		m.clearFilterLocked()
 		return nil, true
+
 	default:
 		return nil, false
 	}

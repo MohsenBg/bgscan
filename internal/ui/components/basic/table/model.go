@@ -2,15 +2,18 @@ package table
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/table"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+
 	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/help"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
@@ -18,6 +21,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
+
 	"github.com/dustin/go-humanize"
 )
 
@@ -37,23 +41,25 @@ const (
 	markerGlyph   = "▐ "
 	cellPadLeft   = 2
 	markerOpacity = 0.8
+
 	maxFilterChar = 35
 )
 
 // Model is a Bubble Tea table with responsive layout, key bindings, sorting,
-// and filtering. All exported methods are safe for concurrent use.
+// filtering, loading, empty state, and safe concurrent access.
 type Model struct {
-	mu     sync.RWMutex
-	id     ui.ComponentID
-	name   string
-	Title  string
-	Layout *layout.Layout
+	mu   sync.RWMutex
+	id   ui.ComponentID
+	name string
+
+	title  string
+	layout *layout.Layout
 	theme  *theme.Theme
 	log    logger.Set
 	help   ui.Component
 
-	BubbleTable table.Model
-	Keys        keys.Keys
+	bubble table.Model
+	keys   keys.Keys
 
 	additionalShortHints []keys.Hint
 	additionalLongHints  []keys.Hint
@@ -76,12 +82,24 @@ type Model struct {
 	emptyMessage string
 	filtering    bool
 	filter       textinput.Model
+
+	spinner        spinner.Model
+	loading        bool
+	loadingMessage string
 }
 
 type Option func(*Model)
 
 func WithTitle(title string) Option {
-	return func(m *Model) { m.Title = title }
+	return func(m *Model) { m.title = title }
+}
+
+func WithLayout(l *layout.Layout) Option {
+	return func(m *Model) { m.layout = l }
+}
+
+func WithKeys(k keys.Keys) Option {
+	return func(m *Model) { m.keys = keys.OrDefault(k) }
 }
 
 func WithColumns(cols []table.Column) Option {
@@ -125,12 +143,24 @@ func WithEmptyMessage(msg string) Option {
 	return func(m *Model) { m.emptyMessage = msg }
 }
 
+// WithLoading sets the initial loading state.
+// The default loading state is false.
+func WithLoading(loading bool) Option {
+	return func(m *Model) { m.loading = loading }
+}
+
+// WithLoadingMessage sets the message displayed while loading.
+func WithLoadingMessage(message string) Option {
+	return func(m *Model) { m.loadingMessage = message }
+}
+
 // WithUnsortableColumns excludes columns from sort cycling and SetSort.
 func WithUnsortableColumns(cols ...int) Option {
 	return func(m *Model) {
 		if m.unsortable == nil {
 			m.unsortable = make(map[int]bool)
 		}
+
 		for _, c := range cols {
 			m.unsortable[c] = true
 		}
@@ -141,15 +171,18 @@ func New(deps ui.Deps, opts ...Option) *Model {
 	deps.Keys = keys.OrDefault(deps.Keys)
 
 	m := &Model{
-		id:           ui.NewComponentID(),
-		name:         "table",
-		Layout:       deps.Layout,
-		theme:        deps.Theme,
-		log:          deps.Log,
-		Keys:         deps.Keys,
-		sortCol:      -1,
-		sortAsc:      true,
-		emptyMessage: "No data to display.",
+		id:             ui.NewComponentID(),
+		name:           "table",
+		layout:         deps.Layout,
+		theme:          deps.Theme,
+		log:            deps.Log,
+		keys:           deps.Keys,
+		sortCol:        -1,
+		sortAsc:        true,
+		emptyMessage:   "No data to display.",
+		loadingMessage: "Loading records please wait!",
+		loading:        false,
+		spinner:        spinner.New(spinner.WithSpinner(spinner.Points)),
 	}
 
 	m.filter = textinput.New()
@@ -160,23 +193,31 @@ func New(deps ui.Deps, opts ...Option) *Model {
 		opt(m)
 	}
 
+	m.keys = keys.OrDefault(m.keys)
+
+	// Keep deps synchronized so help and other shared components use the
+	// final table configuration.
+	deps.Keys = m.keys
+	deps.Layout = m.layout
+
 	if m.originalCols == nil {
 		m.originalCols = []table.Column{}
 	}
+
 	if m.originalRows == nil {
 		m.originalRows = []table.Row{}
 	}
 
 	m.help = help.New(
 		deps,
-		m.Title,
+		m.title,
 		help.HelpSet{
 			Short: m.shortHits(m.additionalShortHints...),
 			Long:  m.longHits(m.additionalLongHints...),
 		},
 	)
 
-	m.BubbleTable = table.New(
+	m.bubble = table.New(
 		table.WithColumns(m.originalCols),
 		table.WithRows(m.originalRows),
 		table.WithFocused(true),
@@ -190,7 +231,12 @@ func New(deps ui.Deps, opts ...Option) *Model {
 	return m
 }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
+func (m *Model) Theme() *theme.Theme {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.theme
+}
 
 // SetTheme swaps the palette and rebuilds cached styles.
 func (m *Model) SetTheme(th *theme.Theme) {
@@ -201,19 +247,188 @@ func (m *Model) SetTheme(th *theme.Theme) {
 	m.applyStylesLocked()
 }
 
-func (m *Model) Init() tea.Cmd      { return nil }
-func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
+func (m *Model) Init() tea.Cmd {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.spinner.Tick
+}
+
+func (m *Model) ID() ui.ComponentID {
+	return m.id
+}
+
+func (m *Model) Name() string {
+	return m.name
+}
+
+func (m *Model) OnClose() tea.Cmd {
+	return nil
+}
 
 func (m *Model) Mode() env.Mode {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if !m.filtering && m.filterValue() == "" {
-		return env.NormalMode
+	if m.loading || m.filtering || m.filterValue() != "" {
+		return env.ManagedMode
 	}
-	return env.ManagedMode
+
+	return env.NormalMode
+}
+
+// Title returns the table title.
+func (m *Model) Title() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.title
+}
+
+// SetTitle sets the table title.
+func (m *Model) SetTitle(title string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.title = title
+}
+
+// Layout returns the layout used by the table.
+// Treat the returned pointer as read-only.
+func (m *Model) Layout() *layout.Layout {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.layout
+}
+
+// SetLayout updates layout and recalculates table size.
+func (m *Model) SetLayout(l *layout.Layout) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.layout = l
+	m.updateTableSizeLocked()
+}
+
+// Keys returns the key binding set used by the table.
+func (m *Model) Keys() keys.Keys {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.keys
+}
+
+// SelectedRow returns a copy of the selected visible row.
+func (m *Model) SelectedRow() (Row, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.loading {
+		return nil, false
+	}
+
+	rows := m.bubble.Rows()
+	idx := m.bubble.Cursor()
+
+	if idx < 0 || idx >= len(rows) {
+		return nil, false
+	}
+
+	return slices.Clone(rows[idx]), true
+}
+
+// SelectedIndex returns the selected visible row index.
+// It returns -1 when there are no visible rows or the table is loading.
+func (m *Model) SelectedIndex() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.loading || len(m.bubble.Rows()) == 0 {
+		return -1
+	}
+
+	return m.bubble.Cursor()
+}
+
+// VisibleRowCount returns the number of rows currently visible after
+// filtering and sorting. It returns 0 while loading.
+func (m *Model) VisibleRowCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.loading {
+		return 0
+	}
+
+	return len(m.bubble.Rows())
+}
+
+// TotalRowCount returns the total number of original rows.
+func (m *Model) TotalRowCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return len(m.originalRows)
+}
+
+// GotoTop moves the cursor to the first visible row.
+func (m *Model) GotoTop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.bubble.GotoTop()
+}
+
+// GotoBottom moves the cursor to the last visible row.
+func (m *Model) GotoBottom() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.bubble.GotoBottom()
+}
+
+// Loading reports whether the table is currently in a loading state.
+func (m *Model) Loading() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.loading
+}
+
+// EnableLoading enables the loading state.
+func (m *Model) EnableLoading() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.setLoadingLocked(true)
+}
+
+// DisableLoading disables the loading state.
+func (m *Model) DisableLoading() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.setLoadingLocked(false)
+}
+
+// SetLoading sets the loading state explicitly.
+func (m *Model) SetLoading(loading bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.setLoadingLocked(loading)
+}
+
+// setLoadingLocked changes the loading state.
+// It must be called with m.mu held.
+func (m *Model) setLoadingLocked(loading bool) {
+	if m.loading == loading {
+		return
+	}
+
+	m.loading = loading
+	m.updateTableSizeLocked()
 }
 
 // SetWidth sets an explicit width. Zero means use layout.
@@ -333,9 +548,11 @@ func (m *Model) toggleSortDirectionLocked() {
 		for col < len(m.originalCols) && m.unsortable[col] {
 			col++
 		}
+
 		if col >= len(m.originalCols) {
 			return
 		}
+
 		m.sortCol, m.sortAsc = col, false
 	} else {
 		m.sortAsc = !m.sortAsc
@@ -370,10 +587,12 @@ func (m *Model) clearFilterLocked() {
 // resetCursor jumps to the first row for explicit user sorts; data refreshes
 // pass false to preserve the cursor. It must be called with m.mu held.
 func (m *Model) refreshDisplayLocked(resetCursor bool) {
-	m.BubbleTable.SetRows(m.displayRowsLocked())
+	m.bubble.SetRows(m.displayRowsLocked())
+
 	if resetCursor {
-		m.BubbleTable.GotoTop()
+		m.bubble.GotoTop()
 	}
+
 	m.updateTableSizeLocked()
 }
 
@@ -381,6 +600,7 @@ func (m *Model) refreshDisplayLocked(resetCursor bool) {
 // filter applied. Sort order is stable. It must be called with m.mu held.
 func (m *Model) displayRowsLocked() []Row {
 	needle := strings.ToLower(m.filterValue())
+
 	if m.sortCol < 0 && needle == "" {
 		return m.originalRows
 	}
@@ -389,6 +609,7 @@ func (m *Model) displayRowsLocked() []Row {
 
 	if m.sortCol >= 0 {
 		col, asc := m.sortCol, m.sortAsc
+
 		slices.SortStableFunc(rows, func(a, b Row) int {
 			c := compareCells(cellAt(a, col), cellAt(b, col))
 			if !asc {
@@ -414,6 +635,7 @@ func rowMatches(r Row, needle string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -421,6 +643,7 @@ func cellAt(r Row, col int) string {
 	if col < 0 || col >= len(r) {
 		return ""
 	}
+
 	return r[col]
 }
 
@@ -432,6 +655,7 @@ func compareCells(a, b string) int {
 
 	fa, errA := strconv.ParseFloat(a, 64)
 	fb, errB := strconv.ParseFloat(b, 64)
+
 	switch {
 	case errA == nil && errB == nil:
 		return cmp.Compare(fa, fb)
@@ -443,6 +667,7 @@ func compareCells(a, b string) int {
 
 	pa, errA := humanize.ParseBytes(a)
 	pb, errB := humanize.ParseBytes(b)
+
 	switch {
 	case errA == nil && errB == nil:
 		return cmp.Compare(pa, pb)
@@ -460,6 +685,7 @@ func NewRowTime(t time.Time) string {
 	if t.IsZero() {
 		return "-"
 	}
+
 	return t.Format("2006-01-02 15:04:05")
 }
 
@@ -468,6 +694,7 @@ func cloneRows(rows []table.Row) []table.Row {
 	for i, row := range rows {
 		out[i] = slices.Clone(row)
 	}
+
 	return out
 }
 
@@ -484,6 +711,7 @@ func (m *Model) scaledColumns() []table.Column {
 	for _, c := range out {
 		total += c.Width
 	}
+
 	if total <= 0 {
 		return out
 	}
@@ -518,22 +746,30 @@ func (m *Model) updateTableSizeLocked() {
 		return
 	}
 
-	m.BubbleTable.SetColumns(m.scaledColumns())
+	m.bubble.SetColumns(m.scaledColumns())
+
+	rows := len(m.bubble.Rows())
+	if m.loading {
+		rows = 0
+	}
 
 	var total int
+
 	switch {
 	case m.height > 0:
 		total = m.height
-	case m.Layout != nil && m.Layout.Body.Height > 0:
+
+	case m.layout != nil && m.layout.Body.Height > 0:
 		total = max(
 			tableMinHeight,
-			len(m.BubbleTable.Rows())+2+helpHeight+titleHeight+paddingVertical*2,
+			rows+2+helpHeight+titleHeight+paddingVertical*2,
 		)
-		total = min(total, m.Layout.Body.Height)
+		total = min(total, m.layout.Body.Height)
+
 	default:
 		total = max(
 			tableMinHeight,
-			len(m.BubbleTable.Rows())+helpHeight+titleHeight+paddingVertical*2,
+			rows+helpHeight+titleHeight+paddingVertical*2,
 		)
 	}
 
@@ -542,10 +778,10 @@ func (m *Model) updateTableSizeLocked() {
 	}
 
 	height := max(1, total-helpHeight-titleHeight-paddingVertical*2-m.frameV())
-	m.BubbleTable.SetHeight(height)
+	m.bubble.SetHeight(height)
 
 	width := m.tableWidthLocked()
-	m.BubbleTable.SetWidth(m.contentWidthLocked())
+	m.bubble.SetWidth(m.contentWidthLocked())
 
 	if h, ok := m.help.(*help.Model); ok {
 		h.SetShortWidth(width)
@@ -558,11 +794,14 @@ func (m *Model) contentWidthLocked() int {
 
 func (m *Model) tableWidthLocked() int {
 	var w int
+
 	switch {
 	case m.width > 0:
 		w = m.width
-	case m.Layout != nil && m.Layout.Body.Width > 0:
-		w = max(10, m.Layout.BodyContentWidth()-paddingHorizontal)
+
+	case m.layout != nil && m.layout.Body.Width > 0:
+		w = max(10, m.layout.BodyContentWidth()-paddingHorizontal)
+
 	default:
 		w = tableMinWidth
 	}
@@ -588,4 +827,8 @@ func (m *Model) showCursor() tea.Cmd {
 
 func (m *Model) filterValue() string {
 	return strings.TrimSpace(m.filter.Value())
+}
+
+func (m *Model) renderLoading() string {
+	return fmt.Sprintf("%s %s", m.loadingMessage, m.spinner.View())
 }

@@ -35,7 +35,7 @@ func (m *Model[T]) View() string {
 
 	// Compute overall width up front, since the border line needs it
 	// whether or not it also gets used for the final Width/Align pass.
-	width := m.layout.Body.Width
+	width := m.env.Layout.Body().Width
 	if m.maxWidth > 0 && width > m.maxWidth {
 		width = m.maxWidth
 	}

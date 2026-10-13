@@ -65,7 +65,7 @@ func (m *Model) renderTableBody() string {
 	case m.loading:
 		msgLines = append(
 			msgLines,
-			base.Foreground(m.theme.Text).Render(m.renderLoading()),
+			base.Foreground(m.env.Theme.Text).Render(m.renderLoading()),
 		)
 
 	case m.filterValue() != "":
@@ -76,17 +76,17 @@ func (m *Model) renderTableBody() string {
 
 		msgLines = append(
 			msgLines,
-			base.Foreground(m.theme.Text).Render(fmt.Sprintf("No matches for %q", filter)),
-			base.Foreground(m.theme.Muted).Render(fmt.Sprintf(
+			base.Foreground(m.env.Theme.Text).Render(fmt.Sprintf("No matches for %q", filter)),
+			base.Foreground(m.env.Theme.Muted).Render(fmt.Sprintf(
 				"press %s to clear the filter",
-				m.keys.Filter.Clear.Keys[0],
+				m.env.Keys.Filter.Clear.Keys[0],
 			)),
 		)
 
 	default:
 		msgLines = append(
 			msgLines,
-			base.Foreground(m.theme.Muted).Render(m.emptyMessage),
+			base.Foreground(m.env.Theme.Muted).Render(m.emptyMessage),
 		)
 	}
 
@@ -120,11 +120,11 @@ func (m *Model) renderFilter() string {
 	}
 
 	left := " / " + lipgloss.NewStyle().
-		Foreground(m.theme.Text).
+		Foreground(m.env.Theme.Text).
 		Render(m.filter.View())
 
 	right := lipgloss.NewStyle().
-		Foreground(m.theme.Secondary).
+		Foreground(m.env.Theme.Secondary).
 		Render(fmt.Sprintf(
 			"%d / %d ",
 			len(m.bubble.Rows()),
@@ -156,6 +156,6 @@ func (m *Model) renderStatus() string {
 
 	return lipgloss.NewStyle().
 		Width(width).
-		Foreground(m.theme.Info).
+		Foreground(m.env.Theme.Info).
 		Render(line)
 }

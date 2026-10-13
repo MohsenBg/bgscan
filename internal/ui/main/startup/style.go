@@ -10,7 +10,7 @@ func (m *model) titleBarStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).
 		Padding(0, 1).
-		BorderForeground(m.state.Theme().BorderActive)
+		BorderForeground(m.session.Env().Theme.BorderActive)
 }
 
 func (m *model) titleTextStyle(width int) lipgloss.Style {
@@ -18,7 +18,7 @@ func (m *model) titleTextStyle(width int) lipgloss.Style {
 		Width(width).
 		Align(lipgloss.Center).
 		Bold(true).
-		Foreground(m.state.Theme().Text)
+		Foreground(m.session.Env().Theme.Text)
 }
 
 func (m *model) sidebarContainerStyle(height int) lipgloss.Style {
@@ -27,7 +27,7 @@ func (m *model) sidebarContainerStyle(height int) lipgloss.Style {
 		Height(height).
 		Padding(0, 1).
 		Border(lipgloss.RoundedBorder(), false, true, false, false).
-		BorderForeground(m.state.Theme().BorderActive)
+		BorderForeground(m.session.Env().Theme.BorderActive)
 }
 
 func (m *model) sidebarItemStyle() lipgloss.Style {
@@ -36,7 +36,7 @@ func (m *model) sidebarItemStyle() lipgloss.Style {
 
 func (m *model) sidebarItemActiveStyle() lipgloss.Style {
 	return m.sidebarItemStyle().
-		Foreground(m.state.Theme().Primary).
+		Foreground(m.session.Env().Theme.Primary).
 		Bold(true)
 }
 
@@ -57,12 +57,12 @@ func (m *model) helpStyle() lipgloss.Style {
 func (m *model) categoryLabelStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
-		Foreground(m.state.Theme().Text)
+		Foreground(m.session.Env().Theme.Text)
 }
 
 func (m *model) categoryLabelActiveStyle() lipgloss.Style {
 	return m.categoryLabelStyle().
-		Foreground(m.state.Theme().Primary)
+		Foreground(m.session.Env().Theme.Primary)
 }
 
 func (m *model) categoryLabelDoneStyle(status categoryStatus) lipgloss.Style {
@@ -74,21 +74,21 @@ func (m *model) categoryLineStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		PaddingLeft(2).
 		Width(width).
-		Foreground(m.state.Theme().Muted)
+		Foreground(m.session.Env().Theme.Muted)
 }
 
 func (m *model) statusColor(status categoryStatus) color.Color {
 	switch status {
 	case catOK:
-		return m.state.Theme().Success
+		return m.session.Env().Theme.Success
 	case catWarn:
-		return m.state.Theme().Yellow
+		return m.session.Env().Theme.Yellow
 	case catError:
-		return m.state.Theme().Error
+		return m.session.Env().Theme.Error
 	case catWait:
-		return m.state.Theme().Primary
+		return m.session.Env().Theme.Primary
 	default:
-		return m.state.Theme().Info
+		return m.session.Env().Theme.Info
 	}
 }
 
@@ -99,12 +99,12 @@ func (m *model) statusPrefixStyle(status categoryStatus) lipgloss.Style {
 
 func (m *model) spinnerStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.state.Theme().Primary)
+		Foreground(m.session.Env().Theme.Primary)
 }
 
 func (m *model) pendingDotStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.state.Theme().Muted)
+		Foreground(m.session.Env().Theme.Muted)
 }
 
 func (m *model) helpHintStyle(width int) lipgloss.Style {
@@ -112,47 +112,47 @@ func (m *model) helpHintStyle(width int) lipgloss.Style {
 		Width(width).
 		Padding(1, 0).
 		Align(lipgloss.Center).
-		Foreground(m.state.Theme().Muted).
+		Foreground(m.session.Env().Theme.Muted).
 		Faint(true)
 }
 
 func (m *model) helpOverlayStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.state.Theme().Text).
+		Foreground(m.session.Env().Theme.Text).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.state.Theme().BorderActive).
+		BorderForeground(m.session.Env().Theme.BorderActive).
 		Padding(1, 2)
 }
 
 func (m *model) descStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.state.Theme().Muted)
+		Foreground(m.session.Env().Theme.Muted)
 }
 
 func (m *model) fatalOverlayStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.state.Theme().Text).
+		Foreground(m.session.Env().Theme.Text).
 		Border(lipgloss.ThickBorder()).
-		BorderForeground(m.state.Theme().Error).
+		BorderForeground(m.session.Env().Theme.Error).
 		Padding(1, 3)
 }
 
 func (m *model) fatalTitleStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
-		Foreground(m.state.Theme().Error)
+		Foreground(m.session.Env().Theme.Error)
 }
 
 func (m *model) fatalCategoryStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
-		Foreground(m.state.Theme().Text)
+		Foreground(m.session.Env().Theme.Text)
 }
 
 func (m *model) fatalMessageStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).
-		Foreground(m.state.Theme().Muted)
+		Foreground(m.session.Env().Theme.Muted)
 }
 
 func fatalContentWidth(termWidth int) int {

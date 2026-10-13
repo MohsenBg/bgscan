@@ -6,25 +6,25 @@ import (
 
 // scannedStyle emphasizes processed count.
 func (m *Model) scannedStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Bold(true).Foreground(m.state.Theme().Yellow)
+	return lipgloss.NewStyle().Bold(true).Foreground(m.session.Env().Theme.Yellow)
 }
 
 func (m *Model) leftStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Bold(true).Foreground(m.state.Theme().Info)
+	return lipgloss.NewStyle().Bold(true).Foreground(m.session.Env().Theme.Info)
 }
 
 func (m *Model) foundStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Bold(true).Foreground(m.state.Theme().Success)
+	return lipgloss.NewStyle().Bold(true).Foreground(m.session.Env().Theme.Success)
 }
 
 func (m *Model) elapsedStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Bold(true).Foreground(m.state.Theme().Purple)
+	return lipgloss.NewStyle().Bold(true).Foreground(m.session.Env().Theme.Purple)
 }
 
 func (m *Model) elapsedEndStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Bold(true).Foreground(m.state.Theme().Orange)
+	return lipgloss.NewStyle().Bold(true).Foreground(m.session.Env().Theme.Orange)
 }
 
 func (m *Model) separatorStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Bold(true).Foreground(m.state.Theme().Primary)
+	return lipgloss.NewStyle().Bold(true).Foreground(m.session.Env().Theme.Primary)
 }

@@ -2,16 +2,17 @@ package app
 
 import (
 	"charm.land/lipgloss/v2"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
-func (m *model) warningStyle() lipgloss.Style {
+func warningStyle(theme *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.state.Theme().Yellow).
+		Foreground(theme.Yellow).
 		Bold(true).
 		Padding(1, 2)
 }
 
-func (m *model) centerStyle() lipgloss.Style {
+func centerStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Align(lipgloss.Center, lipgloss.Center)
 }

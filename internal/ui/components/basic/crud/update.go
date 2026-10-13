@@ -30,19 +30,13 @@ func (m *Model[T]) RefreshCmd() tea.Msg {
 	return msgLoaded[T]{items: items}
 }
 
-// notice opens an informational dialog. The CRUD builds its Deps by hand
-// because it holds layout, theme and log as plain fields rather than the
-// whole AppState.
+// notice opens an informational dialog using the shared environment.
 func (m *Model[T]) notice(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log},
+	return notice.NewNoticeCmd(m.env,
 		title, message, notice.NOTICE_INFO)
 }
 
 func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
-		return m, nil
-	}
-
 	switch msg := msg.(type) {
 	case MsgRefresh:
 		return m, m.RefreshCmd
@@ -52,7 +46,7 @@ func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		return m, nil
 
 	case msgError:
-		return m, notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log}, "Error", msg.err.Error(), notice.NOTICE_ERROR)
+		return m, notice.NewNoticeCmd(m.env, "Error", msg.err.Error(), notice.NOTICE_ERROR)
 
 	case MsgActionTrigger:
 		return m, m.dispatchAction(msg.ActionType)
@@ -88,7 +82,7 @@ func (m *Model[T]) replaceItems(items []T) {
 }
 
 func (m *Model[T]) requestDeletion(item T) tea.Cmd {
-	return confirm.ConfirmCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log},
+	return confirm.ConfirmCmd(m.env,
 		fmt.Sprintf("Delete %s '%s'?", m.source.Title(), m.source.Identity(item)),
 		tea.Sequence(m.hooks.OnDelete(item), func() tea.Msg { return MsgRefresh{} }),
 		false,
@@ -101,7 +95,7 @@ func (m *Model[T]) requestRename(item T) tea.Cmd {
 	current := m.source.Identity(item)
 	rename := m.hooks.OnRename
 
-	inp := textinput.New(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log},
+	inp := textinput.New(m.env,
 		fmt.Sprintf("Enter new name for %s:", m.source.Title()),
 		textinput.WithPlaceholder("new name"),
 		textinput.WithValue(current),

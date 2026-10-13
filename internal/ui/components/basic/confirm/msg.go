@@ -17,19 +17,19 @@ func ConfirmHints(k keys.Keys) keys.Hints {
 
 // ExitConfirmCmd returns a command that opens the exit confirmation dialog.
 // Confirming the dialog quits the application.
-func ExitConfirmCmd(deps ui.Deps, options ...dialog.DialogOption) tea.Cmd {
+func ExitConfirmCmd(env *ui.Env, options ...dialog.DialogOption) tea.Cmd {
 	return func() tea.Msg {
 		opts := []dialog.DialogOption{
 			dialog.WithPosition(dialog.Center, dialog.Top),
 			dialog.WithOffset(0, 1),
 			dialog.WithTitle("Exit"),
-			dialog.WithHints(ConfirmHints(deps.Keys)...),
+			dialog.WithHints(ConfirmHints(*env.Keys)...),
 		}
 		opts = append(opts, options...)
 
 		return dialog.OpenDialog(
 			New(
-				deps,
+				env,
 				"Are you sure you want to exit?",
 				tea.Quit,
 				false,
@@ -41,7 +41,7 @@ func ExitConfirmCmd(deps ui.Deps, options ...dialog.DialogOption) tea.Cmd {
 
 // ConfirmCmd opens a confirmation dialog and runs confirm when accepted.
 func ConfirmCmd(
-	deps ui.Deps,
+	env *ui.Env,
 	message string,
 	confirm tea.Cmd,
 	defaultYes bool,
@@ -51,13 +51,13 @@ func ConfirmCmd(
 		opts := []dialog.DialogOption{
 			dialog.WithPosition(dialog.Center, dialog.Top),
 			dialog.WithOffset(0, 1),
-			dialog.WithHints(ConfirmHints(deps.Keys)...),
+			dialog.WithHints(ConfirmHints(*env.Keys)...),
 		}
 		opts = append(opts, options...)
 
 		return dialog.OpenDialog(
 			New(
-				deps,
+				env,
 				message,
 				confirm,
 				defaultYes,

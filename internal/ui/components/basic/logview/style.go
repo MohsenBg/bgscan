@@ -10,7 +10,7 @@ func (m *Model) titleStyle(width int) lipgloss.Style {
 		Align(lipgloss.Center, lipgloss.Center).
 		Bold(true).
 		Border(lipgloss.NormalBorder(), false, false, true, false).
-		BorderForeground(m.state.Theme().BorderActive)
+		BorderForeground(m.env.Theme.BorderActive)
 }
 
 func ContainerStyle(width int) lipgloss.Style {
@@ -27,33 +27,33 @@ func (m *Model) borderStyle(width int) lipgloss.Style {
 		Width(width).
 		Align(lipgloss.Left).
 		Border(lipgloss.RoundedBorder(), true, true, true, true).
-		BorderForeground(m.state.Theme().Secondary)
+		BorderForeground(m.env.Theme.Secondary)
 }
 
 func (m *Model) helpStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width-5).
-		Foreground(m.state.Theme().Muted).
+		Foreground(m.env.Theme.Muted).
 		Align(lipgloss.Center, lipgloss.Center).
 		Padding(1)
 }
 
 func (m *Model) helpKeyStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.state.Theme().Secondary).
+		Foreground(m.env.Theme.Secondary).
 		Bold(true)
 }
 
 // scrollBarStyle returns the style for the scroll bar track.
 func (m *Model) scrollBarStyle() lipgloss.Style {
 	return lipgloss.NewStyle().Align(lipgloss.Center, lipgloss.Center).
-		Foreground(m.state.Theme().Muted)
+		Foreground(m.env.Theme.Muted)
 }
 
 // scrollBarThumbStyle returns the style for the scroll bar thumb.
 func (m *Model) scrollBarThumbStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.state.Theme().Primary)
+		Foreground(m.env.Theme.Primary)
 }
 
 // TitleStyle keeps backward compatibility.

@@ -8,7 +8,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/formkit"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -24,8 +23,7 @@ type Model struct {
 // New creates the TheFeed config form, either for a new config or to edit an
 // existing one described by original.
 func New(
-	l *layout.Layout,
-	state *ui.AppState,
+	session *ui.Session,
 	original *dns.DNSTunConfigFile,
 ) (*Model, error) {
 	cfg := dns.DefaultTheFeedConfig()
@@ -41,7 +39,7 @@ func New(
 	}
 
 	m := &Model{cfg: &cfg}
-	m.Base = formkit.NewBase(l, state, name, originalName, formkit.WithMaxHeight(35))
+	m.Base = formkit.NewBase(session, name, originalName, formkit.WithMaxHeight(35))
 	m.buildForm(original)
 
 	return m, nil
@@ -64,17 +62,17 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
 
-	configName := formkit.ConfigNameField(m.State().Deps(), m.Name(), m.SetName)
-	domain := formkit.StringField(m.State().Deps(), cfg, "Enter domain", "domain",
+	configName := formkit.ConfigNameField(m.Session().Env(), m.Name(), m.SetName)
+	domain := formkit.StringField(m.Session().Env(), cfg, "Enter domain", "domain",
 		func(c dns.TheFeedConfig) string { return c.Domain },
 		func(c *dns.TheFeedConfig, v string) { c.Domain = strings.TrimSpace(v) },
 	)
-	passphrase := formkit.StringField(m.State().Deps(), cfg, "Enter passphrase", "passphrase",
+	passphrase := formkit.StringField(m.Session().Env(), cfg, "Enter passphrase", "passphrase",
 		func(c dns.TheFeedConfig) string { return c.Passphrase },
 		func(c *dns.TheFeedConfig, v string) { c.Passphrase = strings.TrimSpace(v) },
 	)
 
-	resType, resPort := formkit.ResolverTypePort(m.State().Deps(), cfg, m.Refresh,
+	resType, resPort := formkit.ResolverTypePort(m.Session().Env(), cfg, m.Refresh,
 		func(c dns.TheFeedConfig) dns.ResolverType { return c.ResolverType },
 		func(c *dns.TheFeedConfig, v dns.ResolverType) { c.ResolverType = v },
 		func(c dns.TheFeedConfig) uint16 { return c.ResolverPort },
@@ -82,7 +80,7 @@ func (m *Model) buildInspector() *inspector.Model {
 	)
 
 	queryMode := selectinput.New(
-		m.State().Deps(), "Select query mode",
+		m.Session().Env(), "Select query mode",
 		selectinput.WithValue(cfg.QueryMode),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -112,7 +110,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		{Name: "Query Mode", Description: formkit.DescQueryMode, Group: formkit.GroupConnection, Input: inspector.Adapt(queryMode), Visible: formkit.AlwaysVisible},
 	}
 
-	return inspector.New(m.State().Deps(), "thefeed config", fields)
+	return inspector.New(m.Session().Env(), "thefeed config", fields)
 }
 
 func (m *Model) saveConfig() tea.Msg {

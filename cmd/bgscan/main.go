@@ -18,17 +18,24 @@ func main() {
 		return
 	}
 
-	logs, err := logger.NewSet()
-	if err != nil {
+	coreLogger, err := logger.New("core.log")
+	if err != nil || coreLogger == nil {
 		fmt.Fprintf(os.Stderr, "warning: log files unavailable: %v\n", err)
-		logs = logger.DiscardSet()
+		coreLogger = logger.Discard()
 	}
 
-	defer logs.Close()
+	uiLogger, err := logger.New("ui.log")
+	if err != nil || uiLogger == nil {
+		fmt.Fprintf(os.Stderr, "warning: log files unavailable: %v\n", err)
+		uiLogger = logger.Discard()
+	}
+
+	defer coreLogger.Close()
+	defer uiLogger.Close()
 
 	config.AppVersion = Version
 
-	app := app.New(logs)
+	app := app.New(*uiLogger, *coreLogger)
 	p := tea.NewProgram(app)
 	app.SetProgram(p)
 

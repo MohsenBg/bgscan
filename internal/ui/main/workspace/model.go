@@ -5,7 +5,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/main/body"
 	"github.com/MohsenBg/bgscan/internal/ui/main/footer"
 	"github.com/MohsenBg/bgscan/internal/ui/main/header"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,9 +12,9 @@ import (
 
 // model is the root layout component.
 type model struct {
-	id    ui.ComponentID
-	name  string
-	state *ui.AppState
+	id      ui.ComponentID
+	name    string
+	session *ui.Session
 
 	header ui.Component
 	body   ui.Component
@@ -23,14 +22,15 @@ type model struct {
 }
 
 // New builds the workspace root component.
-func New(state *ui.AppState) ui.Component {
+func New(session *ui.Session) ui.Component {
+	env := session.Env()
 	return &model{
-		id:     ui.NewComponentID(),
-		name:   "workspace",
-		state:  state,
-		header: header.New(state.Deps()),
-		body:   body.New(state),
-		footer: footer.New(state.Deps()),
+		id:      ui.NewComponentID(),
+		name:    "workspace",
+		session: session,
+		header:  header.New(env),
+		body:    body.New(session),
+		footer:  footer.New(env),
 	}
 }
 
@@ -38,7 +38,7 @@ func (m *model) ID() ui.ComponentID { return m.id }
 func (m *model) Name() string       { return m.name }
 
 // Mode returns the workspace mode.
-func (m *model) Mode() env.Mode { return env.NormalMode }
+func (m *model) Mode() ui.KeyMode { return ui.KeyModeNormal }
 
 func (m *model) Init() tea.Cmd {
 	return tea.Batch(m.header.Init(), m.body.Init(), m.footer.Init())

@@ -3,8 +3,8 @@ package table
 import "github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 
 func (m *Model) longHits(extra ...keys.Hint) keys.Hints {
-	k := m.keys.Table
-	g := m.keys.Global
+	k := m.env.Keys.Table
+	g := m.env.Keys.Global
 
 	hints := keys.Long(
 		k.Up,
@@ -26,8 +26,8 @@ func (m *Model) longHits(extra ...keys.Hint) keys.Hints {
 }
 
 func (m *Model) shortHits(extra ...keys.Hint) keys.Hints {
-	k := m.keys.Table
-	g := m.keys.Global
+	k := m.env.Keys.Table
+	g := m.env.Keys.Global
 
 	hints := keys.Hints{
 		keys.Combine("move", k.Up, k.Down),

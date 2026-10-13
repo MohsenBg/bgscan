@@ -14,7 +14,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/tabs"
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/ipviewer"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
@@ -36,10 +35,10 @@ const (
 // Model is the scanner screen. It owns the stage lifecycle, progress UI,
 // tabbed stage navigation, and aggregated results.
 type Model struct {
-	id    ui.ComponentID
-	name  string
-	state *ui.AppState
-	tabs  ui.Component
+	id      ui.ComponentID
+	name    string
+	session *ui.Session
+	tabs    ui.Component
 
 	scn        scanner.Scanner
 	stages     []scanner.StageConfig
@@ -63,14 +62,14 @@ type Model struct {
 }
 
 // New builds the scanner model and wires stage hooks for progress/result updates.
-func New(state *ui.AppState, maxIPs int, scn scanner.Scanner) *Model {
+func New(session *ui.Session, maxIPs int, scn scanner.Scanner) *Model {
 	stages := scn.GetStages()
 	n := len(stages)
 
 	m := &Model{
 		id:           ui.NewComponentID(),
 		name:         "Scanner",
-		state:        state,
+		session:      session,
 		scn:          scn,
 		stages:       stages,
 		stageCount:   n,
@@ -85,15 +84,15 @@ func New(state *ui.AppState, maxIPs int, scn scanner.Scanner) *Model {
 
 	tabsList := make([]tabs.Tab[int], n)
 	for i, stage := range stages {
-		m.ipViewers[i] = createIPViewer(m.state, stage.Probe.Schema())
-		m.progress[i] = progress.New(m.state.Deps())
+		m.ipViewers[i] = createIPViewer(session, stage.Probe.Schema())
+		m.progress[i] = progress.New(session.Env())
 		m.results[i] = make([]result.Result, 0, maxIPs)
 		m.batch[i] = make([]result.Result, 0, 128)
 		m.status[i] = StatusWaiting
 		tabsList[i] = tabs.NewTab(stage.Probe.Schema().Name, i)
 	}
 
-	m.tabs = tabs.New(m.state.Deps(), tabsList, func(idx int, _ tabs.Tab[int]) tea.Cmd {
+	m.tabs = tabs.New(session.Env(), tabsList, func(idx int, _ tabs.Tab[int]) tea.Cmd {
 		m.currentTab = idx
 		return m.immediateTick()
 	})
@@ -104,7 +103,7 @@ func New(state *ui.AppState, maxIPs int, scn scanner.Scanner) *Model {
 
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
-func (m *Model) Mode() env.Mode     { return env.ManagedMode }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeManage }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
 // Init registers scanner hooks and starts the scan run plus periodic UI ticks.
@@ -157,8 +156,9 @@ func (m *Model) recalcTableSizes() {
 	if m.closing {
 		return
 	}
-	availableWidth := min(90, m.state.Layout.BodyContentWidth())
-	availableHeight := m.state.Layout.BodyContentHeight()
+	env := m.session.Env()
+	availableWidth := min(90, env.Layout.Body().Width)
+	availableHeight := env.Layout.Body().Height
 
 	tabsHeight := lipgloss.Height(m.tabs.View())
 	progressHeight := lipgloss.Height(m.renderProgress(m.currentTab))
@@ -272,7 +272,7 @@ func (m *Model) currentProgress() float64 {
 }
 
 func (m *Model) tick() tea.Cmd {
-	return tea.Tick(m.state.Config.General.StatusInterval.Duration(), func(time.Time) tea.Msg { return tickMsg{} })
+	return tea.Tick(m.session.Config.General.StatusInterval.Duration(), func(time.Time) tea.Msg { return tickMsg{} })
 }
 
 func (m *Model) immediateTick() tea.Cmd {
@@ -280,10 +280,11 @@ func (m *Model) immediateTick() tea.Cmd {
 }
 
 func (m *Model) forceResize() tea.Cmd {
+	term := m.session.Env().Layout.Terminal()
 	return func() tea.Msg {
 		return tea.WindowSizeMsg{
-			Width:  m.state.Layout.Terminal.Width,
-			Height: m.state.Layout.Terminal.Height,
+			Width:  term.Width,
+			Height: term.Height,
 		}
 	}
 }
@@ -306,24 +307,26 @@ func (m *Model) asyncClose() tea.Cmd {
 
 func (m *Model) openLogViewer() tea.Cmd {
 	return func() tea.Msg {
-		v := logview.New(m.state, m.state.Log.Core, "core logs")
-		v.SetContainerWidth(min(80, m.state.Layout.Body.Width))
+		env := m.session.Env()
+		coreLog := m.session.CoreLog()
+		v := logview.New(env, &coreLog, "core logs")
+		v.SetContainerWidth(min(80, env.Layout.Body().Width))
 		v.SetShowBorder(false)
 		return dialog.OpenDialog(v)
 	}
 }
 
 func (m *Model) errorCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(m.state.Deps(), title, message, notice.NOTICE_ERROR)
+	return notice.NewNoticeCmd(m.session.Env(), title, message, notice.NOTICE_ERROR)
 }
 
-func createIPViewer(state *ui.AppState, schema result.ResultSchema) ui.Component {
+func createIPViewer(session *ui.Session, schema result.ResultSchema) ui.Component {
 	// The viewer only renders rows; the scan screen owns the actual
 	// shortcuts. These hints advertise where to find them.
-	k := state.Deps().Keys
+	k := session.Env().Keys
 
-	viewer := ipviewer.New(state.Deps(), "Results", nil, schema,
-		ipviewer.WithMaxRow(state.Settings.MaxRow),
+	viewer := ipviewer.New(session, "Results", nil, schema,
+		ipviewer.WithMaxRow(session.Settings.MaxRow),
 		ipviewer.WithShortHints(
 			keys.Short(k.Nav.NextTab, k.Scan.TogglePause, k.Scan.ToggleLogs)...,
 		),

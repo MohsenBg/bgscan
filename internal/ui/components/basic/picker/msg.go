@@ -19,7 +19,7 @@ type OnSelect func(path string) tea.Cmd
 // is executed.
 //
 // Parameters:
-//   - deps        : shared UI dependencies (layout, theme, logs)
+//   - env         : shared UI environment (layout, theme, keys, log)
 //   - title       : title displayed in the picker header
 //   - baseDir     : initial directory (defaults to home directory if empty)
 //   - allowedExt  : list of allowed file extensions (e.g. ".txt", ".csv")
@@ -28,7 +28,7 @@ type OnSelect func(path string) tea.Cmd
 //
 // The picker is centered by default unless overridden via options.
 func OpenFilePickerCmd(
-	deps ui.Deps,
+	env *ui.Env,
 	title string,
 	baseDir string,
 	allowedExt []string,
@@ -36,7 +36,7 @@ func OpenFilePickerCmd(
 	options ...dialog.DialogOption,
 ) tea.Cmd {
 	return func() tea.Msg {
-		p := New(deps, title, baseDir, allowedExt, onSelect)
+		p := New(env, title, baseDir, allowedExt, onSelect)
 
 		return dialog.OpenDialog(
 			p,

@@ -14,13 +14,9 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/help"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"github.com/dustin/go-humanize"
 )
@@ -52,14 +48,11 @@ type Model struct {
 	id   ui.ComponentID
 	name string
 
-	title  string
-	layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
-	help   ui.Component
+	title string
+	env   *ui.Env
+	help  ui.Component
 
 	bubble table.Model
-	keys   keys.Keys
 
 	additionalShortHints []keys.Hint
 	additionalLongHints  []keys.Hint
@@ -92,14 +85,6 @@ type Option func(*Model)
 
 func WithTitle(title string) Option {
 	return func(m *Model) { m.title = title }
-}
-
-func WithLayout(l *layout.Layout) Option {
-	return func(m *Model) { m.layout = l }
-}
-
-func WithKeys(k keys.Keys) Option {
-	return func(m *Model) { m.keys = keys.OrDefault(k) }
 }
 
 func WithColumns(cols []table.Column) Option {
@@ -167,16 +152,11 @@ func WithUnsortableColumns(cols ...int) Option {
 	}
 }
 
-func New(deps ui.Deps, opts ...Option) *Model {
-	deps.Keys = keys.OrDefault(deps.Keys)
-
+func New(env *ui.Env, opts ...Option) *Model {
 	m := &Model{
 		id:             ui.NewComponentID(),
 		name:           "table",
-		layout:         deps.Layout,
-		theme:          deps.Theme,
-		log:            deps.Log,
-		keys:           deps.Keys,
+		env:            env,
 		sortCol:        -1,
 		sortAsc:        true,
 		emptyMessage:   "No data to display.",
@@ -193,13 +173,6 @@ func New(deps ui.Deps, opts ...Option) *Model {
 		opt(m)
 	}
 
-	m.keys = keys.OrDefault(m.keys)
-
-	// Keep deps synchronized so help and other shared components use the
-	// final table configuration.
-	deps.Keys = m.keys
-	deps.Layout = m.layout
-
 	if m.originalCols == nil {
 		m.originalCols = []table.Column{}
 	}
@@ -209,7 +182,7 @@ func New(deps ui.Deps, opts ...Option) *Model {
 	}
 
 	m.help = help.New(
-		deps,
+		env,
 		m.title,
 		help.HelpSet{
 			Short: m.shortHits(m.additionalShortHints...),
@@ -231,22 +204,6 @@ func New(deps ui.Deps, opts ...Option) *Model {
 	return m
 }
 
-func (m *Model) Theme() *theme.Theme {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.theme
-}
-
-// SetTheme swaps the palette and rebuilds cached styles.
-func (m *Model) SetTheme(th *theme.Theme) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.theme = th
-	m.applyStylesLocked()
-}
-
 func (m *Model) Init() tea.Cmd {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -266,15 +223,15 @@ func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Mode() env.Mode {
+func (m *Model) Mode() ui.KeyMode {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	if m.loading || m.filtering || m.filterValue() != "" {
-		return env.ManagedMode
+		return ui.KeyModeManage
 	}
 
-	return env.NormalMode
+	return ui.KeyModeNormal
 }
 
 // Title returns the table title.
@@ -291,32 +248,6 @@ func (m *Model) SetTitle(title string) {
 	defer m.mu.Unlock()
 
 	m.title = title
-}
-
-// Layout returns the layout used by the table.
-// Treat the returned pointer as read-only.
-func (m *Model) Layout() *layout.Layout {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.layout
-}
-
-// SetLayout updates layout and recalculates table size.
-func (m *Model) SetLayout(l *layout.Layout) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.layout = l
-	m.updateTableSizeLocked()
-}
-
-// Keys returns the key binding set used by the table.
-func (m *Model) Keys() keys.Keys {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.keys
 }
 
 // SelectedRow returns a copy of the selected visible row.
@@ -759,12 +690,12 @@ func (m *Model) updateTableSizeLocked() {
 	case m.height > 0:
 		total = m.height
 
-	case m.layout != nil && m.layout.Body.Height > 0:
+	case m.env.Layout.Body().Height > 0:
 		total = max(
 			tableMinHeight,
 			rows+2+helpHeight+titleHeight+paddingVertical*2,
 		)
-		total = min(total, m.layout.Body.Height)
+		total = min(total, m.env.Layout.Body().Height)
 
 	default:
 		total = max(
@@ -799,8 +730,8 @@ func (m *Model) tableWidthLocked() int {
 	case m.width > 0:
 		w = m.width
 
-	case m.layout != nil && m.layout.Body.Width > 0:
-		w = max(10, m.layout.BodyContentWidth()-paddingHorizontal)
+	case m.env.Layout.Body().Width > 0:
+		w = max(10, m.env.Layout.Body().Width-paddingHorizontal)
 
 	default:
 		w = tableMinWidth

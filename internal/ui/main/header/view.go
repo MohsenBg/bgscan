@@ -12,5 +12,6 @@ var bannerStr = strings.TrimSpace(`
 `)
 
 func (m Model) View() string {
-	return m.bannerStyle(m.layout.Header.Width, m.layout.Header.Height).Render(bannerStr)
+	term := m.env.Layout.Header()
+	return m.bannerStyle(term.Width, term.Height).Render(bannerStr)
 }

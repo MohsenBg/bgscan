@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	"charm.land/bubbles/v2/viewport"
@@ -22,7 +21,7 @@ type Model struct {
 	name  string
 	title string
 
-	state *ui.AppState
+	env *ui.Env
 
 	padding           int
 	containerMaxWidth int
@@ -45,21 +44,21 @@ type Model struct {
 	inDialog bool
 }
 
-func New(state *ui.AppState, log *logger.Logger, title string) *Model {
+func New(env *ui.Env, log *logger.Logger, title string) *Model {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	m := &Model{
 		id:         ui.NewComponentID(),
 		name:       title,
 		title:      title,
-		state:      state,
+		env:        env,
 		logger:     log,
 		maxMessage: 200,
 
 		viewport: viewport.New(),
 
 		padding:           5,
-		containerMaxWidth: state.Layout.Body.Width - 10,
+		containerMaxWidth: env.Layout.Body().Width - 10,
 		showBorder:        true,
 
 		ctx:    ctx,
@@ -119,10 +118,14 @@ func (m *Model) readLogs() {
 	}
 }
 
+// tickInterval is the cadence of viewport refreshes draining the
+// background log buffer into the UI.
+const tickInterval = time.Second
+
 // tick schedules periodic UI refreshes.
 func (m *Model) tick() tea.Cmd {
 	return tea.Tick(
-		m.state.Config.General.StatusInterval.Duration(),
+		tickInterval,
 		func(time.Time) tea.Msg {
 			return LogUpdateTickMsg{}
 		},
@@ -135,7 +138,7 @@ func (m *Model) setSize() {
 
 	m.containerWidth = min(
 		m.containerMaxWidth,
-		m.state.Layout.Body.Width-10,
+		m.env.Layout.Body().Width-10,
 	)
 
 	width := min(maxViewportWidth, m.containerWidth-2)
@@ -145,7 +148,7 @@ func (m *Model) setSize() {
 		m.helpStyle(m.viewport.Width()).Render(m.helpView()),
 	)
 
-	height := m.state.Layout.Body.Height -
+	height := m.env.Layout.Body().Height -
 		m.padding -
 		lipgloss.Height(m.title) -
 		helpHeight
@@ -161,8 +164,8 @@ func (m *Model) Name() string {
 }
 
 // Mode defines the input mode used by this component.
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeNormal
 }
 
 // SetInDialog marks the viewer as hosted inside a dialog frame.

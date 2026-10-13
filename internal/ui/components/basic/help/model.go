@@ -9,10 +9,8 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
 const (
@@ -51,27 +49,24 @@ type Model struct {
 	longHelpWidth  int
 	longHelpHeight int
 
-	vp   viewport.Model
-	deps ui.Deps
+	vp  viewport.Model
+	env *ui.Env
 }
 
 type Option func(*Model)
 
 // New creates a help component.
-func New(deps ui.Deps, title string, set HelpSet, opts ...Option) *Model {
-	// Layout is optional: a caller that has not been sized yet still gets
-	// a usable component, and the first resize corrects the width.
-	width := 1
-	if deps.Layout != nil {
-		width = max(1, deps.Layout.BodyContentWidth())
-	}
+func New(env *ui.Env, title string, set HelpSet, opts ...Option) *Model {
+	// The layout always carries dimensions (falling back to 80x35), so
+	// the initial width is usable before the first resize.
+	width := max(1, env.Layout.Body().Width)
 
 	m := &Model{
 		id:              ui.NewComponentID(),
 		title:           title,
 		mode:            ShortHelp,
 		help:            set,
-		deps:            deps,
+		env:             env,
 		shortHelpWidth:  width,
 		shortHelpHeight: defaultShortHelpHeight,
 		shortWidthAuto:  true,
@@ -94,7 +89,7 @@ func (m *Model) ID() ui.ComponentID { return m.id }
 
 func (m *Model) Init() tea.Cmd { return nil }
 
-func (m *Model) Mode() env.Mode { return env.NormalMode }
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
 
 func (m *Model) Name() string {
 	return "help/" + string(m.mode) + "/" + m.title
@@ -125,10 +120,8 @@ func WithLongHelpHeight(height int) Option {
 	return func(m *Model) { m.longHelpHeight = max(1, height) }
 }
 
-// SetTheme updates the theme and rebuilds long help when needed.
-func (m *Model) SetTheme(t *theme.Theme) {
-	m.deps.Theme = t
-
+// rebuild refreshes the long-help viewport from the live theme.
+func (m *Model) rebuild() {
 	if m.mode == LongHelp {
 		m.initViewport()
 	}
@@ -142,7 +135,7 @@ func (m *Model) SetShortWidth(w int) {
 
 func (m *Model) longViewportWidth() int {
 	width := m.longHelpWidth - framePaddingHorizontal
-	if body := m.deps.Layout.BodyContentWidth(); body > 0 {
+	if body := m.env.Layout.Body().Width; body > 0 {
 		width = min(width, body)
 	}
 	return max(1, width)
@@ -150,7 +143,7 @@ func (m *Model) longViewportWidth() int {
 
 func (m *Model) longViewportHeight() int {
 	height := m.longHelpHeight - framePaddingVertical
-	if body := m.deps.Layout.BodyContentHeight(); body > 0 {
+	if body := m.env.Layout.Body().Height; body > 0 {
 		height = min(height, body)
 	}
 	return max(1, height)
@@ -212,7 +205,7 @@ func (m *Model) updateViewportSize() {
 func (m *Model) openDialogFullHelp() tea.Msg {
 	return dialog.OpenDialog(
 		New(
-			m.deps,
+			m.env,
 			m.title,
 			m.help,
 			WithMode(LongHelp),

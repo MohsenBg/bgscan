@@ -1,11 +1,7 @@
 package notice
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -27,9 +23,7 @@ type Model struct {
 	id   ui.ComponentID
 	name string
 
-	layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
+	env *ui.Env
 
 	noticeType LEVEL
 	message    string
@@ -49,15 +43,13 @@ type Model struct {
 
 // New displays a titled message, scrolling when it exceeds the viewport
 // height.
-func New(deps ui.Deps, title, message string, level LEVEL) *Model {
+func New(env *ui.Env, title, message string, level LEVEL) *Model {
 	v := viewport.New()
 
 	m := &Model{
 		id:         ui.NewComponentID(),
 		name:       "Notice",
-		layout:     deps.Layout,
-		theme:      deps.Theme,
-		log:        deps.Log,
+		env:        env,
 		noticeType: level,
 		message:    message,
 		title:      title,
@@ -92,20 +84,12 @@ func (m *Model) OnClose() tea.Cmd {
 
 // Width is clamped to avoid excessively wide dialogs.
 func (m *Model) Width() int {
-	if m.layout == nil {
-		return 50
-	}
-
-	return min(50, m.layout.Body.Width)
+	return min(50, m.env.Layout.Body().Width)
 }
 
 // Height is constrained so the notice never fills the screen.
 func (m *Model) Height() int {
-	if m.layout == nil {
-		return 20
-	}
-
-	return min(50, m.layout.Body.Height)
+	return min(50, m.env.Layout.Body().Height)
 }
 
 // UpdateSize recomputes viewport dimensions from the current layout;
@@ -142,12 +126,8 @@ func (m *Model) CloseCmd() tea.Cmd {
 	}
 }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
-
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeNormal
 }
 
 // SetInDialog moves the notice's title and continue hint into the dialog

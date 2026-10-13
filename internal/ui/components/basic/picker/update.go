@@ -9,13 +9,10 @@ import (
 // Update handles terminal resize, forwards messages to the file picker,
 // and closes the overlay after a successful selection.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
-		return m, nil
-	}
 	var cmds []tea.Cmd
 
 	if _, ok := msg.(tea.WindowSizeMsg); ok {
-		m.FilePicker.SetHeight(pickerHeight(m.Layout))
+		m.FilePicker.SetHeight(pickerHeight(m.env))
 	}
 
 	var cmd tea.Cmd

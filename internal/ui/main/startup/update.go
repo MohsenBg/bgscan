@@ -7,12 +7,12 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
 func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if _, ok := msg.(ui.ThemeChangedMsg); ok {
-		ui.SyncState(msg, m.state)
-		m.progressBar = rebuildProgressBar(m.state, m.progressBar)
+	if _, ok := msg.(theme.ThemeChanged); ok {
+		m.progressBar = rebuildProgressBar(m.session, m.progressBar)
 		m.spinner.Style = m.spinnerStyle()
 
 		var cmd tea.Cmd
@@ -53,9 +53,9 @@ func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		return m, listenForLogs(m.logCh)
 
 	case configLoadedMsg:
-		if m.state != nil {
-			m.state.Config = t.cfg
-			m.state.Store = t.store
+		if m.session != nil {
+			m.session.Config = t.cfg
+			m.session.Store = t.store
 		}
 
 		return m, nil
@@ -83,8 +83,8 @@ func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		return m, cmd
 
 	case tea.WindowSizeMsg:
-		if m.state != nil && m.state.Layout != nil {
-			m.applyLayout(m.state.Layout)
+		if m.session != nil {
+			m.applyLayout(m.session.Env().Layout)
 		}
 
 		m.syncViewport()
@@ -94,15 +94,16 @@ func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		if m.state == nil {
+		if m.session == nil {
 			break
 		}
 
-		k := m.state.Deps().Keys
+		env := m.session.Env()
+		k := env.Keys
 
 		switch {
 		case k.Global.Quit.Matches(t):
-			return m, confirm.ExitConfirmCmd(m.state.Deps())
+			return m, confirm.ExitConfirmCmd(env)
 
 		case k.Nav.Up.Matches(t):
 			m.viewport.ScrollUp(1)

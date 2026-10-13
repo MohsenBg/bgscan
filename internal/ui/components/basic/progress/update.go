@@ -2,6 +2,7 @@ package progress
 
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"
@@ -10,7 +11,8 @@ import (
 // Update resizes the bar on terminal resize, advances the animation, and
 // applies UpdateProgressMsg to set the current percentage.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
+	if _, ok := msg.(theme.ThemeChanged); ok {
+		m.rebuild()
 		return m, nil
 	}
 	switch msg := msg.(type) {

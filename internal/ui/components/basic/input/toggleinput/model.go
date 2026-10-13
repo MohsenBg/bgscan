@@ -1,11 +1,8 @@
 package toggleinput
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
@@ -21,10 +18,7 @@ type Model struct {
 	id   ui.ComponentID
 	name string
 
-	layout *layout.Layout
-
-	theme *theme.Theme
-	log   logger.Set
+	env *ui.Env
 
 	title    string
 	errorMsg string
@@ -47,16 +41,14 @@ type Model struct {
 }
 
 func New(
-	deps ui.Deps,
+	env *ui.Env,
 	title string,
 	options ...Option,
 ) input.Input[bool] {
 	m := &Model{
 		id:     ui.NewComponentID(),
 		name:   "toggle",
-		layout: deps.Layout,
-		theme:  deps.Theme,
-		log:    deps.Log,
+		env:    env,
 		title:  title,
 		affirm: "Yes",
 		negate: "No",
@@ -67,7 +59,7 @@ func New(
 		Value(&m.value)
 
 	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
-	m.huhInput.WithTheme(theme.NewHuhTheme(m.theme))
+	m.huhInput.WithTheme(theme.NewHuhTheme(&m.env.Theme))
 	for _, opt := range options {
 		opt(m)
 	}
@@ -138,7 +130,7 @@ func (m *Model) ID() ui.ComponentID { return m.id }
 
 func (m *Model) Name() string { return m.name }
 
-func (m *Model) Mode() env.Mode { return env.NormalMode }
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
 
 // SetInDialog moves the input's title and key hints into the dialog
 // frame's border lines.
@@ -156,10 +148,7 @@ func (m *Model) Hints() []keys.Hint {
 }
 
 func (m *Model) Width() int {
-	if m.layout == nil {
-		return 50
-	}
-	return min(50, m.layout.Body.Width)
+	return min(50, m.env.Layout.Body().Width)
 }
 
 func (m *Model) CloseCmd() tea.Cmd {
@@ -170,18 +159,15 @@ func (m *Model) CloseCmd() tea.Cmd {
 
 func (m *Model) OnClose() tea.Cmd { return nil }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-// SetTheme rebuilds the huh field: huh's WithTheme is set-once and ignores
-// later calls, so a fresh field is built preserving value, labels and
-// focus.
-func (m *Model) SetTheme(th *theme.Theme) {
-	m.theme = th
+// rebuild recreates the huh field from the live theme: huh's WithTheme is
+// set-once and ignores later calls, so a fresh field is built preserving
+// value, labels and focus.
+func (m *Model) rebuild() {
 	m.huhInput = huh.NewConfirm().
 		Title(m.title).
 		Value(&m.value)
 	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
-	m.huhInput.WithTheme(theme.NewHuhTheme(th))
+	m.huhInput.WithTheme(theme.NewHuhTheme(&m.env.Theme))
 	inp := m.huhInput.
 		Affirmative(m.affirm).
 		Negative(m.negate).

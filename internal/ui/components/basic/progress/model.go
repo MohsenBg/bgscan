@@ -1,11 +1,7 @@
 package progress
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"
@@ -22,21 +18,19 @@ type Model struct {
 	id   ui.ComponentID
 	name string
 
-	layout   *layout.Layout
-	theme    *theme.Theme
-	log      logger.Set
+	env      *ui.Env
 	progress progress.Model
 
 	// percent represents the current progress value (0.0 → 1.0).
 	percent float64
 }
 
-func New(deps ui.Deps) *Model {
+func New(env *ui.Env) *Model {
 	p := progress.New(
 		progress.WithScaled(true),
 		progress.WithColors(
-			deps.Theme.ProgressStart,
-			deps.Theme.ProgressEnd,
+			env.Theme.ProgressStart,
+			env.Theme.ProgressEnd,
 		),
 	)
 
@@ -44,9 +38,7 @@ func New(deps ui.Deps) *Model {
 		id:       ui.NewComponentID(),
 		name:     "Progress",
 		progress: p,
-		layout:   deps.Layout,
-		theme:    deps.Theme,
-		log:      deps.Log,
+		env:      env,
 		percent:  0,
 	}
 
@@ -56,15 +48,12 @@ func New(deps ui.Deps) *Model {
 	return m
 }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-// SetTheme rebuilds the progress gradient.
-func (m *Model) SetTheme(th *theme.Theme) {
-	m.theme = th
+// rebuild recreates the progress gradient from the live theme.
+func (m *Model) rebuild() {
 	width := m.progress.Width()
 	p := progress.New(
 		progress.WithScaled(true),
-		progress.WithColors(th.ProgressStart, th.ProgressEnd),
+		progress.WithColors(m.env.Theme.ProgressStart, m.env.Theme.ProgressEnd),
 	)
 	p.SetWidth(width)
 	p.PercentFormat = m.progress.PercentFormat
@@ -80,7 +69,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Width() int {
-	width := min(m.layout.Body.Width, maxWidth)
+	width := min(m.env.Layout.Body().Width, maxWidth)
 	return width - padding*10
 }
 
@@ -96,6 +85,6 @@ func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeNormal
 }

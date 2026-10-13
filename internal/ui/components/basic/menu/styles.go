@@ -13,7 +13,7 @@ func resolveTheme(th *theme.Theme) *theme.Theme {
 	if th == nil {
 		fallback, err := theme.Get(theme.List()[0])
 		if err == nil {
-			return fallback
+			return &fallback
 		}
 
 		return &theme.Theme{}

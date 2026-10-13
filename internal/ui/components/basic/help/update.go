@@ -4,10 +4,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
+	if _, ok := msg.(theme.ThemeChanged); ok {
+		m.rebuild()
 		return m, nil
 	}
 
@@ -17,7 +19,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.mode == ShortHelp {
-			if m.deps.Keys.Global.Help.Matches(msg) {
+			if m.env.Keys.Global.Help.Matches(msg) {
 				return m, m.openDialogFullHelp
 			}
 
@@ -25,7 +27,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		}
 
 		if m.mode == LongHelp {
-			if m.deps.Keys.Global.Help.Matches(msg) {
+			if m.env.Keys.Global.Help.Matches(msg) {
 				return m, m.closeDialogFullHelp
 			}
 		}
@@ -47,6 +49,6 @@ func (m *Model) handleResize() {
 	}
 
 	if m.shortWidthAuto {
-		m.shortHelpWidth = max(1, m.deps.Layout.BodyContentWidth())
+		m.shortHelpWidth = max(1, m.env.Layout.Body().Width)
 	}
 }

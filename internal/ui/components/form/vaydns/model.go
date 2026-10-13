@@ -10,7 +10,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/formkit"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -34,8 +33,7 @@ type Model struct {
 // New creates the VayDNS config form, either for a new config or to edit an
 // existing one described by original.
 func New(
-	l *layout.Layout,
-	state *ui.AppState,
+	session *ui.Session,
 	original *dns.DNSTunConfigFile,
 ) (*Model, error) {
 	cfg := dns.DefaultVayDNSConfig()
@@ -51,7 +49,7 @@ func New(
 	}
 
 	m := &Model{cfg: &cfg}
-	m.Base = formkit.NewBase(l, state, name, originalName)
+	m.Base = formkit.NewBase(session, name, originalName)
 	m.buildForm(original)
 
 	return m, nil
@@ -74,19 +72,19 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
 
-	configName := formkit.ConfigNameField(m.State().Deps(), m.Name(), m.SetName)
-	domain := formkit.StringField(m.State().Deps(), cfg, "Enter domain", "domain",
+	configName := formkit.ConfigNameField(m.Session().Env(), m.Name(), m.SetName)
+	domain := formkit.StringField(m.Session().Env(), cfg, "Enter domain", "domain",
 		func(c dns.VayDNSConfig) string { return c.Domain },
 		func(c *dns.VayDNSConfig, v string) { c.Domain = strings.TrimSpace(v) },
 	)
-	pubKey := formkit.SecretField(m.State().Deps(), cfg, "Enter public key", "pub_key",
+	pubKey := formkit.SecretField(m.Session().Env(), cfg, "Enter public key", "pub_key",
 		func(c dns.VayDNSConfig) string { return c.PubKey },
 		func(c *dns.VayDNSConfig, v string) { c.PubKey = v },
 		textarea.WithNewlines(false),
 	)
 
 	recordType := selectinput.New(
-		m.State().Deps(), "Select record type",
+		m.Session().Env(), "Select record type",
 		selectinput.WithValue(string(cfg.RecordType)),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -114,44 +112,44 @@ func (m *Model) buildInspector() *inspector.Model {
 		}),
 	)
 
-	resType, resPort := formkit.ResolverTypePort(m.State().Deps(), cfg, m.Refresh,
+	resType, resPort := formkit.ResolverTypePort(m.Session().Env(), cfg, m.Refresh,
 		func(c dns.VayDNSConfig) dns.ResolverType { return c.ResolverType },
 		func(c *dns.VayDNSConfig, v dns.ResolverType) { c.ResolverType = v },
 		func(c dns.VayDNSConfig) uint16 { return c.ResolverPort },
 		func(c *dns.VayDNSConfig, v uint16) { c.ResolverPort = v },
 	)
-	fingerprint := formkit.FingerprintField(m.State().Deps(), cfg,
+	fingerprint := formkit.FingerprintField(m.Session().Env(), cfg,
 		func(c dns.VayDNSConfig) string { return c.Fingerprint },
 		func(c *dns.VayDNSConfig, v string) { c.Fingerprint = v },
 	)
 
-	clientIDSize := formkit.Uint16Field(m.State().Deps(), cfg, "Enter client ID size", "client_id_size",
+	clientIDSize := formkit.Uint16Field(m.Session().Env(), cfg, "Enter client ID size", "client_id_size",
 		func(c dns.VayDNSConfig) uint16 { return c.ClientIDSize },
 		func(c *dns.VayDNSConfig, v uint16) { c.ClientIDSize = v },
 		textinput.WithPlaceholder("1-8"),
 	)
-	maxQnameLen := formkit.Uint8Field(m.State().Deps(), cfg, "Enter max QNAME length", "max_qname_len",
+	maxQnameLen := formkit.Uint8Field(m.Session().Env(), cfg, "Enter max QNAME length", "max_qname_len",
 		func(c dns.VayDNSConfig) uint8 { return c.MaxQnameLen },
 		func(c *dns.VayDNSConfig, v uint8) { c.MaxQnameLen = v },
 		textinput.WithPlaceholder("0-253"),
 	)
-	maxNumLabels := formkit.Uint8Field(m.State().Deps(), cfg, "Enter max labels", "max_num_labels",
+	maxNumLabels := formkit.Uint8Field(m.Session().Env(), cfg, "Enter max labels", "max_num_labels",
 		func(c dns.VayDNSConfig) uint8 { return c.MaxNumLabels },
 		func(c *dns.VayDNSConfig, v uint8) { c.MaxNumLabels = v },
 		textinput.WithPlaceholder("0-4, 0=auto"),
 	)
-	mtu := formkit.Uint16Field(m.State().Deps(), cfg, "Enter MTU", "mtu",
+	mtu := formkit.Uint16Field(m.Session().Env(), cfg, "Enter MTU", "mtu",
 		func(c dns.VayDNSConfig) uint16 { return c.MTU },
 		func(c *dns.VayDNSConfig, v uint16) { c.MTU = v },
 		textinput.WithPlaceholder("0-1452 (0 - auto)"),
 	)
-	rps := formkit.FloatField(m.State().Deps(), cfg, "Enter requests per second", "rps",
+	rps := formkit.FloatField(m.Session().Env(), cfg, "Enter requests per second", "rps",
 		func(c dns.VayDNSConfig) float64 { return c.RPS },
 		func(c *dns.VayDNSConfig, v float64) { c.RPS = v },
 		textinput.WithPlaceholder("0 = unlimited"),
 	)
 
-	proxy, vis := formkit.BuildProxy(m.State().Deps(), cfg, m.Refresh,
+	proxy, vis := formkit.BuildProxy(m.Session().Env(), cfg, m.Refresh,
 		func(c dns.VayDNSConfig) dns.ResolverProxyType { return c.ProxyType },
 		func(c *dns.VayDNSConfig, v dns.ResolverProxyType) { c.ProxyType = v },
 		func(c dns.VayDNSConfig) uint16 { return c.ProxyPort },
@@ -190,7 +188,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		{Name: "Private Key", Description: formkit.DescPrivateKey, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.PrivateKey), Visible: vis.Key, Format: inspector.FormatPrivateKey},
 	}
 
-	return inspector.New(m.State().Deps(), "vaydns config", fields)
+	return inspector.New(m.Session().Env(), "vaydns config", fields)
 }
 
 func (m *Model) saveConfig() tea.Msg {

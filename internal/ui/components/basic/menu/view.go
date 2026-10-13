@@ -47,7 +47,7 @@ func (m *Model) View() string {
 			lipgloss.PlaceHorizontal(
 				innerWidth,
 				lipgloss.Center,
-				titleStyle(m.theme).Render(m.title),
+				titleStyle(&m.env.Theme).Render(m.title),
 			),
 			"",
 		}
@@ -149,7 +149,7 @@ func (m *Model) listLines(width, start, end int, markers bool) []string {
 
 // sidebarLines renders the item list next to a detail pane.
 func (m *Model) sidebarLines(width, visible, start, end int, markers bool) []string {
-	th := resolveTheme(m.theme)
+	th := resolveTheme(&m.env.Theme)
 
 	leftW := min(
 		max(width*sidebarLeftPct/100, minListWidth),
@@ -179,7 +179,7 @@ func (m *Model) sidebarLines(width, visible, start, end int, markers bool) []str
 
 // rowLine renders a single menu row.
 func (m *Model) rowLine(item MenuItem, i, width int) string {
-	th := resolveTheme(m.theme)
+	th := resolveTheme(&m.env.Theme)
 	selected := i == m.index
 
 	fade := m.fader(m.rowAlpha(i))
@@ -231,7 +231,7 @@ func (m *Model) detailLines(item MenuItem, w, avail int) []string {
 		return nil
 	}
 
-	th := resolveTheme(m.theme)
+	th := resolveTheme(&m.env.Theme)
 	fade := m.fader(m.rowAlpha(m.index))
 
 	text := func(c color.Color, bold bool) lipgloss.Style {
@@ -291,7 +291,7 @@ func (m *Model) detailLines(item MenuItem, w, avail int) []string {
 
 // markerLine renders a scroll marker.
 func (m *Model) markerLine(arrow string) string {
-	return helpStyle(m.theme).Render(markerIndent + arrow)
+	return helpStyle(&m.env.Theme).Render(markerIndent + arrow)
 }
 
 // fillRow fills the space between left and right content.

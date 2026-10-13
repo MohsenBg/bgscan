@@ -1,11 +1,7 @@
 package tabs
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -24,11 +20,9 @@ func NewTab[T any](label string, value T) Tab[T] {
 
 // Model is the tabs component.
 type Model[T any] struct {
-	layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
-	id     ui.ComponentID
-	name   string
+	env  *ui.Env
+	id   ui.ComponentID
+	name string
 
 	tabs        []Tab[T]
 	idx         int
@@ -77,11 +71,9 @@ func WithUnderline[T any](u bool) Option[T] {
 }
 
 // New creates a tabs model with the given options.
-func New[T any](deps ui.Deps, tabs []Tab[T], onSelectTab func(idx int, tab Tab[T]) tea.Cmd, opts ...Option[T]) *Model[T] {
+func New[T any](env *ui.Env, tabs []Tab[T], onSelectTab func(idx int, tab Tab[T]) tea.Cmd, opts ...Option[T]) *Model[T] {
 	m := &Model[T]{
-		layout:      deps.Layout,
-		theme:       deps.Theme,
-		log:         deps.Log,
+		env:         env,
 		id:          ui.NewComponentID(),
 		name:        "tabs",
 		tabs:        tabs,
@@ -107,11 +99,8 @@ func New[T any](deps ui.Deps, tabs []Tab[T], onSelectTab func(idx int, tab Tab[T
 	return m
 }
 
-func (m *Model[T]) Theme() *theme.Theme { return m.theme }
-
-// SetTheme rebuilds the default tab styles.
-func (m *Model[T]) SetTheme(th *theme.Theme) {
-	m.theme = th
+// rebuild refreshes the cached default tab styles from the live theme.
+func (m *Model[T]) rebuild() {
 	s := m.defaultActiveStyle()
 	m.activeStyle = &s
 	s2 := m.defaultInactiveStyle()
@@ -122,7 +111,7 @@ func (m *Model[T]) ID() ui.ComponentID { return m.id }
 
 func (m *Model[T]) Name() string { return m.name }
 
-func (m *Model[T]) Mode() env.Mode { return env.NormalMode }
+func (m *Model[T]) Mode() ui.KeyMode { return ui.KeyModeNormal }
 
 // Init is a no‑op for the tabs component.
 func (m *Model[T]) Init() tea.Cmd { return nil }

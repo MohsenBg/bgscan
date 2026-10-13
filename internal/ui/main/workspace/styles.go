@@ -16,7 +16,7 @@ func screenStyle(width, height int) lipgloss.Style {
 func (m *model) contentStyle(width, height int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.state.Theme().BorderActive).
+		BorderForeground(m.session.Env().Theme.BorderActive).
 		Width(width).
 		Height(height)
 }

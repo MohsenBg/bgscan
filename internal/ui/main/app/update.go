@@ -9,27 +9,26 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/main/splash"
 	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	ui.SyncState(msg, m.state)
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.state.Layout.Update(msg.Width, msg.Height)
+		m.session.Env().Layout.Update(msg.Width, msg.Height)
 
 	case tea.KeyPressMsg:
-		if m.state.Deps().Keys.Global.ForceQuit.Matches(msg) {
+		if m.session.Env().Keys.Global.ForceQuit.Matches(msg) {
 			return m, tea.Quit
 		}
 
-		if m.state.Deps().Keys.Global.DumpGoroutines.Matches(msg) {
-			m.state.Log.Debug.Info("%s", dumpGoroutines())
+		if m.session.Env().Keys.Global.DumpGoroutines.Matches(msg) {
+			m.session.Env().Log.Debug("%s", dumpGoroutines())
 		}
 
 		if cmd, closed := m.closeTopDialog(msg); closed {
@@ -71,7 +70,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.beginCloseByID(msg.ID))
 	}
 
-	if _, themed := msg.(ui.ThemeChangedMsg); themed {
+	if _, themed := msg.(theme.ThemeChanged); themed {
 		cmds = append(cmds, m.updateAll(msg)...)
 	} else if cmd, active := m.updateTop(msg); active {
 		if _, isKey := msg.(tea.KeyMsg); isKey {
@@ -104,16 +103,16 @@ func (m *model) closeTopDialog(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, false
 	}
 
-	keys := m.state.Deps().Keys.Global
+	keys := m.session.Env().Keys.Global
 	mode := topLayer.component.Mode()
 
 	// Check if the current keypress should trigger a close based on the mode
 	switch mode {
-	case env.NormalMode:
+	case ui.KeyModeNormal:
 		if keys.Back.Matches(msg) || keys.Quit.Matches(msg) {
 			return m.beginCloseTop(), true
 		}
-	case env.InputMode:
+	case ui.KeyModeInput:
 		if keys.BackFromInput.Matches(msg) {
 			return m.beginCloseTop(), true
 		}

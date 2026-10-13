@@ -12,17 +12,19 @@ import (
 // View renders the scanner UI.
 func (m *Model) View() string {
 	if m.closing {
+		body := m.session.Env().Layout.Body()
 		return lipgloss.NewStyle().
-			Width(m.state.Layout.Body.Width).
-			Height(m.state.Layout.Body.Height).
+			Width(body.Width).
+			Height(body.Height).
 			Align(lipgloss.Center, lipgloss.Center).
 			Render("⏳ Closing scanner, please wait…")
 	}
 	idx := m.currentTab
+	bodyWidth := m.session.Env().Layout.Body().Width
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		lipgloss.NewStyle().
-			Width(m.state.Layout.BodyContentWidth()).
+			Width(bodyWidth).
 			Align(lipgloss.Center).Render(m.tabs.View()),
 		m.renderProgress(idx),
 		m.ipViewers[idx].View(),
@@ -31,7 +33,7 @@ func (m *Model) View() string {
 
 func (m *Model) renderProgress(idx int) string {
 	p := m.progressInfo[idx]
-	width := m.state.Layout.Body.Width
+	width := m.session.Env().Layout.Body().Width
 
 	stats := m.renderStatsRow(p)
 	status := m.renderStatusRow()

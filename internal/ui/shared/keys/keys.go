@@ -1,7 +1,7 @@
 package keys
 
 // Keys holds every binding in the app. It is built once at startup and
-// passed down through ui.Deps as deps.Keys.
+// passed down through ui.Env as env.Keys.
 type Keys struct {
 	Global  GlobalKeys
 	Nav     NavKeys

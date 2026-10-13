@@ -10,9 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/help"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
@@ -48,7 +46,7 @@ type model struct {
 	id          ui.ComponentID
 	name        string
 	categories  []category
-	state       *ui.AppState
+	session     *ui.Session
 	viewport    viewport.Model
 	spinner     spinner.Model
 	progressBar progress.Model
@@ -67,13 +65,14 @@ type fatalError struct {
 }
 
 func (m *model) ID() ui.ComponentID { return m.id }
-func (m *model) Mode() env.Mode     { return env.NormalMode }
+func (m *model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *model) Name() string       { return m.name }
 func (m *model) OnClose() tea.Cmd   { return nil }
 
 // New creates the startup preflight component.
-func New(state *ui.AppState) ui.Component {
-	th := state.Theme()
+func New(session *ui.Session) ui.Component {
+	env := session.Env()
+	th := env.Theme
 
 	pb := progress.New(
 		progress.WithoutPercentage(),
@@ -84,11 +83,10 @@ func New(state *ui.AppState) ui.Component {
 	pb.EmptyColor = th.BorderActive
 
 	vp := viewport.New()
-	if state.Layout != nil {
-		vp.SetWidth(state.Layout.Terminal.Width)
-		vp.SetHeight(state.Layout.Terminal.Height)
-		pb.SetWidth(state.Layout.Terminal.Width)
-	}
+	term := env.Layout.Terminal()
+	vp.SetWidth(term.Width)
+	vp.SetHeight(term.Height)
+	pb.SetWidth(term.Width)
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
@@ -97,7 +95,7 @@ func New(state *ui.AppState) ui.Component {
 	m := &model{
 		id:          ui.NewComponentID(),
 		name:        "startup",
-		state:       state,
+		session:     session,
 		viewport:    vp,
 		spinner:     sp,
 		progressBar: pb,
@@ -116,15 +114,14 @@ func New(state *ui.AppState) ui.Component {
 		},
 	}
 
-	deps := state.Deps()
-	m.helpSet = startupHelpSet(deps.Keys)
-	m.help = help.New(deps, "Startup", m.helpSet)
-	m.applyLayout(state.Layout)
+	m.helpSet = startupHelpSet(env.Keys)
+	m.help = help.New(env, "Startup", m.helpSet)
+	m.applyLayout(env.Layout)
 
 	return m
 }
 
-func startupHelpSet(k keys.Keys) help.HelpSet {
+func startupHelpSet(k *keys.Keys) help.HelpSet {
 	scroll := keys.Combine("scroll", k.Nav.Up, k.Nav.Down)
 
 	short := keys.Hints{scroll}
@@ -144,8 +141,8 @@ func startupHelpSet(k keys.Keys) help.HelpSet {
 	return help.HelpSet{Short: short, Long: long}
 }
 
-func rebuildProgressBar(state *ui.AppState, old progress.Model) progress.Model {
-	th := state.Theme()
+func rebuildProgressBar(session *ui.Session, old progress.Model) progress.Model {
+	th := session.Env().Theme
 
 	pb := progress.New(
 		progress.WithoutPercentage(),
@@ -159,17 +156,18 @@ func rebuildProgressBar(state *ui.AppState, old progress.Model) progress.Model {
 	return pb
 }
 
-func (m *model) applyLayout(l *layout.Layout) {
-	if m == nil || l == nil {
+func (m *model) applyLayout(l layout.Layout) {
+	if m == nil {
 		return
 	}
 
-	m.width = l.Terminal.Width
-	m.height = l.Terminal.Height
-	m.progressBar.SetWidth(l.Terminal.Width)
+	term := l.Terminal()
+	m.width = term.Width
+	m.height = term.Height
+	m.progressBar.SetWidth(term.Width)
 
-	vpWidth := max(l.Terminal.Width-sidebarWidth-1, 10)
-	vpHeight := max(l.Terminal.Height-titleHeight-progressHeight-helpHeight, 3)
+	vpWidth := max(term.Width-sidebarWidth-1, 10)
+	vpHeight := max(term.Height-titleHeight-progressHeight-helpHeight, 3)
 
 	m.viewport.SetWidth(vpWidth)
 	m.viewport.SetHeight(vpHeight)
@@ -183,8 +181,8 @@ func (m *model) applyLayout(l *layout.Layout) {
 func (m *model) Init() tea.Cmd {
 	go m.runChecks()
 
-	if m.state != nil {
-		m.applyLayout(m.state.Layout)
+	if m.session != nil {
+		m.applyLayout(m.session.Env().Layout)
 	}
 
 	return tea.Batch(
@@ -210,7 +208,7 @@ func (m *model) runChecks() {
 	var abort atomic.Bool
 
 	if !m.runCheck("logger", &abort, func(r *reporter) {
-		checkLoggerHealth(r, m.loggerSet())
+		checkLoggerHealth(r, m.session)
 	}) {
 		return
 	}
@@ -220,7 +218,8 @@ func (m *model) runChecks() {
 	}
 
 	if !m.runCheck("xray", &abort, func(r *reporter) {
-		checkXrayHealth(r, m.coreLogger())
+		core := m.session.CoreLog()
+		checkXrayHealth(r, &core)
 	}) {
 		return
 	}
@@ -252,22 +251,6 @@ func (m *model) runChecks() {
 	m.runCheck("app", &abort, checkAppHealth)
 }
 
-func (m *model) loggerSet() logger.Set {
-	if m.state == nil {
-		return logger.Set{}
-	}
-
-	return m.state.Log
-}
-
-func (m *model) coreLogger() *logger.Logger {
-	if m.state == nil {
-		return nil
-	}
-
-	return m.state.Log.Core
-}
-
 // runCheck sends start/end messages around fn and stops on fatal abort.
 func (m *model) runCheck(id string, abort *atomic.Bool, fn func(r *reporter)) bool {
 	m.logCh <- categoryStartMsg{categoryID: id}
@@ -285,21 +268,21 @@ func (m *model) runCheck(id string, abort *atomic.Bool, fn func(r *reporter)) bo
 }
 
 func (m *model) runConfigCheck(abort *atomic.Bool) bool {
-	if m.state == nil {
+	if m.session == nil {
 		return true
 	}
 
 	m.logCh <- categoryStartMsg{categoryID: "config"}
 
 	r := newReporter("config", m.logCh, abort)
-	cfg, store := checkConfigHealth(r, m.state.Log)
+	cfg, store := checkConfigHealth(r, m.session)
 
 	if abort.Load() {
 		return false
 	}
 
-	if m.state.Program != nil {
-		m.state.Program.Send(configLoadedMsg{cfg: cfg, store: store})
+	if m.session.Program != nil {
+		m.session.Program.Send(configLoadedMsg{cfg: cfg, store: store})
 	}
 
 	m.logCh <- categoryEndMsg{categoryID: "config", status: r.status}

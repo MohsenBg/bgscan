@@ -5,15 +5,18 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
-		return m, nil
-	}
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	// The table caches lipgloss styles, so rebuild them. The message then
+	// falls through to the help child, which rebuilds its own viewport.
+	if _, ok := msg.(theme.ThemeChanged); ok {
+		m.applyStylesLocked()
+	}
 
 	switch msg := msg.(type) {
 	case spinner.TickMsg:
@@ -51,11 +54,11 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 // It must be called with m.mu held.
 func (m *Model) handleFilterKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	switch {
-	case m.keys.Filter.Clear.Matches(msg):
+	case m.env.Keys.Filter.Clear.Matches(msg):
 		m.clearFilterLocked()
 		return nil, true
 
-	case m.keys.Filter.Accept.Matches(msg):
+	case m.env.Keys.Filter.Accept.Matches(msg):
 		m.filtering = false
 		m.hideCursor()
 		return nil, true
@@ -75,7 +78,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 		return m.handleFilterKey(msg)
 	}
 
-	k := m.keys.Table
+	k := m.env.Keys.Table
 
 	switch {
 	case k.Up.Matches(msg):
@@ -106,7 +109,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 		m.filtering = true
 		return m.showCursor(), true
 
-	case m.keys.Filter.Clear.Matches(msg):
+	case m.env.Keys.Filter.Clear.Matches(msg):
 		m.clearFilterLocked()
 		return nil, true
 

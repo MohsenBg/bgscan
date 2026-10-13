@@ -9,8 +9,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/menus/outboundmenu"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/validation"
 
@@ -22,21 +20,19 @@ import (
 type Model struct {
 	id           ui.ComponentID
 	name         string
-	state        *ui.AppState
-	layout       *layout.Layout
+	session      *ui.Session
 	outboundMenu ui.Component
 	crudTable    *crud.Model[xray.XrayOutboundsFile]
 }
 
-func New(state *ui.AppState, title string, onSelect func(*xray.XrayOutboundsFile) tea.Cmd) *Model {
+func New(session *ui.Session, title string, onSelect func(*xray.XrayOutboundsFile) tea.Cmd) *Model {
 	m := &Model{
-		id:     ui.NewComponentID(),
-		name:   "outbounds",
-		state:  state,
-		layout: state.Layout,
+		id:      ui.NewComponentID(),
+		name:    "outbounds",
+		session: session,
 	}
 
-	m.crudTable = crud.New(state.Deps(), newSource(state), newHooks(state, onSelect), 100)
+	m.crudTable = crud.New(session.Env(), newSource(session), newHooks(session, onSelect), 100)
 
 	return m
 }
@@ -45,13 +41,13 @@ func (m *Model) Init() tea.Cmd      { return m.crudTable.Init() }
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return m.crudTable.OnClose() }
-func (m *Model) Mode() env.Mode     { return m.crudTable.Mode() }
+func (m *Model) Mode() ui.KeyMode   { return m.crudTable.Mode() }
 
 // ShowAdditionMethod opens the dialog for choosing how to add an outbound
 // (file or link) instead of the provider's default add hook.
 func (m *Model) ShowAdditionMethod() tea.Cmd {
 	return func() tea.Msg {
-		m.outboundMenu = outboundmenu.New(m.state.Deps())
+		m.outboundMenu = outboundmenu.New(m.session)
 		return dialog.OpenDialog(m.outboundMenu,
 			dialog.WithTitle(outboundmenu.Title),
 		)
@@ -61,11 +57,11 @@ func (m *Model) ShowAdditionMethod() tea.Cmd {
 // handleFileSelect receives the file picker selection path and asks for a destination name.
 func (m *Model) handleFileSelect(path string) tea.Cmd {
 	if path == "" {
-		m.state.Log.UI.Info("[%s]: File selection cancelled", m.name)
+		m.session.Env().Log.Info("[%s]: File selection cancelled", m.name)
 		return nil
 	}
 
-	inp := textinput.New(m.state.Deps(),
+	inp := textinput.New(m.session.Env(),
 		"What do you want to call this outbound?",
 		textinput.WithPlaceholder("outbound name"),
 		textinput.WithValue(""),
@@ -86,7 +82,7 @@ func (m *Model) handleFileSelect(path string) tea.Cmd {
 
 // handleLinkImport starts the sharing link parsing sequence and asks for a destination name.
 func (m *Model) handleLinkImport() tea.Cmd {
-	linkInput := textarea.New(m.state.Deps(),
+	linkInput := textarea.New(m.session.Env(),
 		"Enter your outbound link:",
 		textarea.WithHeight(15),
 		textarea.WithValidation(validation.ValidateXrayLink),
@@ -96,7 +92,7 @@ func (m *Model) handleLinkImport() tea.Cmd {
 
 	linkInput.OnSubmit(func(link string) tea.Cmd {
 		if _, err := xray.ParseLink(link); err != nil {
-			return notice.NewNoticeCmd(m.state.Deps(),
+			return notice.NewNoticeCmd(m.session.Env(),
 				"Parsing Error",
 				err.Error(),
 				notice.NOTICE_ERROR,
@@ -110,7 +106,7 @@ func (m *Model) handleLinkImport() tea.Cmd {
 }
 
 func (m *Model) openFilenameDialog(link string) tea.Cmd {
-	nameInput := textinput.New(m.state.Deps(),
+	nameInput := textinput.New(m.session.Env(),
 		"What do you want to call this link template?",
 		textinput.WithPlaceholder("link profile name"),
 		textinput.WithValue(""),
@@ -129,22 +125,24 @@ func (m *Model) openFilenameDialog(link string) tea.Cmd {
 }
 
 func (m *Model) saveOutboundFromFileCmd(srcPath, filename string) tea.Cmd {
-	meta, err := xray.SaveOutboundFromFile(m.state.Log.Core, srcPath, filename)
+	coreLog := m.session.CoreLog()
+	meta, err := xray.SaveOutboundFromFile(&coreLog, srcPath, filename)
 	if err != nil {
-		m.state.Log.UI.Error("Failed to save outbound from file: %v", err)
-		return notice.NewNoticeCmd(m.state.Deps(), "Save Failed", err.Error(), notice.NOTICE_ERROR)
+		m.session.Env().Log.Error("Failed to save outbound from file: %v", err)
+		return notice.NewNoticeCmd(m.session.Env(), "Save Failed", err.Error(), notice.NOTICE_ERROR)
 	}
-	m.state.Log.UI.Info("Saved outbound file template: %s at path: %s", meta.Name, meta.Path)
+	m.session.Env().Log.Info("Saved outbound file template: %s at path: %s", meta.Name, meta.Path)
 	return nil
 }
 
 func (m *Model) saveOutboundFromLinkCmd(link, filename string) tea.Cmd {
-	meta, err := xray.SaveOutboundFromLink(m.state.Log.Core, link, filename)
+	coreLog := m.session.CoreLog()
+	meta, err := xray.SaveOutboundFromLink(&coreLog, link, filename)
 	if err != nil {
-		m.state.Log.UI.Error("Failed to save outbound from link: %v", err)
-		return notice.NewNoticeCmd(m.state.Deps(), "Save Failed", err.Error(), notice.NOTICE_ERROR)
+		m.session.Env().Log.Error("Failed to save outbound from link: %v", err)
+		return notice.NewNoticeCmd(m.session.Env(), "Save Failed", err.Error(), notice.NOTICE_ERROR)
 	}
-	m.state.Log.UI.Info("Saved outbound link template: %s at path: %s", meta.Name, meta.Path)
+	m.session.Env().Log.Info("Saved outbound link template: %s at path: %s", meta.Name, meta.Path)
 	return nil
 }
 

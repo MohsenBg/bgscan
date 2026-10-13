@@ -3,7 +3,6 @@ package logs
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/logview"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -11,10 +10,10 @@ import (
 
 // Model represents the main logs menu component.
 type Model struct {
-	id    ui.ComponentID
-	name  string
-	menu  ui.Component
-	state *ui.AppState
+	id      ui.ComponentID
+	name    string
+	menu    ui.Component
+	session *ui.Session
 }
 
 // ID returns the component's unique identifier.
@@ -33,12 +32,12 @@ func (m *Model) OnClose() tea.Cmd {
 }
 
 // New creates and returns a new logs menu model.
-func New(state *ui.AppState) *Model {
+func New(session *ui.Session) *Model {
 	return &Model{
-		id:    ui.NewComponentID(),
-		name:  "Logs Menu",
-		state: state,
-		menu:  newLogsMenu(state),
+		id:      ui.NewComponentID(),
+		name:    "Logs Menu",
+		session: session,
+		menu:    newLogsMenu(session),
 	}
 }
 
@@ -47,36 +46,31 @@ func (m *Model) Init() tea.Cmd {
 }
 
 // newLogsMenu creates the menu with log category options.
-func newLogsMenu(state *ui.AppState) *menu.Model {
+func newLogsMenu(session *ui.Session) *menu.Model {
+	env := session.Env()
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
 			"▶", "Core Logs", "c",
 			func() tea.Msg {
+				coreLog := session.CoreLog()
 				return ui.OpenComponentMsg{
-					Component: logview.New(state, state.Log.Core, "Core Logs"),
+					Component: logview.New(env, &coreLog, "Core Logs"),
 				}
 			},
 		),
 		menu.NewMenuItem(
 			"⚙", "UI Logs", "u",
 			func() tea.Msg {
+				uiLog := env.Log
 				return ui.OpenComponentMsg{
-					Component: logview.New(state, state.Log.UI, "UI Logs"),
-				}
-			},
-		),
-		menu.NewMenuItem(
-			"::", "Debug Logs", "d",
-			func() tea.Msg {
-				return ui.OpenComponentMsg{
-					Component: logview.New(state, state.Log.Debug, "Debug Logs"),
+					Component: logview.New(env, &uiLog, "UI Logs"),
 				}
 			},
 		),
 	}
-	return menu.New(items, "Logs Menu", state.Deps())
+	return menu.New(items, "Logs Menu", env)
 }
 
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeNormal
 }

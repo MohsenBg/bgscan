@@ -9,8 +9,8 @@ import (
 func (m *Model[T]) defaultActiveStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
-		Foreground(m.theme.Text).
-		Background(m.theme.Selected).
+		Foreground(m.env.Theme.Text).
+		Background(m.env.Theme.Selected).
 		Padding(0, 2).
 		MarginRight(1)
 }
@@ -20,7 +20,7 @@ func (m *Model[T]) defaultActiveStyle() lipgloss.Style {
 func (m *Model[T]) defaultInactiveStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Faint(true).
-		Foreground(m.theme.Muted).
+		Foreground(m.env.Theme.Muted).
 		Padding(0, 2).
 		MarginRight(1)
 }
@@ -30,12 +30,12 @@ func (m *Model[T]) defaultInactiveStyle() lipgloss.Style {
 func (m *Model[T]) activeBorderStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
-		Foreground(m.theme.Purple)
+		Foreground(m.env.Theme.Purple)
 }
 
 // inactiveBorderStyle colors the rest of the full-width border line.
 func (m *Model[T]) inactiveBorderStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Faint(true).
-		Foreground(m.theme.Secondary)
+		Foreground(m.env.Theme.Secondary)
 }

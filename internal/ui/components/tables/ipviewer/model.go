@@ -2,29 +2,23 @@ package ipviewer
 
 import (
 	"github.com/MohsenBg/bgscan/internal/core/result"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 type Model struct {
-	id     ui.ComponentID
-	name   string
-	maxRow uint32
-	width  int
-	height int
-	table  ui.Component
-	rows   []table.Row
-	schema result.ResultSchema
-	layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
+	id      ui.ComponentID
+	name    string
+	maxRow  uint32
+	width   int
+	height  int
+	table   ui.Component
+	rows    []table.Row
+	schema  result.ResultSchema
+	session *ui.Session
 
 	shortHints []keys.Hint
 	longHints  []keys.Hint
@@ -61,32 +55,21 @@ func WithLongHints(hints ...keys.Hint) Option {
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
-func (m *Model) Mode() env.Mode     { return m.table.Mode() }
+func (m *Model) Mode() ui.KeyMode   { return m.table.Mode() }
 func (m *Model) Init() tea.Cmd      { return m.table.Init() }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-func (m *Model) SetTheme(th *theme.Theme) {
-	m.theme = th
-	if tb, ok := m.table.(*table.Model); ok {
-		tb.SetTheme(th)
-	}
-}
-
-func New(deps ui.Deps, name string, rows []result.Result, schema result.ResultSchema, opts ...Option) *Model {
+func New(session *ui.Session, name string, rows []result.Result, schema result.ResultSchema, opts ...Option) *Model {
 	cols := make([]table.Column, 0, len(schema.Columns))
 	for _, col := range schema.Columns {
 		cols = append(cols, table.Column{Title: col.Name, Width: col.Width})
 	}
 
 	m := &Model{
-		id:     ui.NewComponentID(),
-		name:   name,
-		maxRow: ui.DefaultMaxRow,
-		layout: deps.Layout,
-		theme:  deps.Theme,
-		log:    deps.Log,
-		schema: schema,
+		id:      ui.NewComponentID(),
+		name:    name,
+		maxRow:  ui.DefaultMaxRow,
+		session: session,
+		schema:  schema,
 	}
 
 	for _, opt := range opts {
@@ -113,7 +96,7 @@ func New(deps ui.Deps, name string, rows []result.Result, schema result.ResultSc
 		tableOpts = append(tableOpts, table.WithKeyLongHints(m.longHints...))
 	}
 
-	m.table = table.New(deps, tableOpts...)
+	m.table = table.New(session.Env(), tableOpts...)
 	m.updateRows(rows)
 	return m
 }

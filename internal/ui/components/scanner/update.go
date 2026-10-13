@@ -22,10 +22,10 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		case scanClosedMsg:
 			m.closing = false
 			if msg.err != nil {
-				m.state.Log.UI.Error("Failed to close scanner: %v", msg.err)
+				m.session.Env().Log.Error("Failed to close scanner: %v", msg.err)
 				cmds = append(cmds, m.errorCmd("Failed to close scanner", msg.err.Error()))
 			}
-			m.state.Log.UI.Info("Scan closed")
+			m.session.Env().Log.Info("Scan closed")
 			cmds = append(cmds, func() tea.Msg { return ui.ResetComponentStacksMsg{} })
 			return m, tea.Batch(cmds...)
 
@@ -52,7 +52,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		return m, nil
 
 	case scanErrorMsg:
-		m.state.Log.UI.Error("Scan error: %v", msg.err)
+		m.session.Env().Log.Error("Scan error: %v", msg.err)
 		m.onError(msg.err)
 		return m, nil
 
@@ -71,7 +71,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	switch msg.String() {
 	case "q", "b":
-		return confirm.ConfirmCmd(m.state.Deps(),
+		return confirm.ConfirmCmd(m.session.Env(),
 			"Do you want to exit the scan?",
 			func() tea.Msg {
 				m.closing = true // block further input

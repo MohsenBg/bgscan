@@ -15,7 +15,6 @@ import (
 	scannerUi "github.com/MohsenBg/bgscan/internal/ui/components/scanner"
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/dnstun"
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/outbounds"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
@@ -54,7 +53,7 @@ func (s ScanType) String() string {
 type Model struct {
 	id           ui.ComponentID
 	name         string
-	state        *ui.AppState
+	session      *ui.Session
 	input        string
 	xrayTemplate string
 	dnsTunCfg    *dns.DNSTunConfigFile
@@ -64,11 +63,11 @@ type Model struct {
 }
 
 // New creates the scan type selector.
-func New(state *ui.AppState, input string) *Model {
+func New(session *ui.Session, input string) *Model {
 	m := &Model{
 		id:           ui.NewComponentID(),
 		name:         "Scan Menu",
-		state:        state,
+		session:      session,
 		input:        input,
 		closeScanner: true,
 	}
@@ -80,21 +79,21 @@ func New(state *ui.AppState, input string) *Model {
 		menu.NewMenuItem("◇", "Xray Scan", "x", m.openXrayTemplates()).WithDescription("Test outbounds against Xray templates"),
 		menu.NewMenuItem("?", "DNS Resolve", "r", m.open(DNSResolveScan)).WithDescription("Resolve IPs through configured resolvers"),
 		menu.NewMenuItem("≈", "DNS Tunneling", "d", m.openDNSTunConfig()).WithDescription("Scan through a DNS tunneling client"),
-	}, "Select Scan Type", state.Deps())
+	}, "Select Scan Type", session.Env())
 	return m
 }
 
 func (m *Model) Init() tea.Cmd      { return m.menu.Init() }
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
-func (m *Model) Mode() env.Mode     { return env.NormalMode }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 
 // OnClose closes the active scanner if this menu opened it.
 func (m *Model) OnClose() tea.Cmd {
 	if m.closeScanner && m.scanner != nil {
 		err := m.scanner.Close()
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Deps(), "Failed to close scanner", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.session.Env(), "Failed to close scanner", err.Error(), notice.NOTICE_ERROR)
 		}
 	}
 	return nil
@@ -102,22 +101,22 @@ func (m *Model) OnClose() tea.Cmd {
 
 func (m *Model) open(mode ScanType) tea.Cmd {
 	return func() tea.Msg {
-		m.state.Log.UI.Info("Starting %s scan", mode)
+		m.session.Env().Log.Info("Starting %s scan", mode)
 
 		scn, err := m.createScanner(mode, m.input)
 		if err != nil {
-			m.state.Log.UI.Error("Failed to create %s scanner: %v", mode, err)
+			m.session.Env().Log.Error("Failed to create %s scanner: %v", mode, err)
 			return m.errorCmd("scanner error", err.Error())
 		}
 
 		m.closeScanner = false
-		return ui.OpenComponentCmd(scannerUi.New(m.state, 10_000, scn))()
+		return ui.OpenComponentCmd(scannerUi.New(m.session, 10_000, scn))()
 	}
 }
 
 func (m *Model) openXrayTemplates() tea.Cmd {
 	return ui.OpenComponentCmd(
-		outbounds.New(m.state, "select outbound", func(xof *xray.XrayOutboundsFile) tea.Cmd {
+		outbounds.New(m.session, "select outbound", func(xof *xray.XrayOutboundsFile) tea.Cmd {
 			m.xrayTemplate = xof.Name
 			return m.open(XRAYScan)
 		}),
@@ -126,7 +125,7 @@ func (m *Model) openXrayTemplates() tea.Cmd {
 
 func (m *Model) openDNSTunConfig() tea.Cmd {
 	return ui.OpenComponentCmd(
-		dnstun.New(m.state, "select dns tunneling config", func(dof *dns.DNSTunConfigFile) tea.Cmd {
+		dnstun.New(m.session, "select dns tunneling config", func(dof *dns.DNSTunConfigFile) tea.Cmd {
 			m.dnsTunCfg = dof
 			return m.open(DNSTun)
 		}),
@@ -136,7 +135,8 @@ func (m *Model) openDNSTunConfig() tea.Cmd {
 func (m *Model) createScanner(mode ScanType, input string) (scanner.Scanner, error) {
 	ctx := context.Background()
 
-	scn, err := scanner.NewScanner(ctx, input, scanner.WithConfig(*m.state.Config), scanner.WithLogs(m.state.Log))
+	coreLog := m.session.CoreLog()
+	scn, err := scanner.NewScanner(ctx, input, scanner.WithConfig(*m.session.Config), scanner.WithLog(&coreLog))
 	if err != nil {
 		return nil, err
 	}
@@ -267,5 +267,5 @@ func (m *Model) buildDNSTunScanner(ctx context.Context, scn scanner.Scanner) (sc
 }
 
 func (m *Model) errorCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(m.state.Deps(), title, message, notice.NOTICE_ERROR)
+	return notice.NewNoticeCmd(m.session.Env(), title, message, notice.NOTICE_ERROR)
 }

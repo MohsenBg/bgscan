@@ -3,13 +3,9 @@ package textarea
 import (
 	"strings"
 
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
@@ -22,10 +18,7 @@ type Model struct {
 	id   ui.ComponentID
 	name string
 
-	layout *layout.Layout
-
-	theme *theme.Theme
-	log   logger.Set
+	env *ui.Env
 
 	title       string
 	placeholder string
@@ -49,7 +42,7 @@ type Model struct {
 }
 
 func New(
-	deps ui.Deps,
+	env *ui.Env,
 	title string,
 	options ...Option,
 ) input.Input[string] {
@@ -57,9 +50,7 @@ func New(
 	m := &Model{
 		id:                ui.NewComponentID(),
 		name:              "textarea",
-		layout:            deps.Layout,
-		theme:             deps.Theme,
-		log:               deps.Log,
+		env:               env,
 		title:             title,
 		textarea:          ta,
 		height:            3,
@@ -159,8 +150,8 @@ func (m *Model) Name() string {
 	return m.name
 }
 
-func (m *Model) Mode() env.Mode {
-	return env.InputMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeInput
 }
 
 // SetInDialog moves the input's title and key hints into the dialog
@@ -178,10 +169,7 @@ func (m *Model) Hints() []keys.Hint {
 }
 
 func (m *Model) Width() int {
-	if m.layout == nil {
-		return 50
-	}
-	return min(50, m.layout.Body.Width)
+	return min(50, m.env.Layout.Body().Width)
 }
 
 func (m *Model) CloseCmd() tea.Cmd {
@@ -193,10 +181,6 @@ func (m *Model) CloseCmd() tea.Cmd {
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
-
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
 
 func (m *Model) Value() string {
 	return m.textarea.Value()

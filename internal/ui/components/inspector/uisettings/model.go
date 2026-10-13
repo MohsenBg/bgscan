@@ -12,7 +12,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/toggleinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
@@ -32,7 +31,7 @@ const (
 )
 
 type Model struct {
-	state     *ui.AppState
+	session   *ui.Session
 	name      string
 	id        ui.ComponentID
 	inspector ui.Component
@@ -40,12 +39,12 @@ type Model struct {
 
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Init() tea.Cmd      { return nil }
-func (m *Model) Mode() env.Mode     { return env.NormalMode }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
-func New(state *ui.AppState, name string) *Model {
-	cfg := state.Settings
+func New(session *ui.Session, name string) *Model {
+	cfg := session.Settings
 
 	// A hand-edited settings file may name a theme that no longer exists.
 	// Fall back to Auto in that case instead of showing a blank select.
@@ -61,34 +60,31 @@ func New(state *ui.AppState, name string) *Model {
 		themeOptions = append(themeOptions, huh.NewOption(t, t))
 	}
 
-	themeSelect := selectinput.New(state.Deps(), "Select Color Theme",
+	themeSelect := selectinput.New(session.Env(), "Select Color Theme",
 		selectinput.WithValue(current),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(themeOptions...),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
-			next, err := theme.Get(v)
+			cmd, err := session.SetTheme(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid theme", err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid theme", err.Error(), notice.NOTICE_ERROR)
 			}
-			state.Settings.ThemeName = next.Name
-			state.Settings.Theme = next
-			ui.SaveSettings(state.Settings)
-			return ui.ThemeChangedCmd(next, v)
+			return cmd
 		}),
 	)
 
-	solidBackground := toggleinput.New(state.Deps(), "Solid Background",
+	solidBackground := toggleinput.New(session.Env(), "Solid Background",
 		toggleinput.WithValue(cfg.SolidBackground),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
-			state.Settings.SolidBackground = v
-			ui.SaveSettings(state.Settings)
+			session.Settings.SolidBackground = v
+			ui.SaveSettings(session.Settings)
 			return nil
 		}),
 	)
 
-	maxRow := textinput.New(state.Deps(), "Enter Max Rows",
+	maxRow := textinput.New(session.Env(), "Enter Max Rows",
 		textinput.WithValue(strconv.FormatUint(uint64(cfg.MaxRow), 10)),
 		textinput.WithValidation(func(v string) error {
 			n, err := strconv.ParseInt(v, 10, 64)
@@ -107,10 +103,10 @@ func New(state *ui.AppState, name string) *Model {
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.ParseUint(v, 10, 32)
 			if err != nil || n == 0 {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid Max Rows", "enter a positive number", notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid Max Rows", "enter a positive number", notice.NOTICE_ERROR)
 			}
-			state.Settings.MaxRow = uint32(n)
-			ui.SaveSettings(state.Settings)
+			session.Settings.MaxRow = uint32(n)
+			ui.SaveSettings(session.Settings)
 			return nil
 		}),
 	)
@@ -122,7 +118,7 @@ func New(state *ui.AppState, name string) *Model {
 		currentLevel = ui.DefaultLogLevel
 	}
 
-	logLevel := selectinput.New(state.Deps(), "Select Log Level",
+	logLevel := selectinput.New(session.Env(), "Select Log Level",
 		selectinput.WithValue(currentLevel),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -134,11 +130,14 @@ func New(state *ui.AppState, name string) *Model {
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			level, err := logger.ParseLevel(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid Log Level", err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid Log Level", err.Error(), notice.NOTICE_ERROR)
 			}
-			state.Settings.LogLevel = v
-			ui.SaveSettings(state.Settings)
-			state.Log.SetLevel(level)
+			session.Settings.LogLevel = v
+			ui.SaveSettings(session.Settings)
+			uiLog := session.Env().Log
+			uiLog.SetLevel(level)
+			coreLog := session.CoreLog()
+			coreLog.SetLevel(level)
 			return nil
 		}),
 	)
@@ -151,10 +150,10 @@ func New(state *ui.AppState, name string) *Model {
 	}
 
 	return &Model{
-		state:     state,
+		session:   session,
 		name:      name,
 		id:        ui.NewComponentID(),
-		inspector: inspector.New(state.Deps(), "ui settings", fields),
+		inspector: inspector.New(session.Env(), "ui settings", fields),
 	}
 }
 

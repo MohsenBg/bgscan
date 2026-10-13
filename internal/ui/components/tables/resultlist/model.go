@@ -7,7 +7,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	ipviewer "github.com/MohsenBg/bgscan/internal/ui/components/tables/ipviewer"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -16,24 +15,24 @@ import (
 type Model struct {
 	id        ui.ComponentID
 	name      string
-	state     *ui.AppState
+	session   *ui.Session
 	maxIPs    uint32
 	crudTable *crud.Model[result.ResultFile]
 }
 
-func New(state *ui.AppState, title string, maxIPs uint32, onSelect func(*result.ResultFile) tea.Cmd) *Model {
+func New(session *ui.Session, title string, maxIPs uint32, onSelect func(*result.ResultFile) tea.Cmd) *Model {
 	m := &Model{
-		id:     ui.NewComponentID(),
-		name:   "Result Files",
-		state:  state,
-		maxIPs: maxIPs,
+		id:      ui.NewComponentID(),
+		name:    "Result Files",
+		session: session,
+		maxIPs:  maxIPs,
 	}
 
 	if onSelect == nil {
 		onSelect = m.defaultSelectHandler
 	}
 
-	m.crudTable = crud.New(state.Deps(), newSource(state, title), newHooks(state, onSelect), 100)
+	m.crudTable = crud.New(session.Env(), newSource(session, title), newHooks(session, onSelect), 100)
 
 	return m
 }
@@ -42,22 +41,23 @@ func (m *Model) Init() tea.Cmd      { return m.crudTable.Init() }
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return m.crudTable.OnClose() }
-func (m *Model) Mode() env.Mode     { return m.crudTable.Mode() }
+func (m *Model) Mode() ui.KeyMode   { return m.crudTable.Mode() }
 
 // defaultSelectHandler automatically opens the matching IP details viewer component
 func (m *Model) defaultSelectHandler(file *result.ResultFile) tea.Cmd {
 	ips, err := result.ReadResultFile(file.Path, file.Schema)
 	if err != nil {
-		return notice.NewNoticeCmd(m.state.Deps(), "Selection", err.Error(), notice.NOTICE_ERROR)
+		return notice.NewNoticeCmd(m.session.Env(), "Selection", err.Error(), notice.NOTICE_ERROR)
 	}
 	return m.OpenResultIP(ips)
 }
 
 // OpenResultIP loads IP results from a result file and opens the IP viewer.
 func (m *Model) OpenResultIP(file result.ResultFile) tea.Cmd {
-	ips, err := result.LoadAll(m.state.Log.Core, file.Path, file.Schema, m.maxIPs)
+	coreLog := m.session.CoreLog()
+	ips, err := result.LoadAll(&coreLog, file.Path, file.Schema, m.maxIPs)
 	if err != nil {
-		return notice.NewNoticeCmd(m.state.Deps(),
+		return notice.NewNoticeCmd(m.session.Env(),
 			"Result File Error",
 			fmt.Sprintf("Error while reading result file: %v", err),
 			notice.NOTICE_ERROR,
@@ -67,11 +67,11 @@ func (m *Model) OpenResultIP(file result.ResultFile) tea.Cmd {
 	return func() tea.Msg {
 		return ui.OpenComponentMsg{
 			Component: ipviewer.New(
-				m.state.Deps(),
+				m.session,
 				fmt.Sprintf("IP Scan [%s]", file.Schema.Name),
 				ips,
 				file.Schema,
-				ipviewer.WithMaxRow(m.state.Settings.MaxRow),
+				ipviewer.WithMaxRow(m.session.Settings.MaxRow),
 			),
 		}
 	}

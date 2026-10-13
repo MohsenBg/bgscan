@@ -3,13 +3,15 @@ package tabs
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 // Update handles key events to switch tabs.
 func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
+	if _, ok := msg.(theme.ThemeChanged); ok {
+		m.rebuild()
 		return m, nil
 	}
 	var cmd tea.Cmd

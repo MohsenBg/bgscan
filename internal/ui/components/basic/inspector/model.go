@@ -5,11 +5,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/tabs"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
@@ -102,11 +100,9 @@ func (d fieldDelegate) Render(w io.Writer, m list.Model, index int, listItem lis
 
 // Model is a tabbed list of fields grouped by Field.Group.
 type Model struct {
-	id     ui.ComponentID
-	name   string
-	layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
+	id   ui.ComponentID
+	name string
+	env  *ui.Env
 
 	Title string
 
@@ -142,13 +138,11 @@ func WithHeight(height int) Option {
 // New builds an inspector from a flat field list, grouped by Field.Group
 // into tabs. Groups are ordered alphabetically for a stable tab order
 // across runs (map iteration order is not stable in Go).
-func New(deps ui.Deps, name string, fields []Field, opts ...Option) *Model {
+func New(env *ui.Env, name string, fields []Field, opts ...Option) *Model {
 	m := &Model{
 		id:       ui.NewComponentID(),
 		name:     name,
-		layout:   deps.Layout,
-		theme:    deps.Theme,
-		log:      deps.Log,
+		env:      env,
 		maxWidth: 60,
 	}
 
@@ -189,7 +183,7 @@ func New(deps ui.Deps, name string, fields []Field, opts ...Option) *Model {
 	m.groups = groups
 	m.order = order
 
-	tb := tabs.New(deps, tbs, func(_ int, tab tabs.Tab[[]Field]) tea.Cmd {
+	tb := tabs.New(env, tbs, func(_ int, tab tabs.Tab[[]Field]) tea.Cmd {
 		return func() tea.Msg {
 			return tabChangeMsg{Group: tab.Label, Fields: tab.Value}
 		}
@@ -199,7 +193,7 @@ func New(deps ui.Deps, name string, fields []Field, opts ...Option) *Model {
 
 	if len(tbs) > 0 {
 		m.Title = tbs[0].Label
-		m.list = newFieldList(tbs[0].Value, m.theme, m.Width(), m.Height())
+		m.list = newFieldList(tbs[0].Value, &m.env.Theme, m.Width(), m.Height())
 	}
 
 	return m
@@ -254,38 +248,16 @@ func visibleItems(fields []Field) []list.Item {
 
 func (m *Model) Init() tea.Cmd { return nil }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-func (m *Model) SetTheme(th *theme.Theme) {
-	m.theme = th
-	if tb, ok := m.tabs.(*tabs.Model[[]Field]); ok {
-		tb.SetTheme(th)
-	}
-	m.list.SetDelegate(fieldDelegate{theme: th})
-	// Field.Inputs cache their own styles and open as dialogs later through
-	// these same pointers, so theme them here too. (Groups hold Field
-	// copies, but Input is shared by pointer.)
-	for _, fields := range m.groups {
-		for _, f := range fields {
-			if t, ok := f.Input.(ui.Themed); ok && t != nil {
-				t.SetTheme(th)
-			}
-		}
-	}
-}
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
-func (m *Model) Mode() env.Mode     { return env.NormalMode }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 
 func (m *Model) Width() int {
 	if m.widthOverride > 0 {
 		return m.widthOverride
 	}
-	if m.layout == nil {
-		return m.maxWidth
-	}
-	return min(m.maxWidth, m.layout.BodyContentWidth())
+	return min(m.maxWidth, m.env.Layout.Body().Width)
 }
 
 func (m *Model) Height() int {
@@ -302,10 +274,7 @@ func (m *Model) Height() int {
 
 	total := m.heightOverride
 	if total <= 0 {
-		if m.layout == nil {
-			return 15
-		}
-		total = m.layout.BodyContentHeight()
+		total = m.env.Layout.Body().Height
 	}
 
 	available := total - takenHeight - padding

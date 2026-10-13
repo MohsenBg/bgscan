@@ -243,13 +243,13 @@ func TestMultipleSubscribers(t *testing.T) {
 	}
 }
 
-func TestDiscardSet(t *testing.T) {
-	s := DiscardSet()
-	s.Core.Info("writes nowhere")
-	s.UI.Error("writes nowhere")
-	s.Debug.Dump("nope", map[string]int{"a": 1})
+func TestDiscard(t *testing.T) {
+	s := Discard()
+	s.Info("writes nowhere")
+	s.Error("writes nowhere")
+	s.Dump("nope", map[string]int{"a": 1})
 
-	ch := s.Core.Subscribe(4, 2)
+	ch := s.Subscribe(4, 2)
 	if _, ok := <-ch; ok {
 		t.Fatal("discard subscriber must be closed")
 	}
@@ -280,20 +280,16 @@ func TestParseLevel(t *testing.T) {
 }
 
 func TestSetLevelAppliesToEveryLogger(t *testing.T) {
-	s := DiscardSet()
+	s := Discard()
 
 	s.SetLevel(slog.LevelDebug)
-	for name, l := range map[string]*Logger{"core": s.Core, "ui": s.UI, "debug": s.Debug} {
-		if got := l.Level(); got != slog.LevelDebug {
-			t.Errorf("%s level = %v, want debug", name, got)
-		}
+	if got := s.Level(); got != slog.LevelDebug {
+		t.Errorf("level = %v, want debug", got)
 	}
 
 	s.SetLevel(slog.LevelError)
-	for name, l := range map[string]*Logger{"core": s.Core, "ui": s.UI, "debug": s.Debug} {
-		if got := l.Level(); got != slog.LevelError {
-			t.Errorf("%s level = %v, want error", name, got)
-		}
+	if got := s.Level(); got != slog.LevelError {
+		t.Errorf("level = %v, want error", got)
 	}
 
 	s.Close()

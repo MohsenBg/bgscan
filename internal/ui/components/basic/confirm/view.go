@@ -3,7 +3,7 @@ package confirm
 import (
 	"strings"
 
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	"charm.land/lipgloss/v2"
 )
@@ -41,8 +41,8 @@ func (m *Model) renderButtons() (string, string) {
 // layoutButtons lays out the confirmation buttons with dynamic spacing.
 func (m *Model) layoutButtons(noBtn, yesBtn string) string {
 	width := 80
-	if m.layout != nil && m.layout.Terminal.Width > 0 {
-		width = m.layout.Terminal.Width
+	if w := m.env.Layout.Terminal().Width; w > 0 {
+		width = w
 	}
 
 	available := width -
@@ -59,7 +59,7 @@ func (m *Model) layoutButtons(noBtn, yesBtn string) string {
 	)
 }
 
-// Mode returns NormalMode because confirmations handle their own keys.
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
+// Mode returns KeyModeNormal because confirmations handle their own keys.
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeNormal
 }

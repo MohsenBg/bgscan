@@ -1,14 +1,10 @@
 package form
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -65,9 +61,7 @@ func WithCancel(fn tea.Cmd) Option {
 
 type Model struct {
 	id        ui.ComponentID
-	layout    *layout.Layout
-	theme     *theme.Theme
-	log       logger.Set
+	env       *ui.Env
 	inspector *inspector.Model
 
 	name   string
@@ -86,18 +80,16 @@ type Model struct {
 }
 
 func New(
-	deps ui.Deps,
+	env *ui.Env,
 	inspector *inspector.Model,
 	opts ...Option,
 ) *Model {
 	m := &Model{
 		id:        ui.NewComponentID(),
-		layout:    deps.Layout,
-		theme:     deps.Theme,
-		log:       deps.Log,
+		env:       env,
 		inspector: inspector,
-		height:    deps.Layout.BodyContentHeight(),
-		width:     deps.Layout.BodyContentWidth(),
+		height:    env.Layout.Body().Height,
+		width:     env.Layout.Body().Width,
 	}
 
 	for _, opt := range opts {
@@ -148,11 +140,9 @@ func (m *Model) Init() tea.Cmd {
 	return m.inspector.Init()
 }
 
-func (m *Model) Mode() env.Mode {
-	return env.ManagedMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeManage
 }
-
-func (m *Model) Theme() *theme.Theme { return m.theme }
 
 // SetInDialog moves the form's title and key hints into the dialog
 // frame's border lines.
@@ -168,13 +158,6 @@ func (m *Model) Title() string { return m.name }
 // The workspace appends Cancel itself.
 func Hints(k keys.Keys) keys.Hints {
 	return keys.Hints{k.Form.Save.ShortItem()}
-}
-
-func (m *Model) SetTheme(th *theme.Theme) {
-	m.theme = th
-	if m.inspector != nil {
-		m.inspector.SetTheme(th)
-	}
 }
 
 func (m *Model) OnClose() tea.Cmd {
@@ -195,7 +178,7 @@ func (m *Model) Validate() error {
 
 func (m *Model) Save() tea.Cmd {
 	if err := m.Validate(); err != nil {
-		return notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log},
+		return notice.NewNoticeCmd(m.env,
 			"Validation Error",
 			err.Error(),
 			notice.NOTICE_ERROR,

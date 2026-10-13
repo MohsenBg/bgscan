@@ -1,14 +1,14 @@
 package picker
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	"charm.land/lipgloss/v2"
 )
 
 // pickerHeight returns the vertical space available for the picker overlay.
-func pickerHeight(layout *layout.Layout) int {
-	return layout.Body.Height - 10
+func pickerHeight(env *ui.Env) int {
+	return env.Layout.Body().Height - 10
 }
 
 func containerStyle(width, height int) lipgloss.Style {
@@ -25,9 +25,9 @@ func (m *Model) titleStyle(width int) lipgloss.Style {
 		Width(width-5).
 		Align(lipgloss.Center).
 		Bold(true).
-		Foreground(m.theme.Info).
+		Foreground(m.env.Theme.Info).
 		Padding(0, 0, 2, 0).
-		BorderForeground(m.theme.Border)
+		BorderForeground(m.env.Theme.Border)
 }
 
 func (m *Model) currentDirStyle(width int) lipgloss.Style {
@@ -35,20 +35,20 @@ func (m *Model) currentDirStyle(width int) lipgloss.Style {
 		Width(width-5).
 		Align(lipgloss.Left).
 		Bold(true).
-		Foreground(m.theme.Yellow).
+		Foreground(m.env.Theme.Yellow).
 		Border(lipgloss.NormalBorder(), false, false, true, false)
 }
 
 func (m *Model) helpStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width - 5).
-		Foreground(m.theme.Muted).
+		Foreground(m.env.Theme.Muted).
 		Align(lipgloss.Center).
 		PaddingTop(1)
 }
 
 func (m *Model) helpKeyStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.theme.Secondary).
+		Foreground(m.env.Theme.Secondary).
 		Bold(true)
 }

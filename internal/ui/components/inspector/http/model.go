@@ -15,7 +15,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/toggleinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -71,7 +70,7 @@ const (
 
 // Model represents the HTTP settings inspector component.
 type Model struct {
-	state     *ui.AppState
+	session   *ui.Session
 	name      string
 	id        ui.ComponentID
 	inspector ui.Component
@@ -79,22 +78,22 @@ type Model struct {
 
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Init() tea.Cmd      { return nil }
-func (m *Model) Mode() env.Mode     { return env.NormalMode }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
 // saveHTTP saves the current HTTP configuration and returns a notification command on error.
-func saveHTTP(state *ui.AppState) tea.Cmd {
-	if err := state.Store.SaveHTTP(state.Config.HTTP); err != nil {
-		state.Log.UI.Error("Failed to save HTTP settings: %v", err)
-		return notice.NewNoticeCmd(state.Deps(), "Failed to save HTTP settings", err.Error(), notice.NOTICE_ERROR)
+func saveHTTP(session *ui.Session) tea.Cmd {
+	if err := session.Store.SaveHTTP(session.Config.HTTP); err != nil {
+		session.Env().Log.Error("Failed to save HTTP settings: %v", err)
+		return notice.NewNoticeCmd(session.Env(), "Failed to save HTTP settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
 // newIntInput creates a text input for integer values with validation and auto-save.
-func newIntInput(state *ui.AppState, title string, value int, validateFn func(int) error, setFn func(int)) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func newIntInput(session *ui.Session, title string, value int, validateFn func(int) error, setFn func(int)) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(strconv.Itoa(value)),
 		textinput.WithValidation(func(v string) error {
 			n, err := strconv.Atoi(v)
@@ -107,17 +106,17 @@ func newIntInput(state *ui.AppState, title string, value int, validateFn func(in
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			setFn(n)
-			return saveHTTP(state)
+			return saveHTTP(session)
 		}),
 	)
 }
 
 // newDurationInput creates a text input for duration values (in ms) with validation and auto-save.
-func newDurationInput(state *ui.AppState, title string, value time.Duration, validateFn func(time.Duration) error, setFn func(time.Duration)) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func newDurationInput(session *ui.Session, title string, value time.Duration, validateFn func(time.Duration) error, setFn func(time.Duration)) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
 		textinput.WithValidation(func(v string) error {
 			n, err := strconv.Atoi(v)
@@ -130,23 +129,23 @@ func newDurationInput(state *ui.AppState, title string, value time.Duration, val
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			setFn(time.Duration(n) * time.Millisecond)
-			return saveHTTP(state)
+			return saveHTTP(session)
 		}),
 	)
 }
 
 // newStringInput creates a text input for string values with validation and auto-save.
-func newStringInput(state *ui.AppState, title, value string, validateFn func(string) error, setFn func(string)) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func newStringInput(session *ui.Session, title, value string, validateFn func(string) error, setFn func(string)) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(value),
 		textinput.WithValidation(validateFn),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			setFn(v)
-			return saveHTTP(state)
+			return saveHTTP(session)
 		}),
 	)
 }
@@ -269,20 +268,20 @@ func groupStatusCodes(codes []int) map[string][]int {
 	return groups
 }
 
-func New(state *ui.AppState, name string) *Model {
-	cfg := &state.Config.HTTP
+func New(session *ui.Session, name string) *Model {
+	cfg := &session.Config.HTTP
 
 	m := &Model{
-		state: state,
-		name:  name,
-		id:    ui.NewComponentID(),
+		session: session,
+		name:    name,
+		id:      ui.NewComponentID(),
 	}
 
 	valField := func(tmp config.HTTPConfig, field validate.Field) error {
 		return fieldErr(validate.ValidateHTTP(tmp), field)
 	}
 
-	workers := newIntInput(state, "Enter number of workers", cfg.Workers,
+	workers := newIntInput(session, "Enter number of workers", cfg.Workers,
 		func(n int) error {
 			tmp := *cfg
 			tmp.Workers = n
@@ -290,28 +289,28 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.Workers = n })
 
-	host := newStringInput(state, "Enter target host", cfg.Host,
+	host := newStringInput(session, "Enter target host", cfg.Host,
 		func(v string) error {
 			tmp := *cfg
 			tmp.Host = v
 			return valField(tmp, validate.FieldHost)
 		}, func(v string) { cfg.Host = v })
 
-	serverName := newStringInput(state, "Enter server name (SNI)", cfg.ServerName,
+	serverName := newStringInput(session, "Enter server name (SNI)", cfg.ServerName,
 		func(v string) error {
 			tmp := *cfg
 			tmp.ServerName = v
 			return valField(tmp, validate.FieldServerName)
 		}, func(v string) { cfg.ServerName = v })
 
-	port := newIntInput(state, "Enter HTTP port", cfg.Port,
+	port := newIntInput(session, "Enter HTTP port", cfg.Port,
 		func(n int) error {
 			tmp := *cfg
 			tmp.Port = n
 			return valField(tmp, validate.FieldPort)
 		}, func(n int) { cfg.Port = n })
 
-	protocol := selectinput.New(state.Deps(), "Protocol",
+	protocol := selectinput.New(session.Env(), "Protocol",
 		selectinput.WithValue(cfg.Protocol),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -320,11 +319,11 @@ func New(state *ui.AppState, name string) *Model {
 		),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.Protocol = v
-			return saveHTTP(state)
+			return saveHTTP(session)
 		}),
 	)
 
-	httpVersion := selectinput.New(state.Deps(), "HTTP Version",
+	httpVersion := selectinput.New(session.Env(), "HTTP Version",
 		selectinput.WithValue(cfg.Version),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -335,17 +334,17 @@ func New(state *ui.AppState, name string) *Model {
 		),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.Version = v
-			return saveHTTP(state)
+			return saveHTTP(session)
 		}),
 	)
 
-	tlsValidation := toggleinput.New(state.Deps(), "TLS Validation",
+	tlsValidation := toggleinput.New(session.Env(), "TLS Validation",
 		toggleinput.WithValue(cfg.TLSValidation),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
 			cfg.TLSValidation = v
-			return saveHTTP(state)
+			return saveHTTP(session)
 		}),
 	)
 
@@ -355,7 +354,7 @@ func New(state *ui.AppState, name string) *Model {
 		fingerprintOptions = append(fingerprintOptions, huh.NewOption(label, label))
 	}
 
-	fingerprint := selectinput.New(state.Deps(), "TLS Fingerprint",
+	fingerprint := selectinput.New(session.Env(), "TLS Fingerprint",
 		selectinput.WithValue(cfg.Fingerprint),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(fingerprintOptions...),
@@ -369,11 +368,11 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.Fingerprint = v
-			return saveHTTP(state)
+			return saveHTTP(session)
 		}),
 	)
 
-	timeout := newDurationInput(state, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
+	timeout := newDurationInput(session, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
 		func(d time.Duration) error {
 			tmp := *cfg
 			tmp.Timeout = config.NewDurationMS(d)
@@ -381,14 +380,14 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) })
 
-	prefixOutput := newStringInput(state, "Enter output file prefix", cfg.OutputPrefix,
+	prefixOutput := newStringInput(session, "Enter output file prefix", cfg.OutputPrefix,
 		func(v string) error {
 			tmp := *cfg
 			tmp.OutputPrefix = v
 			return valField(tmp, validate.FieldOutputPrefix)
 		}, func(v string) { cfg.OutputPrefix = v })
 
-	minTLSVersion := selectinput.New(state.Deps(), "Min TLS Version",
+	minTLSVersion := selectinput.New(session.Env(), "Min TLS Version",
 		selectinput.WithValue(cfg.MinTLSVersion),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -404,11 +403,11 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.MinTLSVersion = v
-			return saveHTTP(state)
+			return saveHTTP(session)
 		}),
 	)
 
-	maxTLSVersion := selectinput.New(state.Deps(), "Max TLS Version",
+	maxTLSVersion := selectinput.New(session.Env(), "Max TLS Version",
 		selectinput.WithValue(cfg.MaxTLSVersion),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -424,7 +423,7 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 		selectinput.WithOnSubmit(func(v string) tea.Cmd {
 			cfg.MaxTLSVersion = v
-			return saveHTTP(state)
+			return saveHTTP(session)
 		}),
 	)
 
@@ -439,7 +438,7 @@ func New(state *ui.AppState, name string) *Model {
 		groupOpts[i] = huh.NewOption(groupLabels[g], g)
 	}
 
-	statusCodeGroups := multiselect.New(state.Deps(), "Select accepted status code groups",
+	statusCodeGroups := multiselect.New(session.Env(), "Select accepted status code groups",
 		multiselect.WithFocus[string](),
 		multiselect.WithOptions(groupOpts...),
 		multiselect.WithValue(groupMultiselectValue),
@@ -451,7 +450,7 @@ func New(state *ui.AppState, name string) *Model {
 
 			cfg.AcceptedStatusCodes = codesFromGroups(selected)
 			groupMultiselectValue = selected
-			return saveHTTP(state)
+			return saveHTTP(session)
 		}),
 	)
 
@@ -461,7 +460,7 @@ func New(state *ui.AppState, name string) *Model {
 	for _, g := range groupOrder {
 		group := g
 
-		specific := multiselect.New(state.Deps(),
+		specific := multiselect.New(session.Env(),
 			fmt.Sprintf("Fine-tune %s codes", groupLabels[group]),
 			multiselect.WithFocus[int](),
 			multiselect.WithOptions(buildSpecificOptions(group)...),
@@ -470,7 +469,7 @@ func New(state *ui.AppState, name string) *Model {
 			multiselect.WithOnSubmit(func(selected []int) tea.Cmd {
 				otherGroups := filterCodesByActiveGroups(cfg.AcceptedStatusCodes, groupMultiselectValue)
 				cfg.AcceptedStatusCodes = append(otherGroups, selected...)
-				return saveHTTP(state)
+				return saveHTTP(session)
 			}),
 		)
 
@@ -518,7 +517,7 @@ func New(state *ui.AppState, name string) *Model {
 
 	fields = append(fields, statusCodeSpecificFields...)
 
-	m.inspector = inspector.New(state.Deps(), "http settings", fields)
+	m.inspector = inspector.New(session.Env(), "http settings", fields)
 	return m
 }
 

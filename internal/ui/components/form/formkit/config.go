@@ -30,7 +30,7 @@ type Service[C TunnelConfig] interface {
 func Save[C TunnelConfig](b *Base, label string, srv Service[C], cfg *C) tea.Msg {
 	name := strings.TrimSpace(b.name)
 	if name == "" {
-		return notice.NewNoticeCmd(b.State().Deps(),
+		return notice.NewNoticeCmd(b.Session().Env(),
 
 			"Error",
 			"config name is required",
@@ -40,8 +40,8 @@ func Save[C TunnelConfig](b *Base, label string, srv Service[C], cfg *C) tea.Msg
 
 	if b.originalName != "" {
 		if err := srv.EditConfig(*cfg, b.originalName); err != nil {
-			b.state.Log.UI.Error("Failed to edit %s config: %v", label, err)
-			return notice.NewNoticeCmd(b.State().Deps(),
+			b.session.Env().Log.Error("Failed to edit %s config: %v", label, err)
+			return notice.NewNoticeCmd(b.Session().Env(),
 
 				"Edit Failed",
 				err.Error(),
@@ -51,8 +51,8 @@ func Save[C TunnelConfig](b *Base, label string, srv Service[C], cfg *C) tea.Msg
 
 		if b.originalName != name {
 			if err := srv.RenameConfig(b.originalName, name); err != nil {
-				b.state.Log.UI.Error("Failed to rename %s config: %v", label, err)
-				return notice.NewNoticeCmd(b.State().Deps(),
+				b.session.Env().Log.Error("Failed to rename %s config: %v", label, err)
+				return notice.NewNoticeCmd(b.Session().Env(),
 
 					"Rename Failed",
 					err.Error(),
@@ -61,8 +61,8 @@ func Save[C TunnelConfig](b *Base, label string, srv Service[C], cfg *C) tea.Msg
 			}
 		}
 	} else if err := srv.SaveConfig(*cfg, name); err != nil {
-		b.state.Log.UI.Error("Failed to save %s config: %v", label, err)
-		return notice.NewNoticeCmd(b.State().Deps(),
+		b.session.Env().Log.Error("Failed to save %s config: %v", label, err)
+		return notice.NewNoticeCmd(b.Session().Env(),
 
 			"Save Failed",
 			err.Error(),
@@ -71,7 +71,7 @@ func Save[C TunnelConfig](b *Base, label string, srv Service[C], cfg *C) tea.Msg
 	}
 
 	return tea.Sequence(
-		notice.NewNoticeCmd(b.State().Deps(),
+		notice.NewNoticeCmd(b.Session().Env(),
 
 			"Saved",
 			label+" config saved",

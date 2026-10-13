@@ -46,7 +46,7 @@ func (m *Model) rowAlpha(i int) float64 {
 
 // fader blends a color in from the theme background by alpha.
 func (m *Model) fader(alpha float64) func(color.Color) color.Color {
-	bg := resolveTheme(m.theme).Background
+	bg := resolveTheme(&m.env.Theme).Background
 
 	return func(c color.Color) color.Color {
 		return anim.Mix(bg, c, alpha)

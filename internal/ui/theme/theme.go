@@ -89,7 +89,7 @@ func List() []string {
 
 // Get returns the named theme. An empty name auto-detects from the
 // terminal; unknown names return an UnknownThemeError.
-func Get(name string) (*Theme, error) {
+func Get(name string) (Theme, error) {
 	if name == "" {
 		if terminalLooksDark() {
 			name = BGScanDark.Name
@@ -100,9 +100,9 @@ func Get(name string) (*Theme, error) {
 
 	t, ok := registry[name]
 	if !ok {
-		return nil, &UnknownThemeError{Name: name}
+		return Theme{}, &UnknownThemeError{Name: name}
 	}
-	return &t, nil
+	return t, nil
 }
 
 // UnknownThemeError reports an attempt to activate a theme that is not

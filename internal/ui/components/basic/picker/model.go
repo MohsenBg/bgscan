@@ -3,12 +3,8 @@ package picker
 import (
 	"os"
 
-	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/filepicker"
 	tea "charm.land/bubbletea/v2"
@@ -23,10 +19,7 @@ type Model struct {
 	// Overlay title displayed by the layout
 	Title string
 
-	// Layout manager used for sizing calculations
-	Layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
+	env *ui.Env
 
 	// Underlying BubbleTea file picker
 	FilePicker filepicker.Model
@@ -75,7 +68,7 @@ func (m *Model) CloseCmd() tea.Cmd {
 // New creates a file picker overlay. baseDir defaults to the user's home
 // directory when empty; allowType restricts selectable extensions; onSelect
 // runs after a file is selected (a no-op is used if nil).
-func New(deps ui.Deps, title string, baseDir string, allowType []string, onSelect OnSelect) *Model {
+func New(env *ui.Env, title string, baseDir string, allowType []string, onSelect OnSelect) *Model {
 	p := filepicker.New()
 
 	if baseDir != "" {
@@ -95,29 +88,23 @@ func New(deps ui.Deps, title string, baseDir string, allowType []string, onSelec
 
 	p.ShowPermissions = true
 	p.AutoHeight = false
-	p.SetHeight(pickerHeight(deps.Layout))
+	p.SetHeight(pickerHeight(env))
 
 	return &Model{
 		id:         ui.NewComponentID(),
 		name:       "Pick File",
 		Title:      title,
-		Layout:     deps.Layout,
-		theme:      deps.Theme,
-		log:        deps.Log,
+		env:        env,
 		FilePicker: p,
 		OnSelect:   onSelect,
 	}
 }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
-
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-// Mode returns NormalMode for standard keyboard navigation.
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
+// Mode returns KeyModeNormal for standard keyboard navigation.
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeNormal
 }

@@ -10,14 +10,14 @@ import (
 func (m *Model) View() string {
 	content := make([]string, 0, 4)
 	if !m.inDialog && m.title != "" {
-		content = append(content, input.MessageStyle(m.theme).Render(m.title))
+		content = append(content, input.MessageStyle(&m.env.Theme).Render(m.title))
 	}
 	content = append(content, m.textarea.View())
 	if m.errorMsg != "" {
-		content = append(content, input.ErrorStyle(m.theme).Render("✗ "+m.errorMsg))
+		content = append(content, input.ErrorStyle(&m.env.Theme).Render("✗ "+m.errorMsg))
 	}
 	if !m.inDialog {
-		hints := input.KeyHintStyle(m.theme).Render("Enter to confirm • Esc to cancel")
+		hints := input.KeyHintStyle(&m.env.Theme).Render("Enter to confirm • Esc to cancel")
 		content = append(content, hints)
 	}
 	body := lipgloss.JoinVertical(

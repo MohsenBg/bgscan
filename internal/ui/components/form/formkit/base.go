@@ -8,7 +8,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/form"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
@@ -31,8 +30,7 @@ func WithMaxHeight(h int) Option {
 // config plus protocol-specific inspector fields.
 type Base struct {
 	id           ui.ComponentID
-	layout       *layout.Layout
-	state        *ui.AppState
+	session      *ui.Session
 	form         *form.Model
 	inspector    *inspector.Model
 	name         string
@@ -45,15 +43,13 @@ type Base struct {
 
 // NewBase creates the shared form base for the given config identity.
 func NewBase(
-	l *layout.Layout,
-	state *ui.AppState,
+	session *ui.Session,
 	name, originalName string,
 	opts ...Option,
 ) Base {
 	b := Base{
 		id:           ui.NewComponentID(),
-		layout:       l,
-		state:        state,
+		session:      session,
 		name:         name,
 		originalName: originalName,
 		maxWidth:     MaxFormWidth,
@@ -68,9 +64,14 @@ func NewBase(
 	return b
 }
 
-func (b *Base) Layout() *layout.Layout { return b.layout }
+func (b *Base) Layout() *layout.Layout {
+	env := b.Session().Env()
+	return &env.Layout
+}
 
-func (b *Base) State() *ui.AppState { return b.state }
+func (b *Base) Session() *ui.Session { return b.session }
+
+func (b *Base) Env() *ui.Env { return b.session.Env() }
 
 func (b *Base) Name() string { return b.name }
 
@@ -78,7 +79,7 @@ func (b *Base) SetName(name string) { b.name = name }
 
 func (b *Base) ID() ui.ComponentID { return b.id }
 
-func (b *Base) Mode() env.Mode { return env.ManagedMode }
+func (b *Base) Mode() ui.KeyMode { return ui.KeyModeManage }
 
 // SetInDialog moves the form's title and key hints into the dialog
 // frame's border lines.
@@ -99,8 +100,9 @@ func (b *Base) Title() string {
 
 // CalculateSize derives the form body size from the layout.
 func (b *Base) CalculateSize() {
-	w := b.layout.BodyContentWidth() - FormPadding
-	h := b.layout.BodyContentHeight() - FormPadding
+	body := b.session.Env().Layout.Body()
+	w := body.Width - FormPadding
+	h := body.Height - FormPadding
 
 	b.width = min(w, b.maxWidth)
 	b.height = min(h, b.maxHeight)
@@ -123,7 +125,7 @@ func (b *Base) BuildForm(
 	b.inspector = ins
 
 	b.form = form.New(
-		b.state.Deps(),
+		b.session.Env(),
 		ins,
 		form.WithName(title),
 		form.WithWidth(b.width),
@@ -135,7 +137,7 @@ func (b *Base) BuildForm(
 			}
 			return fmt.Errorf("%s", form.FormatValidationErrors(errs))
 		}),
-		form.WithSave(confirm.ConfirmCmd(b.state.Deps(),
+		form.WithSave(confirm.ConfirmCmd(b.session.Env(),
 
 			"Save configuration?",
 			onSave,
@@ -198,7 +200,7 @@ func (b *Base) Update(self ui.Component, msg tea.Msg) (ui.Component, tea.Cmd) {
 
 // CancelCmd confirms discarding unsaved changes.
 func (b *Base) CancelCmd() tea.Cmd {
-	return confirm.ConfirmCmd(b.state.Deps(),
+	return confirm.ConfirmCmd(b.session.Env(),
 
 		"Discard unsaved changes?",
 		func() tea.Msg {

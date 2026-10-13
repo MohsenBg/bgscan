@@ -112,8 +112,8 @@ type scanner struct {
 	stormDNSService   dns.StormDNSService
 	thefeedService    dns.TheFeedService
 
-	// logs bundles the app's file loggers (nil-safe children via DiscardSet).
-	logs logger.Set
+	// log is the core.log file logger (nil-safe: nil *Logger discards).
+	log *logger.Logger
 }
 
 // ScannerOption configures a Scanner.
@@ -144,11 +144,11 @@ func WithPortManager(pm portmgr.Manager) ScannerOption {
 	}
 }
 
-// WithLogs provides the file loggers used by the scanner and its probes.
-func WithLogs(l logger.Set) ScannerOption {
+// WithLog provides the core.log file logger used by the scanner and its probes.
+func WithLog(l *logger.Logger) ScannerOption {
 	return func(s *scanner) {
-		if l.Core != nil {
-			s.logs = l
+		if l != nil {
+			s.log = l
 		}
 	}
 }
@@ -252,8 +252,8 @@ func NewScanner(
 		}
 	}
 
-	if s.logs.Core == nil {
-		s.logs = logger.DiscardSet()
+	if s.log == nil {
+		s.log = logger.Discard()
 	}
 
 	if err := s.loadConfig(); err != nil {
@@ -303,7 +303,7 @@ func (s *scanner) loadConfig() error {
 		return nil
 	}
 
-	cfg, err := config.NewStore(config.WithLogger(s.logs.Core)).Load()
+	cfg, err := config.NewStore(config.WithLogger(s.log)).Load()
 	if err != nil {
 		return fmt.Errorf("load scanner config: %w", err)
 	}
@@ -400,7 +400,7 @@ func (s *scanner) Run() error {
 
 	if config.DetectPlatform() == config.Android {
 		if err := exec.Command("termux-wake-lock").Run(); err != nil {
-			s.logs.Core.Warn("termux-wake-lock failed: %v", err)
+			s.log.Warn("termux-wake-lock failed: %v", err)
 		}
 
 		defer func() {
@@ -408,7 +408,7 @@ func (s *scanner) Run() error {
 			defer cancel()
 
 			if err := exec.CommandContext(ctx, "termux-wake-unlock").Run(); err != nil {
-				s.logs.Core.Warn("termux-wake-unlock failed: %v", err)
+				s.log.Warn("termux-wake-unlock failed: %v", err)
 			}
 		}()
 	}
@@ -451,7 +451,7 @@ func (s *scanner) runSingle(stage StageConfig) {
 		Shuffled:         general.Shuffled,
 		MinProbeDuration: general.MinProbeDuration.Duration(),
 		RateLimiter:      s.newRateLimiter(),
-		Log:              s.logs.Core,
+		Log:              s.log,
 	})
 }
 
@@ -481,7 +481,7 @@ func (s *scanner) runChain(stages []StageConfig) {
 		BatchSize:        general.BatchSize,
 		MinProbeDuration: general.MinProbeDuration.Duration(),
 		RateLimiter:      s.newRateLimiter(),
-		Log:              s.logs.Core,
+		Log:              s.log,
 	})
 }
 
@@ -547,7 +547,7 @@ func (s *scanner) Close() error {
 		return nil
 
 	case <-timer.C:
-		s.logs.Core.Error(
+		s.log.Error(
 			"scanner shutdown timed out after %s",
 			shutdownTimeout,
 		)

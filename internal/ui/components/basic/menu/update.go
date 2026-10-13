@@ -4,10 +4,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
+	// The menu reads the theme live from env, so only the help child
+	// (which bakes styled lines into its viewport) needs the signal.
+	if _, ok := msg.(theme.ThemeChanged); ok {
 		if m.help != nil {
 			m.help, _ = m.help.Update(msg)
 		}
@@ -49,7 +52,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 // handleKey handles a key press and reports whether it was consumed.
 func (m *Model) handleKey(key tea.KeyMsg) (tea.Cmd, bool) {
-	k := &m.keys.Menu
+	k := &m.env.Keys.Menu
 
 	if k.Select.Matches(key) {
 		if item, ok := m.getSelected(); ok {
@@ -67,13 +70,13 @@ func (m *Model) handleKey(key tea.KeyMsg) (tea.Cmd, bool) {
 		m.setSelection(m.index - 1)
 	case k.Down.Matches(key):
 		m.setSelection(m.index + 1)
-	case m.keys.Nav.PageUp.Matches(key):
+	case m.env.Keys.Nav.PageUp.Matches(key):
 		m.setSelection(m.index - m.visibleItems())
-	case m.keys.Nav.PageDown.Matches(key):
+	case m.env.Keys.Nav.PageDown.Matches(key):
 		m.setSelection(m.index + m.visibleItems())
-	case m.keys.Nav.Top.Matches(key):
+	case m.env.Keys.Nav.Top.Matches(key):
 		m.setSelection(0)
-	case m.keys.Nav.Bottom.Matches(key):
+	case m.env.Keys.Nav.Bottom.Matches(key):
 		m.setSelection(len(m.items) - 1)
 	default:
 		return nil, false

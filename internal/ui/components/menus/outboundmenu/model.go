@@ -2,12 +2,8 @@
 package outboundmenu
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -27,24 +23,20 @@ type MsgSelectImportMethod struct {
 
 // Model is the outbound import method menu.
 type Model struct {
-	id     ui.ComponentID
-	name   string
-	menu   ui.Component
-	Layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
+	id      ui.ComponentID
+	name    string
+	menu    ui.Component
+	session *ui.Session
 }
 
 // New creates the outbound import menu.
-func New(deps ui.Deps) *Model {
+func New(session *ui.Session) *Model {
 	m := &Model{
-		id:     ui.NewComponentID(),
-		name:   "Outbound Menu",
-		Layout: deps.Layout,
-		theme:  deps.Theme,
-		log:    deps.Log,
+		id:      ui.NewComponentID(),
+		name:    "Outbound Menu",
+		session: session,
 	}
-	m.menu = newMenu(deps)
+	m.menu = newMenu(session)
 	return m
 }
 
@@ -60,34 +52,18 @@ func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeNormal
 }
 
 func (m *Model) Init() tea.Cmd {
 	return m.menu.Init()
 }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-func (m *Model) SetTheme(th *theme.Theme) {
-	m.theme = th
-	if mm, ok := m.menu.(*menu.Model); ok {
-		mm.SetTheme(th)
-	}
-}
-
-// SetInDialog forwards the frame state to the wrapped menu.
-func (m *Model) SetInDialog(inDialog bool) {
-	if f, ok := m.menu.(interface{ SetInDialog(bool) }); ok {
-		f.SetInDialog(inDialog)
-	}
-}
-
 // Title is the dialog-frame title for the outbound import menu.
 const Title = "Addition Method"
 
-func newMenu(deps ui.Deps) *menu.Model {
+func newMenu(session *ui.Session) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
 			"↗",
@@ -108,7 +84,7 @@ func newMenu(deps ui.Deps) *menu.Model {
 	}
 
 	return menu.New(
-		items, Title, deps,
+		items, Title, session.Env(),
 		menu.WithHeight(12),
 		menu.WithWidth(40),
 	)

@@ -12,7 +12,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/toggleinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -50,7 +49,7 @@ const (
 )
 
 type Model struct {
-	state     *ui.AppState
+	session   *ui.Session
 	name      string
 	id        ui.ComponentID
 	inspector ui.Component
@@ -58,35 +57,35 @@ type Model struct {
 
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Init() tea.Cmd      { return nil }
-func (m *Model) Mode() env.Mode     { return env.NormalMode }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
-func saveGeneral(state *ui.AppState) tea.Cmd {
-	if err := state.Store.SaveGeneral(state.Config.General); err != nil {
-		state.Log.UI.Error("Failed to save General settings: %v", err)
-		return notice.NewNoticeCmd(state.Deps(), "Failed to save General settings", err.Error(), notice.NOTICE_ERROR)
+func saveGeneral(session *ui.Session) tea.Cmd {
+	if err := session.Store.SaveGeneral(session.Config.General); err != nil {
+		session.Env().Log.Error("Failed to save General settings: %v", err)
+		return notice.NewNoticeCmd(session.Env(), "Failed to save General settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
-func saveWriter(state *ui.AppState) tea.Cmd {
-	if err := state.Store.SaveWriter(state.Config.Writer); err != nil {
-		state.Log.UI.Error("Failed to save Writer settings: %v", err)
-		return notice.NewNoticeCmd(state.Deps(), "Failed to save Writer settings", err.Error(), notice.NOTICE_ERROR)
+func saveWriter(session *ui.Session) tea.Cmd {
+	if err := session.Store.SaveWriter(session.Config.Writer); err != nil {
+		session.Env().Log.Error("Failed to save Writer settings: %v", err)
+		return notice.NewNoticeCmd(session.Env(), "Failed to save Writer settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
-func intInput(state *ui.AppState, title string, value int, validate func(string) error, set func(int), save func() tea.Cmd) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func intInput(session *ui.Session, title string, value int, validate func(string) error, set func(int), save func() tea.Cmd) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(strconv.Itoa(value)),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(n)
 			return save()
@@ -94,15 +93,15 @@ func intInput(state *ui.AppState, title string, value int, validate func(string)
 	)
 }
 
-func durationMSInput(state *ui.AppState, title string, value time.Duration, validate func(string) error, set func(time.Duration), save func() tea.Cmd) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func durationMSInput(session *ui.Session, title string, value time.Duration, validate func(string) error, set func(time.Duration), save func() tea.Cmd) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(time.Duration(n) * time.Millisecond)
 			return save()
@@ -110,13 +109,13 @@ func durationMSInput(state *ui.AppState, title string, value time.Duration, vali
 	)
 }
 
-func New(state *ui.AppState, name string) *Model {
-	cfg := state.Config
+func New(session *ui.Session, name string) *Model {
+	cfg := session.Config
 
-	saveGeneralCmd := func() tea.Cmd { return saveGeneral(state) }
-	saveWriterCmd := func() tea.Cmd { return saveWriter(state) }
+	saveGeneralCmd := func() tea.Cmd { return saveGeneral(session) }
+	saveWriterCmd := func() tea.Cmd { return saveWriter(session) }
 
-	statusInterval := durationMSInput(state, "Enter Status Interval", cfg.General.StatusInterval.Duration(),
+	statusInterval := durationMSInput(session, "Enter Status Interval", cfg.General.StatusInterval.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -128,7 +127,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(d time.Duration) { cfg.General.StatusInterval = config.NewDurationMS(d) }, saveGeneralCmd)
 
-	maxSuccessfulIPs := intInput(state, "Enter Max Successful IPs (0 = unlimited)", cfg.General.MaxSuccessfulIPs,
+	maxSuccessfulIPs := intInput(session, "Enter Max Successful IPs (0 = unlimited)", cfg.General.MaxSuccessfulIPs,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -140,7 +139,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.General.MaxSuccessfulIPs = n }, saveGeneralCmd)
 
-	maxIPsToTest := intInput(state, "Enter Max IPs To Test (0 = unlimited)", cfg.General.MaxIPsToTest,
+	maxIPsToTest := intInput(session, "Enter Max IPs To Test (0 = unlimited)", cfg.General.MaxIPsToTest,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -152,7 +151,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.General.MaxIPsToTest = n }, saveGeneralCmd)
 
-	shuffled := toggleinput.New(state.Deps(), "Shuffle",
+	shuffled := toggleinput.New(session.Env(), "Shuffle",
 		toggleinput.WithValue(cfg.General.Shuffled),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
@@ -163,7 +162,7 @@ func New(state *ui.AppState, name string) *Model {
 	)
 
 	minProbeDuration := durationMSInput(
-		state,
+		session,
 		"Enter Minimum Probe Duration",
 		cfg.General.MinProbeDuration.Duration(),
 		func(v string) error {
@@ -184,7 +183,7 @@ func New(state *ui.AppState, name string) *Model {
 	)
 
 	probePerSec := intInput(
-		state,
+		session,
 		"Enter Probe Rate Per Second",
 		cfg.General.ProbePerSec,
 		func(v string) error {
@@ -205,7 +204,7 @@ func New(state *ui.AppState, name string) *Model {
 	)
 
 	probeBurst := intInput(
-		state,
+		session,
 		"Enter Probe Burst Size",
 		cfg.General.ProbeBurst,
 		func(v string) error {
@@ -225,7 +224,7 @@ func New(state *ui.AppState, name string) *Model {
 		saveGeneralCmd,
 	)
 
-	pipelineMode := selectinput.New(state.Deps(), "Select Pipeline Mode",
+	pipelineMode := selectinput.New(session.Env(), "Select Pipeline Mode",
 		selectinput.WithValue(cfg.General.PipelineMode),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -239,7 +238,7 @@ func New(state *ui.AppState, name string) *Model {
 		}),
 	)
 
-	maxIPsPerStage := intInput(state, "Enter Max IPs Per Stage", cfg.General.MaxIPsPerStage,
+	maxIPsPerStage := intInput(session, "Enter Max IPs Per Stage", cfg.General.MaxIPsPerStage,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -251,7 +250,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.General.MaxIPsPerStage = n }, saveGeneralCmd)
 
-	batchSize := intInput(state, "Batch Size", cfg.General.BatchSize,
+	batchSize := intInput(session, "Batch Size", cfg.General.BatchSize,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -264,7 +263,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(n int) { cfg.General.BatchSize = n }, saveGeneralCmd)
 
 	// Writer settings
-	mergeFlushInterval := durationMSInput(state, "Enter Merge Flush Interval", cfg.Writer.MergeFlushInterval.Duration(),
+	mergeFlushInterval := durationMSInput(session, "Enter Merge Flush Interval", cfg.Writer.MergeFlushInterval.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -276,7 +275,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(d time.Duration) { cfg.Writer.MergeFlushInterval = config.NewDurationMS(d) }, saveWriterCmd)
 
-	chanSize := intInput(state, "Enter Channel Size", cfg.Writer.ChanSize,
+	chanSize := intInput(session, "Enter Channel Size", cfg.Writer.ChanSize,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -288,7 +287,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.Writer.ChanSize = n }, saveWriterCmd)
 
-	writerBatchSize := intInput(state, "Enter Batch Size", cfg.Writer.BatchSize,
+	writerBatchSize := intInput(session, "Enter Batch Size", cfg.Writer.BatchSize,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -300,7 +299,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.Writer.BatchSize = n }, saveWriterCmd)
 
-	resultDirectory := textinput.New(state.Deps(), "Enter Result Directory",
+	resultDirectory := textinput.New(session.Env(), "Enter Result Directory",
 		textinput.WithValue(cfg.Writer.ResultBaseDir),
 		textinput.WithValidation(func(v string) error {
 			tmp := cfg.Writer
@@ -333,10 +332,10 @@ func New(state *ui.AppState, name string) *Model {
 	}
 
 	return &Model{
-		state:     state,
+		session:   session,
 		name:      name,
 		id:        ui.NewComponentID(),
-		inspector: inspector.New(state.Deps(), "general settings", fields),
+		inspector: inspector.New(session.Env(), "general settings", fields),
 	}
 }
 

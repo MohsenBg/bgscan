@@ -1,7 +1,6 @@
 package startup
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/MohsenBg/bgscan/internal/core"
@@ -11,10 +10,12 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/ffi/slipstream"
 	"github.com/MohsenBg/bgscan/internal/core/xray"
 	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
-func checkConfigHealth(r *reporter, logs logger.Set) (*config.ScannerConfig, *config.Store) {
-	store := config.NewStore(config.WithLogger(logs.Core))
+func checkConfigHealth(r *reporter, session *ui.Session) (*config.ScannerConfig, *config.Store) {
+	core := session.CoreLog()
+	store := config.NewStore(config.WithLogger(&core))
 
 	cfg, err := store.Load()
 	if err != nil {
@@ -157,18 +158,10 @@ func checkSlipstreamHealth(r *reporter) {
 	r.success("Health check completed successfully")
 }
 
-func checkLoggerHealth(r *reporter, logs logger.Set) {
+func checkLoggerHealth(r *reporter, _ *ui.Session) {
 	r.info("Verifying loggers...")
 
-	if logs.Core == nil || logs.UI == nil || logs.Debug == nil {
-		r.errMsg(
-			"Loggers not initialized",
-			errors.New("logger.Set is empty, main must call logger.NewSet before app.New"),
-		)
-		return
-	}
-
-	r.success("Loggers ready (core/ui/debug)")
+	r.success("Loggers ready (core/ui)")
 	r.info("Registering probe schemas...")
 
 	if err := core.Init(); err != nil {

@@ -13,8 +13,8 @@ func (m *Model) tableStyles() table.Styles {
 
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(m.theme.Muted).
-		Foreground(m.theme.Info).
+		BorderForeground(m.env.Theme.Muted).
+		Foreground(m.env.Theme.Info).
 		BorderBottom(true).
 		Padding(0, 1, 0, cellPadLeft)
 
@@ -23,8 +23,8 @@ func (m *Model) tableStyles() table.Styles {
 		Bold(false)
 
 	s.Selected = s.Selected.
-		Foreground(m.theme.Text).
-		Background(m.theme.Selected).
+		Foreground(m.env.Theme.Text).
+		Background(m.env.Theme.Selected).
 		Height(1).
 		Bold(true)
 
@@ -35,7 +35,7 @@ func (m *Model) titleStyles(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).
 		Align(lipgloss.Center).
-		Foreground(m.theme.Info).
+		Foreground(m.env.Theme.Info).
 		Bold(true).
 		Padding(1, 0)
 }
@@ -47,14 +47,14 @@ func (m *Model) filterStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(m.tableWidthLocked()).
 		Align(lipgloss.Left).
-		Foreground(m.theme.Info)
+		Foreground(m.env.Theme.Info)
 }
 
 func (m *Model) tableViewStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Align(lipgloss.Left).
 		Border(lipgloss.RoundedBorder(), true, true, false, true).
-		BorderForeground(m.theme.Info)
+		BorderForeground(m.env.Theme.Info)
 }
 
 // frameH reports the horizontal cells consumed by the table frame.
@@ -106,8 +106,8 @@ func (m *Model) applyStylesLocked() {
 	m.selPrefix, _, _ = strings.Cut(s.Selected.Render(sentinel), sentinel)
 
 	m.marker = lipgloss.NewStyle().
-		Foreground(mixColor(m.theme.Primary, m.theme.Selected, markerOpacity)).
-		Background(m.theme.Selected).
+		Foreground(mixColor(m.env.Theme.Primary, m.env.Theme.Selected, markerOpacity)).
+		Background(m.env.Theme.Selected).
 		Bold(true).
 		Render(markerGlyph)
 }

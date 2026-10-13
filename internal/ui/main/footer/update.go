@@ -7,9 +7,6 @@ import (
 )
 
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
-		return m, nil
-	}
 	switch msg := msg.(type) {
 	case timesTickMsg:
 		stats := getRuntimeStats()

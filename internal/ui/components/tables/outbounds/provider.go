@@ -14,12 +14,12 @@ import (
 )
 
 type source struct {
-	state *ui.AppState
+	session *ui.Session
 }
 
-func newSource(state *ui.AppState) crud.Source[xray.XrayOutboundsFile] {
+func newSource(session *ui.Session) crud.Source[xray.XrayOutboundsFile] {
 	return &source{
-		state: state,
+		session: session,
 	}
 }
 
@@ -36,13 +36,14 @@ func (s *source) Columns() []table.Column {
 }
 
 func (s *source) Load() ([]xray.XrayOutboundsFile, error) {
-	outbounds, err := xray.ListOutboundTemplates(s.state.Log.Core)
+	coreLog := s.session.CoreLog()
+	outbounds, err := xray.ListOutboundTemplates(&coreLog)
 	if err != nil {
-		s.state.Log.UI.Error("Failed to load outbounds: %v", err)
+		s.session.Env().Log.Error("Failed to load outbounds: %v", err)
 		return nil, err
 	}
 
-	s.state.Log.UI.Info("Loaded %d Outbounds", len(outbounds))
+	s.session.Env().Log.Info("Loaded %d Outbounds", len(outbounds))
 
 	slices.SortFunc(outbounds, func(i, j xray.XrayOutboundsFile) int {
 		return j.CreatedTime.Compare(i.CreatedTime)
@@ -73,13 +74,13 @@ func (s *source) Identity(item xray.XrayOutboundsFile) string {
 // newHooks wires the mutation behaviors. OnAdd only registers the "add"
 // keybinding: adding an outbound goes through the custom picker workflow
 // intercepted in Update via crud.MsgActionTrigger, so its body never runs.
-func newHooks(state *ui.AppState, onSelect func(*xray.XrayOutboundsFile) tea.Cmd) crud.Hooks[xray.XrayOutboundsFile] {
+func newHooks(session *ui.Session, onSelect func(*xray.XrayOutboundsFile) tea.Cmd) crud.Hooks[xray.XrayOutboundsFile] {
 	hooks := crud.Hooks[xray.XrayOutboundsFile]{
 		OnDelete: func(item xray.XrayOutboundsFile) tea.Cmd {
 			if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
-				state.Log.UI.Error("Failed to delete outbound: %v", err)
+				session.Env().Log.Error("Failed to delete outbound: %v", err)
 
-				return notice.NewNoticeCmd(state.Deps(),
+				return notice.NewNoticeCmd(session.Env(),
 					"Delete Failed",
 					err.Error(),
 					notice.NOTICE_ERROR,
@@ -90,9 +91,9 @@ func newHooks(state *ui.AppState, onSelect func(*xray.XrayOutboundsFile) tea.Cmd
 		},
 		OnRename: func(item xray.XrayOutboundsFile, newName string) tea.Cmd {
 			if _, err := xray.RenameOutboundTemplate(item.Name, newName); err != nil {
-				state.Log.UI.Error("Rename failed: %v", err)
+				session.Env().Log.Error("Rename failed: %v", err)
 
-				return notice.NewNoticeCmd(state.Deps(),
+				return notice.NewNoticeCmd(session.Env(),
 					"Rename Failed",
 					err.Error(),
 					notice.NOTICE_ERROR,

@@ -44,8 +44,8 @@ func (m model) View() string {
 	}, "\n")
 
 	return lipgloss.Place(
-		m.state.Layout.Terminal.Width,
-		m.state.Layout.Terminal.Height,
+		m.session.Env().Layout.Terminal().Width,
+		m.session.Env().Layout.Terminal().Height,
 		lipgloss.Center,
 		lipgloss.Center, content,
 	)
@@ -123,7 +123,7 @@ func (m model) artifactRow(intensity float64) string {
 }
 
 func (m model) versionLine(holdFrame int) string {
-	th := m.state.Theme()
+	th := m.session.Env().Theme
 
 	// Theme-driven fade-in: faint muted, then muted, then full text.
 	st := lipgloss.NewStyle().Foreground(th.Muted)

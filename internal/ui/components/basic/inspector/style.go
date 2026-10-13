@@ -27,7 +27,7 @@ func valueStyle(th *theme.Theme) lipgloss.Style {
 func (m *Model) titleStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Align(lipgloss.Center).
-		Foreground(m.theme.Info).
+		Foreground(m.env.Theme.Info).
 		Bold(true)
 }
 

@@ -2,25 +2,24 @@ package workspace
 
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 // Update routes messages through the workspace.
 func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	ui.SyncState(msg, m.state)
-
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.state.Layout.Update(msg.Width, msg.Height)
+		m.session.Env().Layout.Update(msg.Width, msg.Height)
 
 	case ui.HeaderVisibilityMsg:
 		cmds = append(cmds, m.setHeaderVisibility(msg))
 	}
 
-	if _, themed := msg.(ui.ThemeChangedMsg); themed {
+	if _, themed := msg.(theme.ThemeChanged); themed {
 		cmds = append(cmds, m.forwardToLayout(msg)...)
 		return m, tea.Batch(cmds...)
 	}
@@ -31,13 +30,15 @@ func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 // setHeaderVisibility updates the header visibility and refreshes the layout.
 func (m *model) setHeaderVisibility(msg ui.HeaderVisibilityMsg) tea.Cmd {
-	if m.state.Layout.ShowHeader == msg.Visible {
+	env := m.session.Env()
+	if env.Layout.ShowHeader() == msg.Visible {
 		return nil
 	}
 
-	m.state.Layout.SetHeaderVisible(msg.Visible)
+	env.Layout.SetHeaderVisible(msg.Visible)
 
-	w, h := m.state.Layout.Terminal.Width, m.state.Layout.Terminal.Height
+	term := env.Layout.Terminal()
+	w, h := term.Width, term.Height
 	return func() tea.Msg {
 		return tea.WindowSizeMsg{Width: w, Height: h}
 	}

@@ -6,7 +6,7 @@ import (
 
 func (m *Model) renderTitle() string {
 	return lipgloss.NewStyle().
-		Foreground(m.theme.Primary).
+		Foreground(m.env.Theme.Primary).
 		Bold(true).Padding(1, 0).
 		Align(lipgloss.Center).
 		Width(m.width).

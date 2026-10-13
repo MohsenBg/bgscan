@@ -39,7 +39,7 @@ type ProxyVisibility struct {
 // intentionally not editable here.
 // TODO: expose a known_hosts_file field in the proxy forms.
 func BuildProxy[C TunnelConfig](
-	deps ui.Deps,
+	env *ui.Env,
 	cfg *C,
 	refresh func() tea.Cmd,
 	getType func(C) dns.ResolverProxyType,
@@ -56,7 +56,7 @@ func BuildProxy[C TunnelConfig](
 	setPriv func(*C, string),
 ) (*ProxyInputs, *ProxyVisibility) {
 	port := textinput.New(
-		deps, "Enter proxy port",
+		env, "Enter proxy port",
 		textinput.WithValue(strconv.Itoa(int(getPort(*cfg)))),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -79,7 +79,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	proxyType := selectinput.New(
-		deps, "Select proxy type",
+		env, "Select proxy type",
 		selectinput.WithValue(string(getType(*cfg))),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -112,7 +112,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	authMethod := selectinput.New(
-		deps, "Select authentication method",
+		env, "Select authentication method",
 		selectinput.WithValue(string(getAuth(*cfg))),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -135,7 +135,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	username := textinput.New(
-		deps, "Enter username",
+		env, "Enter username",
 		textinput.WithValue(getUser(*cfg)),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -153,7 +153,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	password := textinput.New(
-		deps, "Enter password",
+		env, "Enter password",
 		textinput.WithValue(getPass(*cfg)),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -171,7 +171,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	privateKey := textarea.New(
-		deps, "Enter private key",
+		env, "Enter private key",
 		textarea.WithValue(getPriv(*cfg)),
 		textarea.WithFocus(),
 		textarea.WithHeight(6),

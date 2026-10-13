@@ -40,7 +40,7 @@ func FrameTitle(level LEVEL, title string) string {
 
 // levelPalette maps a notice level to its rendering palette.
 func (m *Model) levelPalette(level LEVEL) levelStyle {
-	th := m.theme
+	th := m.env.Theme
 	switch level {
 
 	case NOTICE_ERROR:
@@ -102,12 +102,12 @@ func (m *Model) titleStyle(width int, level LEVEL) lipgloss.Style {
 // buttonStyle renders the notice action button ("Continue", "Done", ...).
 func (m *Model) buttonStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.theme.Primary).
+		Foreground(m.env.Theme.Primary).
 		Align(lipgloss.Center).
 		Padding(0, 2).
 		MarginTop(1).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.theme.BorderActive)
+		BorderForeground(m.env.Theme.BorderActive)
 }
 
 // ButtonStyle keeps backward compatibility for external callers.

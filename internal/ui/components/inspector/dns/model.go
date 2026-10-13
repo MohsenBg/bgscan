@@ -14,7 +14,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/toggleinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -56,7 +55,7 @@ const (
 )
 
 type Model struct {
-	state     *ui.AppState
+	session   *ui.Session
 	name      string
 	id        ui.ComponentID
 	inspector ui.Component
@@ -64,66 +63,66 @@ type Model struct {
 
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Init() tea.Cmd      { return nil }
-func (m *Model) Mode() env.Mode     { return env.NormalMode }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
-func saveDNS(state *ui.AppState) tea.Cmd {
-	if err := state.Store.SaveDNS(state.Config.DNS); err != nil {
-		state.Log.UI.Error("Failed to save DNS settings: %v", err)
-		return notice.NewNoticeCmd(state.Deps(), "Failed to save DNS settings", err.Error(), notice.NOTICE_ERROR)
+func saveDNS(session *ui.Session) tea.Cmd {
+	if err := session.Store.SaveDNS(session.Config.DNS); err != nil {
+		session.Env().Log.Error("Failed to save DNS settings: %v", err)
+		return notice.NewNoticeCmd(session.Env(), "Failed to save DNS settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
-func intInput(state *ui.AppState, title string, value int, validate func(string) error, set func(int)) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func intInput(session *ui.Session, title string, value int, validate func(string) error, set func(int)) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(strconv.Itoa(value)),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(n)
-			return saveDNS(state)
+			return saveDNS(session)
 		}),
 	)
 }
 
-func durationMSInput(state *ui.AppState, title string, value time.Duration, validate func(string) error, set func(time.Duration)) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func durationMSInput(session *ui.Session, title string, value time.Duration, validate func(string) error, set func(time.Duration)) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(time.Duration(n) * time.Millisecond)
-			return saveDNS(state)
+			return saveDNS(session)
 		}),
 	)
 }
 
-func stringInput(state *ui.AppState, title, value string, validate func(string) error, set func(string)) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func stringInput(session *ui.Session, title, value string, validate func(string) error, set func(string)) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(value),
 		textinput.WithFocus(),
 		textinput.WithValidation(validate),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			set(v)
-			return saveDNS(state)
+			return saveDNS(session)
 		}),
 	)
 }
 
-func New(state *ui.AppState, name string) *Model {
-	cfg := &state.Config.DNS
+func New(session *ui.Session, name string) *Model {
+	cfg := &session.Config.DNS
 
-	resolverWorkers := intInput(state, "Enter number of workers", cfg.Resolver.Workers,
+	resolverWorkers := intInput(session, "Enter number of workers", cfg.Resolver.Workers,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -136,7 +135,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(n int) { cfg.Resolver.Workers = n })
 
 	resolverPort := intInput(
-		state,
+		session,
 		"Enter port number",
 		int(cfg.Resolver.Port),
 		func(v string) error {
@@ -151,7 +150,7 @@ func New(state *ui.AppState, name string) *Model {
 		func(n int) { cfg.Resolver.Port = uint16(n) },
 	)
 
-	resolverTransport := selectinput.New(state.Deps(), "Select protocol",
+	resolverTransport := selectinput.New(session.Env(), "Select protocol",
 		selectinput.WithValue(cfg.Resolver.Transport),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -171,11 +170,11 @@ func New(state *ui.AppState, name string) *Model {
 				cfg.Resolver.Port = 53
 				resolverPort.SetValue("53")
 			}
-			return saveDNS(state)
+			return saveDNS(session)
 		}),
 	)
 
-	resolverCheckType := multiselect.New(state.Deps(), "Select check types",
+	resolverCheckType := multiselect.New(session.Env(), "Select check types",
 		multiselect.WithFocus[string](),
 		multiselect.WithOptions(
 			huh.NewOption("A", "A"),
@@ -189,12 +188,12 @@ func New(state *ui.AppState, name string) *Model {
 		multiselect.WithRequired[string](),
 		multiselect.WithOnSubmit(func(v []string) tea.Cmd {
 			cfg.Resolver.CheckTypes = v
-			return saveDNS(state)
+			return saveDNS(session)
 		}),
 	)
 
 	resolverDomain := stringInput(
-		state,
+		session,
 		"Enter target domain",
 		cfg.Resolver.Domain,
 		func(v string) error {
@@ -204,11 +203,11 @@ func New(state *ui.AppState, name string) *Model {
 		}, func(v string) { cfg.Resolver.Domain = v },
 	)
 
-	resolverEDNSBufSize := intInput(state, "Enter EDNS buffer size", int(cfg.Resolver.EDNSBufSize),
+	resolverEDNSBufSize := intInput(session, "Enter EDNS buffer size", int(cfg.Resolver.EDNSBufSize),
 		func(v string) error { return nil },
 		func(n int) { cfg.Resolver.EDNSBufSize = uint16(n) })
 
-	resolverTimeout := durationMSInput(state, "Enter timeout (milliseconds)", cfg.Resolver.Timeout.Duration(),
+	resolverTimeout := durationMSInput(session, "Enter timeout (milliseconds)", cfg.Resolver.Timeout.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -220,7 +219,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(d time.Duration) { cfg.Resolver.Timeout = config.NewDurationMS(d) })
 
-	resolverTries := intInput(state, "Enter maximum attempts", cfg.Resolver.Tries,
+	resolverTries := intInput(session, "Enter maximum attempts", cfg.Resolver.Tries,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -232,17 +231,17 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.Resolver.Tries = n })
 
-	resolverRandomSubdomain := toggleinput.New(state.Deps(), "Enable random subdomain",
+	resolverRandomSubdomain := toggleinput.New(session.Env(), "Enable random subdomain",
 		toggleinput.WithValue(cfg.Resolver.RandomSubdomain),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
 			cfg.Resolver.RandomSubdomain = v
-			return saveDNS(state)
+			return saveDNS(session)
 		}),
 	)
 
-	resolverAcceptedRCodes := multiselect.New(state.Deps(), "Select accepted RCodes",
+	resolverAcceptedRCodes := multiselect.New(session.Env(), "Select accepted RCodes",
 		multiselect.WithFocus[string](),
 		multiselect.WithOptions(
 			huh.NewOption("NOERROR", "NOERROR"),
@@ -256,11 +255,11 @@ func New(state *ui.AppState, name string) *Model {
 		multiselect.WithRequired[string](),
 		multiselect.WithOnSubmit(func(v []string) tea.Cmd {
 			cfg.Resolver.AcceptedRCodes = v
-			return saveDNS(state)
+			return saveDNS(session)
 		}),
 	)
 
-	resolverOutputPrefix := stringInput(state,
+	resolverOutputPrefix := stringInput(session,
 		"Enter output file prefix",
 		cfg.Resolver.OutputPrefix,
 		func(s string) error {
@@ -271,17 +270,17 @@ func New(state *ui.AppState, name string) *Model {
 		func(v string) { cfg.Resolver.OutputPrefix = v })
 
 	// DPI pre-check, nested under Resolver.DPI
-	resolverCheckDPI := toggleinput.New(state.Deps(), "Enable DPI check",
+	resolverCheckDPI := toggleinput.New(session.Env(), "Enable DPI check",
 		toggleinput.WithValue(cfg.Resolver.DPI.Enabled),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
 			cfg.Resolver.DPI.Enabled = v
-			return saveDNS(state)
+			return saveDNS(session)
 		}),
 	)
 
-	resolverDPITimeout := durationMSInput(state, "Enter DPI timeout (milliseconds)", cfg.Resolver.DPI.Timeout.Duration(),
+	resolverDPITimeout := durationMSInput(session, "Enter DPI timeout (milliseconds)", cfg.Resolver.DPI.Timeout.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -293,7 +292,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(dur time.Duration) { cfg.Resolver.DPI.Timeout = config.NewDurationMS(dur) })
 
-	resolverDPITries := intInput(state, "Enter maximum DPI attempts", cfg.Resolver.DPI.Tries,
+	resolverDPITries := intInput(session, "Enter maximum DPI attempts", cfg.Resolver.DPI.Tries,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -308,7 +307,7 @@ func New(state *ui.AppState, name string) *Model {
 	dpiEnabled := func() bool { return cfg.Resolver.DPI.Enabled }
 
 	// DNS tunneling settings shared by DNSTT / SlipStream / VayDNS
-	tunnelWorkers := intInput(state, "Enter number of workers", cfg.DNSTunneling.Workers,
+	tunnelWorkers := intInput(session, "Enter number of workers", cfg.DNSTunneling.Workers,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -320,7 +319,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.DNSTunneling.Workers = n })
 
-	tunnelTries := intInput(state, "Enter maximum attempts", cfg.DNSTunneling.Tries,
+	tunnelTries := intInput(session, "Enter maximum attempts", cfg.DNSTunneling.Tries,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -332,7 +331,7 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(n int) { cfg.DNSTunneling.Tries = n })
 
-	tunnelTimeout := durationMSInput(state, "Enter timeout (milliseconds)", cfg.DNSTunneling.Timeout.Duration(),
+	tunnelTimeout := durationMSInput(session, "Enter timeout (milliseconds)", cfg.DNSTunneling.Timeout.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -344,27 +343,27 @@ func New(state *ui.AppState, name string) *Model {
 		},
 		func(dur time.Duration) { cfg.DNSTunneling.Timeout = config.NewDurationMS(dur) })
 
-	tunnelCheckDNSResolver := toggleinput.New(state.Deps(), "Check resolver before tunneling",
+	tunnelCheckDNSResolver := toggleinput.New(session.Env(), "Check resolver before tunneling",
 		toggleinput.WithValue(cfg.DNSTunneling.CheckDNSResolver),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
 			cfg.DNSTunneling.CheckDNSResolver = v
-			return saveDNS(state)
+			return saveDNS(session)
 		}),
 	)
 
-	tunnelAdaptiveResolver := toggleinput.New(state.Deps(), "Adaptive resolver",
+	tunnelAdaptiveResolver := toggleinput.New(session.Env(), "Adaptive resolver",
 		toggleinput.WithValue(cfg.DNSTunneling.AdaptiveResolver),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
 			cfg.DNSTunneling.AdaptiveResolver = v
-			return saveDNS(state)
+			return saveDNS(session)
 		}),
 	)
 
-	tunnelOutputPrefix := stringInput(state, "Enter output file prefix", cfg.DNSTunneling.OutputPrefix,
+	tunnelOutputPrefix := stringInput(session, "Enter output file prefix", cfg.DNSTunneling.OutputPrefix,
 		func(s string) error {
 			tmp := *cfg
 			tmp.DNSTunneling.OutputPrefix = s
@@ -372,9 +371,9 @@ func New(state *ui.AppState, name string) *Model {
 		}, func(v string) { cfg.DNSTunneling.OutputPrefix = v })
 
 	m := &Model{
-		state: state,
-		name:  name,
-		id:    ui.NewComponentID(),
+		session: session,
+		name:    name,
+		id:      ui.NewComponentID(),
 	}
 
 	fields := []inspector.Field{
@@ -405,12 +404,12 @@ func New(state *ui.AppState, name string) *Model {
 		{Name: "Prefix Output", Description: descTunnelOutputPrefix, Group: groupDNSTunnel, Input: inspector.Adapt(tunnelOutputPrefix), Visible: alwaysVisible},
 	}
 
-	m.inspector = inspector.New(state.Deps(), "dns settings", fields)
+	m.inspector = inspector.New(session.Env(), "dns settings", fields)
 	return m
 }
 
 func alwaysVisible() bool              { return true }
-func (m *Model) resolverVisible() bool { return m.state.Config.DNS.DNSTunneling.CheckDNSResolver }
+func (m *Model) resolverVisible() bool { return m.session.Config.DNS.DNSTunneling.CheckDNSResolver }
 
 func toUpper(values []string) []string {
 	out := make([]string, len(values))

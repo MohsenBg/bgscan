@@ -7,11 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/help"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
 const (
@@ -130,9 +127,7 @@ type Model struct {
 	index    int
 	onSelect func(MenuItem) tea.Cmd
 
-	Layout *layout.Layout
-	theme  *theme.Theme
-	keys   keys.Keys
+	env *ui.Env
 
 	showIcon     bool
 	showShortcut bool
@@ -150,15 +145,13 @@ type Model struct {
 }
 
 // New creates a menu.
-func New(items []MenuItem, title string, deps ui.Deps, options ...Option) *Model {
+func New(items []MenuItem, title string, env *ui.Env, options ...Option) *Model {
 	m := &Model{
 		id:           ui.NewComponentID(),
 		name:         "menu",
 		title:        title,
 		items:        items,
-		Layout:       deps.Layout,
-		theme:        deps.Theme,
-		keys:         keys.OrDefault(deps.Keys),
+		env:          env,
 		showIcon:     true,
 		showShortcut: true,
 		showHelp:     true,
@@ -175,7 +168,7 @@ func New(items []MenuItem, title string, deps ui.Deps, options ...Option) *Model
 		innerWidth := max(1, w-2*contentPadding)
 
 		m.help = help.New(
-			deps,
+			env,
 			title,
 			help.HelpSet{
 				Short: m.ShortHints(),
@@ -196,12 +189,9 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Mode() env.Mode     { return env.NormalMode }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
-
-// Theme returns the current theme.
-func (m *Model) Theme() *theme.Theme { return m.theme }
 
 // Title returns the menu heading.
 func (m *Model) Title() string { return m.title }
@@ -232,11 +222,6 @@ func (m *Model) SetItems(items []MenuItem) tea.Cmd {
 	return m.nextFrame()
 }
 
-// SetTheme updates the theme.
-func (m *Model) SetTheme(t *theme.Theme) {
-	m.theme = t
-}
-
 func (m *Model) hasDescriptions() bool {
 	for _, item := range m.items {
 		if item.desc != "" {
@@ -252,14 +237,12 @@ func (m *Model) effectiveSize() (width, height int) {
 	availWidth := fallbackWidth
 	availHeight := fallbackHeight
 
-	if m.Layout != nil {
-		if w := m.Layout.BodyContentWidth(); w > 0 {
-			availWidth = w
-		}
+	if w := m.env.Layout.Body().Width; w > 0 {
+		availWidth = w
+	}
 
-		if h := m.Layout.BodyContentHeight(); h > 0 {
-			availHeight = h
-		}
+	if h := m.env.Layout.Body().Height; h > 0 {
+		availHeight = h
 	}
 
 	width = min(availWidth, maxMenuWidth)
@@ -325,8 +308,8 @@ func (m *Model) handleResize() {
 
 // ShortHints are the compact hints shown under the menu.
 func (m *Model) ShortHints() keys.Hints {
-	k := m.keys.Menu
-	g := m.keys.Global
+	k := m.env.Keys.Menu
+	g := m.env.Keys.Global
 
 	hints := keys.Hints{
 		keys.Combine("move", k.Up, k.Down),
@@ -351,8 +334,8 @@ func (m *Model) ShortHints() keys.Hints {
 
 // LongHints are everything the menu handles, for the full help dialog.
 func (m *Model) LongHints() keys.Hints {
-	k := m.keys.Menu
-	g := m.keys.Global
+	k := m.env.Keys.Menu
+	g := m.env.Keys.Global
 
 	back := g.Back
 	back.Hidden = !m.showBackHint

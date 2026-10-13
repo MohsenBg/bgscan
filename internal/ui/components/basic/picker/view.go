@@ -17,8 +17,8 @@ import (
 // according to the current layout constraints.
 func (m *Model) View() string {
 	// Limit picker width so it doesn't become too wide
-	width := min(70, m.Layout.Content.Width-10)
-	height := pickerHeight(m.Layout)
+	width := min(70, m.env.Layout.Content().Width-10)
+	height := pickerHeight(m.env)
 
 	title := ""
 	if !m.inDialog && m.Title != "" {

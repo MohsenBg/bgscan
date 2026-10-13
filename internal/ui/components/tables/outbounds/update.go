@@ -23,7 +23,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			return m, tea.Sequence(
 				m.closeOutboundMenu(),
 				picker.OpenFilePickerCmd(
-					m.state.Deps(),
+					m.session.Env(),
 					"Select outbound template (.json)",
 					"",
 					[]string{".json"},

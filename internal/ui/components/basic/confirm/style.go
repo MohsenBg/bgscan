@@ -8,7 +8,7 @@ func (m *Model) messageStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).
 		Bold(true).
-		Foreground(m.theme.Text).
+		Foreground(m.env.Theme.Text).
 		Padding(1, 2).
 		Align(lipgloss.Center)
 }
@@ -16,20 +16,20 @@ func (m *Model) messageStyle(width int) lipgloss.Style {
 // buttonStyle renders an unfocused confirm button ("No"/"Yes").
 func (m *Model) buttonStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
-		Foreground(m.theme.Muted).
+		Foreground(m.env.Theme.Muted).
 		Padding(0, 2).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.theme.Border)
+		BorderForeground(m.env.Theme.Border)
 }
 
 // selectButtonStyle renders the focused confirm button.
 func (m *Model) selectButtonStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Bold(true).
-		Foreground(m.theme.Primary).
+		Foreground(m.env.Theme.Primary).
 		Padding(0, 2).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.theme.BorderActive)
+		BorderForeground(m.env.Theme.BorderActive)
 }
 
 // MessageStyle keeps backward compatibility for external callers.

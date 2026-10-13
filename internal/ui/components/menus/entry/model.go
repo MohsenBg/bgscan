@@ -10,7 +10,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/iplist"
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/outbounds"
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/resultlist"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -18,19 +17,19 @@ import (
 
 // Model is the main entry menu component.
 type Model struct {
-	id    ui.ComponentID
-	name  string
-	menu  ui.Component
-	state *ui.AppState
+	id      ui.ComponentID
+	name    string
+	menu    ui.Component
+	session *ui.Session
 }
 
 // New creates the main entry menu with available sections.
-func New(state *ui.AppState) *Model {
+func New(session *ui.Session) *Model {
 	entry := &Model{
-		id:    ui.NewComponentID(),
-		name:  "Main Menu",
-		state: state,
-		menu:  newMainMenu(state),
+		id:      ui.NewComponentID(),
+		name:    "Main Menu",
+		session: session,
+		menu:    newMainMenu(session),
 	}
 	return entry
 }
@@ -53,11 +52,11 @@ func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeNormal
 }
 
-func newMainMenu(state *ui.AppState) *menu.Model {
+func newMainMenu(sesstion *ui.Session) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
 			"▶",
@@ -65,7 +64,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 			"s",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
-					Component: targetsource.New(state),
+					Component: targetsource.New(sesstion),
 				}
 			},
 		).WithDescription("Start a new scan from an IP list or a saved result"),
@@ -75,7 +74,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 			"i",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
-					Component: iplist.New(state, "IP Files", nil),
+					Component: iplist.New(sesstion, "IP Files", nil),
 				}
 			},
 		).WithDescription("Manage the IP ranges loaded for scanning"),
@@ -87,7 +86,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 				var maxRenderIP uint32 = 10_000
 				return ui.OpenComponentMsg{
 					Component: resultlist.New(
-						state,
+						sesstion,
 						"Result Files",
 						maxRenderIP,
 						nil,
@@ -102,7 +101,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
 					Component: outbounds.New(
-						state,
+						sesstion,
 						"Xray Outbound",
 						nil,
 					),
@@ -116,7 +115,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
 					Component: dnstun.New(
-						state,
+						sesstion,
 						"DNS Tunneling",
 						nil,
 					),
@@ -129,7 +128,7 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 			"c",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
-					Component: settings.New(state),
+					Component: settings.New(sesstion),
 				}
 			},
 		).WithDescription("Theme, table and scanner preferences"),
@@ -139,10 +138,10 @@ func newMainMenu(state *ui.AppState) *menu.Model {
 			"l",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
-					Component: logs.New(state),
+					Component: logs.New(sesstion),
 				}
 			},
 		).WithDescription("Inspect application and scanner logs"),
 	}
-	return menu.New(items, "Main Menu", state.Deps(), menu.WithBackHint(false))
+	return menu.New(items, "Main Menu", sesstion.Env(), menu.WithBackHint(false))
 }

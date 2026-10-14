@@ -17,7 +17,7 @@ type source struct {
 	session *ui.Session
 }
 
-func newSource(session *ui.Session) crud.Source[xray.XrayOutboundsFile] {
+func newSource(session *ui.Session) crud.Source[xray.OutboundFile] {
 	return &source{
 		session: session,
 	}
@@ -30,12 +30,12 @@ func (s *source) Columns() []table.Column {
 		{Title: "Name", Width: 40},
 		{Title: "Protocol", Width: 15},
 		{Title: "Network", Width: 15},
-		{Title: "TLS", Width: 10},
+		{Title: "Security", Width: 10},
 		{Title: "Created Time", Width: 20},
 	}
 }
 
-func (s *source) Load() ([]xray.XrayOutboundsFile, error) {
+func (s *source) Load() ([]xray.OutboundFile, error) {
 	coreLog := s.session.CoreLog()
 	outbounds, err := xray.ListOutboundTemplates(&coreLog)
 	if err != nil {
@@ -45,38 +45,33 @@ func (s *source) Load() ([]xray.XrayOutboundsFile, error) {
 
 	s.session.Env().Log.Info("Loaded %d Outbounds", len(outbounds))
 
-	slices.SortFunc(outbounds, func(i, j xray.XrayOutboundsFile) int {
+	slices.SortFunc(outbounds, func(i, j xray.OutboundFile) int {
 		return j.CreatedTime.Compare(i.CreatedTime)
 	})
 
 	return outbounds, nil
 }
 
-func (s *source) RenderRow(item xray.XrayOutboundsFile) table.Row {
-	tls := "No"
-	if item.UseTLS {
-		tls = "Yes"
-	}
-
+func (s *source) RenderRow(item xray.OutboundFile) table.Row {
 	return table.Row{
 		item.Name,
-		item.Protocol,
-		item.Network,
-		tls,
+		string(item.Protocol),
+		string(item.Network),
+		string(item.Security),
 		item.CreatedTime.Format("2006-01-02 15:04:05"),
 	}
 }
 
-func (s *source) Identity(item xray.XrayOutboundsFile) string {
+func (s *source) Identity(item xray.OutboundFile) string {
 	return item.Name
 }
 
 // newHooks wires the mutation behaviors. OnAdd only registers the "add"
 // keybinding: adding an outbound goes through the custom picker workflow
 // intercepted in Update via crud.MsgActionTrigger, so its body never runs.
-func newHooks(session *ui.Session, onSelect func(*xray.XrayOutboundsFile) tea.Cmd) crud.Hooks[xray.XrayOutboundsFile] {
-	hooks := crud.Hooks[xray.XrayOutboundsFile]{
-		OnDelete: func(item xray.XrayOutboundsFile) tea.Cmd {
+func newHooks(session *ui.Session, onSelect func(*xray.OutboundFile) tea.Cmd) crud.Hooks[xray.OutboundFile] {
+	hooks := crud.Hooks[xray.OutboundFile]{
+		OnDelete: func(item xray.OutboundFile) tea.Cmd {
 			if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
 				session.Env().Log.Error("Failed to delete outbound: %v", err)
 
@@ -89,7 +84,7 @@ func newHooks(session *ui.Session, onSelect func(*xray.XrayOutboundsFile) tea.Cm
 
 			return nil
 		},
-		OnRename: func(item xray.XrayOutboundsFile, newName string) tea.Cmd {
+		OnRename: func(item xray.OutboundFile, newName string) tea.Cmd {
 			if _, err := xray.RenameOutboundTemplate(item.Name, newName); err != nil {
 				session.Env().Log.Error("Rename failed: %v", err)
 
@@ -106,7 +101,7 @@ func newHooks(session *ui.Session, onSelect func(*xray.XrayOutboundsFile) tea.Cm
 	}
 
 	if onSelect != nil {
-		hooks.OnSelect = func(item xray.XrayOutboundsFile) tea.Cmd {
+		hooks.OnSelect = func(item xray.OutboundFile) tea.Cmd {
 			return onSelect(&item)
 		}
 	}

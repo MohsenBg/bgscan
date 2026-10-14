@@ -120,6 +120,7 @@ func (m *Model[T]) handleAction(key tea.KeyMsg) (tea.Cmd, bool) {
 			item = selected
 		}
 
+		m.env.Log.Dump("item", item)
 		return a.run(item), true
 	}
 

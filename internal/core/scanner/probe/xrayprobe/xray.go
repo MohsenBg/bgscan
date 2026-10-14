@@ -22,10 +22,10 @@ const bytesPerKbpsSecond float64 = 1000.0 / 8.0
 
 // XrayService is the probe's view of xray.XrayService.
 type XrayService interface {
-	GetOutboundTemplateByName(string) (*xray.XrayOutboundsFile, error)
-	GenerateConfig(outbound string, ip netip.Addr, port uint16) (*xray.XrayConfig, error)
-	ValidateConfig(context.Context, *xray.XrayConfig) error
-	Start(context.Context, *xray.XrayConfig) (xray.Instance, error)
+	GetOutboundTemplateByName(string) (*xray.OutboundFile, error)
+	GenerateConfig(outbound string, ip netip.Addr, localPort, remotePort uint16) (*xray.Config, error)
+	ValidateConfig(context.Context, *xray.Config) error
+	Start(context.Context, *xray.Config) (xray.Instance, error)
 	CloseShared() error
 }
 
@@ -159,7 +159,7 @@ func (p *XrayProbe) Init(ctx context.Context) error {
 
 	loopback := netip.AddrFrom4([4]byte{127, 0, 0, 1})
 
-	cfg, err := p.xray.GenerateConfig(p.outbound, loopback, port)
+	cfg, err := p.xray.GenerateConfig(p.outbound, loopback, port, 0)
 	if err != nil {
 		return fmt.Errorf("generate Xray config for validation: %w", err)
 	}
@@ -187,7 +187,7 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	}
 	defer p.pm.Release(port)
 
-	cfg, err := p.xray.GenerateConfig(p.outbound, ip, port)
+	cfg, err := p.xray.GenerateConfig(p.outbound, ip, port, 0)
 	if err != nil {
 		return nil, probe.NormalizeErr(fmt.Errorf("generate Xray config: %w", err))
 	}

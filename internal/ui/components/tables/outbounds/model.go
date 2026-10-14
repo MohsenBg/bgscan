@@ -22,10 +22,10 @@ type Model struct {
 	name         string
 	session      *ui.Session
 	outboundMenu ui.Component
-	crudTable    *crud.Model[xray.XrayOutboundsFile]
+	crudTable    *crud.Model[xray.OutboundFile]
 }
 
-func New(session *ui.Session, title string, onSelect func(*xray.XrayOutboundsFile) tea.Cmd) *Model {
+func New(session *ui.Session, title string, onSelect func(*xray.OutboundFile) tea.Cmd) *Model {
 	m := &Model{
 		id:      ui.NewComponentID(),
 		name:    "outbounds",

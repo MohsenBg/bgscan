@@ -1,21 +1,15 @@
 package xray
 
-// getInbound builds the localhost SOCKS inbound probes dial through.
-// Auth is off (local use only); sniffing is on for http/tls detection.
+// getInbound builds the localhost SOCKS inbound used for probing.
 func getInbound(port uint16) Inbound {
 	return Inbound{
-		Port:     port,
-		Listen:   "127.0.0.1",
 		Tag:      "socks-inbound",
-		Protocol: "socks",
+		Listen:   "127.0.0.1",
+		Port:     port,
+		Protocol: ProtocolSocks,
 		Settings: SocksSettings{
-			Auth: "noauth",
-			UDP:  false,
+			Auth: SocksAuthNone,
 			IP:   "127.0.0.1",
-		},
-		Sniffing: SniffingSetting{
-			Enabled:      true,
-			DestOverride: []string{"http", "tls"},
 		},
 	}
 }

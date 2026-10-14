@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"path/filepath"
@@ -13,34 +14,26 @@ import (
 	core "github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/shared"
 
-	// Registers all proxies/transports; without it the core rejects configs
+	// Registers all proxies/transports; without these the core rejects configs
 	// with "proxy not registered".
 	_ "github.com/xtls/xray-core/main/distro/all"
 	_ "github.com/xtls/xray-core/main/json"
 )
 
-// XrayService builds scan configs and runs them on the embedded Xray core,
-// all in-process. Callers must Close started instances.
+// XrayService builds scan configs and runs them on the embedded Xray core.
 type XrayService interface {
-	// Version reports the embedded core version.
 	Version() string
-
-	// GetOutboundTemplateByName finds a saved outbound template (".json" optional).
-	GetOutboundTemplateByName(string) (*XrayOutboundsFile, error)
+	GetOutboundTemplateByName(name string) (*OutboundFile, error)
 
 	// GenerateConfig pairs an outbound template with a local SOCKS inbound.
-	GenerateConfig(outbound string, ip netip.Addr, port uint16) (*XrayConfig, error)
+	// A nonzero remotePort overrides the dial port (written to the protocol's
+	// port field, or the host:port endpoint for WireGuard); pass 0 to keep the
+	// template's own port. localPort is the SOCKS listener port.
+	GenerateConfig(outbound string, ip netip.Addr, localPort, remotePort uint16) (*Config, error)
+	ValidateConfig(ctx context.Context, config *Config) error
+	Start(ctx context.Context, config *Config) (Instance, error)
 
-	// ValidateConfig builds (without starting) an instance to check the config.
-	ValidateConfig(context.Context, *XrayConfig) error
-
-	// Start launches a live instance. The caller owns it and must Close it.
-	Start(context.Context, *XrayConfig) (Instance, error)
-
-	// CloseShared releases process-global transport state shared by all
-	// instances: pooled XHTTP/gRPC dialers and stuck in-flight dials.
-	// Instance Close alone cannot reach these. Call once per scan end,
-	// when no instance is running.
+	// CloseShared releases process-global transport state shared by all instances.
 	CloseShared() error
 }
 
@@ -48,21 +41,16 @@ type Instance interface {
 	Close() error
 }
 
-// xrayService is the default XrayService implementation.
 type xrayService struct{}
 
-// ServiceOption tunes the embedded core at creation.
 type ServiceOption func()
 
-// WithScanTuning installs scanner-friendly transport limits process-wide
-// (dial timeout, concurrent-dial roof, outbound retry attempts). Zero
-// values leave the corresponding upstream default untouched. Callers must
-// pass it before any scan runs; safe to call once at service creation.
+// WithScanTuning installs scanner-friendly transport limits process-wide.
+// It must be applied before any scan runs.
 func WithScanTuning(t shared.ScanTuning) ServiceOption {
 	return func() { shared.ApplyScanTuning(t) }
 }
 
-// NewXrayService creates an XrayService wired to the embedded core.
 func NewXrayService(opts ...ServiceOption) XrayService {
 	for _, opt := range opts {
 		opt()
@@ -70,60 +58,44 @@ func NewXrayService(opts ...ServiceOption) XrayService {
 	return &xrayService{}
 }
 
-// Version reports the embedded core version.
 func (s *xrayService) Version() string {
 	return core.Version()
 }
 
-// GetOutboundTemplateByName finds a saved outbound template by name.
-func (s *xrayService) GetOutboundTemplateByName(name string) (*XrayOutboundsFile, error) {
+func (s *xrayService) GetOutboundTemplateByName(name string) (*OutboundFile, error) {
 	return GetOutboundTemplateByName(name)
 }
 
-// GenerateConfig fills the named outbound template with the target IP and
-// pairs it with a localhost SOCKS inbound.
-func (s *xrayService) GenerateConfig(outboundName string, ip netip.Addr, port uint16) (*XrayConfig, error) {
+func (s *xrayService) GenerateConfig(outboundName string, ip netip.Addr, localPort, remotePort uint16) (*Config, error) {
 	if !ip.IsValid() {
 		return nil, fmt.Errorf("invalid IP: %s", ip)
 	}
 
-	template, err := GetOutboundTemplateByName(outboundName)
+	template, err := s.GetOutboundTemplateByName(outboundName)
 	if err != nil {
 		return nil, err
 	}
 
-	outbound, err := applyOutboundTemplate(template.Path, ip)
+	outbound, err := applyOutboundTemplate(template.Path, ip, remotePort)
 	if err != nil {
 		return nil, err
 	}
 
-	return &XrayConfig{
-		Inbound:  []Inbound{getInbound(port)},
-		Outbound: []any{outbound},
-		Log:      &xrayLogConfig{Loglevel: "none"},
+	raw, err := json.Marshal(outbound)
+	if err != nil {
+		return nil, fmt.Errorf("marshal outbound: %w", err)
+	}
+
+	return &Config{
+		Log:       &LogConfig{LogLevel: LogLevelNone},
+		Inbounds:  []Inbound{getInbound(localPort)},
+		Outbounds: []json.RawMessage{raw},
 	}, nil
 }
 
-// toCoreJSON marshals the config to the JSON bytes the core loader reads.
-func toCoreJSON(config *XrayConfig) ([]byte, error) {
-	configBytes, err := json.Marshal(config)
-	if err != nil {
-		return nil, fmt.Errorf("marshal config: %w", err)
-	}
-
-	return configBytes, nil
-}
-
-// ValidateConfig checks the config by building (not starting) a core instance.
-func (s *xrayService) ValidateConfig(ctx context.Context, config *XrayConfig) error {
-	if config == nil {
-		return fmt.Errorf("xray config is nil")
-	}
-	if len(config.Inbound) == 0 {
-		return fmt.Errorf("xray config has no inbounds")
-	}
-	if len(config.Outbound) == 0 {
-		return fmt.Errorf("xray config has no outbounds")
+func (s *xrayService) ValidateConfig(ctx context.Context, config *Config) error {
+	if err := validateConfigShape(config); err != nil {
+		return err
 	}
 
 	configBytes, err := toCoreJSON(config)
@@ -143,21 +115,14 @@ func (s *xrayService) ValidateConfig(ctx context.Context, config *XrayConfig) er
 	if err != nil {
 		return fmt.Errorf("xray core rejected config: %w", err)
 	}
-	defer func() { _ = instance.Close() }()
+	_ = instance.Close()
 
 	return nil
 }
 
-// Start launches a live instance. Close it when done or it leaks.
-func (s *xrayService) Start(ctx context.Context, config *XrayConfig) (Instance, error) {
-	if config == nil {
-		return nil, fmt.Errorf("xray config is nil")
-	}
-	if len(config.Inbound) == 0 {
-		return nil, fmt.Errorf("xray config has no inbounds")
-	}
-	if len(config.Outbound) == 0 {
-		return nil, fmt.Errorf("xray config has no outbounds")
+func (s *xrayService) Start(ctx context.Context, config *Config) (Instance, error) {
+	if err := validateConfigShape(config); err != nil {
+		return nil, err
 	}
 
 	configBytes, err := toCoreJSON(config)
@@ -177,23 +142,39 @@ func (s *xrayService) Start(ctx context.Context, config *XrayConfig) (Instance, 
 	return instance, nil
 }
 
-// getAssetsPath joins parts onto the app base directory.
+func (s *xrayService) CloseShared() error {
+	return shared.CloseAll()
+}
+
+func validateConfigShape(config *Config) error {
+	if config == nil {
+		return errors.New("xray config is nil")
+	}
+	if len(config.Inbounds) == 0 {
+		return errors.New("xray config has no inbounds")
+	}
+	if len(config.Outbounds) == 0 {
+		return errors.New("xray config has no outbounds")
+	}
+	return nil
+}
+
+func toCoreJSON(config *Config) ([]byte, error) {
+	configBytes, err := json.Marshal(config)
+	if err != nil {
+		return nil, fmt.Errorf("marshal config: %w", err)
+	}
+	return configBytes, nil
+}
+
 func getAssetsPath(parts ...string) string {
 	base, err := fileutil.BasePath()
 	if err != nil {
 		return filepath.Join(parts...)
 	}
-
 	return filepath.Join(append([]string{base}, parts...)...)
 }
 
-// CloseShared releases process-global transport state shared by all
-// instances. See the interface docs for when to call it.
-func (s *xrayService) CloseShared() error {
-	return shared.CloseAll()
-}
-
-// templateDir is the on-disk folder of saved outbound templates.
 func templateDir() string {
 	return getAssetsPath("assets", "xray", "outbounds")
 }

@@ -14,15 +14,10 @@ func TestGetInbound(t *testing.T) {
 		Port:     port,
 		Listen:   "127.0.0.1",
 		Tag:      "socks-inbound",
-		Protocol: "socks",
+		Protocol: ProtocolSocks,
 		Settings: SocksSettings{
-			Auth: "noauth",
-			UDP:  false,
+			Auth: SocksAuthNone,
 			IP:   "127.0.0.1",
-		},
-		Sniffing: SniffingSetting{
-			Enabled:      true,
-			DestOverride: []string{"http", "tls"},
 		},
 	}
 

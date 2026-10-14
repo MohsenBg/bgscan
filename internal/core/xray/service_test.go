@@ -19,7 +19,7 @@ func TestServiceVersion_NonEmpty(t *testing.T) {
 func TestGenerateConfig_InvalidIP(t *testing.T) {
 	svc := NewXrayService()
 
-	if _, err := svc.GenerateConfig("anything", netip.Addr{}, 1080); err == nil {
+	if _, err := svc.GenerateConfig("anything", netip.Addr{}, 1080, 0); err == nil {
 		t.Fatal("expected error for invalid IP")
 	}
 }
@@ -28,7 +28,7 @@ func TestGenerateConfig_MissingTemplate(t *testing.T) {
 	svc := NewXrayService()
 
 	ip := netip.MustParseAddr("1.2.3.4")
-	if _, err := svc.GenerateConfig("does-not-exist-xyz", ip, 1080); err == nil {
+	if _, err := svc.GenerateConfig("does-not-exist-xyz", ip, 1080, 0); err == nil {
 		t.Fatal("expected error for missing outbound template")
 	}
 }
@@ -44,7 +44,7 @@ func TestValidateConfig_Nil(t *testing.T) {
 func TestValidateConfig_NoInboundsOrOutbounds(t *testing.T) {
 	svc := NewXrayService()
 
-	if err := svc.ValidateConfig(context.Background(), &XrayConfig{}); err == nil {
+	if err := svc.ValidateConfig(context.Background(), &Config{}); err == nil {
 		t.Fatal("expected an error for a config with no inbound/outbound")
 	}
 }
@@ -52,7 +52,7 @@ func TestValidateConfig_NoInboundsOrOutbounds(t *testing.T) {
 func TestValidateConfig_NoOutbounds(t *testing.T) {
 	svc := NewXrayService()
 
-	cfg := &XrayConfig{Inbound: []Inbound{getInbound(18080)}}
+	cfg := &Config{Inbounds: []Inbound{getInbound(18080)}}
 	if err := svc.ValidateConfig(context.Background(), cfg); err == nil {
 		t.Fatal("expected an error for a config with no outbounds")
 	}
@@ -72,9 +72,9 @@ func TestStart_CanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	cfg := &XrayConfig{
-		Inbound:  []Inbound{getInbound(18081)},
-		Outbound: []any{map[string]any{"protocol": "freedom"}},
+	cfg := &Config{
+		Inbounds:  []Inbound{getInbound(18081)},
+		Outbounds: []json.RawMessage{json.RawMessage(`{"protocol": "freedom"}`)},
 	}
 	if _, err := svc.Start(ctx, cfg); err == nil {
 		t.Fatal("expected error for canceled context")
@@ -83,9 +83,9 @@ func TestStart_CanceledContext(t *testing.T) {
 
 // Guards the core JSON shape: plural "inbounds"/"outbounds" keys.
 func TestToCoreJSON_UsesPluralKeys(t *testing.T) {
-	cfg := &XrayConfig{
-		Inbound:  []Inbound{getInbound(1080)},
-		Outbound: []any{map[string]any{"protocol": "freedom"}},
+	cfg := &Config{
+		Inbounds:  []Inbound{getInbound(1080)},
+		Outbounds: []json.RawMessage{json.RawMessage(`{"protocol": "freedom"}`)},
 	}
 
 	raw, err := toCoreJSON(cfg)

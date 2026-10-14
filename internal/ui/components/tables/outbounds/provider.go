@@ -17,7 +17,7 @@ type source struct {
 	state *ui.AppState
 }
 
-func newSource(state *ui.AppState) crud.Source[xray.XrayOutboundsFile] {
+func newSource(state *ui.AppState) crud.Source[xray.OutboundFile] {
 	return &source{
 		state: state,
 	}
@@ -30,12 +30,12 @@ func (s *source) Columns() []table.Column {
 		{Title: "Name", Width: 40},
 		{Title: "Protocol", Width: 15},
 		{Title: "Network", Width: 15},
-		{Title: "TLS", Width: 10},
+		{Title: "Security", Width: 10},
 		{Title: "Created Time", Width: 20},
 	}
 }
 
-func (s *source) Load() ([]xray.XrayOutboundsFile, error) {
+func (s *source) Load() ([]xray.OutboundFile, error) {
 	outbounds, err := xray.ListOutboundTemplates(s.state.Log.Core)
 	if err != nil {
 		s.state.Log.UI.Error("Failed to load outbounds: %v", err)
@@ -44,38 +44,33 @@ func (s *source) Load() ([]xray.XrayOutboundsFile, error) {
 
 	s.state.Log.UI.Info("Loaded %d Outbounds", len(outbounds))
 
-	slices.SortFunc(outbounds, func(i, j xray.XrayOutboundsFile) int {
+	slices.SortFunc(outbounds, func(i, j xray.OutboundFile) int {
 		return j.CreatedTime.Compare(i.CreatedTime)
 	})
 
 	return outbounds, nil
 }
 
-func (s *source) RenderRow(item xray.XrayOutboundsFile) table.Row {
-	tls := "No"
-	if item.UseTLS {
-		tls = "Yes"
-	}
-
+func (s *source) RenderRow(item xray.OutboundFile) table.Row {
 	return table.Row{
 		item.Name,
-		item.Protocol,
-		item.Network,
-		tls,
+		string(item.Protocol),
+		string(item.Network),
+		string(item.Security),
 		item.CreatedTime.Format("2006-01-02 15:04:05"),
 	}
 }
 
-func (s *source) Identity(item xray.XrayOutboundsFile) string {
+func (s *source) Identity(item xray.OutboundFile) string {
 	return item.Name
 }
 
 // newHooks wires the mutation behaviors. OnAdd only registers the "add"
 // keybinding: adding an outbound goes through the custom picker workflow
 // intercepted in Update via crud.MsgActionTrigger, so its body never runs.
-func newHooks(state *ui.AppState, onSelect func(*xray.XrayOutboundsFile) tea.Cmd) crud.Hooks[xray.XrayOutboundsFile] {
-	hooks := crud.Hooks[xray.XrayOutboundsFile]{
-		OnDelete: func(item xray.XrayOutboundsFile) tea.Cmd {
+func newHooks(state *ui.AppState, onSelect func(*xray.OutboundFile) tea.Cmd) crud.Hooks[xray.OutboundFile] {
+	hooks := crud.Hooks[xray.OutboundFile]{
+		OnDelete: func(item xray.OutboundFile) tea.Cmd {
 			if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
 				state.Log.UI.Error("Failed to delete outbound: %v", err)
 
@@ -88,7 +83,7 @@ func newHooks(state *ui.AppState, onSelect func(*xray.XrayOutboundsFile) tea.Cmd
 
 			return nil
 		},
-		OnRename: func(item xray.XrayOutboundsFile, newName string) tea.Cmd {
+		OnRename: func(item xray.OutboundFile, newName string) tea.Cmd {
 			if _, err := xray.RenameOutboundTemplate(item.Name, newName); err != nil {
 				state.Log.UI.Error("Rename failed: %v", err)
 
@@ -105,7 +100,7 @@ func newHooks(state *ui.AppState, onSelect func(*xray.XrayOutboundsFile) tea.Cmd
 	}
 
 	if onSelect != nil {
-		hooks.OnSelect = func(item xray.XrayOutboundsFile) tea.Cmd {
+		hooks.OnSelect = func(item xray.OutboundFile) tea.Cmd {
 			return onSelect(&item)
 		}
 	}

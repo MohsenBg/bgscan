@@ -117,7 +117,7 @@ func (m *Model) open(mode ScanType) tea.Cmd {
 
 func (m *Model) openXrayTemplates() tea.Cmd {
 	return ui.OpenComponentCmd(
-		outbounds.New(m.state, "select outbound", func(xof *xray.XrayOutboundsFile) tea.Cmd {
+		outbounds.New(m.state, "select outbound", func(xof *xray.OutboundFile) tea.Cmd {
 			m.xrayTemplate = xof.Name
 			return m.open(XRAYScan)
 		}),

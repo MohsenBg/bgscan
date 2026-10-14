@@ -41,7 +41,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 	updated, cmd := m.crudTable.Update(msg)
 
-	if table, ok := updated.(*crud.Model[xray.XrayOutboundsFile]); ok {
+	if table, ok := updated.(*crud.Model[xray.OutboundFile]); ok {
 		m.crudTable = table
 	}
 

@@ -25,10 +25,10 @@ type Model struct {
 	state        *ui.AppState
 	layout       *layout.Layout
 	outboundMenu ui.Component
-	crudTable    *crud.Model[xray.XrayOutboundsFile]
+	crudTable    *crud.Model[xray.OutboundFile]
 }
 
-func New(state *ui.AppState, title string, onSelect func(*xray.XrayOutboundsFile) tea.Cmd) *Model {
+func New(state *ui.AppState, title string, onSelect func(*xray.OutboundFile) tea.Cmd) *Model {
 	m := &Model{
 		id:     ui.NewComponentID(),
 		name:   "outbounds",

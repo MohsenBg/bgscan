@@ -14,6 +14,12 @@ type Keys struct {
 	Menu    MenuKeys
 	Form    FormKeys
 	Scan    ScanKeys
+
+	TextInput        TextInputKeys
+	TextArea         TextAreaKeys
+	SelectInput      SelectInputKeys
+	MultiSelectInput MultiSelectInputKeys
+	ToggleInput      ToggleInputKeys
 }
 
 type GlobalKeys struct {
@@ -71,4 +77,104 @@ type FilterKeys struct {
 	Backspace Binding
 	Clear     Binding
 	Accept    Binding
+}
+
+type TextInputKeys struct {
+	Submit                  Binding
+	CharacterForward        Binding
+	CharacterBackward       Binding
+	WordForward             Binding
+	WordBackward            Binding
+	DeleteWordBackward      Binding
+	DeleteWordForward       Binding
+	DeleteAfterCursor       Binding
+	DeleteBeforeCursor      Binding
+	DeleteCharacterBackward Binding
+	DeleteCharacterForward  Binding
+	LineStart               Binding
+	LineEnd                 Binding
+	Paste                   Binding
+}
+
+type TextAreaKeys struct {
+	Submit                     Binding
+	NewLine                    Binding
+	CharacterForward           Binding
+	CharacterBackward          Binding
+	WordForward                Binding
+	WordBackward               Binding
+	LineNext                   Binding
+	LinePrevious               Binding
+	DeleteWordBackward         Binding
+	DeleteWordForward          Binding
+	DeleteAfterCursor          Binding
+	DeleteBeforeCursor         Binding
+	InsertNewline              Binding
+	DeleteCharacterBackward    Binding
+	DeleteCharacterForward     Binding
+	LineStart                  Binding
+	LineEnd                    Binding
+	PageUp                     Binding
+	PageDown                   Binding
+	Paste                      Binding
+	InputBegin                 Binding
+	InputEnd                   Binding
+	CapitalizeWordForward      Binding
+	LowercaseWordForward       Binding
+	UppercaseWordForward       Binding
+	TransposeCharacterBackward Binding
+	SelectCharacterForward     Binding
+	SelectCharacterBackward    Binding
+	SelectWordForward          Binding
+	SelectWordBackward         Binding
+	SelectLineUp               Binding
+	SelectLineDown             Binding
+	SelectAll                  Binding
+	CopySelection              Binding
+}
+
+// SelectInputKeys mirrors huh's SelectKeyMap.
+type SelectInputKeys struct {
+	Submit       Binding
+	Prev         Binding
+	Next         Binding
+	Up           Binding
+	Down         Binding
+	HalfPageUp   Binding
+	HalfPageDown Binding
+	GotoTop      Binding
+	GotoBottom   Binding
+	Left         Binding
+	Right        Binding
+	Filter       Binding
+	SetFilter    Binding
+	ClearFilter  Binding
+}
+
+// MultiSelectInputKeys mirrors huh's MultiSelectKeyMap.
+type MultiSelectInputKeys struct {
+	Submit       Binding
+	Prev         Binding
+	Next         Binding
+	Toggle       Binding
+	Up           Binding
+	Down         Binding
+	HalfPageUp   Binding
+	HalfPageDown Binding
+	GotoTop      Binding
+	GotoBottom   Binding
+	Filter       Binding
+	SetFilter    Binding
+	ClearFilter  Binding
+	SelectAll    Binding
+	SelectNone   Binding
+}
+
+type ToggleInputKeys struct {
+	Prev   Binding
+	Next   Binding
+	Submit Binding
+	Toggle Binding
+	Accept Binding
+	Reject Binding
 }

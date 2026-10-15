@@ -54,10 +54,14 @@ func (b Binding) Matches(k tea.KeyMsg) bool {
 
 // LongItem is the full help entry for this binding.
 // It shows every active key bound to the action.
-func (b Binding) LongItem() Hint {
+func (b Binding) LongItem(expand ...string) Hint {
+	label := b.HelpText
+	if len(expand) > 0 {
+		label += " " + strings.Join(expand, " ")
+	}
 	return Hint{
 		Key:   b.longKey(),
-		Label: b.HelpText,
+		Label: label,
 	}
 }
 

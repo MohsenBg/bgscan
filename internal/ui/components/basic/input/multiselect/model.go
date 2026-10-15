@@ -63,7 +63,7 @@ func New[T comparable](
 
 	inp := m.huhInput.Options(m.options...).WithWidth(m.Width())
 	m.huhInput = inp.(*huh.MultiSelect[T])
-	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
+	m.huhInput.WithKeyMap(m.keyMap())
 	m.huhInput.WithTheme(theme.NewHuhTheme(&m.env.Theme))
 
 	if m.limit > 0 {
@@ -141,13 +141,35 @@ func (m *Model[T]) Mode() ui.KeyMode { return ui.KeyModeNormal }
 // Title returns the raw dialog-frame title.
 func (m *Model[T]) Title() string { return m.title }
 
-// Hints returns the raw frame hints, excluding Cancel.
-func (m *Model[T]) Hints() []keys.Hint {
-	return []keys.Hint{
-		{Key: "↑/↓", Label: "move"},
-		{Key: "space", Label: "select"},
-		{Key: "⏎", Label: "confirm"},
-	}
+func (m *Model[T]) DialogHints() keys.Hints {
+	return DialogHints(m.env.Keys.MultiSelectInput)
+}
+
+// DialogHints returns the frame hints for a multi-select with the given keys.
+func DialogHints(k keys.MultiSelectInputKeys) keys.Hints {
+	hints := keys.Hints{keys.Combine("move", k.Up, k.Down)}
+	return append(hints, keys.Short(k.Toggle, k.Submit)...)
+}
+
+func (m *Model[T]) keyMap() *huh.KeyMap {
+	k := m.env.Keys.MultiSelectInput
+	km := huh.NewDefaultKeyMap()
+	km.MultiSelect.Submit.SetKeys(k.Submit.Keys...)
+	km.MultiSelect.Prev.SetKeys(k.Prev.Keys...)
+	km.MultiSelect.Next.SetKeys(k.Next.Keys...)
+	km.MultiSelect.Toggle.SetKeys(k.Toggle.Keys...)
+	km.MultiSelect.Up.SetKeys(k.Up.Keys...)
+	km.MultiSelect.Down.SetKeys(k.Down.Keys...)
+	km.MultiSelect.HalfPageUp.SetKeys(k.HalfPageUp.Keys...)
+	km.MultiSelect.HalfPageDown.SetKeys(k.HalfPageDown.Keys...)
+	km.MultiSelect.GotoTop.SetKeys(k.GotoTop.Keys...)
+	km.MultiSelect.GotoBottom.SetKeys(k.GotoBottom.Keys...)
+	km.MultiSelect.Filter.SetKeys(k.Filter.Keys...)
+	km.MultiSelect.SetFilter.SetKeys(k.SetFilter.Keys...)
+	km.MultiSelect.ClearFilter.SetKeys(k.ClearFilter.Keys...)
+	km.MultiSelect.SelectAll.SetKeys(k.SelectAll.Keys...)
+	km.MultiSelect.SelectNone.SetKeys(k.SelectNone.Keys...)
+	return km
 }
 
 func (m *Model[T]) Width() int {
@@ -171,7 +193,7 @@ func (m *Model[T]) rebuild() {
 		Value(&m.value)
 	inp := m.huhInput.Options(m.options...).WithWidth(m.Width())
 	m.huhInput = inp.(*huh.MultiSelect[T])
-	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
+	m.huhInput.WithKeyMap(m.keyMap())
 	m.huhInput.WithTheme(theme.NewHuhTheme(&m.env.Theme))
 	if m.limit > 0 {
 		m.huhInput = m.huhInput.Limit(m.limit)

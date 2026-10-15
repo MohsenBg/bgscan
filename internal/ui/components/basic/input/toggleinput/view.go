@@ -8,21 +8,15 @@ import (
 
 // View renders the toggle component.
 func (m *Model) View() string {
-	content := make([]string, 0, 4)
+	content := make([]string, 0, 3)
 
-	if !m.inDialog && m.title != "" {
-		content = append(content, input.MessageStyle(&m.env.Theme).Render(m.title))
+	if m.title != "" {
+		content = append(content, m.title, "")
 	}
-
 	content = append(content, m.huhInput.View())
 
 	if m.errorMsg != "" {
 		content = append(content, input.ErrorStyle(&m.env.Theme).Render("✗ "+m.errorMsg))
-	}
-
-	if !m.inDialog {
-		hints := input.KeyHintStyle(&m.env.Theme).Render("←/→ to toggle • Enter to confirm • Esc to cancel")
-		content = append(content, hints)
 	}
 
 	body := lipgloss.JoinVertical(lipgloss.Top, content...)

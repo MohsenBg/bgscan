@@ -21,22 +21,20 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		m.textinput.SetWidth(m.Width())
 		return m, cmd
 
-	case tea.KeyPressMsg:
-		value := m.textinput.Value()
+	case tea.KeyMsg:
 
-		switch msg.Code {
-
-		case tea.KeyEnter:
+		if m.env.Keys.TextInput.Submit.Matches(msg) {
 			return m, m.submit()
+		}
 
-		default:
-			if m.dynamicValidation && m.validationFunc != nil {
-				m.errorMsg = ""
-				if err := m.validationFunc(value); err != nil {
-					m.errorMsg = err.Error()
-				}
+		value := m.textinput.Value()
+		if m.dynamicValidation && m.validationFunc != nil {
+			m.errorMsg = ""
+			if err := m.validationFunc(value); err != nil {
+				m.errorMsg = err.Error()
 			}
 		}
+
 	}
 
 	return m, cmd

@@ -1,6 +1,8 @@
 package toggleinput
 
 import (
+	"slices"
+
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
@@ -34,10 +36,6 @@ type Model struct {
 
 	onChange func(bool) tea.Cmd
 	onSubmit func(bool) tea.Cmd
-
-	// inDialog is true while the input is hosted inside a dialog frame:
-	// the title and key hints then live in the frame's border lines.
-	inDialog bool
 }
 
 func New(
@@ -55,10 +53,9 @@ func New(
 	}
 
 	m.huhInput = huh.NewConfirm().
-		Title(title).
 		Value(&m.value)
 
-	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
+	m.huhInput.WithKeyMap(m.keyMap())
 	m.huhInput.WithTheme(theme.NewHuhTheme(&m.env.Theme))
 	for _, opt := range options {
 		opt(m)
@@ -132,19 +129,24 @@ func (m *Model) Name() string { return m.name }
 
 func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
 
-// SetInDialog moves the input's title and key hints into the dialog
-// frame's border lines.
-func (m *Model) SetInDialog(inDialog bool) { m.inDialog = inDialog }
-
 // Title returns the input prompt as raw data for the dialog frame.
 func (m *Model) Title() string { return m.title }
 
-// Hints returns the input's key hints as raw data, excluding Cancel.
-func (m *Model) Hints() []keys.Hint {
-	return []keys.Hint{
-		{Key: "←/→", Label: "toggle"},
-		{Key: "⏎", Label: "confirm"},
-	}
+func (m *Model) DialogHints() keys.Hints {
+	k := m.env.Keys.ToggleInput
+	tl := k.Toggle
+
+	tl.Keys = slices.Clone(tl.Keys)
+	tl.Keys[0], tl.Keys[1] = tl.Keys[1], tl.Keys[0]
+
+	hints := append(
+		keys.Hints{},
+		keys.Combine("move", tl, k.Toggle),
+	)
+
+	hints = append(hints, keys.Short(k.Submit)...)
+
+	return hints
 }
 
 func (m *Model) Width() int {
@@ -166,7 +168,7 @@ func (m *Model) rebuild() {
 	m.huhInput = huh.NewConfirm().
 		Title(m.title).
 		Value(&m.value)
-	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
+	m.huhInput.WithKeyMap(m.keyMap())
 	m.huhInput.WithTheme(theme.NewHuhTheme(&m.env.Theme))
 	inp := m.huhInput.
 		Affirmative(m.affirm).
@@ -222,6 +224,19 @@ func (m *Model) validation() error {
 		return nil
 	}
 	return m.validationFunc(m.Value())
+}
+
+// keyMap translates the shared keys into the huh keymap.
+func (m *Model) keyMap() *huh.KeyMap {
+	k := m.env.Keys.ToggleInput
+	km := huh.NewDefaultKeyMap()
+	km.Confirm.Prev.SetKeys(k.Prev.Keys...)
+	km.Confirm.Next.SetKeys(k.Next.Keys...)
+	km.Confirm.Submit.SetKeys(k.Submit.Keys...)
+	km.Confirm.Toggle.SetKeys(k.Toggle.Keys...)
+	km.Confirm.Accept.SetKeys(k.Accept.Keys...)
+	km.Confirm.Reject.SetKeys(k.Reject.Keys...)
+	return km
 }
 
 func (m *Model) submit() tea.Cmd {

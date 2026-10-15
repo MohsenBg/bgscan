@@ -51,7 +51,7 @@ func New[T comparable](
 		Title(title).
 		Value(&m.value)
 
-	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
+	m.huhInput.WithKeyMap(m.keyMap())
 	m.huhInput.WithTheme(theme.NewHuhTheme(&m.env.Theme))
 	for _, opt := range options {
 		opt(m)
@@ -123,12 +123,37 @@ func (m *Model[T]) Mode() ui.KeyMode { return ui.KeyModeNormal }
 // Title returns the raw dialog-frame title.
 func (m *Model[T]) Title() string { return m.title }
 
-// Hints returns the raw frame hints, excluding Cancel.
-func (m *Model[T]) Hints() []keys.Hint {
-	return []keys.Hint{
-		{Key: "↑/↓", Label: "move"},
-		{Key: "⏎", Label: "confirm"},
-	}
+func (m *Model[T]) DialogHints() keys.Hints {
+	return DialogHints(m.env.Keys.SelectInput)
+}
+
+// DialogHints returns the frame hints for a select with the given keys.
+func DialogHints(k keys.SelectInputKeys) keys.Hints {
+	return append(
+		keys.Hints{keys.Combine("move", k.Up, k.Down)},
+		keys.Short(k.Submit)...,
+	)
+}
+
+// keyMap translates the shared keys into the huh select keymap.
+func (m *Model[T]) keyMap() *huh.KeyMap {
+	k := m.env.Keys.SelectInput
+	km := huh.NewDefaultKeyMap()
+	km.Select.Submit.SetKeys(k.Submit.Keys...)
+	km.Select.Prev.SetKeys(k.Prev.Keys...)
+	km.Select.Next.SetKeys(k.Next.Keys...)
+	km.Select.Up.SetKeys(k.Up.Keys...)
+	km.Select.Down.SetKeys(k.Down.Keys...)
+	km.Select.HalfPageUp.SetKeys(k.HalfPageUp.Keys...)
+	km.Select.HalfPageDown.SetKeys(k.HalfPageDown.Keys...)
+	km.Select.GotoTop.SetKeys(k.GotoTop.Keys...)
+	km.Select.GotoBottom.SetKeys(k.GotoBottom.Keys...)
+	km.Select.Left.SetKeys(k.Left.Keys...)
+	km.Select.Right.SetKeys(k.Right.Keys...)
+	km.Select.Filter.SetKeys(k.Filter.Keys...)
+	km.Select.SetFilter.SetKeys(k.SetFilter.Keys...)
+	km.Select.ClearFilter.SetKeys(k.ClearFilter.Keys...)
+	return km
 }
 
 func (m *Model[T]) Width() int {
@@ -150,7 +175,7 @@ func (m *Model[T]) rebuild() {
 	m.huhInput = huh.NewSelect[T]().
 		Title(m.title).
 		Value(&m.value)
-	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
+	m.huhInput.WithKeyMap(m.keyMap())
 	m.huhInput.WithTheme(theme.NewHuhTheme(&m.env.Theme))
 	inp := m.huhInput.Options(m.options...).WithWidth(m.Width())
 	m.huhInput = inp.(*huh.Select[T])

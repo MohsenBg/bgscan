@@ -32,10 +32,6 @@ type Model struct {
 
 	onChange func(string) tea.Cmd
 	onSubmit func(string) tea.Cmd
-
-	// inDialog is true while the input is hosted inside a dialog frame:
-	// the title and key hints then live in the frame's border lines.
-	inDialog bool
 }
 
 func New(
@@ -53,10 +49,13 @@ func New(
 		dynamicValidation: false,
 	}
 
+	m.textinput.KeyMap = m.keyMap()
 	m.textinput.SetWidth(m.Width())
 	for _, opt := range options {
 		opt(m)
 	}
+
+	m.textinput.KeyMap = m.keyMap()
 
 	return m
 }
@@ -126,19 +125,8 @@ func (m *Model) Mode() ui.KeyMode {
 	return ui.KeyModeInput
 }
 
-// SetInDialog moves the input's title and key hints into the dialog
-// frame's border lines.
-func (m *Model) SetInDialog(inDialog bool) { m.inDialog = inDialog }
-
 // Title returns the input prompt as raw data for the dialog frame.
 func (m *Model) Title() string { return m.title }
-
-// Hints returns the input's key hints as raw data, excluding Cancel.
-func (m *Model) Hints() []keys.Hint {
-	return []keys.Hint{
-		{Key: "⏎", Label: "confirm"},
-	}
-}
 
 func (m *Model) Width() int {
 	return min(50, m.env.Layout.Body().Width)
@@ -206,6 +194,36 @@ func (m *Model) validation(value string) error {
 		return nil
 	}
 	return m.validationFunc(value)
+}
+
+// keyMap translates the shared keys into the bubbles textinput keymap.
+func (m *Model) keyMap() textinput.KeyMap {
+	k := m.env.Keys.TextInput
+	defaultKeyMap := textinput.DefaultKeyMap()
+	defaultKeyMap.CharacterForward.SetKeys(k.CharacterForward.Keys...)
+	defaultKeyMap.CharacterBackward.SetKeys(k.CharacterBackward.Keys...)
+	defaultKeyMap.WordForward.SetKeys(k.WordForward.Keys...)
+	defaultKeyMap.WordBackward.SetKeys(k.WordBackward.Keys...)
+	defaultKeyMap.DeleteWordBackward.SetKeys(k.DeleteWordBackward.Keys...)
+	defaultKeyMap.DeleteWordForward.SetKeys(k.DeleteWordForward.Keys...)
+	defaultKeyMap.DeleteAfterCursor.SetKeys(k.DeleteAfterCursor.Keys...)
+	defaultKeyMap.DeleteBeforeCursor.SetKeys(k.DeleteBeforeCursor.Keys...)
+	defaultKeyMap.DeleteCharacterBackward.SetKeys(k.DeleteCharacterBackward.Keys...)
+	defaultKeyMap.DeleteCharacterForward.SetKeys(k.DeleteCharacterForward.Keys...)
+	defaultKeyMap.LineStart.SetKeys(k.LineStart.Keys...)
+	defaultKeyMap.LineEnd.SetKeys(k.LineEnd.Keys...)
+	defaultKeyMap.Paste.SetKeys(k.Paste.Keys...)
+	return defaultKeyMap
+}
+
+func (m *Model) DialogHints() keys.Hints {
+	return DialogHints(m.env.Keys.TextInput)
+}
+
+func DialogHints(k keys.TextInputKeys) keys.Hints {
+	return keys.Short(
+		k.Submit,
+	)
 }
 
 // submit trims, validates, then invokes onSubmit.

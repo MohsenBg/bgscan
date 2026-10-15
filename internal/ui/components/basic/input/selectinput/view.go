@@ -20,9 +20,6 @@ func (m *Model[T]) View() string {
 		content = append(content, input.ErrorStyle(&m.env.Theme).Render("✗ "+m.errorMsg))
 	}
 
-	hints := input.KeyHintStyle(&m.env.Theme).Render("↑/↓ to move • Enter to confirm • Esc/b to cancel")
-	content = append(content, hints)
-
 	body := lipgloss.JoinVertical(
 		lipgloss.Top,
 		content...,

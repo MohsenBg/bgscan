@@ -238,9 +238,9 @@ func Default() Keys {
 			HelpText: "submit",
 		},
 		NewLine: Binding{
-			Action:   ActionTextAreaSubmit,
+			Action:   ActionTextAreaNewLine,
 			Keys:     []string{"shift+enter", "ctrl+m"},
-			HelpText: "submit",
+			HelpText: "newline",
 		},
 		CharacterForward: Binding{
 			Action:   ActionTextAreaCharacterForward,

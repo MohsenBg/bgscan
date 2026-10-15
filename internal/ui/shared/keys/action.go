@@ -143,7 +143,7 @@ const (
 // Text area
 const (
 	ActionTextAreaSubmit                     Action = "textarea.submit"
-	ActionTextNewLine                        Action = "textarea.NewLine"
+	ActionTextAreaNewLine                    Action = "textarea.newline"
 	ActionTextAreaCharacterForward           Action = "textarea.character_forward"
 	ActionTextAreaCharacterBackward          Action = "textarea.character_backward"
 	ActionTextAreaWordForward                Action = "textarea.word_forward"

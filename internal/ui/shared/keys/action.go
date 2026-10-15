@@ -75,6 +75,12 @@ const (
 	ActionScanCancel Action = "scan.cancel"
 )
 
+// Inspector
+const (
+	ActionInspectorEdit        Action = "inspector.edit"
+	ActionInspectorDescription Action = "inspector.description"
+)
+
 // Text input
 const (
 	ActionTextInputSubmit                  Action = "textinput.submit"

@@ -588,6 +588,25 @@ func Default() Keys {
 		},
 	}
 
+	inspector := InspectorKeys{
+		Up:      nav.Up,
+		Down:    nav.Down,
+		NextTab: nav.NextTab,
+		PrevTab: nav.PrevTab,
+		Edit: Binding{
+			Action:    ActionInspectorEdit,
+			Keys:      []string{"enter"},
+			HelpText:  "edit selected field",
+			ShortText: "edit",
+		},
+		Description: Binding{
+			Action:    ActionInspectorDescription,
+			Keys:      []string{"d"},
+			HelpText:  "show description",
+			ShortText: "description",
+		},
+	}
+
 	return Keys{
 		Global: global,
 		Nav:    nav,
@@ -629,6 +648,8 @@ func Default() Keys {
 			HelpText:      "save",
 			CaseSensitive: false,
 		}),
+
+		Inspector: inspector,
 
 		Table: table,
 		Crud: CrudKeys{

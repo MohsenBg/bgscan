@@ -15,6 +15,8 @@ type Keys struct {
 	Form    FormKeys
 	Scan    ScanKeys
 
+	Inspector InspectorKeys
+
 	TextInput        TextInputKeys
 	TextArea         TextAreaKeys
 	SelectInput      SelectInputKeys
@@ -59,6 +61,13 @@ type MenuKeys struct {
 
 type ScanKeys struct {
 	TogglePause, ToggleLogs, Cancel Binding
+}
+
+type InspectorKeys struct {
+	Up, Down         Binding
+	NextTab, PrevTab Binding
+	Edit             Binding
+	Description      Binding
 }
 
 type TableKeys struct {

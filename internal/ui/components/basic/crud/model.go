@@ -1,30 +1,27 @@
 package crud
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-
-	tea "charm.land/bubbletea/v2"
 )
 
-type MsgRefresh struct{}
+// RefreshMsg requests the model to reload items from the source.
+type RefreshMsg struct{}
 
-// Model is a generic CRUD controller backed by a sortable table. The
-// available commands derive entirely from hooks: zero-value Hooks means a
-// read-only view.
+// Model is a generic CRUD controller backed by a sortable table.
 type Model[T any] struct {
-	id     ui.ComponentID
-	env    *ui.Env
-	table  *table.Model
-	source Source[T]
-	hooks  Hooks[T]
-
+	id       ui.ComponentID
+	env      *ui.Env
+	table    *table.Model
+	source   Source[T]
+	hooks    Hooks[T]
 	items    []T
 	itemsMap map[string]T
 	actions  []actionEntry[T]
 }
 
-// New creates a CRUD model; maxWidth bounds the rendered table width.
+// New creates a CRUD model. maxWidth bounds the rendered table width.
 func New[T any](
 	env *ui.Env,
 	source Source[T],
@@ -40,8 +37,7 @@ func New[T any](
 		actions:  make([]actionEntry[T], 0, 5),
 	}
 
-	// The verbs have to exist before the table is built, because the
-	// table's help lines are drawn from them.
+	// Actions must be bound before table creation so help hints are populated.
 	m.bindActions(*env.Keys)
 
 	m.table = table.New(
@@ -57,7 +53,10 @@ func New[T any](
 	return m
 }
 
-func (m *Model[T]) Init() tea.Cmd { return tea.Batch(m.RefreshCmd, m.table.Init()) }
+func (m *Model[T]) Init() tea.Cmd {
+	m.table.SetLoading(true)
+	return tea.Batch(m.refreshCmd, m.table.Init())
+}
 
 func (m *Model[T]) ID() ui.ComponentID { return m.id }
 func (m *Model[T]) Name() string       { return m.source.Title() }

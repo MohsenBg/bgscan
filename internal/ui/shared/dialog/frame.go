@@ -43,7 +43,7 @@ func RenderFrame(content string, o FrameOptions, th *theme.Theme) string {
 
 	body := lipgloss.NewStyle().
 		MaxWidth(innerWidth).
-		Padding(0, 1).
+		Padding(1).
 		Render(content)
 
 	width := max(lipgloss.Width(body), minFrameWidth)

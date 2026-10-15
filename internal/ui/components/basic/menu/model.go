@@ -245,7 +245,7 @@ func (m *Model) effectiveSize() (width, height int) {
 		}
 	}
 
-	if h := m.env.Layout.Body().Height; h > 0 && m.height <= 0 {
+	if h := m.env.Layout.Body().Height; h > 0 {
 		if m.height > 0 {
 			availHeight = m.height
 		} else {

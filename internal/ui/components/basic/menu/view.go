@@ -33,7 +33,6 @@ const (
 // View renders the menu as a block of exactly effectiveSize() cells.
 func (m *Model) View() string {
 	width, height := m.effectiveSize()
-	m.env.Log.Info("width:%d", width)
 	innerWidth := max(1, width-2*contentPadding)
 
 	visible := m.visibleLines(height)

@@ -1,14 +1,13 @@
-// Package outboundmenu selects how outbound configs are imported.
+// Package outboundmenu prompts the user to choose how to import an outbound config.
 package outboundmenu
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-
-	tea "charm.land/bubbletea/v2"
 )
 
-// ImportMethod defines how the user wants to add outbound configurations.
+// ImportMethod identifies the source format for an outbound import.
 type ImportMethod string
 
 const (
@@ -16,76 +15,52 @@ const (
 	MethodJSON ImportMethod = "json"
 )
 
-// MsgSelectImportMethod is fired when a selection is made, carrying the chosen method.
-type MsgSelectImportMethod struct {
-	Method ImportMethod
-}
+// MsgSelectImportMethod reports the user's chosen import method.
+type MsgSelectImportMethod struct{ Method ImportMethod }
 
-// Model is the outbound import method menu.
+// title is the dialog heading for this menu.
+const title = "Addition Method"
+
+// Model wraps the basic menu component for outbound import selection.
 type Model struct {
-	id      ui.ComponentID
-	name    string
-	menu    ui.Component
-	session *ui.Session
+	id   ui.ComponentID
+	menu ui.Component
 }
 
 // New creates the outbound import menu.
 func New(session *ui.Session) *Model {
-	m := &Model{
-		id:      ui.NewComponentID(),
-		name:    "Outbound Menu",
-		session: session,
+	return &Model{
+		id:   ui.NewComponentID(),
+		menu: newMenu(session.Env()),
 	}
-	m.menu = newMenu(session)
-	return m
 }
 
-func (m *Model) ID() ui.ComponentID {
-	return m.id
-}
+func (m *Model) ID() ui.ComponentID { return m.id }
+func (m *Model) Name() string       { return title }
+func (m *Model) OnClose() tea.Cmd   { return nil }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
+func (m *Model) Init() tea.Cmd      { return m.menu.Init() }
 
-func (m *Model) Name() string {
-	return m.name
-}
-
-func (m *Model) OnClose() tea.Cmd {
-	return nil
-}
-
-func (m *Model) Mode() ui.KeyMode {
-	return ui.KeyModeNormal
-}
-
-func (m *Model) Init() tea.Cmd {
-	return m.menu.Init()
-}
-
-// Title is the dialog-frame title for the outbound import menu.
-const Title = "Addition Method"
-
-func newMenu(session *ui.Session) *menu.Model {
+func newMenu(env *ui.Env) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
 			"↗",
-			"Via Link",
+			"From Link",
 			"l",
-			func() tea.Msg {
-				return MsgSelectImportMethod{Method: MethodLink}
-			},
-		),
+			func() tea.Msg { return MsgSelectImportMethod{Method: MethodLink} },
+		).WithDescription("Sharing URLs (vmess://, vless://, trojan://, etc.)"),
+
 		menu.NewMenuItem(
 			"{}",
-			"Select JSON",
-			"j",
-			func() tea.Msg {
-				return MsgSelectImportMethod{Method: MethodJSON}
-			},
-		),
+			"From File",
+			"f",
+			func() tea.Msg { return MsgSelectImportMethod{Method: MethodJSON} },
+		).WithDescription("Raw Xray JSON configuration file"),
 	}
 
 	return menu.New(
-		items, Title, session.Env(),
-		menu.WithHeight(12),
-		menu.WithWidth(40),
+		items, title, env,
+		menu.WithWidth(55),
+		menu.WithHelp(false),
 	)
 }

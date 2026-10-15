@@ -1,3 +1,5 @@
 package outbounds
 
-func (m *Model) View() string { return m.crudTable.View() }
+func (m *Model) View() string {
+	return m.crudTable.View()
+}

@@ -17,15 +17,15 @@ const (
 	fallbackWidth   = 40
 	fallbackHeight  = 12
 	minSidebarWidth = 40
-	minMenuWidth    = 20
-	minMenuHeight   = 15
+	minMenuWidth    = 15
+	minMenuHeight   = 12
 
 	helpRows        = 1
 	rowGap          = 1
 	rowStride       = 1 + rowGap
 	minVisibleLines = 1
 
-	contentPadding = 1
+	contentPadding = 0
 
 	iconColumnWidth         = 3
 	keycapHorizontalPadding = 2
@@ -238,11 +238,19 @@ func (m *Model) effectiveSize() (width, height int) {
 	availHeight := fallbackHeight
 
 	if w := m.env.Layout.Body().Width; w > 0 {
-		availWidth = w
+		if m.width > 0 {
+			availWidth = m.width
+		} else {
+			availWidth = w
+		}
 	}
 
-	if h := m.env.Layout.Body().Height; h > 0 {
-		availHeight = h
+	if h := m.env.Layout.Body().Height; h > 0 && m.height <= 0 {
+		if m.height > 0 {
+			availHeight = m.height
+		} else {
+			availHeight = h
+		}
 	}
 
 	width = min(availWidth, maxMenuWidth)
@@ -356,6 +364,18 @@ func (m *Model) LongHints() keys.Hints {
 	}
 
 	hints = append(hints, keys.Long(g.Quit, g.Help)...)
+
+	return hints
+}
+
+func DialogHints(k keys.MenuKeys) keys.Hints {
+	hints := keys.Hints{
+		keys.Combine("move", k.Up, k.Down),
+	}
+
+	hints = append(hints, keys.Short(
+		k.Select,
+	)...)
 
 	return hints
 }

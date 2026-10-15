@@ -102,9 +102,7 @@ func newMainMenu(sesstion *ui.Session) *menu.Model {
 				return ui.OpenComponentMsg{
 					Component: outbounds.New(
 						sesstion,
-						"Xray Outbound",
-						nil,
-					),
+						nil),
 				}
 			},
 		).WithDescription("Import and manage Xray outbound configs"),

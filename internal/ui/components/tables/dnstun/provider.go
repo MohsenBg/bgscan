@@ -23,6 +23,10 @@ func newSource(session *ui.Session) crud.Source[dns.DNSTunConfigFile] {
 	}
 }
 
+func (s *source) Name() string {
+	return "dns tunnels config"
+}
+
 func (s *source) Title() string {
 	return "DNS Tunnels"
 }
@@ -68,7 +72,7 @@ func (s *source) Identity(item dns.DNSTunConfigFile) string {
 // newHooks wires the mutation behaviors. OnAdd only registers the "add"
 // keybinding: adding a tunnel goes through the protocol menu intercepted
 // in Update via crud.MsgActionTrigger, so its body never runs.
-func newHooks(session *ui.Session, onSelect func(*dns.DNSTunConfigFile) tea.Cmd) crud.Hooks[dns.DNSTunConfigFile] {
+func newHooks(session *ui.Session, onSelect func(*dns.DNSTunConfigFile) tea.Cmd, add func() tea.Cmd) crud.Hooks[dns.DNSTunConfigFile] {
 	hooks := crud.Hooks[dns.DNSTunConfigFile]{
 		OnDelete: func(item dns.DNSTunConfigFile) tea.Cmd {
 			if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
@@ -96,7 +100,7 @@ func newHooks(session *ui.Session, onSelect func(*dns.DNSTunConfigFile) tea.Cmd)
 
 			return nil
 		},
-		OnAdd: func() tea.Cmd { return nil },
+		OnAdd: add,
 	}
 
 	if onSelect != nil {

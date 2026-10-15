@@ -39,7 +39,7 @@ func New(session *ui.Session, title string, onSelect func(*dns.DNSTunConfigFile)
 	if onSelect == nil {
 		onSelect = m.openDNSTunForm
 	}
-	m.crudTable = crud.New(session.Env(), newSource(session), newHooks(session, onSelect), 100)
+	m.crudTable = crud.New(session.Env(), newSource(session), newHooks(session, onSelect, m.selectDNSTunMethod), 100)
 
 	return m
 }
@@ -95,7 +95,7 @@ func (m *Model) openSlipstreamForm(original *dns.DNSTunConfigFile) tea.Cmd {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
 		return openFormDialog(m.session, frm,
-			dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -105,7 +105,7 @@ func (m *Model) openDNSTTForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -115,7 +115,7 @@ func (m *Model) openVayDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -125,7 +125,7 @@ func (m *Model) openMasterDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -135,7 +135,7 @@ func (m *Model) openStormDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -145,7 +145,7 @@ func (m *Model) openTheFeedForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -180,6 +180,6 @@ func (m *Model) openDNSTunForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		}
 
 		return openFormDialog(m.session, frm,
-			dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/picker"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/validation"
 )
@@ -29,7 +30,7 @@ func New(session *ui.Session, title string, onSelect func(*iplist.IPFileInfo) te
 		session: session,
 	}
 
-	m.crudTable = crud.New(session.Env(), newSource(session, title), newHooks(session, onSelect), 90)
+	m.crudTable = crud.New(session.Env(), newSource(session, title), newHooks(session, onSelect, m.openFilePicker), 90)
 
 	return m
 }
@@ -72,7 +73,7 @@ func (m *Model) handleFileSelect(path string) tea.Cmd {
 		func(filename string) tea.Cmd {
 			return tea.Sequence(
 				m.saveIPFileCmd(path, filename),
-				func() tea.Msg { return crud.MsgRefresh{} },
+				func() tea.Msg { return crud.RefreshMsg{} },
 			)
 		},
 	)
@@ -99,4 +100,15 @@ func (m *Model) saveIPFileCmd(srcPath, filename string) tea.Cmd {
 		m.session.Env().Log.Info("Successfully saved IP file: %s", filename)
 		return nil
 	}
+}
+
+func (m *Model) openFilePicker() tea.Cmd {
+	return picker.OpenFilePickerCmd(
+		m.session.Env(),
+		"Select IP File (.txt)",
+		"",
+		[]string{".txt"},
+		m.handleFileSelect,
+	)
+
 }

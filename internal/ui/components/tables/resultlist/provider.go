@@ -31,6 +31,10 @@ func (s *source) Title() string {
 	return s.title
 }
 
+func (s *source) Name() string {
+	return "result file"
+}
+
 func (s *source) Columns() []table.Column {
 	return []table.Column{
 		{Title: "File Name", Width: 40},

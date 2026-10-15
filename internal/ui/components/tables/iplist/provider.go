@@ -28,6 +28,10 @@ func newSource(session *ui.Session, title string) crud.Source[iplist.IPFileInfo]
 
 func (s *source) Title() string { return s.title }
 
+func (s *source) Name() string {
+	return "ip file"
+}
+
 func (s *source) Columns() []table.Column {
 	return []table.Column{
 		{Title: "Name", Width: 40},
@@ -65,7 +69,7 @@ func (s *source) Identity(item iplist.IPFileInfo) string {
 // newHooks wires the mutation behaviors. OnAdd only registers the "add"
 // keybinding: the real file-picker workflow is intercepted in Update via
 // crud.MsgActionTrigger, so its body never runs.
-func newHooks(session *ui.Session, onSelect func(*iplist.IPFileInfo) tea.Cmd) crud.Hooks[iplist.IPFileInfo] {
+func newHooks(session *ui.Session, onSelect func(*iplist.IPFileInfo) tea.Cmd, add func() tea.Cmd) crud.Hooks[iplist.IPFileInfo] {
 	hooks := crud.Hooks[iplist.IPFileInfo]{
 		OnDelete: func(item iplist.IPFileInfo) tea.Cmd {
 			return func() tea.Msg {
@@ -91,7 +95,7 @@ func newHooks(session *ui.Session, onSelect func(*iplist.IPFileInfo) tea.Cmd) cr
 				return nil
 			}
 		},
-		OnAdd: func() tea.Cmd { return nil },
+		OnAdd: add,
 	}
 
 	if onSelect != nil {

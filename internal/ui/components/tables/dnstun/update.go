@@ -11,10 +11,6 @@ import (
 
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
-	case crud.MsgActionTrigger:
-		if msg.ActionType == "add" {
-			return m, m.selectDNSTunMethod()
-		}
 
 	case dnstunmenu.MsgSelectProtocol:
 		if m.dnsTunMenu != nil {

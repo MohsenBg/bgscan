@@ -81,23 +81,6 @@ func (b *Base) ID() ui.ComponentID { return b.id }
 
 func (b *Base) Mode() ui.KeyMode { return ui.KeyModeManage }
 
-// SetInDialog moves the form's title and key hints into the dialog
-// frame's border lines.
-func (b *Base) SetInDialog(inDialog bool) {
-	if b.form != nil {
-		b.form.SetInDialog(inDialog)
-	}
-}
-
-// Title returns the underlying form's heading as raw data for the
-// dialog frame. Empty before BuildForm.
-func (b *Base) Title() string {
-	if b.form == nil {
-		return ""
-	}
-	return b.form.Name()
-}
-
 // CalculateSize derives the form body size from the layout.
 func (b *Base) CalculateSize() {
 	body := b.session.Env().Layout.Body()
@@ -201,12 +184,12 @@ func (b *Base) Update(self ui.Component, msg tea.Msg) (ui.Component, tea.Cmd) {
 // CancelCmd confirms discarding unsaved changes.
 func (b *Base) CancelCmd() tea.Cmd {
 	return confirm.ConfirmCmd(b.session.Env(),
-
 		"Discard unsaved changes?",
 		func() tea.Msg {
 			return ui.CloseComponentMsg{ID: b.ID()}
 		},
 		false,
 		dialog.WithTitle("Discard changes"),
+		dialog.WithStyle(dialog.StyleWarn),
 	)
 }

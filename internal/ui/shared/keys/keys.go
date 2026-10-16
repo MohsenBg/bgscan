@@ -50,8 +50,8 @@ type DialogKeys struct {
 }
 
 type FormKeys struct {
-	Up, Down Binding
-	Save     Binding
+	Save   Binding
+	Cancel Binding
 }
 
 type MenuKeys struct {

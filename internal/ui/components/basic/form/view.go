@@ -4,49 +4,26 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+func (m *Model) View() string {
+	title := m.renderTitle()
+
+	if m.inspector == nil {
+		return title
+	}
+
+	body := lipgloss.NewStyle().
+		Padding(0, 2).
+		Render(m.inspector.View())
+
+	return lipgloss.JoinVertical(lipgloss.Center, title, body)
+}
+
 func (m *Model) renderTitle() string {
 	return lipgloss.NewStyle().
 		Foreground(m.env.Theme.Primary).
-		Bold(true).Padding(1, 0).
+		Bold(true).
+		Padding(0, 0, 1, 0).
 		Align(lipgloss.Center).
 		Width(m.width).
 		Render(m.name)
-}
-
-func (m *Model) renderInspector() string {
-	if m.inspector == nil {
-		return ""
-	}
-
-	return m.inspector.View()
-}
-
-func (m *Model) renderKeyHints() string {
-	save := m.keyHintStyle().Render("•s save")
-	cancel := m.keyHintStyle().Render("•esc/b cancel")
-
-	return lipgloss.NewStyle().
-		Width(m.width).
-		Align(lipgloss.Center).
-		Render(
-			lipgloss.JoinHorizontal(lipgloss.Top, save, "  ", cancel),
-		)
-}
-
-func (m *Model) View() string {
-	inspector := m.renderInspector()
-
-	if m.inDialog {
-		return lipgloss.NewStyle().Padding(0, 2).Render(inspector)
-	}
-
-	title := m.renderTitle()
-	hints := m.renderKeyHints()
-
-	return lipgloss.JoinVertical(
-		lipgloss.Center,
-		title,
-		lipgloss.NewStyle().Padding(0, 2).Render(inspector),
-		hints,
-	)
 }

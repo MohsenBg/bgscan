@@ -65,7 +65,8 @@ const (
 
 // Form
 const (
-	ActionFormSave Action = "form.save"
+	ActionFormSave   Action = "form.save"
+	ActionFormCancel Action = "form.cancel"
 )
 
 // Scan

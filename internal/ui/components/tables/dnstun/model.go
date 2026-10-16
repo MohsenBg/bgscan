@@ -60,18 +60,10 @@ func (m *Model) selectDNSTunMethod() tea.Cmd {
 	}
 }
 
-// openFormDialog opens a formkit-based form as a dialog. The frame
-// title is read from the form itself so "New X" vs "Edit name" stays
-// in one place; hints are the shared form hints. Extra options
-// (e.g. WithOnClose) still apply after the defaults.
-func openFormDialog(session *ui.Session, frm ui.Component, opts ...dialog.DialogOption) dialog.OpenDialogMsg {
-	title := ""
-	if t, ok := frm.(interface{ Title() string }); ok {
-		title = t.Title()
-	}
+// openFormDialog opens a formkit-based form as a dialog
+func openFormDialog(formKeys keys.FormKeys, frm ui.Component, opts ...dialog.DialogOption) dialog.OpenDialogMsg {
 	base := []dialog.DialogOption{
-		dialog.WithTitle(title),
-		dialog.WithHints(form.Hints(keys.OrDefault(*session.Env().Keys))...),
+		dialog.WithHints(form.DialogHints(formKeys)...),
 	}
 	return dialog.OpenDialog(frm, append(base, opts...)...)
 }
@@ -94,7 +86,8 @@ func (m *Model) openSlipstreamForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm,
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("Slipstream"),
 			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
@@ -105,7 +98,9 @@ func (m *Model) openDNSTTForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("DNSTT"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -115,7 +110,9 @@ func (m *Model) openVayDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("VayDNS"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -125,7 +122,9 @@ func (m *Model) openMasterDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("MasterDNS"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -135,7 +134,9 @@ func (m *Model) openStormDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("StormDNS"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -145,7 +146,9 @@ func (m *Model) openTheFeedForm(original *dns.DNSTunConfigFile) tea.Cmd {
 		if err != nil {
 			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return openFormDialog(m.session, frm, dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("TheFeed"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -179,7 +182,7 @@ func (m *Model) openDNSTunForm(original *dns.DNSTunConfigFile) tea.Cmd {
 			)
 		}
 
-		return openFormDialog(m.session, frm,
+		return openFormDialog(m.session.Env().Keys.Form, frm,
 			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }

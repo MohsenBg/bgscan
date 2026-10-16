@@ -1,19 +1,5 @@
 package keys
 
-// OrDefault returns k when it carries bindings, and the defaults when it does
-// not.
-//
-// A Keys value assembled by hand — as test Deps and one-off constructions do
-// — leaves every binding empty, and a component built from one responds to no
-// key at all. That failure is silent, so components normalise through here.
-func OrDefault(k Keys) Keys {
-	if len(k.Nav.Up.Keys) > 0 {
-		return k
-	}
-
-	return Default()
-}
-
 // Default returns the default key bindings.
 func Default() Keys {
 	global := GlobalKeys{
@@ -642,7 +628,7 @@ func Default() Keys {
 			ShortText: "close",
 		}),
 
-		Form: newFormKeys(nav, Binding{
+		Form: newFormKeys(global, Binding{
 			Action:        ActionFormSave,
 			Keys:          []string{"s"},
 			HelpText:      "save",
@@ -741,9 +727,15 @@ func newDialogKeys(nav NavKeys, cancel Binding) DialogKeys {
 	}
 }
 
-func newFormKeys(nav NavKeys, save Binding) FormKeys {
+func newFormKeys(global GlobalKeys, save Binding) FormKeys {
 	return FormKeys{
-		Up: nav.Up, Down: nav.Down,
 		Save: save,
+		Cancel: Binding{
+			Action:        ActionFormCancel,
+			Keys:          append(global.Quit.Keys, global.Back.Keys...),
+			HelpText:      "cancel",
+			ShortText:     "cancel",
+			CaseSensitive: true,
+		},
 	}
 }

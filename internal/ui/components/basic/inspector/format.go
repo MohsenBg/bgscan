@@ -14,7 +14,6 @@ func FormatInt(v any) string {
 	if !ok {
 		return ""
 	}
-
 	n, err := strconv.Atoi(s)
 	if err != nil {
 		return ""
@@ -27,26 +26,23 @@ func FormatInt(v any) string {
 	}
 
 	str := strconv.Itoa(n)
-
 	var b strings.Builder
 	b.Grow(len(str) + len(str)/3)
-
 	for i, r := range str {
 		if i > 0 && (len(str)-i)%3 == 0 {
 			b.WriteByte(',')
 		}
 		b.WriteRune(r)
 	}
-
 	return sign + b.String()
 }
 
 func FormatIntOrUnlimited(v any) string {
-	format := FormatInt(v)
-	if format == "0" {
+	if format := FormatInt(v); format == "0" {
 		return "unlimited"
+	} else {
+		return format
 	}
-	return format
 }
 
 func FormatDurationMS(v any) string {
@@ -54,12 +50,10 @@ func FormatDurationMS(v any) string {
 	if !ok {
 		return ""
 	}
-
 	ms, err := strconv.Atoi(s)
 	if err != nil {
 		return ""
 	}
-
 	return (time.Duration(ms) * time.Millisecond).String()
 }
 
@@ -68,42 +62,34 @@ func FormatBool(v any) string {
 	if !ok {
 		return ""
 	}
-
 	if b {
 		return "Active"
 	}
-
 	return "Disabled"
 }
 
 func FormatStringList(value any) string {
 	const width = 20
-
 	items, ok := value.([]string)
 	if !ok {
 		return ""
 	}
-
 	if len(items) == 0 {
 		return "-"
 	}
 
 	var b strings.Builder
-
 	for i, item := range items {
 		part := item
 		if i > 0 {
 			part = ", " + part
 		}
-
 		if b.Len()+len(part) > width {
 			fmt.Fprintf(&b, " (+%d)", len(items)-i)
 			break
 		}
-
 		b.WriteString(part)
 	}
-
 	return b.String()
 }
 
@@ -112,12 +98,10 @@ func FormatIntList(value any) string {
 	if !ok {
 		return ""
 	}
-
 	l := make([]string, 0, len(items))
 	for _, item := range items {
 		l = append(l, strconv.Itoa(item))
 	}
-
 	return FormatStringList(l)
 }
 
@@ -126,14 +110,11 @@ func FormatDataSpeed(v any) string {
 	if !ok {
 		return ""
 	}
-
-	kpbs, err := strconv.ParseUint(s, 10, 64)
+	kbps, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		return ""
 	}
-
-	speed := speedtest.BitsPerSec(kpbs * 1000)
-	return speed.String()
+	return speedtest.BitsPerSec(kbps * 1000).String()
 }
 
 func FormatHex(v any) string {
@@ -141,10 +122,7 @@ func FormatHex(v any) string {
 	if !ok {
 		return ""
 	}
-
-	m := min(len(s), 15)
-
-	return "0x" + s[:m] + "..."
+	return "0x" + s[:min(len(s), 15)] + "..."
 }
 
 func FormatPublicKey(v any) string {
@@ -152,12 +130,10 @@ func FormatPublicKey(v any) string {
 	if !ok {
 		return ""
 	}
-
 	s = strings.TrimSpace(s)
 	if len(s) <= 10 {
 		return s
 	}
-
 	return s[:6] + "..." + s[len(s)-4:]
 }
 
@@ -168,7 +144,6 @@ func FormatPrivateKey(v any) string {
 	if !ok {
 		return ""
 	}
-
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return "<empty>"
@@ -185,7 +160,6 @@ func FormatPrivateKey(v any) string {
 	case strings.Contains(s, "BEGIN PRIVATE KEY"):
 		keyType = "Private key"
 	}
-
 	return "🔑 " + keyType
 }
 
@@ -194,16 +168,13 @@ func FormatZeroAsAuto(v any) string {
 	if !ok {
 		return ""
 	}
-
 	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
 	if err != nil {
 		return s
 	}
-
 	if f == 0 {
 		return "Auto"
 	}
-
 	return s
 }
 
@@ -212,11 +183,9 @@ func FormatEmptyStringAuto(v any) string {
 	if !ok {
 		return ""
 	}
-
 	if s == "" {
 		return "Auto"
 	}
-
 	return s
 }
 
@@ -225,7 +194,6 @@ func FormatUTLS(v any) string {
 	if !ok {
 		return ""
 	}
-
 	if s == "" {
 		return "Native TLS"
 	}
@@ -233,44 +201,28 @@ func FormatUTLS(v any) string {
 }
 
 func FormatEmptyString(v any) string {
-	if s, ok := v.(string); ok {
-		if s == "" {
+	switch val := v.(type) {
+	case string:
+		if val == "" {
 			return "<empty>"
 		}
-		return s
+		return val
+	case fmt.Stringer:
+		return val.String()
+	default:
+		return ""
 	}
-
-	if s, ok := v.(fmt.Stringer); ok {
-		return s.String()
-	}
-
-	return ""
 }
 
 func FormatSeconds(v any) string {
 	s, ok := v.(string)
-	if !ok {
-		return ""
-	}
-
-	if s == "" {
+	if !ok || s == "" {
 		return "<empty>"
 	}
-
-	var err error
 	seconds, err := strconv.ParseFloat(s, 64)
-	if err != nil {
+	if err != nil || seconds < 0 {
 		return ""
 	}
-
-	if seconds < 0 {
-		return ""
-	}
-
 	d := time.Duration(seconds * float64(time.Second))
-	if d < 0 {
-		return ""
-	}
-
 	return d.Round(time.Millisecond).String()
 }

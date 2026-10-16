@@ -5,17 +5,17 @@ import (
 	"io"
 	"strings"
 
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/tabs"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/help"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/tabs"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
+
+// helpHeight is the vertical space reserved for the short help footer.
+const helpHeight = 3
 
 type FieldInput interface {
 	input.Dialog
@@ -31,7 +31,8 @@ type Field struct {
 	Input       FieldInput
 	Visible     func() bool
 	Format      func(any) string
-	snapshot    *any
+
+	snapshot *any
 }
 
 // value returns the last committed display value. Input.Value() is not read
@@ -40,7 +41,6 @@ func (f Field) value() string {
 	if f.snapshot == nil {
 		return ""
 	}
-
 	v := *f.snapshot
 	if f.Format != nil {
 		return f.Format(v)
@@ -49,10 +49,7 @@ func (f Field) value() string {
 }
 
 func (f Field) visible() bool {
-	if f.Visible == nil {
-		return true
-	}
-	return f.Visible()
+	return f.Visible == nil || f.Visible()
 }
 
 type FieldItem struct {
@@ -63,7 +60,7 @@ func (i FieldItem) FilterValue() string { return i.Field.Name }
 
 // fieldDelegate renders "Name  value" rows with an optional description line.
 type fieldDelegate struct {
-	theme *theme.Theme
+	env *ui.Env
 }
 
 func (d fieldDelegate) Height() int                             { return 2 }
@@ -75,27 +72,21 @@ func (d fieldDelegate) Render(w io.Writer, m list.Model, index int, listItem lis
 	if !ok {
 		return
 	}
+
+	th := d.env.Theme
 	f := item.Field
 
 	name := f.Name
 	if index == m.Index() {
-		name = selectedFieldNameStyle(d.theme).Render("▶ " + name)
+		name = selectedFieldNameStyle(&th).Render("▶ " + name)
 	} else {
-		name = fieldNameStyle(d.theme).Render(name)
+		name = fieldNameStyle(&th).Render(name)
 	}
-	leftSection := name
-	rightSection := valueStyle(d.theme).Render(f.value())
 
-	gap := max(m.Width()-lipgloss.Width(leftSection)-lipgloss.Width(rightSection), 1)
-
-	line := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		leftSection,
-		strings.Repeat(" ", gap),
-		rightSection,
-	)
-
-	_, _ = fmt.Fprint(w, PaddingCell().Render(line))
+	value := valueStyle(&th).Render(f.value())
+	gap := max(m.Width()-lipgloss.Width(name)-lipgloss.Width(value), 1)
+	line := lipgloss.JoinHorizontal(lipgloss.Top, name, strings.Repeat(" ", gap), value)
+	_, _ = fmt.Fprint(w, paddingCell().Render(line))
 }
 
 // Model is a tabbed list of fields grouped by Field.Group.
@@ -109,10 +100,11 @@ type Model struct {
 	groups map[string][]Field
 	order  []string
 
-	tabs     ui.Component
-	list     list.Model
-	maxWidth int
+	tabs ui.Component
+	list list.Model
+	help ui.Component
 
+	maxWidth       int
 	widthOverride  int
 	heightOverride int
 }
@@ -136,8 +128,7 @@ func WithHeight(height int) Option {
 }
 
 // New builds an inspector from a flat field list, grouped by Field.Group
-// into tabs. Groups are ordered alphabetically for a stable tab order
-// across runs (map iteration order is not stable in Go).
+// into tabs. Groups are ordered by first appearance for a stable tab order.
 func New(env *ui.Env, name string, fields []Field, opts ...Option) *Model {
 	m := &Model{
 		id:       ui.NewComponentID(),
@@ -145,7 +136,6 @@ func New(env *ui.Env, name string, fields []Field, opts ...Option) *Model {
 		env:      env,
 		maxWidth: 60,
 	}
-
 	for _, opt := range opts {
 		opt(m)
 	}
@@ -163,25 +153,18 @@ func New(env *ui.Env, name string, fields []Field, opts ...Option) *Model {
 		})
 	}
 
-	groups := make(map[string][]Field)
-	order := make([]string, 0)
+	m.groups = make(map[string][]Field)
 	for _, f := range fields {
-		if _, seen := groups[f.Group]; !seen {
-			order = append(order, f.Group)
+		if _, seen := m.groups[f.Group]; !seen {
+			m.order = append(m.order, f.Group)
 		}
-		groups[f.Group] = append(groups[f.Group], f)
+		m.groups[f.Group] = append(m.groups[f.Group], f)
 	}
 
-	tbs := make([]tabs.Tab[[]Field], 0, len(order))
-	for _, group := range order {
-		tbs = append(tbs, tabs.Tab[[]Field]{
-			Label: group,
-			Value: groups[group],
-		})
+	tbs := make([]tabs.Tab[[]Field], 0, len(m.order))
+	for _, group := range m.order {
+		tbs = append(tbs, tabs.Tab[[]Field]{Label: group, Value: m.groups[group]})
 	}
-
-	m.groups = groups
-	m.order = order
 
 	tb := tabs.New(env, tbs, func(_ int, tab tabs.Tab[[]Field]) tea.Cmd {
 		return func() tea.Msg {
@@ -193,65 +176,50 @@ func New(env *ui.Env, name string, fields []Field, opts ...Option) *Model {
 
 	if len(tbs) > 0 {
 		m.Title = tbs[0].Label
-		m.list = newFieldList(tbs[0].Value, &m.env.Theme, m.Width(), m.Height())
+		m.list = newFieldList(tbs[0].Value, m.env, m.Width(), m.Height())
 	}
 
+	m.help = help.New(
+		env, name,
+		help.HelpSet{Short: m.ShortHints(), Long: m.LongHints()},
+		help.WithShortHelpWidth(m.Width()),
+	)
 	return m
 }
 
-func newFieldList(fields []Field, th *theme.Theme, width, height int) list.Model {
-	lm := list.New(visibleItems(fields), fieldDelegate{theme: th}, width, height)
+func newFieldList(fields []Field, env *ui.Env, width, height int) list.Model {
+	lm := list.New(visibleItems(fields), fieldDelegate{env: env}, width, height)
 	lm.DisableQuitKeybindings()
 	lm.SetShowStatusBar(false)
 	lm.SetShowTitle(false)
-	lm.SetFilteringEnabled(true)
-	lm.SetShowHelp(true)
+	lm.SetShowHelp(false)
 	lm.SetFilteringEnabled(false)
-	lm.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			key.NewBinding(
-				key.WithKeys(env.KeyEnter),
-				key.WithHelp(env.KeyEnter, "edit"),
-			),
-			key.NewBinding(
-				key.WithKeys("d"),
-				key.WithHelp("d", "description"),
-			),
-		}
-	}
-
-	lm.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			key.NewBinding(
-				key.WithKeys(env.KeyEnter),
-				key.WithHelp(env.KeyEnter, "edit selected field"),
-			),
-			key.NewBinding(
-				key.WithKeys("d"),
-				key.WithHelp("d", "show description"),
-			),
-		}
-	}
 	return lm
 }
 
 func visibleItems(fields []Field) []list.Item {
 	items := make([]list.Item, 0, len(fields))
 	for _, f := range fields {
-		if !f.visible() {
-			continue
+		if f.visible() {
+			items = append(items, FieldItem{Field: f})
 		}
-		items = append(items, FieldItem{Field: f})
 	}
 	return items
 }
 
-func (m *Model) Init() tea.Cmd { return nil }
-
+func (m *Model) Init() tea.Cmd      { return nil }
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
+func (m *Model) Fields() []Field    { return m.groups[m.Title] }
+func (m *Model) SelectedField() (Field, bool) {
+	item, ok := m.list.SelectedItem().(FieldItem)
+	if !ok {
+		return Field{}, false
+	}
+	return item.Field, true
+}
 
 func (m *Model) Width() int {
 	if m.widthOverride > 0 {
@@ -261,24 +229,23 @@ func (m *Model) Width() int {
 }
 
 func (m *Model) Height() int {
-	padding := 4
-
-	takenHeight := 0
-	if len(m.groups) > 0 {
-		takenHeight += lipgloss.Height(m.tabs.View())
-	}
-
-	if m.Title != "" {
-		takenHeight += lipgloss.Height(m.Title)
-	}
-
 	total := m.heightOverride
 	if total <= 0 {
 		total = m.env.Layout.Body().Height
 	}
 
-	available := total - takenHeight - padding
-	return max(15, available)
+	taken := 4 // vertical padding
+	if len(m.groups) > 0 {
+		taken += lipgloss.Height(m.tabs.View())
+	}
+	if m.Title != "" {
+		taken += lipgloss.Height(m.Title)
+	}
+	if m.help != nil {
+		taken += helpHeight
+	}
+
+	return max(15, total-taken)
 }
 
 func (m *Model) SetWidth(width int) {
@@ -287,6 +254,9 @@ func (m *Model) SetWidth(width int) {
 		tb.SetMaxWidth(width)
 	}
 	m.list.SetWidth(width)
+	if h, ok := m.help.(*help.Model); ok {
+		h.SetShortWidth(width)
+	}
 }
 
 func (m *Model) SetHeight(height int) {
@@ -300,20 +270,7 @@ func (m *Model) CloseCmd() tea.Cmd {
 	}
 }
 
-func (m *Model) SelectedField() (Field, bool) {
-	item, ok := m.list.SelectedItem().(FieldItem)
-	if !ok {
-		return Field{}, false
-	}
-	return item.Field, true
-}
-
-func (m *Model) Fields() []Field {
-	return m.groups[m.Title]
-}
-
-// Refresh re-pulls Value() from every Input and re-renders, used after an
-// external edit changes underlying state.
+// Refresh re-pulls Value() from every Input and re-renders.
 func (m *Model) Refresh() tea.Cmd {
 	for _, f := range m.Fields() {
 		*f.snapshot = f.Input.Value()

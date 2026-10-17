@@ -1,22 +1,22 @@
 package result
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
-
 	"bufio"
 	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 // mergeResults merges a batch of results into the main result file.
 //
 // Guarantees:
-//   - Sorted output by score (higher score first)
+//   - Sorted output by score (descending)
 //   - Duplicate replacement by Key()
 //   - Streaming merge with existing file
 //   - Atomic file replacement
@@ -30,62 +30,61 @@ func mergeResults(
 		return nil
 	}
 
-	// Higher score first.
+	// Sort by score descending, then by key ascending to group duplicates.
 	slices.SortFunc(results, func(a, b Result) int {
-		switch {
-		case a.Score() > b.Score():
+		if a.Score() > b.Score() {
 			return -1
-		case a.Score() < b.Score():
-			return 1
-		default:
-			return 0
 		}
+		if a.Score() < b.Score() {
+			return 1
+		}
+		return strings.Compare(a.Key(), b.Key())
+	})
+
+	// Keep only the highest-scored record per key.
+	results = slices.CompactFunc(results, func(a, b Result) bool {
+		return a.Key() == b.Key()
 	})
 
 	tmpPath := resultPath + ".tmp"
-
-	dir := filepath.Dir(tmpPath)
-
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("mkdir failed: %w", err)
+	if err := os.MkdirAll(filepath.Dir(tmpPath), 0o755); err != nil {
+		return fmt.Errorf("create result dir: %w", err)
 	}
 
-	out, err := os.OpenFile(
-		tmpPath,
-		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
-		0o644,
-	)
+	out, err := os.Create(tmpPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("create temp file: %w", err)
 	}
+
+	// Ensure the temp file is cleaned up if the merge fails at any point.
+	success := false
+	defer func() {
+		if !success {
+			_ = out.Close()
+			_ = os.Remove(tmpPath)
+		}
+	}()
 
 	bw := fileutil.NewBufferedWriter(out, 0)
 	cw := csv.NewWriter(bw)
 
-	cleanup := func(err error) error {
-		_ = out.Close()
-		_ = os.Remove(tmpPath)
-		return err
-	}
-
 	if fileutil.CheckFileExists(resultPath) {
-		if err := mergeWithExisting(
-			log,
-			resultPath,
-			schema,
-			results,
-			cw,
-		); err != nil {
-			return cleanup(err)
+		if err := mergeWithExisting(log, resultPath, schema, results, cw); err != nil {
+			return err
 		}
 	} else {
 		if err := writeResults(results, cw); err != nil {
-			return cleanup(err)
+			return err
 		}
 	}
 
 	if err := finalizeFile(cw, bw, out); err != nil {
-		return cleanup(err)
+		return err
+	}
+
+	success = true
+	if err := out.Close(); err != nil {
+		return err
 	}
 
 	if err := replaceFile(tmpPath, resultPath); err != nil {
@@ -96,10 +95,8 @@ func mergeResults(
 	return syncDir(filepath.Dir(resultPath))
 }
 
-// mergeWithExisting merges new results with existing CSV.
-//
-// Existing file is streamed.
-// Only one existing record is kept in memory.
+// mergeWithExisting streams the existing CSV and merges it with the new batch.
+// It uses a binary search index over the batch keys to efficiently find replacements.
 func mergeWithExisting(
 	log *logger.Logger,
 	resultPath string,
@@ -107,59 +104,61 @@ func mergeWithExisting(
 	delta []Result,
 	cw *csv.Writer,
 ) error {
-	index := 0
+	// Build an index of delta positions sorted by key for O(log N) lookups.
+	keyOrder := make([]int, len(delta))
+	for i := range keyOrder {
+		keyOrder[i] = i
+	}
+	slices.SortFunc(keyOrder, func(a, b int) int {
+		return strings.Compare(delta[a].Key(), delta[b].Key())
+	})
 
-	_, err := ReadCSV(
-		log,
-		resultPath,
-		schema,
-		func(existing Result) error {
-			// Write better scored new results first.
-			for index < len(delta) {
-				current := delta[index]
+	holds := func(key string) (int, bool) {
+		pos, found := slices.BinarySearchFunc(keyOrder, key, func(order int, target string) int {
+			return strings.Compare(delta[order].Key(), target)
+		})
+		if !found {
+			return 0, false
+		}
+		return keyOrder[pos], true
+	}
 
-				if current.Score() <= existing.Score() {
-					break
-				}
+	emitted := make([]bool, len(delta))
+	cursor := 0
 
-				if err := cw.Write(
-					current.ToRecord(),
-				); err != nil {
-					return err
-				}
+	// emitDelta writes a delta record if it hasn't been written yet.
+	emitDelta := func(idx int) error {
+		if emitted[idx] {
+			return nil
+		}
+		emitted[idx] = true
+		return cw.Write(delta[idx].ToRecord())
+	}
 
-				index++
+	_, err := ReadCSV(log, resultPath, schema, func(existing Result) error {
+		// Emit any delta records that score strictly higher than the current existing record.
+		for cursor < len(delta) && delta[cursor].Score() > existing.Score() {
+			if err := emitDelta(cursor); err != nil {
+				return err
 			}
+			cursor++
+		}
 
-			// Replace duplicate record.
-			if index < len(delta) {
-				current := delta[index]
+		// If the existing record is superseded by a delta record, emit the delta version.
+		if idx, found := holds(existing.Key()); found {
+			return emitDelta(idx)
+		}
 
-				if current.Key() == existing.Key() {
-					if err := cw.Write(
-						current.ToRecord(),
-					); err != nil {
-						return err
-					}
-
-					index++
-					return nil
-				}
-			}
-
-			// Keep old record.
-			return cw.Write(existing.ToRecord())
-		},
-	)
+		// Otherwise, keep the existing record.
+		return cw.Write(existing.ToRecord())
+	})
 	if err != nil {
 		return err
 	}
 
-	// Write remaining new results.
-	for ; index < len(delta); index++ {
-		if err := cw.Write(
-			delta[index].ToRecord(),
-		); err != nil {
+	// Emit any remaining delta records (those with scores lower than all existing records).
+	for i := cursor; i < len(delta); i++ {
+		if err := emitDelta(i); err != nil {
 			return err
 		}
 	}
@@ -167,41 +166,22 @@ func mergeWithExisting(
 	return nil
 }
 
-// writeResults writes results directly to CSV.
-func writeResults(
-	results []Result,
-	cw *csv.Writer,
-) error {
+func writeResults(results []Result, cw *csv.Writer) error {
 	for _, r := range results {
-		if err := cw.Write(
-			r.ToRecord(),
-		); err != nil {
+		if err := cw.Write(r.ToRecord()); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
-// finalizeFile flushes buffers and syncs the file.
-func finalizeFile(
-	cw *csv.Writer,
-	bw *bufio.Writer,
-	out *os.File,
-) error {
+func finalizeFile(cw *csv.Writer, bw *bufio.Writer, out *os.File) error {
 	cw.Flush()
-
 	if err := cw.Error(); err != nil {
 		return err
 	}
-
 	if err := bw.Flush(); err != nil {
 		return err
 	}
-
-	if err := out.Sync(); err != nil {
-		return err
-	}
-
-	return out.Close()
+	return out.Sync()
 }

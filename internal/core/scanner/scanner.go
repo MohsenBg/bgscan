@@ -269,6 +269,7 @@ func NewScanner(
 	if s.slipstreamService == nil {
 		srv, err := dns.NewSlipstreamService()
 		if err != nil {
+			cancel()
 			return nil, err
 		}
 		s.slipstreamService = srv

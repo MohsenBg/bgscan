@@ -9,7 +9,7 @@ import (
 )
 
 // Duration is the dialog open/close transition time.
-const Duration = 100 * time.Millisecond
+const Duration = 120 * time.Millisecond
 
 // FrameInterval is the transition tick interval.
 const FrameInterval = anim.FrameInterval

@@ -51,8 +51,9 @@ func (l *layer) settled(now time.Time) bool {
 func (l *layer) frame() *frameOptions {
 	if l.opts == nil {
 		l.opts = &frameOptions{
-			XPos: dialog.Center,
-			YPos: dialog.Center,
+			XPos:      dialog.Center,
+			YPos:      dialog.Center,
+			Animation: dialog.DefaultAnimation,
 		}
 	}
 
@@ -99,8 +100,6 @@ func (s *dialogStack) top() *layer {
 
 // push adds a dialog to the top of the stack and starts its open transition.
 func (s *dialogStack) push(msg dialog.OpenDialogMsg) {
-	setInDialog(msg.Component, true)
-
 	s.layers = append(s.layers, &layer{
 		component: msg.Component,
 		opts:      &msg,
@@ -153,8 +152,6 @@ func (s *dialogStack) expire(now time.Time) []tea.Cmd {
 
 	for _, l := range s.layers {
 		if l.closing() && l.settled(now) {
-			setInDialog(l.component, false)
-
 			if l.closeCmd != nil {
 				cmds = append(cmds, l.closeCmd)
 			}
@@ -219,11 +216,4 @@ func (s *dialogStack) updateAll(msg tea.Msg) []tea.Cmd {
 	}
 
 	return cmds
-}
-
-// setInDialog tells a component whether it is hosted inside a dialog.
-func setInDialog(c ui.Component, inDialog bool) {
-	if f, ok := c.(interface{ SetInDialog(bool) }); ok {
-		f.SetInDialog(inDialog)
-	}
 }

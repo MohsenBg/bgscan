@@ -28,18 +28,24 @@ func NewNoticeCmd(
 			dialog.WithPosition(dialog.Center, dialog.Top),
 			dialog.WithOffset(0, 5),
 			dialog.WithTitle(FrameTitle(level, title)),
+			dialog.WithAnimation(dialog.AnimSplit),
 			dialog.WithHints(NoticeHints(*env.Keys)...),
 		}
 
 		// Errors and other destructive feedback get the danger frame.
-		if level == NOTICE_ERROR {
+		switch level {
+		case NOTICE_ERROR:
 			opts = append(opts, dialog.WithDanger())
+		case NOTICE_SUCCESS:
+			opts = append(opts, dialog.WithSuccess())
+		case NOTICE_INFO:
+			opts = append(opts, dialog.WithStyle(dialog.StyleInfo))
 		}
 
 		opts = append(opts, options...)
 
 		return dialog.OpenDialog(
-			New(env, title, message, level),
+			new(env, message, level),
 			opts...,
 		)
 	}

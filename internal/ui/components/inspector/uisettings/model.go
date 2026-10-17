@@ -26,6 +26,7 @@ const (
 const (
 	descTheme           = "Color theme for the interface. Auto follows the terminal background."
 	descSolidBackground = "Paint the theme background color behind the app. Disabled keeps the terminal background."
+	descAnimation       = "Toggles every TUI animation at once, dialog reveals, tab underlines etc..."
 	descMaxRow          = "Maximum number of rows kept for display in result tables."
 	descLogLevel        = "Minimum severity written to log files. Debug logs every probe error with the full target IP."
 )
@@ -38,16 +39,13 @@ type Model struct {
 }
 
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Init() tea.Cmd      { return nil }
+func (m *Model) Init() tea.Cmd      { return m.inspector.Init() }
 func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
 func New(session *ui.Session, name string) *Model {
-	cfg := session.Settings
-
-	// A hand-edited settings file may name a theme that no longer exists.
-	// Fall back to Auto in that case instead of showing a blank select.
+	cfg := session.Env().Settings
 	themes := theme.List()
 	current := cfg.ThemeName
 	if current != "" && !slices.Contains(themes, current) {
@@ -78,8 +76,25 @@ func New(session *ui.Session, name string) *Model {
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
 		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
-			session.Settings.SolidBackground = v
-			ui.SaveSettings(session.Settings)
+			session.Env().Settings.SolidBackground = v
+			err := ui.SaveSettings(session.Env().Settings)
+			if err != nil {
+				return notice.NewNoticeCmd(session.Env(), "Failed to save settings", err.Error(), notice.NOTICE_ERROR)
+			}
+			return nil
+		}),
+	)
+
+	animation := toggleinput.New(session.Env(), "Animation",
+		toggleinput.WithValue(cfg.Animated),
+		toggleinput.WithFocus(),
+		toggleinput.WithLabels("Enabled", "Disabled"),
+		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
+			session.Env().Settings.Animated = v
+			err := ui.SaveSettings(session.Env().Settings)
+			if err != nil {
+				return notice.NewNoticeCmd(session.Env(), "Failed to save settings", err.Error(), notice.NOTICE_ERROR)
+			}
 			return nil
 		}),
 	)
@@ -105,8 +120,11 @@ func New(session *ui.Session, name string) *Model {
 			if err != nil || n == 0 {
 				return notice.NewNoticeCmd(session.Env(), "Invalid Max Rows", "enter a positive number", notice.NOTICE_ERROR)
 			}
-			session.Settings.MaxRow = uint32(n)
-			ui.SaveSettings(session.Settings)
+			session.Env().Settings.MaxRow = uint32(n)
+			err = ui.SaveSettings(session.Env().Settings)
+			if err != nil {
+				return notice.NewNoticeCmd(session.Env(), "Failed to save settings", err.Error(), notice.NOTICE_ERROR)
+			}
 			return nil
 		}),
 	)
@@ -132,8 +150,12 @@ func New(session *ui.Session, name string) *Model {
 			if err != nil {
 				return notice.NewNoticeCmd(session.Env(), "Invalid Log Level", err.Error(), notice.NOTICE_ERROR)
 			}
-			session.Settings.LogLevel = v
-			ui.SaveSettings(session.Settings)
+			session.Env().Settings.LogLevel = v
+			err = ui.SaveSettings(session.Env().Settings)
+			if err != nil {
+				return notice.NewNoticeCmd(session.Env(), "Failed to save settings", err.Error(), notice.NOTICE_ERROR)
+			}
+
 			uiLog := session.Env().Log
 			uiLog.SetLevel(level)
 			coreLog := session.CoreLog()
@@ -145,6 +167,7 @@ func New(session *ui.Session, name string) *Model {
 	fields := []inspector.Field{
 		{Name: "Theme", Description: descTheme, Group: groupAppearance, Input: inspector.Adapt(themeSelect), Visible: alwaysVisible, Format: inspector.FormatEmptyStringAuto},
 		{Name: "Solid Background", Description: descSolidBackground, Group: groupAppearance, Input: inspector.Adapt(solidBackground), Visible: alwaysVisible, Format: inspector.FormatBool},
+		{Name: "Animation", Description: descAnimation, Group: groupAppearance, Input: inspector.Adapt(animation), Visible: alwaysVisible, Format: inspector.FormatBool},
 		{Name: "Max Rows", Description: descMaxRow, Group: groupAppearance, Input: inspector.Adapt(maxRow), Visible: alwaysVisible, Format: inspector.FormatInt},
 		{Name: "Log Level", Description: descLogLevel, Group: groupAppearance, Input: inspector.Adapt(logLevel), Visible: alwaysVisible, Format: formatLogLevel},
 	}

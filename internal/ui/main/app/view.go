@@ -35,7 +35,7 @@ func (m *model) View() tea.View {
 	view = m.renderDialogs(env, &th, view)
 
 	t := tea.NewView(view)
-	if m.session.Settings.SolidBackground {
+	if m.session.Env().Settings.SolidBackground {
 		t.BackgroundColor = th.Background
 		t.ForegroundColor = th.Text
 	}
@@ -76,12 +76,18 @@ func (m *model) renderDialogs(env *ui.Env, th *theme.Theme, base string) string 
 		hints = append(hints, opts.Hints...)
 		hints = append(hints, cancel)
 
+		// check if main animation disable
+		animation := opts.Animation
+		if !env.Settings.Animated {
+			animation = dialog.AnimNone
+		}
+
 		view = dialog.Composite(
 			m.frameView(th, width, l.component.View(), opts, hints),
 			view,
 			opts.XPos, opts.YPos,
 			opts.XOffset, opts.YOffset,
-			dialog.AnimSplit,
+			animation,
 			l.progress(now),
 		)
 	}

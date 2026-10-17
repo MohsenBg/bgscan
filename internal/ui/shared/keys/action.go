@@ -82,6 +82,12 @@ const (
 	ActionInspectorDescription Action = "inspector.description"
 )
 
+// Tab
+const (
+	ActionTabNext     Action = "tab.next"
+	ActionTabPrevious Action = "tab.previous"
+)
+
 // Text input
 const (
 	ActionTextInputSubmit                  Action = "textinput.submit"
@@ -108,6 +114,19 @@ const (
 	ActionToggleInputToggle Action = "toggleinput.toggle"
 	ActionToggleInputAccept Action = "toggleinput.accept"
 	ActionToggleInputReject Action = "toggleinput.reject"
+)
+
+// Picker
+const (
+	ActionPickerGotoTop  Action = "picker.goto_top"
+	ActionPickerGotoLast Action = "picker.goto_last"
+	ActionPickerUp       Action = "picker.up"
+	ActionPickerDown     Action = "picker.down"
+	ActionPickerPageUp   Action = "picker.page_up"
+	ActionPickerPageDown Action = "picker.page_down"
+	ActionPickerBack     Action = "picker.back"
+	ActionPickerOpen     Action = "picker.open"
+	ActionPickerSelect   Action = "picker.select"
 )
 
 // Select input

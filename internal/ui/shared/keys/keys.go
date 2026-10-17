@@ -17,11 +17,13 @@ type Keys struct {
 
 	Inspector InspectorKeys
 
+	Tab              TabKeys
 	TextInput        TextInputKeys
 	TextArea         TextAreaKeys
 	SelectInput      SelectInputKeys
 	MultiSelectInput MultiSelectInputKeys
 	ToggleInput      ToggleInputKeys
+	Picker           PickerKeys
 }
 
 type GlobalKeys struct {
@@ -40,8 +42,7 @@ type ConfirmKeys struct {
 }
 
 type NoticeKeys struct {
-	Left, Right Binding
-	Continue    Binding
+	Continue Binding
 }
 
 type DialogKeys struct {
@@ -186,4 +187,22 @@ type ToggleInputKeys struct {
 	Toggle Binding
 	Accept Binding
 	Reject Binding
+}
+
+// PickerKeys mirrors the file picker's keymap.
+type PickerKeys struct {
+	Up       Binding
+	Down     Binding
+	PageUp   Binding
+	PageDown Binding
+	GotoTop  Binding
+	GotoLast Binding
+	Back     Binding
+	Open     Binding
+	Select   Binding
+}
+
+type TabKeys struct {
+	Next Binding
+	Prev Binding
 }

@@ -95,7 +95,7 @@ func New(session *ui.Session, maxIPs int, scn scanner.Scanner) *Model {
 	m.tabs = tabs.New(session.Env(), tabsList, func(idx int, _ tabs.Tab[int]) tea.Cmd {
 		m.currentTab = idx
 		return m.immediateTick()
-	})
+	}, tabs.WithSlideAccent[int]())
 
 	m.recalcTableSizes()
 	return m
@@ -124,7 +124,7 @@ func (m *Model) Init() tea.Cmd {
 		}
 		return nil
 	}
-	return tea.Batch(tea.Cmd(runCmd), m.tick())
+	return tea.Batch(tea.Cmd(runCmd), m.tick(), m.tabs.Init())
 }
 
 func (m *Model) SetWidth(w int) {
@@ -310,7 +310,7 @@ func (m *Model) openLogViewer() tea.Cmd {
 		env := m.session.Env()
 		coreLog := m.session.CoreLog()
 		v := logview.New(env, &coreLog, "core logs")
-		v.SetContainerWidth(min(80, env.Layout.Body().Width))
+		v.SetContainerWidth(min(70, env.Layout.Body().Width))
 		v.SetShowBorder(false)
 		return dialog.OpenDialog(v)
 	}
@@ -321,12 +321,10 @@ func (m *Model) errorCmd(title, message string) tea.Cmd {
 }
 
 func createIPViewer(session *ui.Session, schema result.ResultSchema) ui.Component {
-	// The viewer only renders rows; the scan screen owns the actual
-	// shortcuts. These hints advertise where to find them.
 	k := session.Env().Keys
 
 	viewer := ipviewer.New(session, "Results", nil, schema,
-		ipviewer.WithMaxRow(session.Settings.MaxRow),
+		ipviewer.WithMaxRow(session.Env().Settings.MaxRow),
 		ipviewer.WithShortHints(
 			keys.Short(k.Nav.NextTab, k.Scan.TogglePause, k.Scan.ToggleLogs)...,
 		),

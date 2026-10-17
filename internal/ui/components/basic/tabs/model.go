@@ -1,10 +1,12 @@
 package tabs
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
 // Tab holds a label and associated value.
@@ -13,141 +15,151 @@ type Tab[T any] struct {
 	Value T
 }
 
-// NewTab constructs a Tab.
 func NewTab[T any](label string, value T) Tab[T] {
 	return Tab[T]{Label: label, Value: value}
 }
 
-// Model is the tabs component.
+// Model is a generic tab row with optional underline or animated indicator.
 type Model[T any] struct {
-	env  *ui.Env
-	id   ui.ComponentID
-	name string
+	env *ui.Env
+	id  ui.ComponentID
 
 	tabs        []Tab[T]
 	idx         int
 	onSelectTab func(idx int, tab Tab[T]) tea.Cmd
 
-	// styling options
 	activeStyle   *lipgloss.Style
 	inactiveStyle *lipgloss.Style
 	separator     string
 	alignment     lipgloss.Position
 	maxWidth      int
 	underline     bool
+
+	customActive   bool
+	customInactive bool
+
+	animated   bool
+	slide      float64
+	slideFrom  float64
+	slideTo    float64
+	slideStart time.Time
 }
 
-// Option configures the tabs Model.
 type Option[T any] func(*Model[T])
 
-// WithActiveStyle sets the style for the selected tab.
 func WithActiveStyle[T any](s lipgloss.Style) Option[T] {
-	return func(m *Model[T]) { m.activeStyle = &s }
+	return func(m *Model[T]) {
+		m.activeStyle = &s
+		m.customActive = true
+	}
 }
 
-// WithInactiveStyle sets the style for unselected tabs.
 func WithInactiveStyle[T any](s lipgloss.Style) Option[T] {
-	return func(m *Model[T]) { m.inactiveStyle = &s }
+	return func(m *Model[T]) {
+		m.inactiveStyle = &s
+		m.customInactive = true
+	}
 }
 
-// WithSeparator sets the string placed between tabs (default: " ").
 func WithSeparator[T any](sep string) Option[T] {
 	return func(m *Model[T]) { m.separator = sep }
 }
 
-// WithAlignment sets the horizontal alignment of the tab row.
 func WithAlignment[T any](align lipgloss.Position) Option[T] {
 	return func(m *Model[T]) { m.alignment = align }
 }
 
-// WithMaxWidth sets the maximum width of the tabs row (0 = no limit).
-func WithMaxWidth[T any](w int) Option[T] {
-	return func(m *Model[T]) { m.maxWidth = w }
+func WithMaxWidth[T any](width int) Option[T] {
+	return func(m *Model[T]) { m.SetMaxWidth(width) }
 }
 
-// WithUnderline enables an underline border under the active tab (default: true).
-func WithUnderline[T any](u bool) Option[T] {
-	return func(m *Model[T]) { m.underline = u }
+func WithUnderline[T any](enabled bool) Option[T] {
+	return func(m *Model[T]) { m.underline = enabled }
 }
 
-// New creates a tabs model with the given options.
-func New[T any](env *ui.Env, tabs []Tab[T], onSelectTab func(idx int, tab Tab[T]) tea.Cmd, opts ...Option[T]) *Model[T] {
+// WithSlideAccent switches to the animated chevron style.
+func WithSlideAccent[T any]() Option[T] {
+	return func(m *Model[T]) {
+		if m.env.Settings.Animated {
+			m.animated = true
+			m.separator = chevronSep
+		}
+	}
+}
+
+func New[T any](
+	env *ui.Env,
+	tabs []Tab[T],
+	onSelectTab func(idx int, tab Tab[T]) tea.Cmd,
+	opts ...Option[T],
+) *Model[T] {
 	m := &Model[T]{
 		env:         env,
 		id:          ui.NewComponentID(),
-		name:        "tabs",
 		tabs:        tabs,
-		idx:         0,
 		onSelectTab: onSelectTab,
-		maxWidth:    0, // unlimited by default
-		alignment:   lipgloss.Left,
 		separator:   " ",
+		alignment:   lipgloss.Left,
+		animated:    false,
 		underline:   true,
 	}
-	// apply options before setting defaults
+
 	for _, opt := range opts {
 		opt(m)
 	}
-	if m.activeStyle == nil {
-		s := m.defaultActiveStyle()
-		m.activeStyle = &s
+
+	m.applyDefaultStyles()
+
+	if m.animated {
+		m.slide = float64(m.tabOffset(m.idx))
+		m.slideFrom = m.slide
+		m.slideTo = m.slide
 	}
-	if m.inactiveStyle == nil {
-		s := m.defaultInactiveStyle()
-		m.inactiveStyle = &s
-	}
+
 	return m
 }
 
-// rebuild refreshes the cached default tab styles from the live theme.
-func (m *Model[T]) rebuild() {
-	s := m.defaultActiveStyle()
-	m.activeStyle = &s
-	s2 := m.defaultInactiveStyle()
-	m.inactiveStyle = &s2
+func (m *Model[T]) ID() ui.ComponentID { return m.id }
+func (m *Model[T]) Name() string       { return "tabs" }
+func (m *Model[T]) Mode() ui.KeyMode   { return ui.KeyModeNormal }
+func (m *Model[T]) OnClose() tea.Cmd   { return nil }
+
+func (m *Model[T]) Init() tea.Cmd {
+	return m.tick()
 }
 
-func (m *Model[T]) ID() ui.ComponentID { return m.id }
-
-func (m *Model[T]) Name() string { return m.name }
-
-func (m *Model[T]) Mode() ui.KeyMode { return ui.KeyModeNormal }
-
-// Init is a no‑op for the tabs component.
-func (m *Model[T]) Init() tea.Cmd { return nil }
-
-func (m *Model[T]) OnClose() tea.Cmd { return nil }
-
-// CurrentTab returns the currently selected tab.
 func (m *Model[T]) CurrentTab() *Tab[T] {
-	if m.idx >= 0 && m.idx < len(m.tabs) {
-		return &m.tabs[m.idx]
+	if m.idx < 0 || m.idx >= len(m.tabs) {
+		return nil
 	}
-	return nil
+	return &m.tabs[m.idx]
 }
 
 func (m *Model[T]) SetMaxWidth(width int) {
+	if width < 0 {
+		width = 0
+	}
 	m.maxWidth = width
 }
 
-// SelectTab sets the current index and returns the selected tab (or nil if out of range).
+// SelectTab sets the active tab by index.
 func (m *Model[T]) SelectTab(idx int) *Tab[T] {
-	if idx >= 0 && idx < len(m.tabs) {
-		m.idx = idx
-		return &m.tabs[idx]
+	if idx < 0 || idx >= len(m.tabs) {
+		return nil
 	}
-	return nil
+	m.idx = idx
+	m.startSlide()
+	return &m.tabs[idx]
 }
 
-// NextTab moves to the next tab (wraps around).
 func (m *Model[T]) NextTab() {
 	if len(m.tabs) == 0 {
 		return
 	}
 	m.idx = (m.idx + 1) % len(m.tabs)
+	m.startSlide()
 }
 
-// BackTab moves to the previous tab (wraps around).
 func (m *Model[T]) BackTab() {
 	if len(m.tabs) == 0 {
 		return
@@ -156,12 +168,58 @@ func (m *Model[T]) BackTab() {
 	if m.idx < 0 {
 		m.idx = len(m.tabs) - 1
 	}
+	m.startSlide()
 }
 
-// selectTabCmd returns the command to call the onSelectTab callback.
 func (m *Model[T]) selectTabCmd() tea.Cmd {
-	if tab := m.CurrentTab(); tab != nil && m.onSelectTab != nil {
-		return m.onSelectTab(m.idx, *tab)
+	tab := m.CurrentTab()
+	if tab == nil || m.onSelectTab == nil {
+		return nil
 	}
-	return nil
+	return m.onSelectTab(m.idx, *tab)
+}
+
+// rebuild refreshes theme-derived default styles. Custom styles are preserved.
+func (m *Model[T]) rebuild() {
+	if !m.customActive {
+		s := m.defaultActiveStyle()
+		m.activeStyle = &s
+	}
+	if !m.customInactive {
+		s := m.defaultInactiveStyle()
+		m.inactiveStyle = &s
+	}
+}
+
+func (m *Model[T]) applyDefaultStyles() {
+	if m.activeStyle == nil {
+		s := m.defaultActiveStyle()
+		m.activeStyle = &s
+	}
+	if m.inactiveStyle == nil {
+		s := m.defaultInactiveStyle()
+		m.inactiveStyle = &s
+	}
+}
+
+func (m *Model[T]) styleFor(i int) lipgloss.Style {
+	if i == m.idx {
+		if m.activeStyle != nil {
+			return *m.activeStyle
+		}
+		return m.defaultActiveStyle()
+	}
+
+	if m.inactiveStyle != nil {
+		return *m.inactiveStyle
+	}
+	return m.defaultInactiveStyle()
+}
+
+func (m *Model[T]) frameWidth() int {
+	width := m.env.Layout.Body().Width
+	if m.maxWidth > 0 && width > m.maxWidth {
+		width = m.maxWidth
+	}
+	return width
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -22,7 +21,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.session.Env().Layout.Update(msg.Width, msg.Height)
 
-	case tea.KeyPressMsg:
+	case tea.KeyMsg:
 		if m.session.Env().Keys.Global.ForceQuit.Matches(msg) {
 			return m, tea.Quit
 		}
@@ -36,12 +35,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case splash.SplashDoneMsg:
-		cmds = append(cmds, m.splash.OnClose(), m.startup.Init())
-		m.stage = StageStartUP
+		// prevent run twice startup init
+		// it can happend if pressed key last frame splash screen
+		if m.stage < StageStartUP {
+			m.stage = StageStartUP
+			cmds = append(cmds, m.splash.OnClose(), m.startup.Init())
+		}
 
 	case startup.StartupChecksDoneMsg:
-		cmds = append(cmds, m.startup.OnClose(), m.workspace.Init())
-		m.stage = StageWorkspace
+		if m.stage < StageWorkspace {
+			m.stage = StageWorkspace
+			cmds = append(cmds, m.startup.OnClose(), m.workspace.Init())
+		}
 
 	case dialog.OpenDialogMsg:
 		m.push(msg)
@@ -70,13 +75,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.beginCloseByID(msg.ID))
 	}
 
-	if _, themed := msg.(theme.ThemeChanged); themed {
-		cmds = append(cmds, m.updateAll(msg)...)
-	} else if cmd, active := m.updateTop(msg); active {
-		if _, isKey := msg.(tea.KeyMsg); isKey {
+	if _, isKey := msg.(tea.KeyMsg); isKey {
+		if cmd, active := m.updateTop(msg); active {
 			return m, cmd
 		}
-		cmds = append(cmds, cmd)
+	} else {
+		cmds = append(cmds, m.updateAll(msg)...)
 	}
 
 	var cmd tea.Cmd
@@ -95,7 +99,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // closeTopDialog closes the active dialog if a back or quit key is pressed.
 // It returns the close command and a boolean indicating if a close was triggered.
-func (m *model) closeTopDialog(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+func (m *model) closeTopDialog(msg tea.KeyMsg) (tea.Cmd, bool) {
 	topLayer := m.top()
 
 	//  nothing to close, or already in the process of closing

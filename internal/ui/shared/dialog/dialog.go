@@ -26,7 +26,12 @@ const (
 	StyleInfo
 	StyleWarn
 	StyleDanger
+	StyleSuccess
 )
+
+// DefaultAnimation is the reveal transition used when a dialog does not
+// request a specific one.
+const DefaultAnimation = AnimSplit
 
 // OpenDialogMsg requests opening a dialog overlay containing the given component.
 type OpenDialogMsg struct {
@@ -41,6 +46,8 @@ type OpenDialogMsg struct {
 	Title string
 	Style DialogStyle
 
+	Animation Animation
+
 	Hints []keys.Hint
 
 	OnClose tea.Cmd
@@ -54,6 +61,7 @@ func OpenDialog(component ui.Component, opts ...DialogOption) OpenDialogMsg {
 		XPos:      Center,
 		YPos:      Center,
 		Style:     StylePrimary,
+		Animation: DefaultAnimation,
 	}
 
 	for _, opt := range opts {
@@ -108,9 +116,20 @@ func WithDanger() DialogOption {
 	return WithStyle(StyleDanger)
 }
 
+func WithSuccess() DialogOption {
+	return WithStyle(StyleSuccess)
+}
+
 // WithOnClose sets the command to execute when the dialog closes.
 func WithOnClose(cmd tea.Cmd) DialogOption {
 	return func(m *OpenDialogMsg) {
 		m.OnClose = cmd
+	}
+}
+
+// WithAnimation sets the reveal transition for the dialog's open and close.
+func WithAnimation(a Animation) DialogOption {
+	return func(m *OpenDialogMsg) {
+		m.Animation = a
 	}
 }

@@ -56,7 +56,7 @@ type Model struct {
 }
 
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Init() tea.Cmd      { return nil }
+func (m *Model) Init() tea.Cmd      { return m.inspector.Init() }
 func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
@@ -151,7 +151,7 @@ func New(session *ui.Session, name string) *Model {
 		},
 		func(n int) { cfg.General.MaxIPsToTest = n }, saveGeneralCmd)
 
-	shuffled := toggleinput.New(session.Env(), "Shuffle",
+	shuffled := toggleinput.New(session.Env(), "Shuffle Input Order",
 		toggleinput.WithValue(cfg.General.Shuffled),
 		toggleinput.WithFocus(),
 		toggleinput.WithLabels("Enabled", "Disabled"),
@@ -163,7 +163,7 @@ func New(session *ui.Session, name string) *Model {
 
 	minProbeDuration := durationMSInput(
 		session,
-		"Enter Minimum Probe Duration",
+		"Enter Minimum Probe Duration (ms)",
 		cfg.General.MinProbeDuration.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
@@ -184,7 +184,7 @@ func New(session *ui.Session, name string) *Model {
 
 	probePerSec := intInput(
 		session,
-		"Enter Probe Rate Per Second",
+		"Enter Probe Rate Per Second (ms)",
 		cfg.General.ProbePerSec,
 		func(v string) error {
 			n, err := strconv.Atoi(v)

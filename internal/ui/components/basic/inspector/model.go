@@ -170,7 +170,7 @@ func New(env *ui.Env, name string, fields []Field, opts ...Option) *Model {
 		return func() tea.Msg {
 			return tabChangeMsg{Group: tab.Label, Fields: tab.Value}
 		}
-	})
+	}, tabs.WithSlideAccent[[]Field]())
 	tb.SetMaxWidth(m.maxWidth)
 	m.tabs = tb
 
@@ -207,7 +207,12 @@ func visibleItems(fields []Field) []list.Item {
 	return items
 }
 
-func (m *Model) Init() tea.Cmd      { return nil }
+func (m *Model) Init() tea.Cmd {
+	if m.tabs == nil {
+		return nil
+	}
+	return m.tabs.Init()
+}
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }

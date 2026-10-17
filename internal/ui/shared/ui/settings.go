@@ -12,13 +12,14 @@ import (
 
 const uiSettingsFile = "ui_settings.toml"
 
-const DefaultMaxRow = 10000
+const DefaultMaxRow = 10_000
 
 const DefaultLogLevel = "info"
 
 type UISettings struct {
 	ThemeName       string `toml:"theme" comment:"Color theme name. Empty = auto-detect."`
 	SolidBackground bool   `toml:"solid_background" comment:"Paint the theme background color behind the app root view."`
+	Animated        bool   `toml:"animated" comment:"Master switch for all TUI animations (current and future)."`
 	MaxRow          uint32 `toml:"max_row" comment:"Maximum number of rows kept for display in result tables."`
 	LogLevel        string `toml:"log_level" comment:"Minimum severity written to log files: debug, info, warn or error."`
 }
@@ -27,6 +28,7 @@ func DefaultUISettings() UISettings {
 	return UISettings{
 		ThemeName:       "",
 		SolidBackground: false,
+		Animated:        true,
 		MaxRow:          DefaultMaxRow,
 		LogLevel:        DefaultLogLevel,
 	}

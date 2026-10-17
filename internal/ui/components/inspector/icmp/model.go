@@ -32,7 +32,7 @@ type Model struct {
 }
 
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Init() tea.Cmd      { return nil }
+func (m *Model) Init() tea.Cmd      { return m.inspector.Init() }
 func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }

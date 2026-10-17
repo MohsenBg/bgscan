@@ -56,6 +56,7 @@ type model struct {
 	help        ui.Component
 	logCh       chan tea.Msg
 	checked     bool
+	checksOnce  atomic.Bool
 	fatal       *fatalError
 }
 
@@ -178,7 +179,12 @@ func (m *model) applyLayout(l layout.Layout) {
 }
 
 // Init starts background checks and the spinner/log listeners.
+// It is idempotent: repeat calls never re-run the checks.
 func (m *model) Init() tea.Cmd {
+	if !m.checksOnce.CompareAndSwap(false, true) {
+		return nil
+	}
+
 	go m.runChecks()
 
 	if m.session != nil {

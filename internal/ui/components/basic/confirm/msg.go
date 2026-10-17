@@ -23,6 +23,7 @@ func ExitConfirmCmd(env *ui.Env, options ...dialog.DialogOption) tea.Cmd {
 			dialog.WithPosition(dialog.Center, dialog.Top),
 			dialog.WithOffset(0, 1),
 			dialog.WithTitle("Exit"),
+			dialog.WithAnimation(dialog.AnimCurtain),
 			dialog.WithHints(ConfirmHints(*env.Keys)...),
 		}
 		opts = append(opts, options...)
@@ -52,6 +53,7 @@ func ConfirmCmd(
 			dialog.WithPosition(dialog.Center, dialog.Top),
 			dialog.WithOffset(0, 1),
 			dialog.WithHints(ConfirmHints(*env.Keys)...),
+			dialog.WithAnimation(dialog.AnimDropIn),
 		}
 		opts = append(opts, options...)
 

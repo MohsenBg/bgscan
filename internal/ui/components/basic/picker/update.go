@@ -1,29 +1,28 @@
 package picker
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
-// Update handles terminal resize, forwards messages to the file picker,
-// and closes the overlay after a successful selection.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	var cmds []tea.Cmd
-
 	if _, ok := msg.(tea.WindowSizeMsg); ok {
 		m.FilePicker.SetHeight(pickerHeight(m.env))
 	}
 
-	var cmd tea.Cmd
-	m.FilePicker, cmd = m.FilePicker.Update(msg)
+	var cmds []tea.Cmd
 
+	updated, cmd := m.FilePicker.Update(msg)
+	m.FilePicker = updated
 	if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
 
-	if didSelect, path := m.FilePicker.DidSelectFile(msg); didSelect && m.OnSelect != nil {
-		cmds = append(cmds, m.OnSelect(path))
+	if didSelect, path := m.FilePicker.DidSelectFile(msg); didSelect {
+		if m.OnSelect != nil {
+			cmds = append(cmds, m.OnSelect(path))
+		}
 		cmds = append(cmds, m.CloseCmd())
 	}
 

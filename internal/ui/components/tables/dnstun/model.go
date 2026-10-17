@@ -55,6 +55,7 @@ func (m *Model) selectDNSTunMethod() tea.Cmd {
 	m.dnsTunMenu = protoMenu
 	return func() tea.Msg {
 		return dialog.OpenDialog(protoMenu,
+			dialog.WithAnimation(dialog.AnimRiseUp),
 			dialog.WithTitle(dnstunmenu.Title),
 		)
 	}
@@ -63,6 +64,7 @@ func (m *Model) selectDNSTunMethod() tea.Cmd {
 // openFormDialog opens a formkit-based form as a dialog
 func openFormDialog(formKeys keys.FormKeys, frm ui.Component, opts ...dialog.DialogOption) dialog.OpenDialogMsg {
 	base := []dialog.DialogOption{
+		dialog.WithAnimation(dialog.AnimExpand),
 		dialog.WithHints(form.DialogHints(formKeys)...),
 	}
 	return dialog.OpenDialog(frm, append(base, opts...)...)

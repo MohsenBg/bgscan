@@ -1,30 +1,38 @@
 package tabs
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
-	tea "charm.land/bubbletea/v2"
 )
 
-// Update handles key events to switch tabs.
 func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if _, ok := msg.(theme.ThemeChanged); ok {
+	switch msg := msg.(type) {
+	case theme.ThemeChanged:
 		m.rebuild()
 		return m, nil
-	}
-	var cmd tea.Cmd
-	switch msg := msg.(type) {
+
+	case frameMsg:
+		m.step()
+		return m, m.tick()
+
 	case tea.KeyMsg:
-		switch msg.String() {
-		case env.KeyTab:
-			m.NextTab()
-			cmd = m.selectTabCmd()
-		case env.KeyShiftTab:
-			m.BackTab()
-			cmd = m.selectTabCmd()
-		}
+		return m, m.handleKey(msg)
 	}
-	return m, cmd
+
+	return m, nil
+}
+
+func (m *Model[T]) handleKey(msg tea.KeyMsg) tea.Cmd {
+	switch {
+	case m.env.Keys.Tab.Next.Matches(msg):
+		m.NextTab()
+	case m.env.Keys.Tab.Prev.Matches(msg):
+		m.BackTab()
+	default:
+		return nil
+	}
+
+	return tea.Batch(m.selectTabCmd(), m.tick())
 }

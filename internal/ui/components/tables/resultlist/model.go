@@ -71,7 +71,7 @@ func (m *Model) OpenResultIP(file result.ResultFile) tea.Cmd {
 				fmt.Sprintf("IP Scan [%s]", file.Schema.Name),
 				ips,
 				file.Schema,
-				ipviewer.WithMaxRow(m.session.Settings.MaxRow),
+				ipviewer.WithMaxRow(m.session.Env().Settings.MaxRow),
 			),
 		}
 	}

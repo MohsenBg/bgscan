@@ -10,8 +10,8 @@ import (
 // viewport so long messages remain scrollable.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if msg.Code == tea.KeyEnter {
+	case tea.KeyMsg:
+		if m.env.Keys.Notice.Continue.Matches(msg) {
 			return m, m.CloseCmd()
 		}
 	}

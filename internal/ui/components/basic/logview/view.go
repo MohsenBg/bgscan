@@ -32,10 +32,6 @@ func (m *Model) View() string {
 		contentArea = container.Render(content)
 	}
 
-	if m.inDialog {
-		return contentArea
-	}
-
 	title := container.Render(
 		m.titleStyle(m.viewport.Width()).Render(m.title),
 	)
@@ -82,7 +78,7 @@ func (m *Model) renderScrollBar() string {
 	thumbPos := int(scrollPercent * float64(trackSpace))
 
 	var b strings.Builder
-	for i := 0; i < height; i++ {
+	for i := range height {
 		if i >= thumbPos && i < thumbPos+thumbHeight {
 			b.WriteString(m.scrollBarThumbStyle().Render("█"))
 		} else {

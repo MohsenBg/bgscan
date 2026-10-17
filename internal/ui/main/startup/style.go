@@ -107,23 +107,6 @@ func (m *model) pendingDotStyle() lipgloss.Style {
 		Foreground(m.session.Env().Theme.Muted)
 }
 
-func (m *model) helpHintStyle(width int) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Width(width).
-		Padding(1, 0).
-		Align(lipgloss.Center).
-		Foreground(m.session.Env().Theme.Muted).
-		Faint(true)
-}
-
-func (m *model) helpOverlayStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(m.session.Env().Theme.Text).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.session.Env().Theme.BorderActive).
-		Padding(1, 2)
-}
-
 func (m *model) descStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(m.session.Env().Theme.Muted)

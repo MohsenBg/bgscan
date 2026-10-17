@@ -14,25 +14,25 @@ type Program interface {
 }
 
 type Session struct {
-	env      *Env
-	Settings UISettings
-	Config   *config.ScannerConfig
-	Store    *config.Store
-	Program  Program
-	core     logger.Logger
+	env     *Env
+	Config  *config.ScannerConfig
+	Store   *config.Store
+	Program Program
+	core    logger.Logger
 }
 
 // Env bundles what leaf components need to render and log.
 type Env struct {
-	Layout layout.Layout
-	Theme  theme.Theme
-	Keys   *keys.Keys
-	Log    logger.Logger
+	Layout   layout.Layout
+	Theme    theme.Theme
+	Keys     *keys.Keys
+	Log      logger.Logger
+	Settings UISettings
 }
 
 func NewSession(settings UISettings, ui logger.Logger, core logger.Logger) *Session {
 	env := newEnv(settings, ui)
-	return &Session{env: env, Settings: settings, core: core}
+	return &Session{env: env, core: core}
 }
 
 func newEnv(setting UISettings, log logger.Logger) *Env {
@@ -40,7 +40,7 @@ func newEnv(setting UISettings, log logger.Logger) *Env {
 	l := layout.New()
 	th, _ := theme.Get(setting.ThemeName)
 
-	e := &Env{Keys: &k, Log: log, Theme: th}
+	e := &Env{Keys: &k, Settings: setting, Log: log, Theme: th}
 	if l != nil {
 		e.Layout = *l
 	}
@@ -48,11 +48,8 @@ func newEnv(setting UISettings, log logger.Logger) *Env {
 }
 
 func (s *Session) Env() *Env {
-	if s == nil {
+	if s == nil || s.env == nil {
 		return newEnv(DefaultUISettings(), *logger.Discard())
-	}
-	if s.env == nil {
-		s.env = newEnv(s.Settings, *logger.Discard())
 	}
 	return s.env
 }
@@ -74,7 +71,10 @@ func (s *Session) SetTheme(name string) (tea.Cmd, error) {
 		return nil, err
 	}
 	s.Env().Theme = th
-	s.Settings.ThemeName = name
-	SaveSettings(s.Settings)
+	s.Env().Settings.ThemeName = name
+	err = SaveSettings(s.Env().Settings)
+	if err != nil {
+		return nil, err
+	}
 	return theme.ThemeChangedCmd(), nil
 }

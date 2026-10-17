@@ -108,6 +108,8 @@ func frameStyles(s DialogStyle, th *theme.Theme) (rule, title lipgloss.Style) {
 		ruleColor, titleColor = th.Warning, th.Warning
 	case StyleDanger:
 		ruleColor, titleColor = th.Error, th.Error
+	case StyleSuccess:
+		ruleColor, titleColor = th.Success, th.Success
 	}
 
 	return lipgloss.NewStyle().Foreground(ruleColor),

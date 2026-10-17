@@ -10,11 +10,25 @@ import (
 )
 
 const (
-	RowDuration = 170 * time.Millisecond
-	RowStagger  = 60 * time.Millisecond
+	rowDuration = 170 * time.Millisecond
+	rowDelay    = 60 * time.Millisecond
 )
 
 type menuTickMsg time.Time
+
+func (m *Model) rowDuration() time.Duration {
+	if !m.env.Settings.Animated {
+		return 0
+	}
+	return rowDuration
+}
+
+func (m *Model) rowDelay() time.Duration {
+	if !m.env.Settings.Animated {
+		return 0
+	}
+	return rowDelay
+}
 
 // nextFrame schedules the next animation frame.
 func (m *Model) nextFrame() tea.Cmd {
@@ -28,19 +42,23 @@ func (m *Model) nextFrame() tea.Cmd {
 }
 
 func (m *Model) animating() bool {
-	entrance := RowDuration + time.Duration(len(m.items))*RowStagger
+	rowDelay := m.rowDelay()
+	rowDuration := m.rowDuration()
+	entrance := rowDuration + time.Duration(len(m.items))*rowDelay
 	return time.Since(m.enterAt) < entrance
 }
 
 // rowAlpha returns the entrance fade-in progress of row i.
 func (m *Model) rowAlpha(i int) float64 {
-	elapsed := time.Since(m.enterAt) - time.Duration(i)*RowStagger
+	rowDelay := m.rowDelay()
+	rowDuration := m.rowDuration()
+	elapsed := time.Since(m.enterAt) - time.Duration(i)*rowDelay
 	if elapsed <= 0 {
 		return 0
 	}
 
 	return anim.EaseOutCubic(
-		anim.Clamp01(float64(elapsed) / float64(RowDuration)),
+		anim.Clamp01(float64(elapsed) / float64(rowDuration)),
 	)
 }
 

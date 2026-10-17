@@ -574,6 +574,61 @@ func Default() Keys {
 		},
 	}
 
+	picker := PickerKeys{
+		GotoTop: Binding{
+			Action:        ActionPickerGotoTop,
+			Keys:          []string{"g"},
+			HelpText:      "top",
+			CaseSensitive: true,
+		},
+		GotoLast: Binding{
+			Action:        ActionPickerGotoLast,
+			Keys:          []string{"G"},
+			HelpText:      "last",
+			CaseSensitive: true,
+		},
+		Up: Binding{
+			Action:   ActionPickerUp,
+			Keys:     []string{"up", "k", "ctrl+p"},
+			HelpText: "move up",
+		},
+		Down: Binding{
+			Action:   ActionPickerDown,
+			Keys:     []string{"down", "j", "ctrl+n"},
+			HelpText: "move down",
+		},
+		PageUp: Binding{
+			Action:   ActionPickerPageUp,
+			Keys:     []string{"pgup", "K"},
+			HelpText: "page up",
+		},
+		PageDown: Binding{
+			Action:   ActionPickerPageDown,
+			Keys:     []string{"pgdown", "J"},
+			HelpText: "page down",
+		},
+		Back: Binding{
+			Action:   ActionPickerBack,
+			Keys:     []string{"esc", "h", "backspace", "left"},
+			HelpText: "back",
+		},
+		Open: Binding{
+			Action:   ActionPickerOpen,
+			Keys:     []string{"enter", "l", "right"},
+			HelpText: "open",
+		},
+		Select: Binding{
+			Action:   ActionPickerSelect,
+			Keys:     []string{"enter"},
+			HelpText: "select",
+		},
+	}
+
+	tab := TabKeys{
+		Next: nav.NextTab,
+		Prev: nav.PrevTab,
+	}
+
 	inspector := InspectorKeys{
 		Up:      nav.Up,
 		Down:    nav.Down,
@@ -705,11 +760,13 @@ func Default() Keys {
 			},
 		},
 
+		Tab:              tab,
 		TextInput:        textInput,
 		TextArea:         textArea,
 		SelectInput:      selectInput,
 		MultiSelectInput: multiSelectInput,
 		ToggleInput:      toggleInput,
+		Picker:           picker,
 	}
 }
 

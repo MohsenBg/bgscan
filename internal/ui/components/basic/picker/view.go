@@ -4,63 +4,12 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// View renders the file picker overlay.
-//
-// Layout structure:
-//
-//	Title
-//	Current Directory
-//	File List
-//	Help Bar
-//
-// The entire block is wrapped in a styled container sized
-// according to the current layout constraints.
 func (m *Model) View() string {
-	// Limit picker width so it doesn't become too wide
-	width := min(70, m.env.Layout.Content().Width-10)
+	width := pickerWidth(m.env)
 	height := pickerHeight(m.env)
 
-	title := ""
-	if !m.inDialog && m.Title != "" {
-		title = m.titleStyle(width).Render(m.Title)
-	}
-
-	currentDir := m.currentDirStyle(width).Render(
-		m.FilePicker.CurrentDirectory,
-	)
-
-	content := lipgloss.JoinVertical(
-		lipgloss.Top,
-		title,
-		currentDir,
-		m.FilePicker.View(),
-	)
-	if !m.inDialog {
-		content = lipgloss.JoinVertical(
-			lipgloss.Top,
-			content,
-			m.helpStyle(width).Render(m.helpView()),
-		)
-	}
+	currentDir := m.currentDirStyle(width).Render(m.FilePicker.CurrentDirectory)
+	content := lipgloss.JoinVertical(lipgloss.Top, currentDir, m.FilePicker.View())
 
 	return containerStyle(width, height).Render(content)
-}
-
-// helpView renders the picker keyboard help bar.
-func (m *Model) helpView() string {
-	return lipgloss.JoinHorizontal(
-		lipgloss.Top,
-
-		m.helpKeyStyle().Render("← →"),
-		" dir  ",
-
-		m.helpKeyStyle().Render("↑ ↓"),
-		" move  ",
-
-		m.helpKeyStyle().Render("enter"),
-		" select  ",
-
-		m.helpKeyStyle().Render("b/esc"),
-		" close",
-	)
 }

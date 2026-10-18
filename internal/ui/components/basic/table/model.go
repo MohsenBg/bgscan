@@ -3,6 +3,7 @@ package table
 import (
 	"cmp"
 	"fmt"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,12 +14,15 @@ import (
 	"charm.land/bubbles/v2/table"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/dustin/go-humanize"
 
+	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/speedtest"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/help"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/meter"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-
-	"github.com/dustin/go-humanize"
 )
 
 type (
@@ -48,17 +52,17 @@ type Model struct {
 	id   ui.ComponentID
 	name string
 
-	title string
-	env   *ui.Env
-	help  ui.Component
-
+	title  string
+	env    *ui.Env
+	help   ui.Component
 	bubble table.Model
 
 	additionalShortHints []keys.Hint
 	additionalLongHints  []keys.Hint
 
-	originalCols []table.Column
+	originalCols []Column
 	originalRows []Row
+	colTypes     []result.ColumnType
 
 	width     int // 0 means use layout
 	height    int // 0 means use layout
@@ -72,9 +76,10 @@ type Model struct {
 	selPrefix string
 	marker    string
 
-	emptyMessage string
-	filtering    bool
-	filter       textinput.Model
+	emptyMessage  string
+	filterEnabled bool
+	filtering     bool
+	filter        textinput.Model
 
 	spinner        spinner.Model
 	loading        bool
@@ -87,11 +92,16 @@ func WithTitle(title string) Option {
 	return func(m *Model) { m.title = title }
 }
 
-func WithColumns(cols []table.Column) Option {
+func WithColumns(cols []Column) Option {
 	return func(m *Model) { m.originalCols = slices.Clone(cols) }
 }
 
-func WithRows(rows []table.Row) Option {
+// WithColumnTypes assigns a semantic type per column, by index.
+func WithColumnTypes(types ...result.ColumnType) Option {
+	return func(m *Model) { m.colTypes = slices.Clone(types) }
+}
+
+func WithRows(rows []Row) Option {
 	return func(m *Model) { m.originalRows = cloneRows(rows) }
 }
 
@@ -116,11 +126,11 @@ func WithMaxHeight(h int) Option {
 }
 
 func WithKeyShortHints(hints ...keys.Hint) Option {
-	return func(m *Model) { m.additionalShortHints = hints }
+	return func(m *Model) { m.additionalShortHints = slices.Clone(hints) }
 }
 
 func WithKeyLongHints(hints ...keys.Hint) Option {
-	return func(m *Model) { m.additionalLongHints = hints }
+	return func(m *Model) { m.additionalLongHints = slices.Clone(hints) }
 }
 
 // WithEmptyMessage sets the message displayed when the table has no rows.
@@ -128,8 +138,7 @@ func WithEmptyMessage(msg string) Option {
 	return func(m *Model) { m.emptyMessage = msg }
 }
 
-// WithLoading sets the initial loading state.
-// The default loading state is false.
+// WithLoading sets the initial loading state (defaults to false).
 func WithLoading(loading bool) Option {
 	return func(m *Model) { m.loading = loading }
 }
@@ -139,13 +148,17 @@ func WithLoadingMessage(message string) Option {
 	return func(m *Model) { m.loadingMessage = message }
 }
 
+// WithFiltering enables or disables table filtering.
+func WithFiltering(enabled bool) Option {
+	return func(m *Model) { m.filterEnabled = enabled }
+}
+
 // WithUnsortableColumns excludes columns from sort cycling and SetSort.
 func WithUnsortableColumns(cols ...int) Option {
 	return func(m *Model) {
 		if m.unsortable == nil {
-			m.unsortable = make(map[int]bool)
+			m.unsortable = make(map[int]bool, len(cols))
 		}
-
 		for _, c := range cols {
 			m.unsortable[c] = true
 		}
@@ -153,32 +166,25 @@ func WithUnsortableColumns(cols ...int) Option {
 }
 
 func New(env *ui.Env, opts ...Option) *Model {
+	filter := textinput.New()
+	filter.Prompt = ""
+	filter.CharLimit = maxFilterChar
+
 	m := &Model{
 		id:             ui.NewComponentID(),
 		name:           "table",
 		env:            env,
 		sortCol:        -1,
 		sortAsc:        true,
+		filterEnabled:  true,
+		filter:         filter,
 		emptyMessage:   "No data to display.",
 		loadingMessage: "Loading records please wait!",
-		loading:        false,
 		spinner:        spinner.New(spinner.WithSpinner(spinner.Points)),
 	}
 
-	m.filter = textinput.New()
-	m.filter.Prompt = ""
-	m.filter.CharLimit = maxFilterChar
-
 	for _, opt := range opts {
 		opt(m)
-	}
-
-	if m.originalCols == nil {
-		m.originalCols = []table.Column{}
-	}
-
-	if m.originalRows == nil {
-		m.originalRows = []table.Row{}
 	}
 
 	m.help = help.New(
@@ -211,17 +217,9 @@ func (m *Model) Init() tea.Cmd {
 	return m.spinner.Tick
 }
 
-func (m *Model) ID() ui.ComponentID {
-	return m.id
-}
-
-func (m *Model) Name() string {
-	return m.name
-}
-
-func (m *Model) OnClose() tea.Cmd {
-	return nil
-}
+func (m *Model) ID() ui.ComponentID { return m.id }
+func (m *Model) Name() string       { return m.name }
+func (m *Model) OnClose() tea.Cmd   { return nil }
 
 func (m *Model) Mode() ui.KeyMode {
 	m.mu.RLock()
@@ -230,7 +228,6 @@ func (m *Model) Mode() ui.KeyMode {
 	if m.loading || m.filtering || m.filterValue() != "" {
 		return ui.KeyModeManage
 	}
-
 	return ui.KeyModeNormal
 }
 
@@ -261,7 +258,6 @@ func (m *Model) SelectedRow() (Row, bool) {
 
 	rows := m.bubble.Rows()
 	idx := m.bubble.Cursor()
-
 	if idx < 0 || idx >= len(rows) {
 		return nil, false
 	}
@@ -269,8 +265,7 @@ func (m *Model) SelectedRow() (Row, bool) {
 	return slices.Clone(rows[idx]), true
 }
 
-// SelectedIndex returns the selected visible row index.
-// It returns -1 when there are no visible rows or the table is loading.
+// SelectedIndex returns the selected visible row index, or -1 when empty/loading.
 func (m *Model) SelectedIndex() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -278,7 +273,6 @@ func (m *Model) SelectedIndex() int {
 	if m.loading || len(m.bubble.Rows()) == 0 {
 		return -1
 	}
-
 	return m.bubble.Cursor()
 }
 
@@ -291,7 +285,6 @@ func (m *Model) VisibleRowCount() int {
 	if m.loading {
 		return 0
 	}
-
 	return len(m.bubble.Rows())
 }
 
@@ -327,39 +320,18 @@ func (m *Model) Loading() bool {
 	return m.loading
 }
 
-// EnableLoading enables the loading state.
-func (m *Model) EnableLoading() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.setLoadingLocked(true)
-}
-
-// DisableLoading disables the loading state.
-func (m *Model) DisableLoading() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.setLoadingLocked(false)
-}
+func (m *Model) EnableLoading()  { m.SetLoading(true) }
+func (m *Model) DisableLoading() { m.SetLoading(false) }
 
 // SetLoading sets the loading state explicitly.
 func (m *Model) SetLoading(loading bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.setLoadingLocked(loading)
-}
-
-// setLoadingLocked changes the loading state.
-// It must be called with m.mu held.
-func (m *Model) setLoadingLocked(loading bool) {
-	if m.loading == loading {
-		return
+	if m.loading != loading {
+		m.loading = loading
+		m.updateTableSizeLocked()
 	}
-
-	m.loading = loading
-	m.updateTableSizeLocked()
 }
 
 // SetWidth sets an explicit width. Zero means use layout.
@@ -398,7 +370,7 @@ func (m *Model) SetMaxHeight(h int) {
 	m.updateTableSizeLocked()
 }
 
-func (m *Model) AppendRow(row table.Row) {
+func (m *Model) AppendRow(row Row) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -408,7 +380,7 @@ func (m *Model) AppendRow(row table.Row) {
 
 // SetRows replaces all rows, keeping the active sort, filter, and cursor
 // position. This is important for live scan refreshes.
-func (m *Model) SetRows(rows []table.Row) {
+func (m *Model) SetRows(rows []Row) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -416,8 +388,7 @@ func (m *Model) SetRows(rows []table.Row) {
 	m.refreshDisplayLocked(false)
 }
 
-// SortState reports the active sort column and direction.
-// A column of -1 means load order.
+// SortState reports the active sort column and direction (-1 means load order).
 func (m *Model) SortState() (col int, asc bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -453,15 +424,21 @@ func (m *Model) clearSortLocked() {
 	m.refreshDisplayLocked(false)
 }
 
+// nextSortableCol returns the first sortable column index >= start, or -1 if none.
+func (m *Model) nextSortableCol(start int) int {
+	for col := max(0, start); col < len(m.originalCols); col++ {
+		if !m.unsortable[col] {
+			return col
+		}
+	}
+	return -1
+}
+
 // cycleSortColumnLocked advances to the next sortable column, wrapping to
 // load order after the last one. It must be called with m.mu held.
 func (m *Model) cycleSortColumnLocked() {
-	next := m.sortCol + 1
-	for next < len(m.originalCols) && m.unsortable[next] {
-		next++
-	}
-
-	if next >= len(m.originalCols) {
+	next := m.nextSortableCol(m.sortCol + 1)
+	if next < 0 {
 		m.clearSortLocked()
 		return
 	}
@@ -472,18 +449,12 @@ func (m *Model) cycleSortColumnLocked() {
 
 // toggleSortDirectionLocked flips the sort direction. When no sort is active,
 // it starts at the first sortable column in descending order.
-// It must be called with m.mu held.
 func (m *Model) toggleSortDirectionLocked() {
 	if m.sortCol < 0 {
-		col := 0
-		for col < len(m.originalCols) && m.unsortable[col] {
-			col++
-		}
-
-		if col >= len(m.originalCols) {
+		col := m.nextSortableCol(0)
+		if col < 0 {
 			return
 		}
-
 		m.sortCol, m.sortAsc = col, false
 	} else {
 		m.sortAsc = !m.sortAsc
@@ -515,44 +486,45 @@ func (m *Model) clearFilterLocked() {
 }
 
 // refreshDisplayLocked pushes the sorted and filtered snapshot to the table.
-// resetCursor jumps to the first row for explicit user sorts; data refreshes
-// pass false to preserve the cursor. It must be called with m.mu held.
 func (m *Model) refreshDisplayLocked(resetCursor bool) {
 	m.bubble.SetRows(m.displayRowsLocked())
-
 	if resetCursor {
 		m.bubble.GotoTop()
 	}
-
 	m.updateTableSizeLocked()
 }
 
-// displayRowsLocked returns the load-order snapshot with active sort and
-// filter applied. Sort order is stable. It must be called with m.mu held.
+// displayRowsLocked returns the load-order snapshot with active filter and
+// sort applied. Sort order is stable. It must be called with m.mu held.
 func (m *Model) displayRowsLocked() []Row {
 	needle := strings.ToLower(m.filterValue())
-
 	if m.sortCol < 0 && needle == "" {
 		return m.originalRows
 	}
 
-	rows := slices.Clone(m.originalRows)
+	// Filter before sorting to avoid sorting rows that will be discarded.
+	var rows []Row
+	if needle != "" {
+		rows = make([]Row, 0, len(m.originalRows))
+		for _, r := range m.originalRows {
+			if rowMatches(r, needle) {
+				rows = append(rows, r)
+			}
+		}
+	} else {
+		rows = slices.Clone(m.originalRows)
+	}
 
 	if m.sortCol >= 0 {
 		col, asc := m.sortCol, m.sortAsc
+		compare := m.comparator(col)
 
 		slices.SortStableFunc(rows, func(a, b Row) int {
-			c := compareCells(cellAt(a, col), cellAt(b, col))
+			c := compare(cellAt(a, col), cellAt(b, col))
 			if !asc {
-				c = -c
+				return -c
 			}
 			return c
-		})
-	}
-
-	if needle != "" {
-		rows = slices.DeleteFunc(rows, func(r Row) bool {
-			return !rowMatches(r, needle)
 		})
 	}
 
@@ -562,11 +534,10 @@ func (m *Model) displayRowsLocked() []Row {
 // rowMatches reports whether any cell contains needle case-insensitively.
 func rowMatches(r Row, needle string) bool {
 	for _, c := range r {
-		if strings.Contains(strings.ToLower(c), needle) {
+		if strings.Contains(strings.ToLower(ansi.Strip(c)), needle) {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -574,19 +545,21 @@ func cellAt(r Row, col int) string {
 	if col < 0 || col >= len(r) {
 		return ""
 	}
-
 	return r[col]
 }
 
 // compareCells orders rendered cells numerically, then by byte size
 // (for example, "10 MB" > "9 MB"), then lexicographically.
 func compareCells(a, b string) int {
-	a = strings.TrimSpace(a)
-	b = strings.TrimSpace(b)
+	a = strings.TrimSpace(ansi.Strip(a))
+	b = strings.TrimSpace(ansi.Strip(b))
+
+	if a == b {
+		return 0
+	}
 
 	fa, errA := strconv.ParseFloat(a, 64)
 	fb, errB := strconv.ParseFloat(b, 64)
-
 	switch {
 	case errA == nil && errB == nil:
 		return cmp.Compare(fa, fb)
@@ -598,40 +571,110 @@ func compareCells(a, b string) int {
 
 	pa, errA := humanize.ParseBytes(a)
 	pb, errB := humanize.ParseBytes(b)
-
 	switch {
 	case errA == nil && errB == nil:
 		return cmp.Compare(pa, pb)
 	case errA == nil:
-		return -1 // Byte sizes sort before other strings.
+		return -1
 	case errB == nil:
 		return 1
 	}
 
-	return strings.Compare(a, b)
+	return cmp.Compare(a, b)
 }
+
+// columnType reports the semantic type of a column.
+func (m *Model) columnType(col int) result.ColumnType {
+	if col < 0 || col >= len(m.colTypes) {
+		return result.ColumnText
+	}
+	return m.colTypes[col]
+}
+
+// comparator picks the sort function for a column by its declared type.
+func (m *Model) comparator(col int) func(a, b string) int {
+	switch m.columnType(col) {
+	case result.ColumnIP:
+		return sortIP
+	case result.ColumnDuration:
+		return sortDuration
+	case result.ColumnBandwidth:
+		return sortBandwidth
+	default:
+		return compareCells
+	}
+}
+
+// typedCompare builds a comparator ordering cells by parsed values.
+func typedCompare[T any](
+	parse func(string) (T, bool),
+	order func(T, T) int,
+) func(a, b string) int {
+	return func(a, b string) int {
+		sa := strings.TrimSpace(ansi.Strip(a))
+		sb := strings.TrimSpace(ansi.Strip(b))
+
+		pa, oka := parse(sa)
+		pb, okb := parse(sb)
+
+		switch {
+		case oka && okb:
+			return order(pa, pb)
+		case oka:
+			return -1
+		case okb:
+			return 1
+		default:
+			return compareCells(sa, sb)
+		}
+	}
+}
+
+var (
+	sortIP = typedCompare(
+		func(s string) (netip.Addr, bool) {
+			p, err := netip.ParseAddr(s)
+			return p, err == nil
+		},
+		netip.Addr.Compare,
+	)
+
+	sortDuration = typedCompare(
+		meter.Duration,
+		cmp.Compare[time.Duration],
+	)
+
+	sortBandwidth = typedCompare(
+		func(s string) (speedtest.BitsPerSec, bool) {
+			v, err := speedtest.ParseBitsPerSec(s)
+			return v, err == nil
+		},
+		cmp.Compare[speedtest.BitsPerSec],
+	)
+)
 
 // NewRowTime renders t as "2006-01-02 15:04:05", or "-" when t is zero.
 func NewRowTime(t time.Time) string {
 	if t.IsZero() {
 		return "-"
 	}
-
-	return t.Format("2006-01-02 15:04:05")
+	return t.Format(time.DateTime)
 }
 
-func cloneRows(rows []table.Row) []table.Row {
-	out := make([]table.Row, len(rows))
+func cloneRows(rows []Row) []Row {
+	if rows == nil {
+		return nil
+	}
+	out := make([]Row, len(rows))
 	for i, row := range rows {
 		out[i] = slices.Clone(row)
 	}
-
 	return out
 }
 
 // scaledColumns distributes content width across columns proportionally.
 // It must be called with m.mu held.
-func (m *Model) scaledColumns() []table.Column {
+func (m *Model) scaledColumns() []Column {
 	if len(m.originalCols) == 0 {
 		return nil
 	}
@@ -642,13 +685,9 @@ func (m *Model) scaledColumns() []table.Column {
 	for _, c := range out {
 		total += c.Width
 	}
-
 	if total <= 0 {
 		return out
 	}
-
-	overhead := (cellPadLeft+1)*len(out) + m.frameH()
-	target := max(len(out), m.tableWidthLocked()-overhead)
 
 	if m.sortCol >= 0 && m.sortCol < len(out) {
 		if m.sortAsc {
@@ -658,15 +697,18 @@ func (m *Model) scaledColumns() []table.Column {
 		}
 	}
 
+	overhead := (cellPadLeft+1)*len(out) + m.frameH()
+	target := max(len(out), m.tableWidthLocked()-overhead)
+
 	assigned := 0
 	for i, c := range out {
-		w := int(float64(target) * float64(c.Width) / float64(total))
-		out[i].Width = max(1, w)
+		out[i].Width = max(1, (target*c.Width)/total)
 		assigned += out[i].Width
 	}
 
 	if diff := target - assigned; diff != 0 {
-		out[len(out)-1].Width = max(1, out[len(out)-1].Width+diff)
+		last := len(out) - 1
+		out[last].Width = max(1, out[last].Width+diff)
 	}
 
 	return out
@@ -684,31 +726,26 @@ func (m *Model) updateTableSizeLocked() {
 		rows = 0
 	}
 
+	chromeHeight := helpHeight + titleHeight + paddingVertical*2
 	var total int
 
 	switch {
 	case m.height > 0:
 		total = m.height
-
 	case m.env.Layout.Body().Height > 0:
-		total = max(
-			tableMinHeight,
-			rows+2+helpHeight+titleHeight+paddingVertical*2,
+		total = min(
+			max(tableMinHeight, rows+2+chromeHeight),
+			m.env.Layout.Body().Height,
 		)
-		total = min(total, m.env.Layout.Body().Height)
-
 	default:
-		total = max(
-			tableMinHeight,
-			rows+helpHeight+titleHeight+paddingVertical*2,
-		)
+		total = max(tableMinHeight, rows+chromeHeight)
 	}
 
 	if m.maxHeight > 0 {
 		total = min(total, m.maxHeight)
 	}
 
-	height := max(1, total-helpHeight-titleHeight-paddingVertical*2-m.frameV())
+	height := max(1, total-chromeHeight-m.frameV())
 	m.bubble.SetHeight(height)
 
 	width := m.tableWidthLocked()
@@ -725,14 +762,11 @@ func (m *Model) contentWidthLocked() int {
 
 func (m *Model) tableWidthLocked() int {
 	var w int
-
 	switch {
 	case m.width > 0:
 		w = m.width
-
 	case m.env.Layout.Body().Width > 0:
 		w = max(10, m.env.Layout.Body().Width-paddingHorizontal)
-
 	default:
 		w = tableMinWidth
 	}

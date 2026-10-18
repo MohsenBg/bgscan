@@ -105,7 +105,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	case k.ToggleOrder.Matches(msg):
 		m.toggleSortDirectionLocked()
 
-	case k.Filter.Matches(msg):
+	case k.Filter.Matches(msg) && m.filterEnabled:
 		m.filtering = true
 		return m.showCursor(), true
 

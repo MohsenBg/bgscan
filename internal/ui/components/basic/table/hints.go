@@ -17,8 +17,10 @@ func (m *Model) longHits(extra ...keys.Hint) keys.Hints {
 		k.Bottom,
 		k.ChangeSort,
 		k.ToggleOrder,
-		k.Filter,
 	)
+	if m.filterEnabled {
+		hints = append(hints, keys.Long(k.Filter)...)
+	}
 
 	hints = append(hints, extra...)
 
@@ -36,8 +38,10 @@ func (m *Model) shortHits(extra ...keys.Hint) keys.Hints {
 	hints = append(hints, keys.Short(
 		k.ChangeSort,
 		k.ToggleOrder,
-		k.Filter,
 	)...)
+	if m.filterEnabled {
+		hints = append(hints, keys.Short(k.Filter)...)
+	}
 
 	hints = append(hints, extra...)
 

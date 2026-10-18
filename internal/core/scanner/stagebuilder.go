@@ -214,9 +214,8 @@ func (s *scanner) buildXrayPreScanStage(
 
 	default:
 		return nil, fmt.Errorf(
-			"unsupported Xray pre_scan_type %q (allowed: %v)",
+			"unsupported Xray pre_scan_type %q",
 			preScanType,
-			allowedPreScanTypes,
 		)
 	}
 }

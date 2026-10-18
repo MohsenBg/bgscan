@@ -110,7 +110,7 @@ func (m *Model) open(mode ScanType) tea.Cmd {
 		}
 
 		m.closeScanner = false
-		return ui.OpenComponentCmd(scannerUi.New(m.session, 10_000, scn))()
+		return ui.OpenComponentCmd(scannerUi.New(m.session, scn))()
 	}
 }
 
@@ -158,7 +158,10 @@ func (m *Model) createScanner(mode ScanType, input string) (scanner.Scanner, err
 			return nil, err
 		}
 
-		scn.AddStage(stage)
+		err = scn.AddStage(stage)
+		if err != nil {
+			return nil, err
+		}
 		return scn, nil
 	}
 }
@@ -183,7 +186,11 @@ func (m *Model) buildResolveScanner(ctx context.Context, scn scanner.Scanner) (s
 		return nil, err
 	}
 
-	scn.AddStage(stage)
+	err = scn.AddStage(stage)
+	if err != nil {
+		return nil, err
+	}
+
 	return scn, nil
 }
 
@@ -195,7 +202,10 @@ func (m *Model) buildXrayScanner(ctx context.Context, scn scanner.Scanner) (scan
 	}
 
 	for _, stage := range stages {
-		scn.AddStage(stage)
+		err = scn.AddStage(stage)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return scn, nil
 }
@@ -260,7 +270,10 @@ func (m *Model) buildDNSTunScanner(ctx context.Context, scn scanner.Scanner) (sc
 	}
 
 	for _, stage := range stages {
-		scn.AddStage(stage)
+		err := scn.AddStage(stage)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return scn, nil

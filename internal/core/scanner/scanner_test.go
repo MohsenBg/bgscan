@@ -496,8 +496,8 @@ func TestAddStage_GetStages(t *testing.T) {
 		_ = s.Close()
 	}()
 
-	s.AddStage(StageConfig{Workers: 1})
-	s.AddStage(StageConfig{Workers: 2})
+	_ = s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 2})
 
 	stages := s.GetStages()
 	if len(stages) != 2 {
@@ -522,7 +522,7 @@ func TestAddStage_AfterClose(t *testing.T) {
 	}
 
 	_ = s.Close()
-	s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 1})
 	if got := s.GetStages(); len(got) != 0 {
 		t.Fatalf("stage added after close; got %d stages", len(got))
 	}
@@ -536,9 +536,9 @@ func TestAddStage_AfterStarted(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	sc := s.(*scanner)
-	sc.started = true
+	sc.started.Store(true)
 
-	s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 1})
 	if got := s.GetStages(); len(got) != 0 {
 		t.Fatalf("stage added after start; got %d stages", len(got))
 	}
@@ -581,7 +581,7 @@ func TestRun_AlreadyStarted(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	sc := s.(*scanner)
-	sc.started = true
+	sc.started.Store(true)
 
 	if err := s.Run(); err == nil || !strings.Contains(err.Error(), "already run") {
 		t.Fatalf("expected already-run error, got %v", err)
@@ -603,7 +603,7 @@ func TestRun_CancelledContext(t *testing.T) {
 	}
 	defer func() { _ = s.Close() }()
 
-	s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 1})
 	cancel()
 
 	if err := s.Run(); err == nil {
@@ -754,7 +754,7 @@ func TestClose_MarksClosed(t *testing.T) {
 	}
 
 	sc := s.(*scanner)
-	if !sc.closed {
+	if !sc.closed.Load() {
 		t.Fatal("closed flag should be true after Close")
 	}
 }
@@ -812,7 +812,7 @@ func TestRun_OneStageUsesSingleRunner(t *testing.T) {
 	sc := s.(*scanner)
 	sc.input = "127.0.0.1"
 
-	s.AddStage(StageConfig{Workers: 3})
+	_ = s.AddStage(StageConfig{Workers: 3})
 	if err := s.Run(); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -844,8 +844,8 @@ func TestRun_MultipleStagesUsesChainRunner(t *testing.T) {
 	sc := s.(*scanner)
 	sc.input = "targets.txt"
 
-	s.AddStage(StageConfig{Workers: 1})
-	s.AddStage(StageConfig{Workers: 2})
+	_ = s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 2})
 	if err := s.Run(); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -872,7 +872,7 @@ func TestClose_WaitsForActiveRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewScanner() error = %v", err)
 	}
-	s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 1})
 
 	runDone := make(chan error, 1)
 	go func() { runDone <- s.Run() }()
@@ -1087,8 +1087,8 @@ func TestUpdateStageHooks_Success(t *testing.T) {
 	sc := s.(*scanner)
 	sc.input = "targets.txt"
 
-	s.AddStage(StageConfig{Workers: 1})
-	s.AddStage(StageConfig{Workers: 2})
+	_ = s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 2})
 
 	called := make([]bool, 2)
 	for i := range called {
@@ -1121,7 +1121,7 @@ func TestUpdateStageHooks_OutOfRange(t *testing.T) {
 	}
 	defer func() { _ = s.Close() }()
 
-	s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 1})
 
 	cases := []int{-1, 1, 100}
 	for _, idx := range cases {
@@ -1137,7 +1137,7 @@ func TestUpdateStageHooks_AfterClose(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 1})
 	_ = s.Close()
 
 	if err := s.UpdateStageHooks(0, engine.ScanHooks{}); err == nil {
@@ -1152,10 +1152,10 @@ func TestUpdateStageHooks_AfterStarted(t *testing.T) {
 	}
 	defer func() { _ = s.Close() }()
 
-	s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 1})
 
 	sc := s.(*scanner)
-	sc.started = true
+	sc.started.Store(true)
 
 	if err := s.UpdateStageHooks(0, engine.ScanHooks{}); err == nil {
 		t.Fatal("expected error when updating hooks after start, got nil")
@@ -1181,7 +1181,7 @@ func TestUpdateStageHooks_OverwritesPreviousHooks(t *testing.T) {
 	}
 	defer func() { _ = s.Close() }()
 
-	s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 1})
 
 	firstCalled := false
 	_ = s.UpdateStageHooks(0, engine.ScanHooks{
@@ -1212,7 +1212,7 @@ func TestUpdateStageHooks_HooksPassedToRunner(t *testing.T) {
 	}
 	defer func() { _ = s.Close() }()
 
-	s.AddStage(StageConfig{Workers: 1})
+	_ = s.AddStage(StageConfig{Workers: 1})
 
 	endFired := false
 	if err := s.UpdateStageHooks(0, engine.ScanHooks{

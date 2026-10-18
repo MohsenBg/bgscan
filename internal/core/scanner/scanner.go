@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
@@ -21,12 +23,9 @@ import (
 	"golang.org/x/time/rate"
 )
 
-var allowedPreScanTypes = []string{
-	"tcp",
-	"icmp",
-	"none",
-	"http",
-}
+const (
+	closeTimeout = time.Second * 10
+)
 
 // StageConfig describes one stage in a scan pipeline.
 type StageConfig struct {
@@ -48,7 +47,7 @@ type Scanner interface {
 	Close() error
 
 	GetStages() []StageConfig
-	AddStage(StageConfig)
+	AddStage(StageConfig) error
 	UpdateStageHooks(index int, hooks engine.ScanHooks) error
 
 	Pause()
@@ -79,11 +78,7 @@ type scanRunner interface {
 
 type engineRunner struct{}
 
-func (engineRunner) RunChain(
-	ctx context.Context,
-	input string,
-	cfg engine.ChainConfig,
-) {
+func (engineRunner) RunChain(ctx context.Context, input string, cfg engine.ChainConfig) {
 	engine.RunScanWithChain(ctx, input, cfg)
 }
 
@@ -92,9 +87,11 @@ type scanner struct {
 	cancel context.CancelFunc
 	config *config.ScannerConfig
 
-	mu      sync.Mutex
-	closed  bool
-	started bool
+	closeOnce sync.Once
+	closed    atomic.Bool
+	closeErr  error
+
+	started atomic.Bool
 	wg      sync.WaitGroup
 
 	pause  engine.PauseController
@@ -112,7 +109,6 @@ type scanner struct {
 	stormDNSService   dns.StormDNSService
 	thefeedService    dns.TheFeedService
 
-	// log is the core.log file logger (nil-safe: nil *Logger discards).
 	log *logger.Logger
 }
 
@@ -226,13 +222,9 @@ func withScanRunner(runner scanRunner) ScannerOption {
 }
 
 // NewScanner creates a scanner for the target file at input.
-func NewScanner(
-	ctx context.Context,
-	input string,
-	opts ...ScannerOption,
-) (Scanner, error) {
+func NewScanner(ctx context.Context, input string, opts ...ScannerOption) (Scanner, error) {
 	if ctx == nil {
-		return nil, errors.New("scanner context is nil")
+		return nil, errors.New("scanner context cannot be nil")
 	}
 
 	scanCtx, cancel := context.WithCancel(ctx)
@@ -258,41 +250,17 @@ func NewScanner(
 
 	if err := s.loadConfig(); err != nil {
 		cancel()
-		return nil, err
+		return nil, fmt.Errorf("load config: %w", err)
 	}
 
 	if err := s.initPortManager(); err != nil {
 		cancel()
+		return nil, fmt.Errorf("init port manager: %w", err)
+	}
+
+	if err := s.initDNSServices(); err != nil {
+		cancel()
 		return nil, err
-	}
-
-	if s.slipstreamService == nil {
-		srv, err := dns.NewSlipstreamService()
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-		s.slipstreamService = srv
-	}
-
-	if s.dnsttService == nil {
-		s.dnsttService = dns.NewDNSTTService()
-	}
-
-	if s.vaydnsService == nil {
-		s.vaydnsService = dns.NewVayDNSService()
-	}
-
-	if s.masterDNSService == nil {
-		s.masterDNSService = dns.NewMasterDNSService()
-	}
-
-	if s.stormDNSService == nil {
-		s.stormDNSService = dns.NewStormDNSService()
-	}
-
-	if s.thefeedService == nil {
-		s.thefeedService = dns.NewTheFeedService()
 	}
 
 	return s, nil
@@ -321,11 +289,7 @@ func (s *scanner) initPortManager() error {
 	}
 
 	const portPoolSize uint16 = 3000
-
-	pm, err := portmgr.New(
-		portmgr.RandomBase(portPoolSize),
-		portPoolSize,
-	)
+	pm, err := portmgr.New(portmgr.RandomBase(portPoolSize), portPoolSize)
 	if err != nil {
 		return fmt.Errorf("create port manager: %w", err)
 	}
@@ -334,40 +298,57 @@ func (s *scanner) initPortManager() error {
 	return nil
 }
 
+func (s *scanner) initDNSServices() error {
+	if s.slipstreamService == nil {
+		srv, err := dns.NewSlipstreamService()
+		if err != nil {
+			return fmt.Errorf("init slipstream service: %w", err)
+		}
+		s.slipstreamService = srv
+	}
+
+	if s.dnsttService == nil {
+		s.dnsttService = dns.NewDNSTTService()
+	}
+	if s.vaydnsService == nil {
+		s.vaydnsService = dns.NewVayDNSService()
+	}
+	if s.masterDNSService == nil {
+		s.masterDNSService = dns.NewMasterDNSService()
+	}
+	if s.stormDNSService == nil {
+		s.stormDNSService = dns.NewStormDNSService()
+	}
+	if s.thefeedService == nil {
+		s.thefeedService = dns.NewTheFeedService()
+	}
+
+	return nil
+}
+
 // GetStages returns a snapshot of the configured scan stages.
 func (s *scanner) GetStages() []StageConfig {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return append([]StageConfig(nil), s.stages...)
+	return slices.Clone(s.stages)
 }
 
 // AddStage appends a stage to the scan pipeline.
-func (s *scanner) AddStage(stage StageConfig) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.closed || s.started {
-		return
+func (s *scanner) AddStage(stage StageConfig) error {
+	if s.started.Load() {
+		return errors.New("scanner already started")
+	}
+	if s.closed.Load() {
+		return errors.New("scanner is closed")
 	}
 
 	s.stages = append(s.stages, stage)
+	return nil
 }
 
 // UpdateStageHooks updates hooks on an existing stage.
-func (s *scanner) UpdateStageHooks(
-	index int,
-	hooks engine.ScanHooks,
-) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.started || s.closed {
-		return errors.New(
-			"cannot update hooks: scanner already started or closed",
-		)
+func (s *scanner) UpdateStageHooks(index int, hooks engine.ScanHooks) error {
+	if s.started.Load() || s.closed.Load() {
+		return errors.New("cannot update hooks: scanner already started or closed")
 	}
-
 	if index < 0 || index >= len(s.stages) {
 		return fmt.Errorf("stage index %d out of range", index)
 	}
@@ -378,25 +359,19 @@ func (s *scanner) UpdateStageHooks(
 
 // Run executes the configured scan stages.
 func (s *scanner) Run() error {
-	s.mu.Lock()
-
 	switch {
-	case s.closed:
-		s.mu.Unlock()
+	case s.closed.Load():
 		return errors.New("scanner is closed")
-
-	case s.started:
-		s.mu.Unlock()
+	case s.started.Load():
 		return errors.New("scanner has already run")
-
 	case s.ctx.Err() != nil:
-		err := s.ctx.Err()
-		s.mu.Unlock()
-		return err
-
+		return fmt.Errorf("scanner context cancelled: %w", s.ctx.Err())
 	case len(s.stages) == 0:
-		s.mu.Unlock()
 		return errors.New("scanner has no stages")
+	}
+
+	if !s.started.CompareAndSwap(false, true) {
+		return errors.New("scanner has already run")
 	}
 
 	if config.DetectPlatform() == config.Android {
@@ -407,60 +382,27 @@ func (s *scanner) Run() error {
 		defer func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
-
 			if err := exec.CommandContext(ctx, "termux-wake-unlock").Run(); err != nil {
 				s.log.Warn("termux-wake-unlock failed: %v", err)
 			}
 		}()
 	}
-	s.started = true
-	stages := append([]StageConfig(nil), s.stages...)
+
+	stages := slices.Clone(s.stages)
+
 	s.wg.Add(1)
-
-	s.mu.Unlock()
-
 	defer s.wg.Done()
 	defer s.pause.Stop()
-	defer s.pm.Close()
 
-	if len(stages) == 1 {
-		s.runSingle(stages[0])
-		return nil
-	}
-
-	s.runChain(stages)
+	s.runPipeline(stages)
 	return nil
 }
 
-func (s *scanner) runSingle(stage StageConfig) {
-	general := s.config.General
-
-	s.runner.RunChain(s.ctx, s.input, engine.ChainConfig{
-		MaxIPsToTest:     uint64(max(general.MaxIPsToTest, 0)),
-		MaxSuccessfulIPs: uint64(max(general.MaxSuccessfulIPs, 0)),
-		Mode:             engine.ModeSequential,
-		Stages: []engine.StageConfig{
-			{
-				Workers:          stage.Workers,
-				Probe:            stage.Probe,
-				Writer:           stage.Writer,
-				ProgressInterval: general.StatusInterval.Duration(),
-				Hooks:            stage.Hooks,
-			},
-		},
-		Pause:            s.pause,
-		Shuffled:         general.Shuffled,
-		MinProbeDuration: general.MinProbeDuration.Duration(),
-		RateLimiter:      s.newRateLimiter(),
-		Log:              s.log,
-	})
-}
-
-func (s *scanner) runChain(stages []StageConfig) {
+// runPipeline executes the scan stages, handling both single and multi-stage chains uniformly.
+func (s *scanner) runPipeline(stages []StageConfig) {
 	general := s.config.General
 
 	engineStages := make([]engine.StageConfig, len(stages))
-
 	for i, stage := range stages {
 		engineStages[i] = engine.StageConfig{
 			Workers:          stage.Workers,
@@ -471,10 +413,15 @@ func (s *scanner) runChain(stages []StageConfig) {
 		}
 	}
 
+	mode := engine.ModeSequential
+	if len(stages) > 1 {
+		mode = engine.ParsePipelineMode(general.PipelineMode)
+	}
+
 	s.runner.RunChain(s.ctx, s.input, engine.ChainConfig{
 		MaxIPsToTest:     uint64(max(general.MaxIPsToTest, 0)),
 		MaxSuccessfulIPs: uint64(max(general.MaxSuccessfulIPs, 0)),
-		Mode:             engine.ParsePipelineMode(general.PipelineMode),
+		Mode:             mode,
 		Stages:           engineStages,
 		Pause:            s.pause,
 		Shuffled:         general.Shuffled,
@@ -488,11 +435,7 @@ func (s *scanner) runChain(stages []StageConfig) {
 
 func (s *scanner) newRateLimiter() *rate.Limiter {
 	general := s.config.General
-
-	return rate.NewLimiter(
-		rate.Limit(general.ProbePerSec),
-		general.ProbeBurst,
-	)
+	return rate.NewLimiter(rate.Limit(general.ProbePerSec), general.ProbeBurst)
 }
 
 // Pause pauses work at the next pause checkpoint.
@@ -515,43 +458,31 @@ func (s *scanner) PausedDuration() time.Duration {
 	return s.pause.PausedDuration()
 }
 
-// Close cancels the scan and waits for Run to return.
+// Close cancels the scan and waits for Run to return, cleaning up resources.
 func (s *scanner) Close() error {
-	s.mu.Lock()
+	s.closeOnce.Do(func() {
+		s.closed.Store(true)
+		s.cancel()
+		s.pause.Stop()
 
-	if s.closed {
-		s.mu.Unlock()
-		return nil
-	}
+		done := make(chan struct{})
+		go func() {
+			s.wg.Wait()
+			if s.pm != nil {
+				s.pm.Close()
+			}
+			close(done)
+		}()
 
-	s.closed = true
-	s.mu.Unlock()
+		timer := time.NewTimer(closeTimeout)
+		defer timer.Stop()
 
-	s.cancel()
-	s.pause.Stop()
-
-	done := make(chan struct{})
-
-	go func() {
-		s.wg.Wait()
-		close(done)
-	}()
-
-	const shutdownTimeout = 5 * time.Second
-
-	timer := time.NewTimer(shutdownTimeout)
-	defer timer.Stop()
-
-	select {
-	case <-done:
-		s.pm.Close()
-		return nil
-
-	case <-timer.C:
-		s.log.Error(
-			"scanner shutdown timed out after %s",
-			shutdownTimeout,
-		)
-		return errors.New("timed out waiting for scanner shutdown")
-	}
+		select {
+		case <-done:
+		case <-timer.C:
+			s.log.Error("scanner shutdown timed out after %s", closeTimeout)
+			s.closeErr = errors.New("timed out waiting for scanner shutdown")
+		}
+	})
+	return s.closeErr
 }

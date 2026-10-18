@@ -25,8 +25,8 @@ var Schema = result.ResultSchema{
 	Directory: "masterdns",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 35},
-		{Name: "Latency", Width: 15},
+		{Name: "IP", Width: 35, ColumnType: result.ColumnIP},
+		{Name: "Latency", Width: 15, ColumnType: result.ColumnDuration},
 		{Name: "Port", Width: 10},
 		{Name: "Enc", Width: 15},
 	},

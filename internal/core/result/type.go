@@ -53,9 +53,24 @@ type ResultParser func(record []string) (Result, error)
 
 // ColumnDef describes a single column in a result table.
 type ColumnDef struct {
-	Name  string
-	Width int // Display width for formatted output (0 = auto).
+	Name       string
+	Width      int        // Display width for formatted output.
+	ColumnType ColumnType // Semantic content type; zero value.
 }
+
+// ColumnType classifies the semantic content of a column. The zero value is plain textt
+type ColumnType uint8
+
+const (
+	// ColumnText marks plain, unstyled columns.
+	ColumnText ColumnType = iota
+	// ColumnIP marks the results' key column; copyable, never styled.
+	ColumnIP
+	// ColumnDuration marks latency measurements; styled by quality tier.
+	ColumnDuration
+	// ColumnBandwidth marks throughput measurements; reserved for tiering.
+	ColumnBandwidth
+)
 
 // ResultSchema describes the structure of a result type's storage.
 type ResultSchema struct {

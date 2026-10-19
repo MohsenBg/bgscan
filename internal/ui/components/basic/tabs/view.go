@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func (m *Model[T]) View() string {
@@ -19,6 +20,7 @@ func (m *Model[T]) View() string {
 
 	row, widths := m.renderLabels()
 	width := m.frameWidth()
+	row = m.withTitle(width, row)
 	out := row
 
 	if m.underline {
@@ -28,7 +30,6 @@ func (m *Model[T]) View() string {
 
 	return lipgloss.NewStyle().
 		Width(width).
-		Align(m.alignment).
 		Render(out)
 }
 
@@ -36,6 +37,7 @@ func (m *Model[T]) View() string {
 func (m *Model[T]) viewSlideAccent() string {
 	row, widths := m.renderLabels()
 	width := m.frameWidth()
+	row = m.withTitle(width, row)
 
 	start := int(math.Round(m.slide))
 	segment := widths[m.idx]
@@ -53,7 +55,6 @@ func (m *Model[T]) viewSlideAccent() string {
 
 	return lipgloss.NewStyle().
 		Width(width).
-		Align(m.alignment).
 		Render(out)
 }
 
@@ -100,7 +101,6 @@ func (m *Model[T]) underlineRow(widths []int, width int) string {
 // tabOffset returns the start column of the tab at idx.
 func (m *Model[T]) tabOffset(idx int) int {
 	sepWidth := lipgloss.Width(m.separator)
-
 	offset := 0
 	for i := 0; i < idx && i < len(m.tabs); i++ {
 		offset += m.labelWidth(i) + sepWidth
@@ -146,4 +146,23 @@ func sameColor(a, b color.Color) bool {
 	br, bg, bb, ba := b.RGBA()
 
 	return ar == br && ag == bg && ab == bb && aa == ba
+}
+
+func (m *Model[T]) withTitle(width int, row string) string {
+	if m.title == "" {
+		return row
+	}
+	free := width - lipgloss.Width(row) - 1
+
+	if free <= 0 {
+		return row
+	}
+
+	title := ansi.Truncate(m.title, free, "…")
+	title = lipgloss.NewStyle().
+		Foreground(m.env.Theme.Border).
+		Render(title)
+
+	gap := width - lipgloss.Width(row) - lipgloss.Width(title)
+	return row + strings.Repeat(" ", gap) + title
 }

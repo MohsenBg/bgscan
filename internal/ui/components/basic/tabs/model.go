@@ -31,7 +31,6 @@ type Model[T any] struct {
 	activeStyle   *lipgloss.Style
 	inactiveStyle *lipgloss.Style
 	separator     string
-	alignment     lipgloss.Position
 	maxWidth      int
 	underline     bool
 
@@ -43,6 +42,7 @@ type Model[T any] struct {
 	slideFrom  float64
 	slideTo    float64
 	slideStart time.Time
+	title      string
 }
 
 type Option[T any] func(*Model[T])
@@ -65,16 +65,20 @@ func WithSeparator[T any](sep string) Option[T] {
 	return func(m *Model[T]) { m.separator = sep }
 }
 
-func WithAlignment[T any](align lipgloss.Position) Option[T] {
-	return func(m *Model[T]) { m.alignment = align }
-}
-
 func WithMaxWidth[T any](width int) Option[T] {
 	return func(m *Model[T]) { m.SetMaxWidth(width) }
 }
 
 func WithUnderline[T any](enabled bool) Option[T] {
 	return func(m *Model[T]) { m.underline = enabled }
+}
+
+func WithTitle[T any](title string) Option[T] {
+	return func(m *Model[T]) { m.title = title }
+}
+
+func (m *Model[T]) SetTitle(title string) {
+	m.title = title
 }
 
 // WithSlideAccent switches to the animated chevron style.
@@ -99,7 +103,6 @@ func New[T any](
 		tabs:        tabs,
 		onSelectTab: onSelectTab,
 		separator:   " ",
-		alignment:   lipgloss.Left,
 		animated:    false,
 		underline:   true,
 	}

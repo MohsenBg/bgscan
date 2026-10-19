@@ -18,7 +18,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
-		m.progress.SetWidth(m.Width())
+		m.progress.SetWidth(min(m.width, m.env.Layout.Body().Width))
 		return m, nil
 
 	case UpdateProgressMsg:

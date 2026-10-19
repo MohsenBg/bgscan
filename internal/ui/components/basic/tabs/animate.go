@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	slideDuration = 220 * time.Millisecond
+	slideDuration = 110 * time.Millisecond
 	chevronSep    = " › "
 )
 

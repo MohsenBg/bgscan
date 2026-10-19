@@ -3,6 +3,8 @@ package theme
 import (
 	"image/color"
 	"os"
+
+	"github.com/MohsenBg/bgscan/internal/ui/shared/meter"
 )
 
 type Theme struct {
@@ -33,6 +35,41 @@ type Theme struct {
 
 	ProgressStart color.Color
 	ProgressEnd   color.Color
+
+	TierExcellent color.Color
+	TierGood      color.Color
+	TierFair      color.Color
+	TierPoor      color.Color
+}
+
+// fallback returns c when set, otherwise the named fallback.
+func fallback(c, alt color.Color) color.Color {
+	if c != nil {
+		return c
+	}
+
+	return alt
+}
+
+// TierColor resolves the color of a latency quality tier. TierFail and
+// TierOver reuse Muted and Error; a theme cannot override them.
+func (t Theme) TierColor(tier meter.Tier) color.Color {
+	switch tier {
+	case meter.TierFail:
+		return t.Muted
+	case meter.TierExcellent:
+		return fallback(t.TierExcellent, t.Success)
+	case meter.TierGood:
+		return fallback(t.TierGood, t.Secondary)
+	case meter.TierFair:
+		return fallback(t.TierFair, t.Warning)
+	case meter.TierPoor:
+		return fallback(t.TierPoor, t.Orange)
+	case meter.TierOver:
+		return t.Error
+	default:
+		return nil
+	}
 }
 
 var (

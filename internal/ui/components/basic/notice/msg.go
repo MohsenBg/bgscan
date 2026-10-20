@@ -50,3 +50,16 @@ func NewNoticeCmd(
 		)
 	}
 }
+
+// NewKeyboardLayoutNoticeCmd warns the user that their keyboard layout
+// is not English, so key shortcuts may not work.
+func NewKeyboardLayoutNoticeCmd(env *ui.Env, close tea.Cmd) tea.Cmd {
+	return NewNoticeCmd(
+		env,
+		"Keyboard Layout",
+		"Your keyboard layout isn't English, so shortcuts may not work. Switch to English and try again.",
+		NOTICE_INFO,
+		dialog.WithStyle(dialog.StyleWarn),
+		dialog.WithOnClose(close),
+	)
+}

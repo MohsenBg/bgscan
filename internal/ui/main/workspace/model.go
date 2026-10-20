@@ -37,8 +37,9 @@ func New(session *ui.Session) ui.Component {
 func (m *model) ID() ui.ComponentID { return m.id }
 func (m *model) Name() string       { return m.name }
 
-// Mode returns the workspace mode.
-func (m *model) Mode() ui.KeyMode { return ui.KeyModeNormal }
+// Mode delegates to the body, whose topmost open component owns the
+// effective key mode.
+func (m *model) Mode() ui.KeyMode { return m.body.Mode() }
 
 func (m *model) Init() tea.Cmd {
 	return tea.Batch(m.header.Init(), m.body.Init(), m.footer.Init())

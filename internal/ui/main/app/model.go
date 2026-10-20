@@ -28,11 +28,12 @@ const (
 )
 
 type model struct {
-	session   *ui.Session
-	splash    ui.Component
-	startup   ui.Component
-	workspace ui.Component
-	stage     AppStage
+	session              *ui.Session
+	splash               ui.Component
+	startup              ui.Component
+	workspace            ui.Component
+	stage                AppStage
+	isNonLatinDialogOpen bool
 	dialogStack
 }
 

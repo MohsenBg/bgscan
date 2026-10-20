@@ -29,6 +29,15 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
+
+// Mode delegates to the topmost open component; the app's key-mode gate
+// relies on it to see Manage/Input state buried under the body stack.
+func (m *Model) Mode() ui.KeyMode {
+	if n := len(m.components); n > 0 {
+		return m.components[n-1].Mode()
+	}
+
+	return ui.KeyModeNormal
+}
+func (m *Model) OnClose() tea.Cmd { return nil }

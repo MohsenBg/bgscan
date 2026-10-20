@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/main/splash"
 	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
@@ -21,7 +22,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.session.Env().Layout.Update(msg.Width, msg.Height)
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.session.Env().Keys.Global.ForceQuit.Matches(msg) {
 			return m, tea.Quit
 		}
@@ -31,6 +32,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if cmd, closed := m.closeTopDialog(msg); closed {
+			return m, cmd
+		}
+
+		if cmd := m.warnNonLatin(msg); cmd != nil {
 			return m, cmd
 		}
 
@@ -168,4 +173,36 @@ func dumpGoroutines() string {
 	}
 
 	return header + strings.Join(matched, "\n\n") + "\n"
+}
+
+// effectiveMode reports the owner of the key stream: the top dialog when one
+// is open, otherwise the body's topmost open component.
+func (m *model) effectiveMode() ui.KeyMode {
+	if layer := m.top(); layer != nil && !layer.closing() {
+		return layer.component.Mode()
+	}
+
+	if m.workspace != nil && m.stage == StageWorkspace {
+		return m.workspace.Mode()
+	}
+
+	return ui.KeyModeNormal
+}
+
+// warnNonLatin opens the keyboard-layout notice while the effective key mode
+// is Normal.
+func (m *model) warnNonLatin(key tea.KeyPressMsg) tea.Cmd {
+	switch {
+	case m.stage != StageWorkspace,
+		m.effectiveMode() != ui.KeyModeNormal,
+		m.isNonLatinDialogOpen,
+		!notice.IsNonLatin(key.Text):
+		return nil
+	}
+
+	m.isNonLatinDialogOpen = true
+	return notice.NewKeyboardLayoutNoticeCmd(m.session.Env(), func() tea.Msg {
+		m.isNonLatinDialogOpen = false
+		return nil
+	})
 }

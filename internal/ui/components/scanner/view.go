@@ -2,11 +2,11 @@ package scanner
 
 import (
 	"fmt"
-	"time"
-
-	"github.com/MohsenBg/bgscan/internal/core/scanner/engine"
+	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/tabs"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
 // View renders the scanner UI.
@@ -19,141 +19,110 @@ func (m *Model) View() string {
 			Align(lipgloss.Center, lipgloss.Center).
 			Render("⏳ Closing scanner, please wait…")
 	}
-	idx := m.currentTab
-	bodyWidth := m.session.Env().Layout.Body().Width
-	return lipgloss.JoinVertical(
-		lipgloss.Left,
-		lipgloss.NewStyle().
-			Width(bodyWidth).
-			Align(lipgloss.Center).Render(m.tabs.View()),
-		m.renderProgress(idx),
-		m.ipViewers[idx].View(),
-	)
+
+	th := m.session.Env().Theme
+
+	tab := m.renderTab(&th)
+	progressbar := m.renderProgressBar(&th)
+	panels := m.renderPanels(&th)
+
+	return lipgloss.NewStyle().
+		Align(lipgloss.Center).Render(
+		lipgloss.JoinVertical(
+			lipgloss.Left,
+			tab,
+			"",
+			progressbar,
+			"",
+			panels,
+			m.current().table.View(),
+		))
 }
 
-func (m *Model) renderProgress(idx int) string {
-	p := m.progressInfo[idx]
-	width := m.session.Env().Layout.Body().Width
-
-	stats := m.renderStatsRow(p)
-	status := m.renderStatusRow()
+func (m *Model) renderProgressBar(th *theme.Theme) string {
+	stage := m.current()
+	p := m.current().progress
+	width := m.width
 
 	container := lipgloss.NewStyle().
-		Width(width).
 		Align(lipgloss.Center)
+
+	total := formatCount(p.Total)
+	scanned := formatCount(p.Processed)
+	left := scanned + styleMuted(th).Render(" / "+total)
+
+	sparkline := styleRate(th).Render(fmt.Sprintf("%.2f IP/s", p.RatePerSec)) + " " +
+		styleSparkline(th).Render(stage.sparkline.View())
+	eta := styleETA(th).Render("ETA " + formatDuration(p.ETA))
 
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
-		container.Render(stats),
-		container.Padding(1, 0).Render(status),
-		container.Render(m.progress[idx].View()),
+		container.Render(stage.progressBar.View()),
+		"",
+		threeColumns(left, eta, sparkline, width),
 	)
 }
 
-func (m *Model) renderStatsRow(p engine.Progress) string {
-	left := uint64(0)
-	if p.Total > p.Processed {
-		left = p.Total - p.Processed
+func (m *Model) renderTab(th *theme.Theme) string {
+	title := m.renderStatusTitle(th)
+	if t, ok := m.tabs.(*tabs.Model[int]); ok {
+		t.SetTitle(title)
 	}
-	return lipgloss.JoinHorizontal(
-		lipgloss.Left,
-		m.scannedStyle().Render(fmt.Sprintf("scanned: %s", formatCount(p.Processed))),
-		m.separatorStyle().Render(" | "),
-		m.leftStyle().Render(fmt.Sprintf("left: %s", formatCount(left))),
-		m.separatorStyle().Render(" | "),
-		m.foundStyle().Render(fmt.Sprintf("found: %s", formatCount(p.Succeed))),
-		m.separatorStyle().Render(" | "),
-		m.elapsedStyle().Render(fmt.Sprintf("elapsed: %s", formatDuration(p.Elapsed))),
-	)
+	return m.tabs.View()
 }
 
-func (m *Model) renderStatusRow() string {
-	return m.elapsedEndStyle().Render(m.statusText())
+type statusView struct {
+	icon  string
+	label string
+	style func(th *theme.Theme, pulse int) lipgloss.Style
 }
 
-func (m *Model) statusText() string {
-	idx := m.currentTab
-	status := m.status[idx]
-	p := m.progressInfo[idx]
+var (
+	statusScanning = statusView{"●", "scanning", styleScanning}
+	statusPaused   = statusView{"‖", "paused", stylePaused}
+	statusError    = statusView{"✗", "error", styleError}
+	statusWaiting  = statusView{"○", "waiting", styleWaiting}
+	statusDone     = statusView{"✓", "done", styleDone}
+)
 
-	switch status {
-	case StatusPreProcess:
-		return "preparing scan…"
+func (v statusView) render(th *theme.Theme, pulse int) string {
+	return v.style(th, pulse).Render(v.icon + " " + v.label)
+}
+
+func (m *Model) renderStatusTitle(th *theme.Theme) string {
+	if m.scanner.IsPaused() {
+		return statusPaused.render(th, m.pulse)
+	}
+	switch m.current().status {
 	case StatusScanning:
-		if m.scn.IsPaused() {
-			return "scan paused…"
-		}
-		return m.estimateRemaining(p)
-	case StatusEnded:
-		return "scan completed"
+		return statusScanning.render(th, m.pulse)
 	case StatusError:
-		if m.scanError != nil {
-			return fmt.Sprintf("scan error: %v", m.scanError)
-		}
-		return "scan error"
-	default:
-		return "starting scan…"
+		return statusError.render(th, m.pulse)
+	case StatusWaiting:
+		return statusWaiting.render(th, m.pulse)
+	case StatusEnded:
+		return statusDone.render(th, m.pulse)
 	}
+	return ""
 }
 
-func (m *Model) estimateRemaining(p engine.Progress) string {
-	if p.ETA <= 0 || p.RatePerSec <= 0 {
-		return "estimating remaining time…"
-	}
-	rateStr := m.leftStyle().Render(fmt.Sprintf("[%.2fIP/S]", p.RatePerSec))
-	return fmt.Sprintf("estimated remaining: %s %s", formatDuration(p.ETA), rateStr)
-}
+func threeColumns(left, center, right string, width int) string {
+	wl := lipgloss.Width(left)
+	wc := lipgloss.Width(center)
+	wr := lipgloss.Width(right)
 
-func formatCount(n uint64) string {
-	switch {
-	case n < 10_000:
-		return fmt.Sprintf("%d", n)
-	case n < 1_000_000:
-		return fmt.Sprintf("%.2fK", float64(n)/1_000)
-	case n < 1_000_000_000:
-		return fmt.Sprintf("%.2fM", float64(n)/1_000_000)
-	case n < 1_000_000_000_000:
-		return fmt.Sprintf("%.2fB", float64(n)/1_000_000_000)
-	case n < 1_000_000_000_000_000:
-		return fmt.Sprintf("%.2fT", float64(n)/1_000_000_000_000)
-	case n < 1_000_000_000_000_000_000:
-		return fmt.Sprintf("%.2fP", float64(n)/1_000_000_000_000_000)
-	default:
-		return fmt.Sprintf("%.2fE", float64(n)/1_000_000_000_000_000_000)
-	}
-}
+	centerStart := (width - wc) / 2
 
-func formatDuration(d time.Duration) string {
-	if d <= 0 {
-		return "0s"
+	gap1 := centerStart - wl
+	gap2 := width - centerStart - wc - wr
+
+	if gap1 < 1 || gap2 < 1 {
+		free := max(width-wl-wc-wr, 2)
+		gap1 = free / 2
+		gap2 = free - gap1
 	}
-	const (
-		minute = time.Minute
-		hour   = time.Hour
-		day    = 24 * time.Hour
-		year   = 365*day + 6*time.Hour
-	)
-	switch {
-	case d < minute:
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	case d < hour:
-		m := d / minute
-		s := (d % minute) / time.Second
-		return fmt.Sprintf("%dm %ds", m, s)
-	case d < day:
-		h := d / hour
-		m := (d % hour) / minute
-		s := (d % minute) / time.Second
-		return fmt.Sprintf("%dh %dm %ds", h, m, s)
-	case d < year:
-		days := d / day
-		h := (d % day) / hour
-		m := (d % hour) / minute
-		return fmt.Sprintf("%dd %dh %dm", days, h, m)
-	default:
-		years := d / year
-		days := (d % year) / day
-		h := (d % day) / hour
-		return fmt.Sprintf("%dy %dd %dh", years, days, h)
-	}
+
+	return left + strings.Repeat(" ", gap1) +
+		center + strings.Repeat(" ", gap2) +
+		right
 }

@@ -114,7 +114,7 @@ func (s *dialogStack) beginCloseTop() tea.Cmd {
 		return nil
 	}
 
-	return s.beginClose(l, l.component.OnClose())
+	return s.beginClose(l, closeCmd(l))
 }
 
 // beginCloseByID starts the close transition of one dialog.
@@ -124,10 +124,16 @@ func (s *dialogStack) beginCloseByID(id ui.ComponentID) tea.Cmd {
 			continue
 		}
 
-		return s.beginClose(l, l.frame().OnClose)
+		return s.beginClose(l, closeCmd(l))
 	}
 
 	return nil
+}
+
+// closeCmd unions a dialog's own close work with the WithOnClose command
+// its opener set, so both fire regardless of which path closed it.
+func closeCmd(l *layer) tea.Cmd {
+	return tea.Batch(l.component.OnClose(), l.frame().OnClose)
 }
 
 // beginClose marks a layer as leaving and stores the command to run after

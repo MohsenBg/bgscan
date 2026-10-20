@@ -189,7 +189,6 @@ func (m *Model[T]) OnClose() tea.Cmd { return nil }
 // value, options and focus.
 func (m *Model[T]) rebuild() {
 	m.huhInput = huh.NewMultiSelect[T]().
-		Title(m.title).
 		Value(&m.value)
 	inp := m.huhInput.Options(m.options...).WithWidth(m.Width())
 	m.huhInput = inp.(*huh.MultiSelect[T])

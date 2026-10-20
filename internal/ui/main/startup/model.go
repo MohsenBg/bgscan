@@ -36,7 +36,7 @@ type category struct {
 
 const (
 	sidebarWidth     = 18
-	titleHeight      = 2
+	titleHeight      = 3
 	progressHeight   = 1
 	helpHeight       = 2
 	progressBarWidth = 24

@@ -111,5 +111,5 @@ func (m *model) View() string {
 
 	help := m.helpStyle().Render(helpView)
 
-	return lipgloss.JoinVertical(lipgloss.Left, title, progressBar, body, help)
+	return lipgloss.JoinVertical(lipgloss.Left, "", title, progressBar, body, help)
 }

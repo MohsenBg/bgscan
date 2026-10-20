@@ -215,7 +215,7 @@ func (m *Model) openDialogFullHelp() tea.Msg {
 		dialog.WithTitle(m.title+" [Help]"),
 		dialog.WithStyle(dialog.StyleInfo),
 		dialog.WithOffset(0, -2),
-		dialog.WithAnimation(dialog.AnimWipe),
+		dialog.WithAnimation(dialog.AnimSplit),
 	)
 }
 

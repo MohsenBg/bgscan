@@ -48,7 +48,6 @@ func New[T comparable](
 	}
 
 	m.huhInput = huh.NewSelect[T]().
-		Title(title).
 		Value(&m.value)
 
 	m.huhInput.WithKeyMap(m.keyMap())

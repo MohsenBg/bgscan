@@ -8,7 +8,10 @@ func (m *Model) ShortHints() keys.Hints {
 
 	hints := keys.Hints{
 		keys.Combine("move", k.Up, k.Down),
-		keys.Combine("switch tab", k.NextTab, k.PrevTab),
+	}
+	if len(m.groups) > 1 {
+		hints = append(hints,
+			keys.Combine("switch tab", k.NextTab, k.PrevTab))
 	}
 	hints = append(hints, keys.Short(k.Edit, k.Description)...)
 	return append(hints, keys.Short(g.Back, g.Quit, g.Help)...)

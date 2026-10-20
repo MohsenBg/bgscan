@@ -34,16 +34,21 @@ func (m *Model) copySelectedIP() tea.Cmd {
 		return nil
 	}
 
-	if err := clipboard.WriteAll(row[0]); err != nil {
+	col := m.ipColumn()
+	if col >= len(row) {
+		return nil
+	}
+
+	if err := clipboard.WriteAll(row[col]); err != nil {
 		return m.errorCmd("Error Copying IP", err.Error())
 	}
-	return m.infoCmd("IP Copied", fmt.Sprintf("IP copied to clipboard:%s", row[0]))
+	return m.infoCmd("IP Copied", fmt.Sprintf("IP copied to clipboard:%s", row[col]))
 }
 
 func (m *Model) errorCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(m.session.Env(), title, message, notice.NOTICE_ERROR)
+	return notice.NewNoticeCmd(m.env, title, message, notice.NOTICE_ERROR)
 }
 
 func (m *Model) infoCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(m.session.Env(), title, message, notice.NOTICE_INFO)
+	return notice.NewNoticeCmd(m.env, title, message, notice.NOTICE_INFO)
 }

@@ -67,7 +67,7 @@ func (m *Model) OpenResultIP(file result.ResultFile) tea.Cmd {
 	return func() tea.Msg {
 		return ui.OpenComponentMsg{
 			Component: ipviewer.New(
-				m.session,
+				m.session.Env(),
 				fmt.Sprintf("IP Scan [%s]", file.Schema.Name),
 				ips,
 				file.Schema,

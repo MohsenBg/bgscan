@@ -57,7 +57,7 @@ func newLogsMenu(session *ui.Session) *menu.Model {
 					Component: logview.New(env, &coreLog, "Core Logs"),
 				}
 			},
-		),
+		).WithDescription("Scanner engine, probes and results activity"),
 		menu.NewMenuItem(
 			"⚙", "UI Logs", "u",
 			func() tea.Msg {
@@ -66,7 +66,7 @@ func newLogsMenu(session *ui.Session) *menu.Model {
 					Component: logview.New(env, &uiLog, "UI Logs"),
 				}
 			},
-		),
+		).WithDescription("UI runtime and component events"),
 	}
 	return menu.New(items, "Logs Menu", env)
 }

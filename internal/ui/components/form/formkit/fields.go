@@ -17,9 +17,9 @@ import (
 	"charm.land/huh/v2"
 )
 
-func ConfigNameField(deps ui.Deps, name string, set func(string)) input.Input[string] {
+func ConfigNameField(env *ui.Env, name string, set func(string)) input.Input[string] {
 	return textinput.New(
-		deps, "Enter config name",
+		env, "Enter config name",
 		textinput.WithValue(name),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -35,14 +35,14 @@ func ConfigNameField(deps ui.Deps, name string, set func(string)) input.Input[st
 // StringField binds a text input to a string config field, validating
 // through a copy of the whole config keyed by errKey.
 func StringField[C TunnelConfig](
-	deps ui.Deps,
+	env *ui.Env,
 	cfg *C,
-	title, errKey string,
+	title string, errKey dns.Field,
 	get func(C) string,
 	set func(*C, string),
 ) input.Input[string] {
 	return buildTextInput(
-		deps, title, get(*cfg),
+		env, title, get(*cfg),
 		func(v string) error {
 			tmp := *cfg
 			set(&tmp, v)
@@ -58,9 +58,9 @@ func StringField[C TunnelConfig](
 // SecretField binds a textarea to a secret config field (keys), validating
 // through a copy.
 func SecretField[C TunnelConfig](
-	deps ui.Deps,
+	env *ui.Env,
 	cfg *C,
-	title, errKey string,
+	title string, errKey dns.Field,
 	get func(C) string,
 	set func(*C, string),
 	opts ...textarea.Option,
@@ -81,20 +81,20 @@ func SecretField[C TunnelConfig](
 			return nil
 		}),
 	}
-	return textarea.New(deps, title, append(o, opts...)...)
+	return textarea.New(env, title, append(o, opts...)...)
 }
 
 // Uint8Field binds a numeric input to a uint8 field, parsing with bit size
 // 8 so overflow fails validation instead of wrapping.
 func Uint8Field[C TunnelConfig](
-	deps ui.Deps,
+	env *ui.Env,
 	cfg *C,
-	title, errKey string,
+	title string, errKey dns.Field,
 	get func(C) uint8,
 	set func(*C, uint8),
 	opts ...textinput.Option,
 ) input.Input[string] {
-	return buildUintInput(deps, title, 8, uint64(get(*cfg)), func(n uint64) error {
+	return buildUintInput(env, title, 8, uint64(get(*cfg)), func(n uint64) error {
 		tmp := *cfg
 		set(&tmp, uint8(n))
 		if e, ok := tmp.Validate()[errKey]; ok {
@@ -107,14 +107,14 @@ func Uint8Field[C TunnelConfig](
 // Uint16Field binds a numeric input to a uint16 field, parsing with bit
 // size 16 so overflow fails validation instead of wrapping.
 func Uint16Field[C TunnelConfig](
-	deps ui.Deps,
+	env *ui.Env,
 	cfg *C,
-	title, errKey string,
+	title string, errKey dns.Field,
 	get func(C) uint16,
 	set func(*C, uint16),
 	opts ...textinput.Option,
 ) input.Input[string] {
-	return buildUintInput(deps, title, 16, uint64(get(*cfg)), func(n uint64) error {
+	return buildUintInput(env, title, 16, uint64(get(*cfg)), func(n uint64) error {
 		tmp := *cfg
 		set(&tmp, uint16(n))
 		if e, ok := tmp.Validate()[errKey]; ok {
@@ -125,15 +125,15 @@ func Uint16Field[C TunnelConfig](
 }
 
 func FloatField[C TunnelConfig](
-	deps ui.Deps,
+	env *ui.Env,
 	cfg *C,
-	title, errKey string,
+	title string, errKey dns.Field,
 	get func(C) float64,
 	set func(*C, float64),
 	opts ...textinput.Option,
 ) input.Input[string] {
 	return buildTextInput(
-		deps, title, strconv.FormatFloat(get(*cfg), 'f', -1, 64),
+		env, title, strconv.FormatFloat(get(*cfg), 'f', -1, 64),
 		func(v string) error {
 			n, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
 			if err != nil {
@@ -156,7 +156,7 @@ func FloatField[C TunnelConfig](
 
 // FingerprintField is the uTLS fingerprint select shared by vaydns/dnstt.
 func FingerprintField[C TunnelConfig](
-	deps ui.Deps,
+	env *ui.Env,
 	cfg *C,
 	get func(C) string,
 	set func(*C, string),
@@ -167,14 +167,14 @@ func FingerprintField[C TunnelConfig](
 	}
 
 	return selectinput.New(
-		deps, "Select TLS fingerprint",
+		env, "Select TLS fingerprint",
 		selectinput.WithValue(get(*cfg)),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(opts...),
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			set(&tmp, v)
-			if e, ok := tmp.Validate()["fingerprint"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldFingerprint]; ok {
 				return e
 			}
 			return nil
@@ -188,14 +188,14 @@ func FingerprintField[C TunnelConfig](
 
 // EncMethodField is the encryption-method select shared by masterdns/stormdns.
 func EncMethodField[C TunnelConfig](
-	deps ui.Deps,
+	env *ui.Env,
 	cfg *C,
 	title string,
 	get func(C) dns.EncMethod,
 	set func(*C, dns.EncMethod),
 ) input.Input[dns.EncMethod] {
 	return selectinput.New(
-		deps, title,
+		env, title,
 		selectinput.WithValue(get(*cfg)),
 		selectinput.WithFocus[dns.EncMethod](),
 		selectinput.WithOptions[dns.EncMethod](
@@ -209,7 +209,7 @@ func EncMethodField[C TunnelConfig](
 		selectinput.WithValidation(func(v dns.EncMethod) error {
 			tmp := *cfg
 			set(&tmp, v)
-			if e, ok := tmp.Validate()["enc_method"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldEncMethod]; ok {
 				return e
 			}
 			return nil
@@ -224,7 +224,7 @@ func EncMethodField[C TunnelConfig](
 // buildTextInput is the shared single-line constructor; validate/submit
 // receive the raw string and handle parsing, config validation and set.
 func buildTextInput(
-	deps ui.Deps,
+	env *ui.Env,
 	title, value string,
 	validate func(string) error,
 	submit func(string),
@@ -239,13 +239,13 @@ func buildTextInput(
 			return nil
 		}),
 	}
-	return textinput.New(deps, title, append(o, opts...)...)
+	return textinput.New(env, title, append(o, opts...)...)
 }
 
 // buildUintInput is the shared numeric constructor, parsing with the given
 // bit size so overflow fails validation instead of wrapping.
 func buildUintInput(
-	deps ui.Deps,
+	env *ui.Env,
 	title string,
 	bitSize int,
 	value uint64,
@@ -254,7 +254,7 @@ func buildUintInput(
 	opts ...textinput.Option,
 ) input.Input[string] {
 	return buildTextInput(
-		deps, title, strconv.FormatUint(value, 10),
+		env, title, strconv.FormatUint(value, 10),
 		func(v string) error {
 			n, err := strconv.ParseUint(strings.TrimSpace(v), 10, bitSize)
 			if err != nil {

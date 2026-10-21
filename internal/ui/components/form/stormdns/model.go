@@ -9,7 +9,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textarea"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/formkit"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -25,8 +24,7 @@ type Model struct {
 // New creates the StormDNS config form, either for a new config or to edit
 // an existing one described by original.
 func New(
-	l *layout.Layout,
-	state *ui.AppState,
+	session *ui.Session,
 	original *dns.DNSTunConfigFile,
 ) (*Model, error) {
 	cfg := dns.DefaultStormDNSConfig()
@@ -42,7 +40,7 @@ func New(
 	}
 
 	m := &Model{cfg: &cfg}
-	m.Base = formkit.NewBase(l, state, name, originalName)
+	m.Base = formkit.NewBase(session, name, originalName)
 	m.buildForm(original)
 
 	return m, nil
@@ -57,7 +55,7 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 	m.BuildForm(
 		title,
 		m.buildInspector(),
-		func() map[string]error { return m.cfg.Validate() },
+		func() map[dns.Field]error { return m.cfg.Validate() },
 		m.saveConfig,
 	)
 }
@@ -65,23 +63,23 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
 
-	configName := formkit.ConfigNameField(m.State().Deps(), m.Name(), m.SetName)
-	domain := formkit.StringField(m.State().Deps(), cfg, "Enter domain", "domain",
+	configName := formkit.ConfigNameField(m.Session().Env(), m.Name(), m.SetName)
+	domain := formkit.StringField(m.Session().Env(), cfg, "Enter domain", "domain",
 		func(c dns.StormDNSConfig) string { return c.Domain },
 		func(c *dns.StormDNSConfig, v string) { c.Domain = strings.TrimSpace(v) },
 	)
-	encryptionKey := formkit.SecretField(m.State().Deps(), cfg, "Enter encryption key", "encryption_key",
+	encryptionKey := formkit.SecretField(m.Session().Env(), cfg, "Enter encryption key", "encryption_key",
 		func(c dns.StormDNSConfig) string { return c.EncryptionKey },
 		func(c *dns.StormDNSConfig, v string) { c.EncryptionKey = v },
 		textarea.WithNewlines(false),
 	)
-	encMethod := formkit.EncMethodField(m.State().Deps(), cfg, "Select encryption method",
+	encMethod := formkit.EncMethodField(m.Session().Env(), cfg, "Select encryption method",
 		func(c dns.StormDNSConfig) dns.EncMethod { return c.DataEncMethod },
 		func(c *dns.StormDNSConfig, v dns.EncMethod) { c.DataEncMethod = v },
 	)
 
 	dnsQueryType := selectinput.New(
-		m.State().Deps(), "Select DNS query type",
+		m.Session().Env(), "Select DNS query type",
 		selectinput.WithValue(cfg.DNSQueryType),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -93,7 +91,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			tmp.DNSQueryType = v
-			if e, ok := tmp.Validate()["dns_query_type"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldDNSQueryType]; ok {
 				return e
 			}
 			return nil
@@ -104,44 +102,44 @@ func (m *Model) buildInspector() *inspector.Model {
 		}),
 	)
 
-	resPort := formkit.Uint16Field(m.State().Deps(), cfg, "Enter resolver port", "resolver_port",
+	resPort := formkit.Uint16Field(m.Session().Env(), cfg, "Enter resolver port", "resolver_port",
 		func(c dns.StormDNSConfig) uint16 { return c.ResolverPort },
 		func(c *dns.StormDNSConfig, v uint16) { c.ResolverPort = v },
 	)
 
-	mtuTestTimeout := formkit.FloatField(m.State().Deps(), cfg, "Enter MTU test timeout", "mtu_test_timeout_sec",
+	mtuTestTimeout := formkit.FloatField(m.Session().Env(), cfg, "Enter MTU test timeout", "mtu_test_timeout_sec",
 		func(c dns.StormDNSConfig) float64 { return c.MTUTestTimeoutSec },
 		func(c *dns.StormDNSConfig, v float64) { c.MTUTestTimeoutSec = v },
 	)
-	mtuTestRetries := formkit.Uint8Field(m.State().Deps(), cfg, "Enter MTU test retries", "mtu_test_retries",
+	mtuTestRetries := formkit.Uint8Field(m.Session().Env(), cfg, "Enter MTU test retries", "mtu_test_retries",
 		func(c dns.StormDNSConfig) uint8 { return c.MTUTestRetries },
 		func(c *dns.StormDNSConfig, v uint8) { c.MTUTestRetries = v },
 	)
-	sessionInitRetryMax := formkit.FloatField(m.State().Deps(), cfg, "Enter session init retry max", "session_init_retry_max_sec",
+	sessionInitRetryMax := formkit.FloatField(m.Session().Env(), cfg, "Enter session init retry max", "session_init_retry_max_sec",
 		func(c dns.StormDNSConfig) float64 { return c.SessionInitRetryMaxSec },
 		func(c *dns.StormDNSConfig, v float64) { c.SessionInitRetryMaxSec = v },
 	)
-	minUploadMTU := formkit.Uint16Field(m.State().Deps(), cfg, "Enter min upload MTU", "min_upload_mtu",
+	minUploadMTU := formkit.Uint16Field(m.Session().Env(), cfg, "Enter min upload MTU", "min_upload_mtu",
 		func(c dns.StormDNSConfig) uint16 { return c.MinUploadMTU },
 		func(c *dns.StormDNSConfig, v uint16) { c.MinUploadMTU = v },
 	)
-	maxUploadMTU := formkit.Uint16Field(m.State().Deps(), cfg, "Enter max upload MTU", "max_upload_mtu",
+	maxUploadMTU := formkit.Uint16Field(m.Session().Env(), cfg, "Enter max upload MTU", "max_upload_mtu",
 		func(c dns.StormDNSConfig) uint16 { return c.MaxUploadMTU },
 		func(c *dns.StormDNSConfig, v uint16) { c.MaxUploadMTU = v },
 	)
-	minDownloadMTU := formkit.Uint16Field(m.State().Deps(), cfg, "Enter min download MTU", "min_download_mtu",
+	minDownloadMTU := formkit.Uint16Field(m.Session().Env(), cfg, "Enter min download MTU", "min_download_mtu",
 		func(c dns.StormDNSConfig) uint16 { return c.MinDownloadMTU },
 		func(c *dns.StormDNSConfig, v uint16) { c.MinDownloadMTU = v },
 	)
-	maxDownloadMTU := formkit.Uint16Field(m.State().Deps(), cfg, "Enter max download MTU", "max_download_mtu",
+	maxDownloadMTU := formkit.Uint16Field(m.Session().Env(), cfg, "Enter max download MTU", "max_download_mtu",
 		func(c dns.StormDNSConfig) uint16 { return c.MaxDownloadMTU },
 		func(c *dns.StormDNSConfig, v uint16) { c.MaxDownloadMTU = v },
 	)
-	mtuParallelism := formkit.Uint8Field(m.State().Deps(), cfg, "Enter MTU parallelism", "mtu_parallelism",
+	mtuParallelism := formkit.Uint8Field(m.Session().Env(), cfg, "Enter MTU parallelism", "mtu_parallelism",
 		func(c dns.StormDNSConfig) uint8 { return c.MTUParallelism },
 		func(c *dns.StormDNSConfig, v uint8) { c.MTUParallelism = v },
 	)
-	rxTxWorkers := formkit.Uint8Field(m.State().Deps(), cfg, "Enter RX/TX workers", "rx_tx_workers",
+	rxTxWorkers := formkit.Uint8Field(m.Session().Env(), cfg, "Enter RX/TX workers", "rx_tx_workers",
 		func(c dns.StormDNSConfig) uint8 { return c.RxTxWorkers },
 		func(c *dns.StormDNSConfig, v uint8) { c.RxTxWorkers = v },
 	)
@@ -165,7 +163,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		{Name: "RX/TX Workers", Description: formkit.DescRxTxWorkers, Group: formkit.GroupAdvanced, Input: inspector.Adapt(rxTxWorkers), Visible: formkit.AlwaysVisible, Format: inspector.FormatInt},
 	}
 
-	return inspector.New(m.State().Deps(), "stormdns config", fields)
+	return inspector.New(m.Session().Env(), "stormdns config", fields)
 }
 
 func (m *Model) saveConfig() tea.Msg {

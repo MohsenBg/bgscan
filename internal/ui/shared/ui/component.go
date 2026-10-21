@@ -1,11 +1,8 @@
 package ui
 
 import (
-	"uuid"
-
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-
 	tea "charm.land/bubbletea/v2"
+	"uuid"
 )
 
 // ComponentID uniquely identifies a UI component instance.
@@ -39,7 +36,7 @@ type Component interface {
 	OnClose() tea.Cmd
 
 	// Mode returns the input mode the component operates in.
-	Mode() env.Mode
+	Mode() KeyMode
 }
 
 // CloseComponentMsg signals that a component should be closed.

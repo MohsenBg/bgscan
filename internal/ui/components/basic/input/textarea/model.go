@@ -3,12 +3,9 @@ package textarea
 import (
 	"strings"
 
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
@@ -21,10 +18,7 @@ type Model struct {
 	id   ui.ComponentID
 	name string
 
-	layout *layout.Layout
-
-	theme *theme.Theme
-	log   logger.Set
+	env *ui.Env
 
 	title       string
 	placeholder string
@@ -44,7 +38,7 @@ type Model struct {
 }
 
 func New(
-	deps ui.Deps,
+	env *ui.Env,
 	title string,
 	options ...Option,
 ) input.Input[string] {
@@ -52,9 +46,7 @@ func New(
 	m := &Model{
 		id:                ui.NewComponentID(),
 		name:              "textarea",
-		layout:            deps.Layout,
-		theme:             deps.Theme,
-		log:               deps.Log,
+		env:               env,
 		title:             title,
 		textarea:          ta,
 		height:            3,
@@ -62,6 +54,7 @@ func New(
 		allowNewline:      true,
 	}
 
+	m.textarea.KeyMap = m.keyMap()
 	m.textarea.SetWidth(m.Width())
 	for _, opt := range options {
 		opt(m)
@@ -154,15 +147,63 @@ func (m *Model) Name() string {
 	return m.name
 }
 
-func (m *Model) Mode() env.Mode {
-	return env.InputMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeInput
+}
+
+// Title returns the input prompt as raw data for the dialog frame.
+func (m *Model) Title() string { return m.title }
+
+func (m *Model) DialogHints() keys.Hints {
+	return DialogHints(m.env.Keys.TextArea)
+}
+
+// DialogHints returns the frame hints for a text area with the given keys.
+func DialogHints(k keys.TextAreaKeys) keys.Hints {
+	return keys.Short(k.Submit)
+}
+
+// keyMap translates the shared keys into the bubbles textarea keymap.
+func (m *Model) keyMap() textarea.KeyMap {
+	k := m.env.Keys.TextArea
+	defaultKeyMap := textarea.DefaultKeyMap()
+	defaultKeyMap.CharacterForward.SetKeys(k.CharacterForward.Keys...)
+	defaultKeyMap.CharacterBackward.SetKeys(k.CharacterBackward.Keys...)
+	defaultKeyMap.WordForward.SetKeys(k.WordForward.Keys...)
+	defaultKeyMap.WordBackward.SetKeys(k.WordBackward.Keys...)
+	defaultKeyMap.LineNext.SetKeys(k.LineNext.Keys...)
+	defaultKeyMap.LinePrevious.SetKeys(k.LinePrevious.Keys...)
+	defaultKeyMap.DeleteWordBackward.SetKeys(k.DeleteWordBackward.Keys...)
+	defaultKeyMap.DeleteWordForward.SetKeys(k.DeleteWordForward.Keys...)
+	defaultKeyMap.DeleteAfterCursor.SetKeys(k.DeleteAfterCursor.Keys...)
+	defaultKeyMap.DeleteBeforeCursor.SetKeys(k.DeleteBeforeCursor.Keys...)
+	defaultKeyMap.InsertNewline.SetKeys(k.InsertNewline.Keys...)
+	defaultKeyMap.DeleteCharacterBackward.SetKeys(k.DeleteCharacterBackward.Keys...)
+	defaultKeyMap.DeleteCharacterForward.SetKeys(k.DeleteCharacterForward.Keys...)
+	defaultKeyMap.LineStart.SetKeys(k.LineStart.Keys...)
+	defaultKeyMap.LineEnd.SetKeys(k.LineEnd.Keys...)
+	defaultKeyMap.PageUp.SetKeys(k.PageUp.Keys...)
+	defaultKeyMap.PageDown.SetKeys(k.PageDown.Keys...)
+	defaultKeyMap.Paste.SetKeys(k.Paste.Keys...)
+	defaultKeyMap.InputBegin.SetKeys(k.InputBegin.Keys...)
+	defaultKeyMap.InputEnd.SetKeys(k.InputEnd.Keys...)
+	defaultKeyMap.CapitalizeWordForward.SetKeys(k.CapitalizeWordForward.Keys...)
+	defaultKeyMap.LowercaseWordForward.SetKeys(k.LowercaseWordForward.Keys...)
+	defaultKeyMap.UppercaseWordForward.SetKeys(k.UppercaseWordForward.Keys...)
+	defaultKeyMap.TransposeCharacterBackward.SetKeys(k.TransposeCharacterBackward.Keys...)
+	defaultKeyMap.SelectCharacterForward.SetKeys(k.SelectCharacterForward.Keys...)
+	defaultKeyMap.SelectCharacterBackward.SetKeys(k.SelectCharacterBackward.Keys...)
+	defaultKeyMap.SelectWordForward.SetKeys(k.SelectWordForward.Keys...)
+	defaultKeyMap.SelectWordBackward.SetKeys(k.SelectWordBackward.Keys...)
+	defaultKeyMap.SelectLineUp.SetKeys(k.SelectLineUp.Keys...)
+	defaultKeyMap.SelectLineDown.SetKeys(k.SelectLineDown.Keys...)
+	defaultKeyMap.SelectAll.SetKeys(k.SelectAll.Keys...)
+	defaultKeyMap.CopySelection.SetKeys(k.CopySelection.Keys...)
+	return defaultKeyMap
 }
 
 func (m *Model) Width() int {
-	if m.layout == nil {
-		return 50
-	}
-	return min(50, m.layout.Body.Width)
+	return min(50, m.env.Layout.Body().Width)
 }
 
 func (m *Model) CloseCmd() tea.Cmd {
@@ -174,10 +215,6 @@ func (m *Model) CloseCmd() tea.Cmd {
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
-
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
 
 func (m *Model) Value() string {
 	return m.textarea.Value()

@@ -13,7 +13,7 @@ func TestXrayConfig(t *testing.T) {
 	tests := []struct {
 		name          string
 		mutateCfg     func(*config.XrayConfig)
-		wantErrKeys   []string
+		wantErrKeys   []Field
 		wantWarnCount int
 		checkFixed    func(t *testing.T, cfg *config.XrayConfig)
 	}{
@@ -29,7 +29,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.Workers = MinXrayWorkers - 1
 			},
-			wantErrKeys:   []string{"Workers"},
+			wantErrKeys:   []Field{FieldWorkers},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.Workers != def.Workers {
@@ -42,7 +42,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.Workers = MaxXrayWorkers + 1
 			},
-			wantErrKeys:   []string{"Workers"},
+			wantErrKeys:   []Field{FieldWorkers},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.Workers != def.Workers {
@@ -55,7 +55,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.ConnectivityTestType = 99
 			},
-			wantErrKeys:   []string{"ConnectivityTestType"},
+			wantErrKeys:   []Field{FieldConnectivityTestType},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.ConnectivityTestType != def.ConnectivityTestType {
@@ -72,7 +72,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.DownloadSpeed = MinXrayDownloadSpeed - 1
 			},
-			wantErrKeys:   []string{"DownloadSpeed"},
+			wantErrKeys:   []Field{FieldDownloadSpeed},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.DownloadSpeed != def.DownloadSpeed {
@@ -85,7 +85,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.DownloadSpeed = MaxXrayDownloadSpeed + 1
 			},
-			wantErrKeys:   []string{"DownloadSpeed"},
+			wantErrKeys:   []Field{FieldDownloadSpeed},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.DownloadSpeed != def.DownloadSpeed {
@@ -98,7 +98,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.UploadSpeed = MinXrayUploadSpeed - 1
 			},
-			wantErrKeys:   []string{"UploadSpeed"},
+			wantErrKeys:   []Field{FieldUploadSpeed},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.UploadSpeed != def.UploadSpeed {
@@ -111,7 +111,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.UploadSpeed = MaxXrayUploadSpeed + 1
 			},
-			wantErrKeys:   []string{"UploadSpeed"},
+			wantErrKeys:   []Field{FieldUploadSpeed},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.UploadSpeed != def.UploadSpeed {
@@ -124,7 +124,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.Timeout = config.NewDurationMS(MinXrayTimeout - 2*time.Millisecond)
 			},
-			wantErrKeys:   []string{"Timeout"},
+			wantErrKeys:   []Field{FieldTimeout},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.Timeout.Duration() != def.Timeout.Duration() {
@@ -141,7 +141,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.Timeout = config.NewDurationMS(MaxXrayTimeout + time.Second)
 			},
-			wantErrKeys:   []string{"Timeout"},
+			wantErrKeys:   []Field{FieldTimeout},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.Timeout.Duration() != def.Timeout.Duration() {
@@ -158,7 +158,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.PreScanType = "invalid"
 			},
-			wantErrKeys:   []string{"PreScanType"},
+			wantErrKeys:   []Field{FieldPreScanType},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.PreScanType != def.PreScanType {
@@ -175,7 +175,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.OutputPrefix = ""
 			},
-			wantErrKeys:   []string{"OutputPrefix"},
+			wantErrKeys:   []Field{FieldOutputPrefix},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.OutputPrefix != def.OutputPrefix {
@@ -192,7 +192,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.MaxConcurrentDials = MinXrayMaxConcurrentDials - 1
 			},
-			wantErrKeys:   []string{"MaxConcurrentDials"},
+			wantErrKeys:   []Field{FieldMaxConcurrentDials},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.MaxConcurrentDials != def.MaxConcurrentDials {
@@ -205,7 +205,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.MaxConcurrentDials = MaxXrayMaxConcurrentDials + 1
 			},
-			wantErrKeys:   []string{"MaxConcurrentDials"},
+			wantErrKeys:   []Field{FieldMaxConcurrentDials},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.MaxConcurrentDials != def.MaxConcurrentDials {
@@ -218,7 +218,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.DialMaxAttempts = MinXrayDialMaxAttempts - 1
 			},
-			wantErrKeys:   []string{"DialMaxAttempts"},
+			wantErrKeys:   []Field{FieldDialMaxAttempts},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.DialMaxAttempts != def.DialMaxAttempts {
@@ -244,7 +244,7 @@ func TestXrayConfig(t *testing.T) {
 			mutateCfg: func(c *config.XrayConfig) {
 				c.DialMaxAttempts = MaxXrayDialMaxAttempts + 1
 			},
-			wantErrKeys:   []string{"DialMaxAttempts"},
+			wantErrKeys:   []Field{FieldDialMaxAttempts},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.XrayConfig) {
 				if c.DialMaxAttempts != def.DialMaxAttempts {

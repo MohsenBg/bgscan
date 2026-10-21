@@ -2,6 +2,7 @@ package toggleinput
 
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
@@ -10,7 +11,8 @@ import (
 // Update processes incoming Bubble Tea messages and updates the state
 // of the toggle component.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
+	if _, ok := msg.(theme.ThemeChanged); ok {
+		m.rebuild()
 		return m, nil
 	}
 	prev := m.value

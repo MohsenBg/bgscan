@@ -36,7 +36,7 @@ type DNSTunConfigFile struct {
 // configuration file.
 type ConfigValidationResult struct {
 	File   fileutil.FileEntry
-	Errors map[string]error
+	Errors map[Field]error
 }
 
 // ResolverType identifies the transport used to communicate with a DNS resolver.

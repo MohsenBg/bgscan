@@ -1,18 +1,13 @@
-// Package outboundmenu selects how outbound configs are imported.
+// Package outboundmenu prompts the user to choose how to import an outbound config.
 package outboundmenu
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
-
 	tea "charm.land/bubbletea/v2"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
-// ImportMethod defines how the user wants to add outbound configurations.
+// ImportMethod identifies the source format for an outbound import.
 type ImportMethod string
 
 const (
@@ -20,86 +15,52 @@ const (
 	MethodJSON ImportMethod = "json"
 )
 
-// MsgSelectImportMethod is fired when a selection is made, carrying the chosen method.
-type MsgSelectImportMethod struct {
-	Method ImportMethod
-}
+// MsgSelectImportMethod reports the user's chosen import method.
+type MsgSelectImportMethod struct{ Method ImportMethod }
 
-// Model is the outbound import method menu.
+// title is the dialog heading for this menu.
+const title = "Addition Method"
+
+// Model wraps the basic menu component for outbound import selection.
 type Model struct {
-	id     ui.ComponentID
-	name   string
-	menu   ui.Component
-	Layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
+	id   ui.ComponentID
+	menu ui.Component
 }
 
 // New creates the outbound import menu.
-func New(deps ui.Deps) *Model {
-	m := &Model{
-		id:     ui.NewComponentID(),
-		name:   "Outbound Menu",
-		Layout: deps.Layout,
-		theme:  deps.Theme,
-		log:    deps.Log,
-	}
-	m.menu = newMenu(deps)
-	return m
-}
-
-func (m *Model) ID() ui.ComponentID {
-	return m.id
-}
-
-func (m *Model) Name() string {
-	return m.name
-}
-
-func (m *Model) OnClose() tea.Cmd {
-	return nil
-}
-
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
-}
-
-func (m *Model) Init() tea.Cmd {
-	return nil
-}
-
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-func (m *Model) SetTheme(th *theme.Theme) {
-	m.theme = th
-	if mm, ok := m.menu.(*menu.Model); ok {
-		mm.SetTheme(th)
+func New(session *ui.Session) *Model {
+	return &Model{
+		id:   ui.NewComponentID(),
+		menu: newMenu(session.Env()),
 	}
 }
 
-func newMenu(deps ui.Deps) *menu.Model {
+func (m *Model) ID() ui.ComponentID { return m.id }
+func (m *Model) Name() string       { return title }
+func (m *Model) OnClose() tea.Cmd   { return nil }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
+func (m *Model) Init() tea.Cmd      { return m.menu.Init() }
+
+func newMenu(env *ui.Env) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
 			"↗",
-			"Via Link",
+			"From Link",
 			"l",
-			func() tea.Msg {
-				return MsgSelectImportMethod{Method: MethodLink}
-			},
-		),
+			func() tea.Msg { return MsgSelectImportMethod{Method: MethodLink} },
+		).WithDescription("Sharing URLs (vmess://, vless://, trojan://, etc.)"),
+
 		menu.NewMenuItem(
 			"{}",
-			"Select JSON",
-			"j",
-			func() tea.Msg {
-				return MsgSelectImportMethod{Method: MethodJSON}
-			},
-		),
+			"From File",
+			"f",
+			func() tea.Msg { return MsgSelectImportMethod{Method: MethodJSON} },
+		).WithDescription("Raw Xray JSON configuration file"),
 	}
 
 	return menu.New(
-		items, "Addition Method", deps,
-		menu.WithHeight(12),
-		menu.WithWidth(40),
+		items, title, env,
+		menu.WithWidth(55),
+		menu.WithHelp(false),
 	)
 }

@@ -4,39 +4,88 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"time"
 
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/main/splash"
 	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	ui.SyncState(msg, m.state)
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.state.Layout.Update(msg.Width, msg.Height)
+		m.session.Env().Layout.Update(msg.Width, msg.Height)
 
 	case tea.KeyPressMsg:
-		if msg.String() == env.KeyCtrlC {
+		if m.session.Env().Keys.Global.ForceQuit.Matches(msg) {
 			return m, tea.Quit
 		}
 
-		if msg.String() == env.KeyCtrlT {
-			m.state.Log.Debug.Info("%s", dumpGoroutines())
+		if m.session.Env().Keys.Global.DumpGoroutines.Matches(msg) {
+			m.session.Env().Log.Debug("%s", dumpGoroutines())
+		}
+
+		if cmd, closed := m.closeTopDialog(msg); closed {
+			return m, cmd
+		}
+
+		if cmd := m.warnNonLatin(msg); cmd != nil {
+			return m, cmd
 		}
 
 	case splash.SplashDoneMsg:
-		cmds = append(cmds, m.splash.OnClose(), m.startup.Init())
-		m.stage = StageStartUP
+		// prevent run twice startup init
+		// it can happend if pressed key last frame splash screen
+		if m.stage < StageStartUP {
+			m.stage = StageStartUP
+			cmds = append(cmds, m.splash.OnClose(), m.startup.Init())
+		}
 
 	case startup.StartupChecksDoneMsg:
-		cmds = append(cmds, m.startup.OnClose(), m.workspace.Init())
-		m.stage = StageWorkspace
+		if m.stage < StageWorkspace {
+			m.stage = StageWorkspace
+			cmds = append(cmds, m.startup.OnClose(), m.workspace.Init())
+		}
+
+	case dialog.OpenDialogMsg:
+		m.push(msg)
+
+		cmds = append(cmds, msg.Component.Init(), tickDialogFrames())
+
+		return m, tea.Sequence(cmds...)
+
+	case dialogFrameMsg:
+		now := time.Now()
+
+		// Closing layers are removed here rather than by whoever asked for
+		// the close, so they stay on the stack long enough to be drawn
+		// while they collapse away.
+		cmds = append(cmds, m.expire(now)...)
+
+		// Only reappear while something is still on screen. An idle
+		// stack schedules no timers at all.
+		if m.animating(now) {
+			cmds = append(cmds, tickDialogFrames())
+		}
+
+		return m, tea.Sequence(cmds...)
+
+	case ui.CloseComponentMsg:
+		cmds = append(cmds, m.beginCloseByID(msg.ID))
+	}
+
+	if _, isKey := msg.(tea.KeyMsg); isKey {
+		if cmd, active := m.updateTop(msg); active {
+			return m, cmd
+		}
+	} else {
+		cmds = append(cmds, m.updateAll(msg)...)
 	}
 
 	var cmd tea.Cmd
@@ -51,6 +100,34 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	cmds = append(cmds, cmd)
 	return m, tea.Sequence(cmds...)
+}
+
+// closeTopDialog closes the active dialog if a back or quit key is pressed.
+// It returns the close command and a boolean indicating if a close was triggered.
+func (m *model) closeTopDialog(msg tea.KeyMsg) (tea.Cmd, bool) {
+	topLayer := m.top()
+
+	//  nothing to close, or already in the process of closing
+	if topLayer == nil || topLayer.closing() {
+		return nil, false
+	}
+
+	keys := m.session.Env().Keys.Global
+	mode := topLayer.component.Mode()
+
+	// Check if the current keypress should trigger a close based on the mode
+	switch mode {
+	case ui.KeyModeNormal:
+		if keys.Back.Matches(msg) || keys.Quit.Matches(msg) {
+			return m.beginCloseTop(), true
+		}
+	case ui.KeyModeInput:
+		if keys.BackFromInput.Matches(msg) {
+			return m.beginCloseTop(), true
+		}
+	}
+
+	return nil, false
 }
 
 func dumpGoroutines() string {
@@ -96,4 +173,36 @@ func dumpGoroutines() string {
 	}
 
 	return header + strings.Join(matched, "\n\n") + "\n"
+}
+
+// effectiveMode reports the owner of the key stream: the top dialog when one
+// is open, otherwise the body's topmost open component.
+func (m *model) effectiveMode() ui.KeyMode {
+	if layer := m.top(); layer != nil && !layer.closing() {
+		return layer.component.Mode()
+	}
+
+	if m.workspace != nil && m.stage == StageWorkspace {
+		return m.workspace.Mode()
+	}
+
+	return ui.KeyModeNormal
+}
+
+// warnNonLatin opens the keyboard-layout notice while the effective key mode
+// is Normal.
+func (m *model) warnNonLatin(key tea.KeyPressMsg) tea.Cmd {
+	switch {
+	case m.stage != StageWorkspace,
+		m.effectiveMode() != ui.KeyModeNormal,
+		m.isNonLatinDialogOpen,
+		!notice.IsNonLatin(key.Text):
+		return nil
+	}
+
+	m.isNonLatinDialogOpen = true
+	return notice.NewKeyboardLayoutNoticeCmd(m.session.Env(), func() tea.Msg {
+		m.isNonLatinDialogOpen = false
+		return nil
+	})
 }

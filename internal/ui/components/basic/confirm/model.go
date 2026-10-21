@@ -1,10 +1,7 @@
 package confirm
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -14,9 +11,7 @@ type Model struct {
 	id   ui.ComponentID
 	name string
 
-	layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
+	env *ui.Env
 
 	message string
 	confirm bool
@@ -25,7 +20,7 @@ type Model struct {
 }
 
 func New(
-	deps ui.Deps,
+	env *ui.Env,
 	message string,
 	onConfirm func() tea.Msg,
 	defaultYes bool,
@@ -33,18 +28,12 @@ func New(
 	return &Model{
 		id:          ui.NewComponentID(),
 		name:        "confirm",
-		layout:      deps.Layout,
-		theme:       deps.Theme,
-		log:         deps.Log,
+		env:         env,
 		message:     message,
 		confirm:     defaultYes,
 		confirmFunc: onConfirm,
 	}
 }
-
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
 
 func (m *Model) ID() ui.ComponentID {
 	return m.id

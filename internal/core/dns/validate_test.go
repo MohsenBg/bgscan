@@ -31,7 +31,7 @@ func TestValidateProxyAuth(t *testing.T) {
 	tests := []struct {
 		name   string
 		mut    func(*proxyAuthFields)
-		field  string
+		field  Field
 		wantOK bool
 	}{
 		{
@@ -62,14 +62,14 @@ func TestValidateProxyAuth(t *testing.T) {
 			mut: func(f *proxyAuthFields) {
 				f.proxyPort = 0
 			},
-			field: "proxy_port",
+			field: FieldProxyPort,
 		},
 		{
 			name: "ssh without auth",
 			mut: func(f *proxyAuthFields) {
 				f.proxyType = ResolverProxySSH
 			},
-			field: "auth_method",
+			field: FieldAuthMethod,
 		},
 		{
 			name: "socks with key auth",
@@ -78,14 +78,14 @@ func TestValidateProxyAuth(t *testing.T) {
 				f.username = "user"
 				f.privateKey = testPEMKey
 			},
-			field: "auth_method",
+			field: FieldAuthMethod,
 		},
 		{
 			name: "unknown proxy type",
 			mut: func(f *proxyAuthFields) {
 				f.proxyType = "http"
 			},
-			field: "proxy_type",
+			field: FieldProxyType,
 		},
 		{
 			name: "password auth missing username",
@@ -93,7 +93,7 @@ func TestValidateProxyAuth(t *testing.T) {
 				f.authMethod = AuthPassword
 				f.password = "pass"
 			},
-			field: "username",
+			field: FieldUsername,
 		},
 		{
 			name: "password auth missing password",
@@ -101,7 +101,7 @@ func TestValidateProxyAuth(t *testing.T) {
 				f.authMethod = AuthPassword
 				f.username = "user"
 			},
-			field: "password",
+			field: FieldPassword,
 		},
 		{
 			name: "key auth missing username",
@@ -109,7 +109,7 @@ func TestValidateProxyAuth(t *testing.T) {
 				f.authMethod = AuthKey
 				f.privateKey = testPEMKey
 			},
-			field: "username",
+			field: FieldUsername,
 		},
 		{
 			name: "key auth invalid private key",
@@ -118,7 +118,7 @@ func TestValidateProxyAuth(t *testing.T) {
 				f.username = "user"
 				f.privateKey = "not a key"
 			},
-			field: "private_key",
+			field: FieldPrivateKey,
 		},
 		{
 			name: "key auth missing known hosts file",
@@ -128,7 +128,7 @@ func TestValidateProxyAuth(t *testing.T) {
 				f.privateKey = testPEMKey
 				f.knownHostsFile = filepath.Join(t.TempDir(), "missing")
 			},
-			field: "known_hosts_file",
+			field: FieldKnownHostsFile,
 		},
 	}
 

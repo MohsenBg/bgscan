@@ -1,78 +1,120 @@
 package menu
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
+
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
-// Update handles resize and key input. Unhandled messages are forwarded to
-// the underlying list to preserve its built-in navigation behavior.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	var cmd tea.Cmd
+	// The menu reads the theme live from env, so only the help child
+	// (which bakes styled lines into its viewport) needs the signal.
+	if _, ok := msg.(theme.ThemeChanged); ok {
+		if m.help != nil {
+			m.help, _ = m.help.Update(msg)
+		}
 
-	if ui.HandleTheme(msg, m) {
-		return m, cmd
+		return m, m.nextFrame()
 	}
 
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.updateMenuLayout()
+	case menuTickMsg:
+		return m, m.nextFrame()
 
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "enter":
-			if item, ok := m.GetSelected(); ok {
-				if item.action != nil {
-					return m, item.action()
-				}
-				if m.onSelect != nil {
-					return m, m.onSelect(item)
-				}
-			}
-		case "q", env.KeyEsc:
+	case tea.WindowSizeMsg:
+		m.handleResize()
+		return m, m.nextFrame()
+
+	case tea.KeyMsg:
+		if cmd, handled := m.handleKey(msg); handled {
 			return m, cmd
 		}
+	}
 
-		for i, l := range m.items {
-			if l.shortcut == msg.String() {
-				m.List.Select(i)
-				if item, ok := m.GetSelected(); ok {
-					if item.action != nil {
-						return m, item.action()
-					}
-					if m.onSelect != nil {
-						return m, m.onSelect(item)
-					}
-				}
-			}
+	var helpCmd tea.Cmd
+
+	if m.help != nil {
+		m.help, helpCmd = m.help.Update(msg)
+	}
+
+	next := m.nextFrame()
+
+	switch {
+	case next == nil:
+		return m, helpCmd
+	case helpCmd == nil:
+		return m, next
+	default:
+		return m, tea.Sequence(next, helpCmd)
+	}
+}
+
+// handleKey handles a key press and reports whether it was consumed.
+func (m *Model) handleKey(key tea.KeyMsg) (tea.Cmd, bool) {
+	k := &m.env.Keys.Menu
+
+	if k.Select.Matches(key) {
+		if item, ok := m.getSelected(); ok {
+			return m.selectItem(item), true
+		}
+		return nil, true
+	}
+
+	if item, ok := m.itemForShortcut(key); ok {
+		return m.selectItem(item), true
+	}
+
+	switch {
+	case k.Up.Matches(key):
+		m.setSelection(m.index - 1)
+	case k.Down.Matches(key):
+		m.setSelection(m.index + 1)
+	case m.env.Keys.Nav.PageUp.Matches(key):
+		m.setSelection(m.index - m.visibleItems())
+	case m.env.Keys.Nav.PageDown.Matches(key):
+		m.setSelection(m.index + m.visibleItems())
+	case m.env.Keys.Nav.Top.Matches(key):
+		m.setSelection(0)
+	case m.env.Keys.Nav.Bottom.Matches(key):
+		m.setSelection(len(m.items) - 1)
+	default:
+		return nil, false
+	}
+
+	return nil, true
+}
+
+func (m *Model) setSelection(to int) {
+	if len(m.items) == 0 {
+		return
+	}
+
+	m.index = max(0, min(to, len(m.items)-1))
+}
+
+// itemForShortcut finds the item bound to key and moves selection to it.
+func (m *Model) itemForShortcut(msg tea.KeyMsg) (MenuItem, bool) {
+	key := msg.String()
+
+	for i, item := range m.items {
+		if item.shortcut != "" && item.shortcut == key {
+			m.setSelection(i)
+			return item, true
 		}
 	}
 
-	m.List, cmd = m.List.Update(msg)
-	return m, cmd
+	return MenuItem{}, false
 }
 
-// updateMenuLayout clamps the menu to a maximum size so it doesn't expand
-// unboundedly on large terminals while still shrinking on small ones.
-func (m *Model) updateMenuLayout() {
-	width := m.width
-	height := m.height
+func (m *Model) getSelected() (MenuItem, bool) {
+	return m.GetSelected()
+}
 
-	if m.widthAuto {
-		width = min(m.Layout.BodyContentWidth(), 55)
+func (m *Model) selectItem(item MenuItem) tea.Cmd {
+	if m.onSelect != nil {
+		return m.onSelect(item)
 	}
 
-	if m.heightAuto {
-		height = min(m.Layout.BodyContentHeight(), 20)
-	}
-
-	m.List.Styles.TitleBar = m.List.Styles.TitleBar.
-		Width(width).
-		Align(lipgloss.Center, lipgloss.Center)
-
-	m.List.SetWidth(width)
-	m.List.SetHeight(height)
+	return item.action
 }

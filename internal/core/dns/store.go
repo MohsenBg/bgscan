@@ -38,7 +38,7 @@ func normalizeConfigName(name string) string {
 
 // tunnelConfig is the validation contract for tunnel configurations.
 type tunnelConfig interface {
-	Validate() map[string]error
+	Validate() map[Field]error
 }
 
 // ConfigFile pairs a tunnel configuration with its on-disk identity.
@@ -171,7 +171,7 @@ func (s *configStore[C]) ValidateAllConfigs() ([]ConfigValidationResult, error) 
 		if err != nil {
 			results = append(results, ConfigValidationResult{
 				File:   file,
-				Errors: map[string]error{},
+				Errors: map[Field]error{},
 			})
 			continue
 		}

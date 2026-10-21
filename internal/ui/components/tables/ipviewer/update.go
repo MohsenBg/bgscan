@@ -5,7 +5,6 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,11 +12,7 @@ import (
 )
 
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	// SetTheme cascades to the inner table, so early return is enough.
-	if ui.HandleTheme(msg, m) {
-		return m, nil
-	}
-	if key, ok := msg.(tea.KeyMsg); ok && key.String() == env.KeyEnter {
+	if key, ok := msg.(tea.KeyMsg); ok && key.String() == "enter" {
 		if cmd := m.copySelectedIP(); cmd != nil {
 			return m, cmd
 		}
@@ -34,21 +29,26 @@ func (m *Model) copySelectedIP() tea.Cmd {
 		return nil
 	}
 
-	row := t.BubbleTable.SelectedRow()
-	if len(row) == 0 {
+	row, ok := t.SelectedRow()
+	if !ok {
 		return nil
 	}
 
-	if err := clipboard.WriteAll(row[0]); err != nil {
+	col := m.ipColumn()
+	if col >= len(row) {
+		return nil
+	}
+
+	if err := clipboard.WriteAll(row[col]); err != nil {
 		return m.errorCmd("Error Copying IP", err.Error())
 	}
-	return m.infoCmd("IP Copied", fmt.Sprintf("IP copied to clipboard:%s", row[0]))
+	return m.infoCmd("IP Copied", fmt.Sprintf("IP copied to clipboard:%s", row[col]))
 }
 
 func (m *Model) errorCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log}, title, message, notice.NOTICE_ERROR)
+	return notice.NewNoticeCmd(m.env, title, message, notice.NOTICE_ERROR)
 }
 
 func (m *Model) infoCmd(title, message string) tea.Cmd {
-	return notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log}, title, message, notice.NOTICE_INFO)
+	return notice.NewNoticeCmd(m.env, title, message, notice.NOTICE_INFO)
 }

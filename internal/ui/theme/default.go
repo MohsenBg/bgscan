@@ -3,84 +3,81 @@ package theme
 import "charm.land/lipgloss/v2"
 
 var BGScanDark = Theme{
-	Name: "bgscan-dark",
-
-	Primary:      lipgloss.Color("#D75FD7"),
-	Secondary:    lipgloss.Color("#8A8A8A"),
-	Border:       lipgloss.Color("#585858"),
-	BorderActive: lipgloss.Color("#5F5FD7"),
-	Text:         lipgloss.Color("#D0D0D0"),
-	Muted:        lipgloss.Color("#626262"),
-	Timestamp:    lipgloss.Color("#CE9178"),
-
-	Info:    lipgloss.Color("#00AFFF"),
-	Error:   lipgloss.Color("#FF0000"),
-	Success: lipgloss.Color("#00D787"),
-
-	Orange: lipgloss.Color("#FF8700"),
-	Yellow: lipgloss.Color("#FFD700"),
-	Purple: lipgloss.Color("#5F5FD7"),
-
-	Selected:   lipgloss.Color("#303030"),
-	Warning:    lipgloss.Color("#FFD700"),
-	Background: lipgloss.Color("#000000"),
-
+	Name:          "bgscan-dark",
+	Primary:       lipgloss.Color("#D75FD7"),
+	Secondary:     lipgloss.Color("#8A8A8A"),
+	Border:        lipgloss.Color("#585858"),
+	BorderActive:  lipgloss.Color("#5F5FD7"),
+	Text:          lipgloss.Color("#D0D0D0"),
+	Muted:         lipgloss.Color("#626262"),
+	Timestamp:     lipgloss.Color("#CE9178"),
+	Info:          lipgloss.Color("#00AFFF"),
+	Error:         lipgloss.Color("#FF0000"),
+	Success:       lipgloss.Color("#00D787"),
+	Orange:        lipgloss.Color("#FF8700"),
+	Yellow:        lipgloss.Color("#FFD700"),
+	Purple:        lipgloss.Color("#5F5FD7"),
+	Selected:      lipgloss.Color("#303030"),
+	Warning:       lipgloss.Color("#FFD700"),
+	Background:    lipgloss.Color("#000000"),
 	ProgressStart: lipgloss.Color("#A78BFA"),
 	ProgressEnd:   lipgloss.Color("#7DD3FC"),
+	TierExcellent: lipgloss.Color("#00D787"),
+	TierGood:      lipgloss.Color("#A8D85F"),
+	TierFair:      lipgloss.Color("#FFD700"),
+	TierPoor:      lipgloss.Color("#FF8700"),
 }
 
 var BGScanLight = Theme{
-	Name: "bgscan-light",
-
-	Primary:      lipgloss.Color("#D75FD7"),
-	Secondary:    lipgloss.Color("#A8A8A8"),
-	Border:       lipgloss.Color("#808080"),
-	BorderActive: lipgloss.Color("#5F5FD7"),
-	Text:         lipgloss.Color("#1C1C1C"),
-	Muted:        lipgloss.Color("#949494"),
-	Timestamp:    lipgloss.Color("#1E3A8A"),
-
-	Info:    lipgloss.Color("#005FFF"),
-	Error:   lipgloss.Color("#D70000"),
-	Success: lipgloss.Color("#008700"),
-
-	Orange: lipgloss.Color("#FF8700"),
-	Yellow: lipgloss.Color("#FFD700"),
-	Purple: lipgloss.Color("#5F5FD7"),
-
-	Selected:   lipgloss.Color("#E5E5E5"),
-	Warning:    lipgloss.Color("#AF8700"),
-	Background: lipgloss.Color("#FFFFFF"),
-
+	Name:          "bgscan-light",
+	Primary:       lipgloss.Color("#D75FD7"),
+	Secondary:     lipgloss.Color("#A8A8A8"),
+	Border:        lipgloss.Color("#808080"),
+	BorderActive:  lipgloss.Color("#5F5FD7"),
+	Text:          lipgloss.Color("#1C1C1C"),
+	Muted:         lipgloss.Color("#949494"),
+	Timestamp:     lipgloss.Color("#1E3A8A"),
+	Info:          lipgloss.Color("#005FFF"),
+	Error:         lipgloss.Color("#D70000"),
+	Success:       lipgloss.Color("#008700"),
+	Orange:        lipgloss.Color("#FF8700"),
+	Yellow:        lipgloss.Color("#FFD700"),
+	Purple:        lipgloss.Color("#5F5FD7"),
+	Selected:      lipgloss.Color("#E5E5E5"),
+	Warning:       lipgloss.Color("#AF8700"),
+	Background:    lipgloss.Color("#FFFFFF"),
 	ProgressStart: lipgloss.Color("#6D28D9"),
 	ProgressEnd:   lipgloss.Color("#0369A1"),
+	TierExcellent: lipgloss.Color("#008700"),
+	TierGood:      lipgloss.Color("#6FA33A"),
+	TierFair:      lipgloss.Color("#AF8700"),
+	TierPoor:      lipgloss.Color("#D75F00"),
 }
 
 var TokyoNight = Theme{
-	Name: "tokyo-night",
-
-	Primary:      lipgloss.Color("#7AA2F7"),
-	Secondary:    lipgloss.Color("#565F89"),
-	Border:       lipgloss.Color("#3B4261"),
-	BorderActive: lipgloss.Color("#7AA2F7"),
-	Text:         lipgloss.Color("#C0CAF5"),
-	Muted:        lipgloss.Color("#565F89"),
-	Timestamp:    lipgloss.Color("#BB9AF7"),
-
-	Info:    lipgloss.Color("#7DCFFF"),
-	Error:   lipgloss.Color("#F7768E"),
-	Success: lipgloss.Color("#9ECE6A"),
-
-	Orange: lipgloss.Color("#FF9E64"),
-	Yellow: lipgloss.Color("#E0AF68"),
-	Purple: lipgloss.Color("#BB9AF7"),
-
-	Selected:   lipgloss.Color("#292E42"),
-	Warning:    lipgloss.Color("#E0AF68"),
-	Background: lipgloss.Color("#1A1B26"),
-
+	Name:          "tokyo-night",
+	Primary:       lipgloss.Color("#7AA2F7"),
+	Secondary:     lipgloss.Color("#565F89"),
+	Border:        lipgloss.Color("#3B4261"),
+	BorderActive:  lipgloss.Color("#7AA2F7"),
+	Text:          lipgloss.Color("#C0CAF5"),
+	Muted:         lipgloss.Color("#565F89"),
+	Timestamp:     lipgloss.Color("#BB9AF7"),
+	Info:          lipgloss.Color("#7DCFFF"),
+	Error:         lipgloss.Color("#F7768E"),
+	Success:       lipgloss.Color("#9ECE6A"),
+	Orange:        lipgloss.Color("#FF9E64"),
+	Yellow:        lipgloss.Color("#E0AF68"),
+	Purple:        lipgloss.Color("#BB9AF7"),
+	Selected:      lipgloss.Color("#292E42"),
+	Warning:       lipgloss.Color("#E0AF68"),
+	Background:    lipgloss.Color("#1A1B26"),
 	ProgressStart: lipgloss.Color("#BB9AF7"),
 	ProgressEnd:   lipgloss.Color("#7AA2F7"),
+	TierExcellent: lipgloss.Color("#9ECE6A"),
+	TierGood:      lipgloss.Color("#73DACA"),
+	TierFair:      lipgloss.Color("#E0AF68"),
+	TierPoor:      lipgloss.Color("#FF9E64"),
 }
 
 // GruvboxDark is the popular Gruvbox dark palette.
@@ -104,6 +101,10 @@ var GruvboxDark = Theme{
 	Background:    lipgloss.Color("#282828"),
 	ProgressStart: lipgloss.Color("#83A598"),
 	ProgressEnd:   lipgloss.Color("#B8BB26"),
+	TierExcellent: lipgloss.Color("#B8BB26"),
+	TierGood:      lipgloss.Color("#8EC07C"),
+	TierFair:      lipgloss.Color("#FABD2F"),
+	TierPoor:      lipgloss.Color("#FE8019"),
 }
 
 // GruvboxLight is the popular Gruvbox light palette.
@@ -127,6 +128,10 @@ var GruvboxLight = Theme{
 	Background:    lipgloss.Color("#FBF1C7"),
 	ProgressStart: lipgloss.Color("#076678"),
 	ProgressEnd:   lipgloss.Color("#79740E"),
+	TierExcellent: lipgloss.Color("#79740E"),
+	TierGood:      lipgloss.Color("#689D6A"),
+	TierFair:      lipgloss.Color("#B57614"),
+	TierPoor:      lipgloss.Color("#AF3A03"),
 }
 
 // Dracula is the classic Dracula palette.
@@ -150,6 +155,10 @@ var Dracula = Theme{
 	Background:    lipgloss.Color("#282A36"),
 	ProgressStart: lipgloss.Color("#BD93F9"),
 	ProgressEnd:   lipgloss.Color("#8BE9FD"),
+	TierExcellent: lipgloss.Color("#50FA7B"),
+	TierGood:      lipgloss.Color("#8BE9FD"),
+	TierFair:      lipgloss.Color("#F1FA8C"),
+	TierPoor:      lipgloss.Color("#FFB86C"),
 }
 
 // SolarizedDark is the classic Solarized dark palette.
@@ -173,6 +182,10 @@ var SolarizedDark = Theme{
 	Background:    lipgloss.Color("#002B36"),
 	ProgressStart: lipgloss.Color("#268BD2"),
 	ProgressEnd:   lipgloss.Color("#2AA198"),
+	TierExcellent: lipgloss.Color("#859900"),
+	TierGood:      lipgloss.Color("#2AA198"),
+	TierFair:      lipgloss.Color("#B58900"),
+	TierPoor:      lipgloss.Color("#CB4B16"),
 }
 
 // SolarizedLight is the classic Solarized light palette.
@@ -196,6 +209,10 @@ var SolarizedLight = Theme{
 	Background:    lipgloss.Color("#FDF6E3"),
 	ProgressStart: lipgloss.Color("#268BD2"),
 	ProgressEnd:   lipgloss.Color("#2AA198"),
+	TierExcellent: lipgloss.Color("#859900"),
+	TierGood:      lipgloss.Color("#2AA198"),
+	TierFair:      lipgloss.Color("#B58900"),
+	TierPoor:      lipgloss.Color("#CB4B16"),
 }
 
 // OneDark is the popular Atom One Dark palette.
@@ -219,6 +236,10 @@ var OneDark = Theme{
 	Background:    lipgloss.Color("#282C34"),
 	ProgressStart: lipgloss.Color("#61AFEF"),
 	ProgressEnd:   lipgloss.Color("#56B6C2"),
+	TierExcellent: lipgloss.Color("#98C379"),
+	TierGood:      lipgloss.Color("#56B6C2"),
+	TierFair:      lipgloss.Color("#E5C07B"),
+	TierPoor:      lipgloss.Color("#D19A66"),
 }
 
 // OneLight is the popular Atom One Light palette.
@@ -242,6 +263,10 @@ var OneLight = Theme{
 	Background:    lipgloss.Color("#FAFAFA"),
 	ProgressStart: lipgloss.Color("#4078F2"),
 	ProgressEnd:   lipgloss.Color("#0184BC"),
+	TierExcellent: lipgloss.Color("#50A14F"),
+	TierGood:      lipgloss.Color("#0184BC"),
+	TierFair:      lipgloss.Color("#C18401"),
+	TierPoor:      lipgloss.Color("#D75F00"),
 }
 
 // Monokai is the classic Monokai palette.
@@ -265,6 +290,10 @@ var Monokai = Theme{
 	Background:    lipgloss.Color("#272822"),
 	ProgressStart: lipgloss.Color("#66D9EF"),
 	ProgressEnd:   lipgloss.Color("#A6E22E"),
+	TierExcellent: lipgloss.Color("#A6E22E"),
+	TierGood:      lipgloss.Color("#66D9EF"),
+	TierFair:      lipgloss.Color("#E6DB74"),
+	TierPoor:      lipgloss.Color("#FD971F"),
 }
 
 // RosePineDark is the popular Rosé Pine palette.
@@ -288,6 +317,10 @@ var RosePineDark = Theme{
 	Background:    lipgloss.Color("#191724"),
 	ProgressStart: lipgloss.Color("#C4A7E7"),
 	ProgressEnd:   lipgloss.Color("#9CCFD8"),
+	TierExcellent: lipgloss.Color("#31748F"),
+	TierGood:      lipgloss.Color("#9CCFD8"),
+	TierFair:      lipgloss.Color("#F6C177"),
+	TierPoor:      lipgloss.Color("#EA9A97"),
 }
 
 // RosePineDawn is the popular Rosé Pine Dawn (light) palette.
@@ -311,6 +344,10 @@ var RosePineDawn = Theme{
 	Background:    lipgloss.Color("#FAF4ED"),
 	ProgressStart: lipgloss.Color("#907AA9"),
 	ProgressEnd:   lipgloss.Color("#56949F"),
+	TierExcellent: lipgloss.Color("#286983"),
+	TierGood:      lipgloss.Color("#56949F"),
+	TierFair:      lipgloss.Color("#EA9D34"),
+	TierPoor:      lipgloss.Color("#D7827E"),
 }
 
 // EverforestDark is the popular Everforest dark palette.
@@ -334,6 +371,10 @@ var EverforestDark = Theme{
 	Background:    lipgloss.Color("#2D353B"),
 	ProgressStart: lipgloss.Color("#7FBBB3"),
 	ProgressEnd:   lipgloss.Color("#A7C080"),
+	TierExcellent: lipgloss.Color("#A7C080"),
+	TierGood:      lipgloss.Color("#83C092"),
+	TierFair:      lipgloss.Color("#DBBC7F"),
+	TierPoor:      lipgloss.Color("#E69875"),
 }
 
 // EverforestLight is the popular Everforest light palette.
@@ -357,6 +398,10 @@ var EverforestLight = Theme{
 	Background:    lipgloss.Color("#FDF6E3"),
 	ProgressStart: lipgloss.Color("#3A94C5"),
 	ProgressEnd:   lipgloss.Color("#8DA101"),
+	TierExcellent: lipgloss.Color("#8DA101"),
+	TierGood:      lipgloss.Color("#4EA08D"),
+	TierFair:      lipgloss.Color("#DFA000"),
+	TierPoor:      lipgloss.Color("#F57D26"),
 }
 
 // AyuDark is the popular Ayu Dark palette.
@@ -380,6 +425,10 @@ var AyuDark = Theme{
 	Background:    lipgloss.Color("#0A0E14"),
 	ProgressStart: lipgloss.Color("#39BAE6"),
 	ProgressEnd:   lipgloss.Color("#C2D94C"),
+	TierExcellent: lipgloss.Color("#C2D94C"),
+	TierGood:      lipgloss.Color("#95E6CB"),
+	TierFair:      lipgloss.Color("#E6B450"),
+	TierPoor:      lipgloss.Color("#FF8F40"),
 }
 
 // AyuLight is the popular Ayu Light palette.
@@ -403,6 +452,10 @@ var AyuLight = Theme{
 	Background:    lipgloss.Color("#FAFAFA"),
 	ProgressStart: lipgloss.Color("#399EE6"),
 	ProgressEnd:   lipgloss.Color("#86B300"),
+	TierExcellent: lipgloss.Color("#86B300"),
+	TierGood:      lipgloss.Color("#5CB2A0"),
+	TierFair:      lipgloss.Color("#F2AE49"),
+	TierPoor:      lipgloss.Color("#FA8D3E"),
 }
 
 // Kanagawa is the popular Kanagawa palette.
@@ -426,6 +479,10 @@ var Kanagawa = Theme{
 	Background:    lipgloss.Color("#1F1F28"),
 	ProgressStart: lipgloss.Color("#7E9CD8"),
 	ProgressEnd:   lipgloss.Color("#7FB4CA"),
+	TierExcellent: lipgloss.Color("#98BB6C"),
+	TierGood:      lipgloss.Color("#7AA89F"),
+	TierFair:      lipgloss.Color("#E6C384"),
+	TierPoor:      lipgloss.Color("#FFA066"),
 }
 
 // GithubDark is GitHub's dark UI palette.
@@ -449,6 +506,10 @@ var GithubDark = Theme{
 	Background:    lipgloss.Color("#0D1117"),
 	ProgressStart: lipgloss.Color("#58A6FF"),
 	ProgressEnd:   lipgloss.Color("#3FB950"),
+	TierExcellent: lipgloss.Color("#3FB950"),
+	TierGood:      lipgloss.Color("#7EE787"),
+	TierFair:      lipgloss.Color("#D29922"),
+	TierPoor:      lipgloss.Color("#DB6D28"),
 }
 
 // GithubLight is GitHub's light UI palette.
@@ -472,6 +533,10 @@ var GithubLight = Theme{
 	Background:    lipgloss.Color("#FFFFFF"),
 	ProgressStart: lipgloss.Color("#0969DA"),
 	ProgressEnd:   lipgloss.Color("#1A7F37"),
+	TierExcellent: lipgloss.Color("#1A7F37"),
+	TierGood:      lipgloss.Color("#2EA043"),
+	TierFair:      lipgloss.Color("#9A6700"),
+	TierPoor:      lipgloss.Color("#BC4C00"),
 }
 
 // MaterialDark is the popular Material Theme dark palette.
@@ -495,4 +560,8 @@ var MaterialDark = Theme{
 	Background:    lipgloss.Color("#263238"),
 	ProgressStart: lipgloss.Color("#82AAFF"),
 	ProgressEnd:   lipgloss.Color("#89DDFF"),
+	TierExcellent: lipgloss.Color("#C3E88D"),
+	TierGood:      lipgloss.Color("#80CBC4"),
+	TierFair:      lipgloss.Color("#FFCB6B"),
+	TierPoor:      lipgloss.Color("#F78C6C"),
 }

@@ -1,60 +1,59 @@
 package menu
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
+	"image/color"
 
 	"charm.land/lipgloss/v2"
+
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
+// resolveTheme guards against a nil theme.
 func resolveTheme(th *theme.Theme) *theme.Theme {
-	if th != nil {
-		return th
+	if th == nil {
+		fallback, err := theme.Get(theme.List()[0])
+		if err == nil {
+			return &fallback
+		}
+
+		return &theme.Theme{}
 	}
-	t, _ := theme.Get("")
-	return t
+
+	return th
 }
 
-func itemTitleStyle(th *theme.Theme) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(resolveTheme(th).Text).
-		Padding(0, 0, 0, 0)
-}
-
-func selectedItemTitleStyle(th *theme.Theme) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(resolveTheme(th).Primary).
-		Padding(0, 1).
-		Bold(true)
-}
-
-func shortcutStyle(th *theme.Theme) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(resolveTheme(th).Text)
-}
-
-func iconStyle(th *theme.Theme) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(resolveTheme(th).Text).
-		Width(3).
-		Bold(true)
-}
-
-func selectedIconStyle(th *theme.Theme) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(resolveTheme(th).Primary).
-		Width(3).
-		Bold(true)
-}
-
+// titleStyle is the centered menu heading.
 func titleStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Align(lipgloss.Center).
 		Foreground(resolveTheme(th).Info).
 		Bold(true)
 }
 
-// PaddingCell adds one line of top padding between menu rows.
-func PaddingCell() lipgloss.Style {
+// helpStyle is the muted key hint under the rows.
+func helpStyle(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
-		Padding(1, 0, 0, 0)
+		Foreground(resolveTheme(th).Muted)
+}
+
+// rowIconStyle renders the icon column padded to a fixed width.
+func rowIconStyle(fg color.Color, bold bool) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(fg).
+		Bold(bold).
+		Width(iconColumnWidth)
+}
+
+// rowTitleStyle renders a row title.
+func rowTitleStyle(fg color.Color, bold bool) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(fg).
+		Bold(bold)
+}
+
+// keycapStyle renders a shortcut chip.
+func keycapStyle(fg, bg color.Color) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(fg).
+		Background(bg).
+		Padding(0, 1)
 }

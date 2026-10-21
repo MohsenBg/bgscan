@@ -23,8 +23,8 @@ const (
 )
 
 // ValidateWriter strictly validates a WriterConfig and returns errors by field name.
-func ValidateWriter(cfg config.WriterConfig) map[string]error {
-	errs := map[string]error{}
+func ValidateWriter(cfg config.WriterConfig) map[Field]error {
+	errs := map[Field]error{}
 
 	if err := checkDuration(
 		"MergeFlushInterval",
@@ -32,7 +32,7 @@ func ValidateWriter(cfg config.WriterConfig) map[string]error {
 		MinWriterMergeFlushInterval,
 		MaxWriterMergeFlushInterval,
 	); err != nil {
-		errs["MergeFlushInterval"] = err
+		errs[FieldMergeFlushInterval] = err
 	}
 
 	if err := checkInt(
@@ -41,7 +41,7 @@ func ValidateWriter(cfg config.WriterConfig) map[string]error {
 		MinWriterChanSize,
 		MaxWriterChanSize,
 	); err != nil {
-		errs["ChanSize"] = err
+		errs[FieldChanSize] = err
 	}
 
 	if err := checkInt(
@@ -50,14 +50,14 @@ func ValidateWriter(cfg config.WriterConfig) map[string]error {
 		MinWriterBatchSize,
 		MaxWriterBatchSize,
 	); err != nil {
-		errs["BatchSize"] = err
+		errs[FieldBatchSize] = err
 	}
 
 	if err := checkDirectoryName(
 		"ResultDirectory",
 		cfg.ResultBaseDir,
 	); err != nil {
-		errs["ResultBaseDir"] = err
+		errs[FieldResultBaseDir] = err
 	}
 
 	return errs

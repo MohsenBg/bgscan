@@ -1,0 +1,62 @@
+package validate
+
+// Field identifies a scanner configuration field in validation errors.
+type Field string
+
+const (
+	FieldAcceptedStatusCodes  Field = "AcceptedStatusCodes"
+	FieldBatchSize            Field = "BatchSize"
+	FieldChanSize             Field = "ChanSize"
+	FieldCheckTypes           Field = "CheckTypes"
+	FieldConnectivityTestType Field = "ConnectivityTestType"
+	FieldDialMaxAttempts      Field = "DialMaxAttempts"
+	FieldDomain               Field = "Domain"
+	FieldDownloadSpeed        Field = "DownloadSpeed"
+	FieldDPITimeout           Field = "DPI.Timeout"
+	FieldDPITries             Field = "DPI.Tries"
+	FieldFingerprint          Field = "Fingerprint"
+	FieldHost                 Field = "Host"
+	FieldMaxConcurrentDials   Field = "MaxConcurrentDials"
+	FieldMaxIPsPerStage       Field = "MaxIPsPerStage"
+	FieldMaxIPsToTest         Field = "MaxIPsToTest"
+	FieldMaxSuccessfulIPs     Field = "MaxSuccessfulIPs"
+	FieldMaxTLSVersion        Field = "MaxTLSVersion"
+	FieldMergeFlushInterval   Field = "MergeFlushInterval"
+	FieldMinProbeDuration     Field = "MinProbeDuration"
+	FieldMinTLSVersion        Field = "MinTLSVersion"
+	FieldOutputPrefix         Field = "OutputPrefix"
+	FieldPipelineMode         Field = "PipelineMode"
+	FieldPort                 Field = "Port"
+	FieldPreScanType          Field = "PreScanType"
+	FieldProbeBurst           Field = "ProbeBurst"
+	FieldProbePerSec          Field = "ProbePerSec"
+	FieldProtocol             Field = "Protocol"
+	FieldResultBaseDir        Field = "ResultBaseDir"
+	FieldServerName           Field = "ServerName"
+	FieldSpeedTestTimeout     Field = "SpeedTestTimeout"
+	FieldStatusInterval       Field = "StatusInterval"
+	FieldTimeout              Field = "Timeout"
+	FieldTransport            Field = "Transport"
+	FieldTries                Field = "Tries"
+	FieldUploadSpeed          Field = "UploadSpeed"
+	FieldVersion              Field = "Version"
+	FieldWorkers              Field = "Workers"
+)
+
+const (
+	FieldResolverCheckTypes   Field = "Resolver.CheckTypes"
+	FieldResolverDomain       Field = "Resolver.Domain"
+	FieldResolverDPITimeout   Field = "Resolver.DPI.Timeout"
+	FieldResolverDPITries     Field = "Resolver.DPI.Tries"
+	FieldResolverOutputPrefix Field = "Resolver.OutputPrefix"
+	FieldResolverPort         Field = "Resolver.Port"
+	FieldResolverTimeout      Field = "Resolver.Timeout"
+	FieldResolverTransport    Field = "Resolver.Transport"
+	FieldResolverTries        Field = "Resolver.Tries"
+	FieldResolverWorkers      Field = "Resolver.Workers"
+
+	FieldDNSTunnelingOutputPrefix Field = "DNSTunneling.OutputPrefix"
+	FieldDNSTunnelingTimeout      Field = "DNSTunneling.Timeout"
+	FieldDNSTunnelingTries        Field = "DNSTunneling.Tries"
+	FieldDNSTunnelingWorkers      Field = "DNSTunneling.Workers"
+)

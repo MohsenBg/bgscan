@@ -4,25 +4,19 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-func containerStyle(termWidth, termHeight int) lipgloss.Style {
+// screenStyle centers the app within the terminal.
+func screenStyle(width, height int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Align(lipgloss.Center, lipgloss.Center).
-		Width(termWidth).
-		Height(termHeight)
+		Width(width).
+		Height(height)
 }
 
-func (m *model) mainStyle(contentWidth, contentHeight int) lipgloss.Style {
+// contentStyle returns the style for the main layout frame.
+func (m *model) contentStyle(width, height int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.state.Theme().BorderActive).
-		Width(contentWidth).
-		Height(contentHeight)
-}
-
-func (m *model) windowStyle(maxWidth int) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		MaxWidth(maxWidth).
-		BorderForeground(m.state.Theme().BorderActive).
-		Padding(0, 1)
+		BorderForeground(m.session.Env().Theme.BorderActive).
+		Width(width).
+		Height(height)
 }

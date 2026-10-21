@@ -16,12 +16,14 @@ var Schema = result.ResultSchema{
 
 	Columns: []result.ColumnDef{
 		{
-			Name:  "IP",
-			Width: 39,
+			Name:       "IP",
+			Width:      39,
+			ColumnType: result.ColumnIP,
 		},
 		{
-			Name:  "Latency",
-			Width: 19,
+			Name:       "Latency",
+			Width:      19,
+			ColumnType: result.ColumnDuration,
 		},
 		{
 			Name:  "Status",

@@ -13,7 +13,7 @@ func TestICMPConfig(t *testing.T) {
 	tests := []struct {
 		name          string
 		mutateCfg     func(*config.ICMPConfig)
-		wantErrKeys   []string
+		wantErrKeys   []Field
 		wantWarnCount int
 		checkFixed    func(t *testing.T, cfg *config.ICMPConfig)
 	}{
@@ -29,7 +29,7 @@ func TestICMPConfig(t *testing.T) {
 			mutateCfg: func(c *config.ICMPConfig) {
 				c.Workers = MinICMPWorkers - 1
 			},
-			wantErrKeys:   []string{"Workers"},
+			wantErrKeys:   []Field{FieldWorkers},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.ICMPConfig) {
 				if c.Workers != def.Workers {
@@ -42,7 +42,7 @@ func TestICMPConfig(t *testing.T) {
 			mutateCfg: func(c *config.ICMPConfig) {
 				c.Workers = MaxICMPWorkers + 1
 			},
-			wantErrKeys:   []string{"Workers"},
+			wantErrKeys:   []Field{FieldWorkers},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.ICMPConfig) {
 				if c.Workers != def.Workers {
@@ -55,7 +55,7 @@ func TestICMPConfig(t *testing.T) {
 			mutateCfg: func(c *config.ICMPConfig) {
 				c.Timeout = config.NewDurationMS(MinICMPTimeout - 2*time.Millisecond)
 			},
-			wantErrKeys:   []string{"Timeout"},
+			wantErrKeys:   []Field{FieldTimeout},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.ICMPConfig) {
 				if c.Timeout.Duration() != def.Timeout.Duration() {
@@ -72,7 +72,7 @@ func TestICMPConfig(t *testing.T) {
 			mutateCfg: func(c *config.ICMPConfig) {
 				c.Timeout = config.NewDurationMS(MaxICMPTimeout + 2*time.Millisecond)
 			},
-			wantErrKeys:   []string{"Timeout"},
+			wantErrKeys:   []Field{FieldTimeout},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.ICMPConfig) {
 				if c.Timeout.Duration() != def.Timeout.Duration() {
@@ -89,7 +89,7 @@ func TestICMPConfig(t *testing.T) {
 			mutateCfg: func(c *config.ICMPConfig) {
 				c.Tries = MinICMPTries - 1
 			},
-			wantErrKeys:   []string{"Tries"},
+			wantErrKeys:   []Field{FieldTries},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.ICMPConfig) {
 				if c.Tries != def.Tries {
@@ -102,7 +102,7 @@ func TestICMPConfig(t *testing.T) {
 			mutateCfg: func(c *config.ICMPConfig) {
 				c.Tries = MaxICMPTries + 1
 			},
-			wantErrKeys:   []string{"Tries"},
+			wantErrKeys:   []Field{FieldTries},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.ICMPConfig) {
 				if c.Tries != def.Tries {
@@ -115,7 +115,7 @@ func TestICMPConfig(t *testing.T) {
 			mutateCfg: func(c *config.ICMPConfig) {
 				c.OutputPrefix = ""
 			},
-			wantErrKeys:   []string{"OutputPrefix"},
+			wantErrKeys:   []Field{FieldOutputPrefix},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.ICMPConfig) {
 				if c.OutputPrefix != def.OutputPrefix {

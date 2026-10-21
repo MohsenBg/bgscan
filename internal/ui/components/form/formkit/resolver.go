@@ -18,7 +18,7 @@ import (
 // vaydns, dnstt and thefeed: DOT switches the port to 853, anything else
 // resets it to 53.
 func ResolverTypePort[C TunnelConfig](
-	deps ui.Deps,
+	env *ui.Env,
 	cfg *C,
 	refresh func() tea.Cmd,
 	getType func(C) dns.ResolverType,
@@ -27,7 +27,7 @@ func ResolverTypePort[C TunnelConfig](
 	setPort func(*C, uint16),
 ) (input.Input[string], input.Input[string]) {
 	port := textinput.New(
-		deps, "Enter resolver port",
+		env, "Enter resolver port",
 		textinput.WithValue(strconv.Itoa(int(getPort(*cfg)))),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -37,7 +37,7 @@ func ResolverTypePort[C TunnelConfig](
 			}
 			tmp := *cfg
 			setPort(&tmp, uint16(n))
-			if e, ok := tmp.Validate()["resolver_port"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldResolverPort]; ok {
 				return e
 			}
 			return nil
@@ -50,7 +50,7 @@ func ResolverTypePort[C TunnelConfig](
 	)
 
 	resType := selectinput.New(
-		deps, "Select resolver type",
+		env, "Select resolver type",
 		selectinput.WithValue(string(getType(*cfg))),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -61,7 +61,7 @@ func ResolverTypePort[C TunnelConfig](
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			setType(&tmp, dns.ResolverType(v))
-			if e, ok := tmp.Validate()["resolver_type"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldResolverType]; ok {
 				return e
 			}
 			return nil

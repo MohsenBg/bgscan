@@ -2,104 +2,111 @@ package picker
 
 import (
 	"os"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
+	"slices"
 
 	"charm.land/bubbles/v2/filepicker"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
-// Model is a file picker overlay wrapping BubbleTea's filepicker.Model and
-// integrating it with the component/overlay system.
+// Model is a file picker overlay.
 type Model struct {
-	id   ui.ComponentID
-	name string
-
-	// Overlay title displayed by the layout
-	Title string
-
-	// Layout manager used for sizing calculations
-	Layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
-
-	// Underlying BubbleTea file picker
+	id         ui.ComponentID
+	name       string
+	env        *ui.Env
 	FilePicker filepicker.Model
-
-	// Callback triggered when a file is selected
-	OnSelect OnSelect
+	OnSelect   OnSelect
 }
 
-// Init initializes the underlying file picker component.
-func (m *Model) Init() tea.Cmd {
-	return m.FilePicker.Init()
-}
-
-func (m *Model) ID() ui.ComponentID {
-	return m.id
-}
-
-func (m *Model) Name() string {
-	return m.name
-}
-
-// CloseCmd emits CloseComponentMsg; the router removes the overlay.
-func (m *Model) CloseCmd() tea.Cmd {
-	return func() tea.Msg {
-		return ui.CloseComponentMsg{ID: m.ID()}
-	}
-}
-
-// New creates a file picker overlay. baseDir defaults to the user's home
-// directory when empty; allowType restricts selectable extensions; onSelect
-// runs after a file is selected (a no-op is used if nil).
-func New(deps ui.Deps, title string, baseDir string, allowType []string, onSelect OnSelect) *Model {
+// New creates a file picker overlay.
+// baseDir defaults to the user's home directory when empty.
+func New(env *ui.Env, title, baseDir string, allowedTypes []string, onSelect OnSelect) *Model {
 	p := filepicker.New()
+	p.KeyMap = pickerKeyMap(env)
 
-	if baseDir != "" {
-		p.CurrentDirectory = baseDir
-	} else {
-		p.CurrentDirectory, _ = os.UserHomeDir()
+	if baseDir == "" {
+		baseDir, _ = os.UserHomeDir()
 	}
+	p.CurrentDirectory = baseDir
 
-	if len(allowType) > 0 {
-		p.AllowedTypes = allowType
+	if len(allowedTypes) > 0 {
+		p.AllowedTypes = allowedTypes
 	}
-
-	// Ensure callback is never nil
 	if onSelect == nil {
-		onSelect = func(path string) tea.Cmd { return nil }
+		onSelect = func(string) tea.Cmd { return nil }
 	}
 
 	p.ShowPermissions = true
 	p.AutoHeight = false
-	p.SetHeight(pickerHeight(deps.Layout))
+	p.SetHeight(pickerHeight(env))
+
+	if title == "" {
+		title = "Pick File"
+	}
 
 	return &Model{
 		id:         ui.NewComponentID(),
-		name:       "Pick File",
-		Title:      title,
-		Layout:     deps.Layout,
-		theme:      deps.Theme,
-		log:        deps.Log,
+		name:       title,
+		env:        env,
 		FilePicker: p,
 		OnSelect:   onSelect,
 	}
 }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
+func (m *Model) Init() tea.Cmd      { return m.FilePicker.Init() }
+func (m *Model) ID() ui.ComponentID { return m.id }
+func (m *Model) Name() string       { return m.name }
+func (m *Model) OnClose() tea.Cmd   { return nil }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 
-func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
+// DialogHints describes picker keys for the dialog frame.
+func (m *Model) DialogHints() keys.Hints {
+	k := m.env.Keys.Picker
 
-func (m *Model) OnClose() tea.Cmd {
-	return nil
+	return keys.Hints{
+		keys.Combine("move", k.Up, k.Down),
+		keys.Combine("dir", lastKeyHint(k.Back), lastKeyHint(k.Open)),
+		keys.Combine("open", k.Open, k.Select),
+		keys.Combine("back", k.Back),
+	}
 }
 
-// Mode returns NormalMode for standard keyboard navigation.
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
+// CloseCmd emits CloseComponentMsg so the router removes the overlay.
+func (m *Model) CloseCmd() tea.Cmd {
+	return func() tea.Msg {
+		return ui.CloseComponentMsg{ID: m.id}
+	}
+}
+
+// pickerKeyMap maps shared picker bindings to the bubbles filepicker keymap.
+func pickerKeyMap(env *ui.Env) filepicker.KeyMap {
+	k := env.Keys.Picker
+	km := filepicker.DefaultKeyMap()
+
+	km.GoToTop.SetKeys(k.GotoTop.Keys...)
+	km.GoToLast.SetKeys(k.GotoLast.Keys...)
+	km.Up.SetKeys(k.Up.Keys...)
+	km.Down.SetKeys(k.Down.Keys...)
+	km.PageUp.SetKeys(k.PageUp.Keys...)
+	km.PageDown.SetKeys(k.PageDown.Keys...)
+	km.Back.SetKeys(k.Back.Keys...)
+	km.Open.SetKeys(k.Open.Keys...)
+	km.Select.SetKeys(k.Select.Keys...)
+
+	return km
+}
+
+// lastKeyHint shows the last bound key as the primary hint key.
+func lastKeyHint(b keys.Binding) keys.Binding {
+	if len(b.Keys) == 0 {
+		return b
+	}
+
+	out := b
+	out.Keys = slices.Clone(b.Keys)
+	out.Keys[0] = b.Keys[len(b.Keys)-1]
+
+	return out
 }

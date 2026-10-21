@@ -4,49 +4,57 @@ import (
 	"errors"
 	"fmt"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/confirm"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/validation"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 type (
-	msgLoaded[T any] struct{ items []T }
-	msgError         struct{ err error }
+	loadedMsg[T any] struct{ items []T }
+	errorMsg         struct{ err error }
 )
 
-// RefreshCmd loads items from the source.
-func (m *Model[T]) RefreshCmd() tea.Msg {
+// refreshCmd loads items from the source.
+func (m *Model[T]) refreshCmd() tea.Msg {
 	items, err := m.source.Load()
 	if err != nil {
-		return msgError{err: err}
+		return errorMsg{err: err}
 	}
-	return msgLoaded[T]{items: items}
+	return loadedMsg[T]{items: items}
+}
+
+func (m *Model[T]) showNotice(title, msg string, level notice.LEVEL) tea.Cmd {
+	return notice.NewNoticeCmd(m.env, title, msg, level)
 }
 
 func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
-		return m, nil
-	}
-
 	switch msg := msg.(type) {
-	case MsgRefresh:
-		return m, m.RefreshCmd
+	case RefreshMsg:
+		m.table.SetLoading(true)
+		return m, m.refreshCmd
 
-	case msgLoaded[T]:
+	case loadedMsg[T]:
+		m.table.SetLoading(false)
 		m.replaceItems(msg.items)
 		return m, nil
+	case errorMsg:
+		m.table.SetLoading(false)
+		return m, m.showNotice("Error", msg.err.Error(), notice.NOTICE_ERROR)
+	case TriggerActionMsg:
+		return m, m.dispatchAction(msg.Action)
+	}
 
-	case msgError:
-		return m, notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log}, "Error", msg.err.Error(), notice.NOTICE_ERROR)
-
-	case MsgActionTrigger:
-		return m, m.dispatchAction(msg.ActionType)
+	// Verbs override table navigation keys, unless the user is actively typing in the filter.
+	if key, ok := msg.(tea.KeyMsg); ok && !m.table.Filtering() {
+		if cmd, handled := m.handleAction(key); handled {
+			return m, cmd
+		}
 	}
 
 	updated, cmd := m.table.Update(msg)
@@ -54,7 +62,7 @@ func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	return m, cmd
 }
 
-// replaceItems rebuilds the table rows and identity index from items.
+// replaceItems rebuilds the table rows and identity index.
 func (m *Model[T]) replaceItems(items []T) {
 	m.items = items
 	clear(m.itemsMap)
@@ -68,31 +76,16 @@ func (m *Model[T]) replaceItems(items []T) {
 	m.table.SetRows(rows)
 }
 
-// dispatchAction runs the handler for name, resolving the selected item
-// first when the action needs one.
-func (m *Model[T]) dispatchAction(name string) tea.Cmd {
-	entry, ok := m.actions[name]
-	if !ok {
-		return nil
-	}
-
-	var item T
-	if entry.needsItem {
-		selected, err := m.getSelected()
-		if err != nil {
-			return notice.NewNoticeCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log}, "Selection", err.Error(), notice.NOTICE_INFO)
-		}
-		item = selected
-	}
-
-	return entry.run(item)
-}
-
 func (m *Model[T]) requestDeletion(item T) tea.Cmd {
-	return confirm.ConfirmCmd(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log},
-		fmt.Sprintf("Delete %s '%s'?", m.source.Title(), m.source.Identity(item)),
-		tea.Sequence(m.hooks.OnDelete(item), func() tea.Msg { return MsgRefresh{} }),
+	title := m.source.Title()
+	id := m.source.Identity(item)
+
+	return confirm.ConfirmCmd(m.env,
+		fmt.Sprintf("Delete %s %q?", title, id),
+		tea.Sequence(m.hooks.OnDelete(item), func() tea.Msg { return RefreshMsg{} }),
 		false,
+		dialog.WithTitle("⚠ Delete "+title),
+		dialog.WithDanger(),
 	)
 }
 
@@ -100,32 +93,32 @@ func (m *Model[T]) requestRename(item T) tea.Cmd {
 	current := m.source.Identity(item)
 	rename := m.hooks.OnRename
 
-	inp := textinput.New(ui.Deps{Layout: m.layout, Theme: m.theme, Log: m.log},
-		fmt.Sprintf("Enter new name for %s:", m.source.Title()),
+	inp := textinput.New(m.env,
+		fmt.Sprintf("Enter new name for %s:", m.source.Name()),
 		textinput.WithPlaceholder("new name"),
 		textinput.WithValue(current),
 		textinput.WithValidation(validation.ValidateFilename),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(newName string) tea.Cmd {
-			return tea.Sequence(rename(item, newName), func() tea.Msg { return MsgRefresh{} })
+			return tea.Sequence(rename(item, newName), func() tea.Msg { return RefreshMsg{} })
 		}),
 	)
-
-	return input.OpenInputDialog(inp)
+	return input.OpenInputDialog(inp, dialog.WithTitle(fmt.Sprintf("Rename %s", m.source.Name())))
 }
 
-// getSelected resolves the highlighted row to its item via the identity in
-// the first column (see Source.RenderRow).
+// getSelected resolves the highlighted row to its underlying item.
+// Assumes the first cell of the rendered row is the identity string.
 func (m *Model[T]) getSelected() (T, error) {
-	row := m.table.BubbleTable.SelectedRow()
-	if len(row) == 0 {
-		var zero T
+	var zero T
+
+	row, ok := m.table.SelectedRow()
+	if !ok {
 		return zero, errors.New("no row selected")
 	}
+
 	item, ok := m.itemsMap[row[0]]
 	if !ok {
-		var zero T
-		return zero, fmt.Errorf("item '%s' not found", row[0])
+		return zero, fmt.Errorf("item %q not found", row[0])
 	}
 	return item, nil
 }

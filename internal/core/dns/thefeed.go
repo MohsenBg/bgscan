@@ -35,27 +35,27 @@ func DefaultTheFeedConfig() TheFeedConfig {
 	}
 }
 
-func (c TheFeedConfig) Validate() map[string]error {
-	errs := make(map[string]error)
+func (c TheFeedConfig) Validate() map[Field]error {
+	errs := make(map[Field]error)
 
 	if err := netutil.ValidateDomain(strings.TrimSpace(c.Domain)); err != nil {
-		errs["domain"] = err
+		errs[FieldDomain] = err
 	}
 
 	if c.Passphrase == "" {
-		errs["passphrase"] = fmt.Errorf("passphrase is required")
+		errs[FieldPassphrase] = fmt.Errorf("passphrase is required")
 	}
 
 	if c.ResolverPort == 0 {
-		errs["resolver_port"] = fmt.Errorf("must be between 1 and 65535")
+		errs[FieldResolverPort] = fmt.Errorf("must be between 1 and 65535")
 	}
 
 	if c.QueryMode != "single" && c.QueryMode != "double" {
-		errs["query_mode"] = fmt.Errorf("must be single or double")
+		errs[FieldQueryMode] = fmt.Errorf("must be single or double")
 	}
 
 	if !c.ResolverType.IsValid() {
-		errs["resolver_type"] = fmt.Errorf("invalid resolver type")
+		errs[FieldResolverType] = fmt.Errorf("invalid resolver type")
 	}
 
 	return errs

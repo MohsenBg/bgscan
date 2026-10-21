@@ -15,7 +15,6 @@ import (
 // writer asynchronously batches and flushes Result items to a result file.
 type writer struct {
 	log        *logger.Logger
-	debugLog   *logger.Logger
 	config     config.WriterConfig
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -42,7 +41,7 @@ type WriterOptions struct {
 	ResultPrefix string
 	Schema       ResultSchema
 	Config       config.WriterConfig
-	Logs         logger.Set
+	Log          *logger.Logger
 }
 
 // NewWriter creates a Writer tied to the given context (defaults to Background if nil).
@@ -67,8 +66,7 @@ func NewWriter(ctx context.Context, opts WriterOptions) (Writer, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	return &writer{
-		log:        opts.Logs.Core,
-		debugLog:   opts.Logs.Debug,
+		log:        opts.Log,
 		config:     opts.Config,
 		resultPath: path,
 		schema:     opts.Schema,
@@ -85,7 +83,7 @@ func (w *writer) Start() error {
 	var err error
 	w.startOnce.Do(func() {
 		if err = fileutil.EnsureFileDir(w.resultPath); err != nil {
-			w.debugLog.Error("failed to ensure directory: %v", err)
+			w.log.Error("failed to ensure directory: %v", err)
 			return
 		}
 		if fileutil.CheckFileExists(w.resultPath) {
@@ -180,7 +178,7 @@ func (w *writer) flush() {
 	w.batch = w.batch[:0]
 
 	if err := mergeResults(w.log, w.resultPath, w.schema, tmp); err != nil {
-		w.debugLog.Error("failed to flush results: %v", err)
+		w.log.Error("failed to flush results: %v", err)
 	}
 }
 

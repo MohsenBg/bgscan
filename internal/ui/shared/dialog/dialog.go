@@ -1,22 +1,37 @@
 package dialog
 
 import (
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	ui "github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
-	bubbleTeaOverlay "github.com/rmhubbert/bubbletea-overlay"
 )
 
 // DialogPosition specifies where a dialog is anchored on screen.
-type DialogPosition = bubbleTeaOverlay.Position
+type DialogPosition int
 
 const (
-	Top    = bubbleTeaOverlay.Top
-	Right  = bubbleTeaOverlay.Right
-	Bottom = bubbleTeaOverlay.Bottom
-	Left   = bubbleTeaOverlay.Left
-	Center = bubbleTeaOverlay.Center
+	Top DialogPosition = iota + 1
+	Right
+	Bottom
+	Left
+	Center
 )
+
+// DialogStyle controls the dialog frame style.
+type DialogStyle uint8
+
+const (
+	StylePrimary DialogStyle = iota
+	StyleInfo
+	StyleWarn
+	StyleDanger
+	StyleSuccess
+)
+
+// DefaultAnimation is the reveal transition used when a dialog does not
+// request a specific one.
+const DefaultAnimation = AnimSplit
 
 // OpenDialogMsg requests opening a dialog overlay containing the given component.
 type OpenDialogMsg struct {
@@ -28,6 +43,13 @@ type OpenDialogMsg struct {
 	XOffset int
 	YOffset int
 
+	Title string
+	Style DialogStyle
+
+	Animation Animation
+
+	Hints []keys.Hint
+
 	OnClose tea.Cmd
 }
 
@@ -38,8 +60,8 @@ func OpenDialog(component ui.Component, opts ...DialogOption) OpenDialogMsg {
 		Component: component,
 		XPos:      Center,
 		YPos:      Center,
-		XOffset:   0,
-		YOffset:   0,
+		Style:     StylePrimary,
+		Animation: DefaultAnimation,
 	}
 
 	for _, opt := range opts {
@@ -68,9 +90,46 @@ func WithOffset(x, y int) DialogOption {
 	}
 }
 
+// WithTitle sets the title embedded in the dialog frame's top rule.
+func WithTitle(title string) DialogOption {
+	return func(m *OpenDialogMsg) {
+		m.Title = title
+	}
+}
+
+// WithHints sets the key bindings shown in the frame's bottom border.
+func WithHints(h ...keys.Hint) DialogOption {
+	return func(m *OpenDialogMsg) {
+		m.Hints = append(m.Hints, h...)
+	}
+}
+
+// WithStyle sets the dialog style.
+func WithStyle(style DialogStyle) DialogOption {
+	return func(m *OpenDialogMsg) {
+		m.Style = style
+	}
+}
+
+// WithDanger marks the dialog as destructive (danger frame style).
+func WithDanger() DialogOption {
+	return WithStyle(StyleDanger)
+}
+
+func WithSuccess() DialogOption {
+	return WithStyle(StyleSuccess)
+}
+
 // WithOnClose sets the command to execute when the dialog closes.
 func WithOnClose(cmd tea.Cmd) DialogOption {
 	return func(m *OpenDialogMsg) {
 		m.OnClose = cmd
+	}
+}
+
+// WithAnimation sets the reveal transition for the dialog's open and close.
+func WithAnimation(a Animation) DialogOption {
+	return func(m *OpenDialogMsg) {
+		m.Animation = a
 	}
 }

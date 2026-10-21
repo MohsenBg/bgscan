@@ -65,6 +65,79 @@ func TestMergeResults_AtomicReplacement(t *testing.T) {
 	}
 }
 
+func TestMergeResults_DedupWithinBatch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "out.csv")
+	results := []Result{
+		newMockResult("a", 9, "a", "9"),
+		newMockResult("a", 7, "a", "7"),
+		newMockResult("b", 5, "b", "5"),
+	}
+	if err := mergeResults(nil, path, validSchema(t), results); err != nil {
+		t.Fatal(err)
+	}
+	rows := readCSVRows(t, path)
+	if len(rows) != 2 {
+		t.Fatalf("want 2 deduped rows, got %d: %v", len(rows), rows)
+	}
+	if rows[0][0] != "a" || rows[0][1] != "9" {
+		t.Fatalf("want highest score for a, got %s:%s", rows[0][0], rows[0][1])
+	}
+}
+
+func TestMergeResults_ReplaceExistingWithHigherScore(t *testing.T) {
+	path := writeTempCSV(t, "a,5\n")
+	results := []Result{newMockResult("a", 9, "a", "9")}
+	if err := mergeResults(nil, path, validSchema(t), results); err != nil {
+		t.Fatal(err)
+	}
+	rows := readCSVRows(t, path)
+	if len(rows) != 1 || rows[0][0] != "a" || rows[0][1] != "9" {
+		t.Fatalf("want single row a:9, got %v", rows)
+	}
+}
+
+func TestMergeResults_ReplaceExistingWithLowerScore(t *testing.T) {
+	path := writeTempCSV(t, "a,5\nb,1\n")
+	results := []Result{newMockResult("a", 3, "a", "3")}
+	if err := mergeResults(nil, path, validSchema(t), results); err != nil {
+		t.Fatal(err)
+	}
+	rows := readCSVRows(t, path)
+	want := [][]string{{"a", "3"}, {"b", "1"}}
+	if len(rows) != len(want) {
+		t.Fatalf("want %v, got %v", want, rows)
+	}
+	for i, w := range want {
+		if rows[i][0] != w[0] || rows[i][1] != w[1] {
+			t.Fatalf("row %d: want %v got %v", i, w, rows[i])
+		}
+	}
+}
+
+func TestMergeResults_LookupOutsideScorePrefix(t *testing.T) {
+	// The matching batch record sits between two other records in score
+	// order, so the positional boundary check of the old implementation
+	// could never see it.
+	path := writeTempCSV(t, "a,5\n")
+	results := []Result{
+		newMockResult("b", 9, "b", "9"),
+		newMockResult("a", 3, "a", "3"),
+	}
+	if err := mergeResults(nil, path, validSchema(t), results); err != nil {
+		t.Fatal(err)
+	}
+	rows := readCSVRows(t, path)
+	want := [][]string{{"b", "9"}, {"a", "3"}}
+	if len(rows) != len(want) {
+		t.Fatalf("want %v, got %v", want, rows)
+	}
+	for i, w := range want {
+		if rows[i][0] != w[0] || rows[i][1] != w[1] {
+			t.Fatalf("row %d: want %v got %v", i, w, rows[i])
+		}
+	}
+}
+
 // readCSVRows is a thin helper that reads the result file via ReadCSV.
 func readCSVRows(t *testing.T, path string) [][]string {
 	t.Helper()

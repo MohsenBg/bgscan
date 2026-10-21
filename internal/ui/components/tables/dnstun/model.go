@@ -3,6 +3,7 @@ package dnstun
 import (
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/form"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/dnstt"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/masterdns"
@@ -12,7 +13,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/vaydns"
 	"github.com/MohsenBg/bgscan/internal/ui/components/menus/dnstunmenu"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -23,22 +24,22 @@ import (
 type Model struct {
 	id         ui.ComponentID
 	name       string
-	state      *ui.AppState
+	session    *ui.Session
 	crudTable  *crud.Model[dns.DNSTunConfigFile]
 	dnsTunMenu ui.Component
 }
 
-func New(state *ui.AppState, title string, onSelect func(*dns.DNSTunConfigFile) tea.Cmd) *Model {
+func New(session *ui.Session, title string, onSelect func(*dns.DNSTunConfigFile) tea.Cmd) *Model {
 	m := &Model{
-		id:    ui.NewComponentID(),
-		name:  "outbounds",
-		state: state,
+		id:      ui.NewComponentID(),
+		name:    "outbounds",
+		session: session,
 	}
 
 	if onSelect == nil {
 		onSelect = m.openDNSTunForm
 	}
-	m.crudTable = crud.New(state.Deps(), newSource(state), newHooks(state, onSelect), 100)
+	m.crudTable = crud.New(session.Env(), newSource(session), newHooks(session, onSelect, m.selectDNSTunMethod), 100)
 
 	return m
 }
@@ -47,14 +48,26 @@ func (m *Model) Init() tea.Cmd      { return m.crudTable.Init() }
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return m.crudTable.OnClose() }
-func (m *Model) Mode() env.Mode     { return m.crudTable.Mode() }
+func (m *Model) Mode() ui.KeyMode   { return m.crudTable.Mode() }
 
 func (m *Model) selectDNSTunMethod() tea.Cmd {
-	menu := dnstunmenu.New(m.state.Deps())
-	m.dnsTunMenu = menu
+	protoMenu := dnstunmenu.New(m.session)
+	m.dnsTunMenu = protoMenu
 	return func() tea.Msg {
-		return dialog.OpenDialog(menu)
+		return dialog.OpenDialog(protoMenu,
+			dialog.WithAnimation(dialog.AnimRiseUp),
+			dialog.WithTitle(dnstunmenu.Title),
+		)
 	}
+}
+
+// openFormDialog opens a formkit-based form as a dialog
+func openFormDialog(formKeys keys.FormKeys, frm ui.Component, opts ...dialog.DialogOption) dialog.OpenDialogMsg {
+	base := []dialog.DialogOption{
+		dialog.WithAnimation(dialog.AnimExpand),
+		dialog.WithHints(form.DialogHints(formKeys)...),
+	}
+	return dialog.OpenDialog(frm, append(base, opts...)...)
 }
 
 func (m *Model) closeDNSTunMenu() tea.Cmd {
@@ -71,62 +84,73 @@ func (m *Model) closeDNSTunMenu() tea.Cmd {
 
 func (m *Model) openSlipstreamForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
-		frm, err := slipstream.New(m.state.Layout, m.state, original)
+		frm, err := slipstream.New(m.session, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm,
-			dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("Slipstream"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
 func (m *Model) openDNSTTForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
-		frm, err := dnstt.New(m.state.Layout, m.state, original)
+		frm, err := dnstt.New(m.session, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("DNSTT"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
 func (m *Model) openVayDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
-		frm, err := vaydns.New(m.state.Layout, m.state, original)
+		frm, err := vaydns.New(m.session, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("VayDNS"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
 func (m *Model) openMasterDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
-		frm, err := masterdns.New(m.state.Layout, m.state, original)
+		frm, err := masterdns.New(m.session, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("MasterDNS"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
 func (m *Model) openStormDNSForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
-		frm, err := stormdns.New(m.state.Layout, m.state, original)
+		frm, err := stormdns.New(m.session, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("StormDNS"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
 func (m *Model) openTheFeedForm(original *dns.DNSTunConfigFile) tea.Cmd {
 	return func() tea.Msg {
-		frm, err := thefeed.New(m.state.Layout, m.state, original)
+		frm, err := thefeed.New(m.session, original)
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Deps(), "Error", err.Error(), notice.NOTICE_ERROR)
+			return notice.NewNoticeCmd(m.session.Env(), "Error", err.Error(), notice.NOTICE_ERROR)
 		}
-		return dialog.OpenDialog(frm, dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithTitle("TheFeed"),
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }
 
@@ -139,28 +163,28 @@ func (m *Model) openDNSTunForm(original *dns.DNSTunConfigFile) tea.Cmd {
 
 		switch original.Protocol {
 		case dns.DNSTunProtocolDNSTT:
-			frm, err = dnstt.New(m.state.Layout, m.state, original)
+			frm, err = dnstt.New(m.session, original)
 		case dns.DNSTunProtocolVayDNS:
-			frm, err = vaydns.New(m.state.Layout, m.state, original)
+			frm, err = vaydns.New(m.session, original)
 		case dns.DNSTunProtocolMasterDNS:
-			frm, err = masterdns.New(m.state.Layout, m.state, original)
+			frm, err = masterdns.New(m.session, original)
 		case dns.DNSTunProtocolStormDNS:
-			frm, err = stormdns.New(m.state.Layout, m.state, original)
+			frm, err = stormdns.New(m.session, original)
 		case dns.DNSTunProtocolTheFeed:
-			frm, err = thefeed.New(m.state.Layout, m.state, original)
+			frm, err = thefeed.New(m.session, original)
 		default:
-			frm, err = slipstream.New(m.state.Layout, m.state, original)
+			frm, err = slipstream.New(m.session, original)
 		}
 
 		if err != nil {
-			return notice.NewNoticeCmd(m.state.Deps(),
+			return notice.NewNoticeCmd(m.session.Env(),
 				"Error",
 				err.Error(),
 				notice.NOTICE_ERROR,
 			)
 		}
 
-		return dialog.OpenDialog(frm,
-			dialog.WithOnClose(func() tea.Msg { return crud.MsgRefresh{} }))
+		return openFormDialog(m.session.Env().Keys.Form, frm,
+			dialog.WithOnClose(func() tea.Msg { return crud.RefreshMsg{} }))
 	}
 }

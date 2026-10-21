@@ -13,8 +13,7 @@ type categoryEndMsg struct {
 	status     categoryStatus
 }
 
-// configLoadedMsg delivers the loaded config/store once, sent directly via
-// AppState.Send from the checklist goroutine rather than through a mutex.
+// configLoadedMsg delivers the loaded config/store once the config check succeeds.
 type configLoadedMsg struct {
 	cfg   *config.ScannerConfig
 	store *config.Store

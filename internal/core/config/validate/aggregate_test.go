@@ -100,49 +100,49 @@ func TestAllErrors_HasErrors(t *testing.T) {
 		{
 			name: "general error",
 			errs: AllErrors{
-				General: map[string]error{"field": errors.New("invalid")},
+				General: map[Field]error{"field": errors.New("invalid")},
 			},
 			want: true,
 		},
 		{
 			name: "writer error",
 			errs: AllErrors{
-				Writer: map[string]error{"field": errors.New("invalid")},
+				Writer: map[Field]error{"field": errors.New("invalid")},
 			},
 			want: true,
 		},
 		{
 			name: "icmp error",
 			errs: AllErrors{
-				ICMP: map[string]error{"field": errors.New("invalid")},
+				ICMP: map[Field]error{"field": errors.New("invalid")},
 			},
 			want: true,
 		},
 		{
 			name: "tcp error",
 			errs: AllErrors{
-				TCP: map[string]error{"field": errors.New("invalid")},
+				TCP: map[Field]error{"field": errors.New("invalid")},
 			},
 			want: true,
 		},
 		{
 			name: "http error",
 			errs: AllErrors{
-				HTTP: map[string]error{"field": errors.New("invalid")},
+				HTTP: map[Field]error{"field": errors.New("invalid")},
 			},
 			want: true,
 		},
 		{
 			name: "xray error",
 			errs: AllErrors{
-				Xray: map[string]error{"field": errors.New("invalid")},
+				Xray: map[Field]error{"field": errors.New("invalid")},
 			},
 			want: true,
 		},
 		{
 			name: "dns error",
 			errs: AllErrors{
-				DNS: map[string]error{"field": errors.New("invalid")},
+				DNS: map[Field]error{"field": errors.New("invalid")},
 			},
 			want: true,
 		},

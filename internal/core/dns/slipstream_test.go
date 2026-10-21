@@ -93,7 +93,7 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 	tests := []struct {
 		name      string
 		config    SlipstreamConfig
-		wantError string
+		wantError Field
 	}{
 		{
 			name:   "valid",
@@ -111,7 +111,7 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 			config: SlipstreamConfig{
 				ResolverPort: 53,
 			},
-			wantError: "domain",
+			wantError: FieldDomain,
 		},
 		{
 			name: "whitespace domain",
@@ -119,7 +119,7 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 				Domain:       "   ",
 				ResolverPort: 53,
 			},
-			wantError: "domain",
+			wantError: FieldDomain,
 		},
 		{
 			name: "invalid domain",
@@ -127,7 +127,7 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 				Domain:       string([]byte{0}),
 				ResolverPort: 53,
 			},
-			wantError: "domain",
+			wantError: FieldDomain,
 		},
 		{
 			name: "zero DNS port",
@@ -135,7 +135,7 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 				Domain:       "tunnel.example.com",
 				ResolverPort: 0,
 			},
-			wantError: "dns_port",
+			wantError: FieldDNSPort,
 		},
 		{
 			name: "invalid dns resolution",
@@ -144,7 +144,7 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 				c.DNSResolution = "round-robin"
 				return c
 			}(),
-			wantError: "dns_resolution",
+			wantError: FieldDNSResolution,
 		},
 		{
 			name: "invalid congestion control",
@@ -153,7 +153,7 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 				c.CongestionControl = "reno"
 				return c
 			}(),
-			wantError: "congestion_control",
+			wantError: FieldCongestionControl,
 		},
 		{
 			name:      "multiple errors",
@@ -180,11 +180,11 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 				}
 
 			case "multiple":
-				if _, ok := errs["domain"]; !ok {
+				if _, ok := errs[FieldDomain]; !ok {
 					t.Error("expected domain error")
 				}
 
-				if _, ok := errs["dns_port"]; !ok {
+				if _, ok := errs[FieldDNSPort]; !ok {
 					t.Error("expected dns_port error")
 				}
 

@@ -3,6 +3,8 @@ package theme
 import (
 	"image/color"
 	"os"
+
+	"github.com/MohsenBg/bgscan/internal/ui/shared/meter"
 )
 
 type Theme struct {
@@ -33,6 +35,41 @@ type Theme struct {
 
 	ProgressStart color.Color
 	ProgressEnd   color.Color
+
+	TierExcellent color.Color
+	TierGood      color.Color
+	TierFair      color.Color
+	TierPoor      color.Color
+}
+
+// fallback returns c when set, otherwise the named fallback.
+func fallback(c, alt color.Color) color.Color {
+	if c != nil {
+		return c
+	}
+
+	return alt
+}
+
+// TierColor resolves the color of a latency quality tier. TierFail and
+// TierOver reuse Muted and Error; a theme cannot override them.
+func (t Theme) TierColor(tier meter.Tier) color.Color {
+	switch tier {
+	case meter.TierFail:
+		return t.Muted
+	case meter.TierExcellent:
+		return fallback(t.TierExcellent, t.Success)
+	case meter.TierGood:
+		return fallback(t.TierGood, t.Secondary)
+	case meter.TierFair:
+		return fallback(t.TierFair, t.Warning)
+	case meter.TierPoor:
+		return fallback(t.TierPoor, t.Orange)
+	case meter.TierOver:
+		return t.Error
+	default:
+		return nil
+	}
 }
 
 var (
@@ -89,7 +126,7 @@ func List() []string {
 
 // Get returns the named theme. An empty name auto-detects from the
 // terminal; unknown names return an UnknownThemeError.
-func Get(name string) (*Theme, error) {
+func Get(name string) (Theme, error) {
 	if name == "" {
 		if terminalLooksDark() {
 			name = BGScanDark.Name
@@ -100,9 +137,9 @@ func Get(name string) (*Theme, error) {
 
 	t, ok := registry[name]
 	if !ok {
-		return nil, &UnknownThemeError{Name: name}
+		return Theme{}, &UnknownThemeError{Name: name}
 	}
-	return &t, nil
+	return t, nil
 }
 
 // UnknownThemeError reports an attempt to activate a theme that is not

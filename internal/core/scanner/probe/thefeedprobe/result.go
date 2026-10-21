@@ -15,8 +15,8 @@ var Schema = result.ResultSchema{
 	Directory: "thefeed",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 30},
-		{Name: "Latency", Width: 15},
+		{Name: "IP", Width: 30, ColumnType: result.ColumnIP},
+		{Name: "Latency", Width: 15, ColumnType: result.ColumnDuration},
 		{Name: "Domain", Width: 35},
 		{Name: "Mode", Width: 10},
 	},

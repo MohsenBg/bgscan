@@ -52,27 +52,27 @@ type fakeXrayService struct {
 	instance *fakeInstance
 }
 
-func (s *fakeXrayService) GetOutboundTemplateByName(string) (*xray.XrayOutboundsFile, error) {
+func (s *fakeXrayService) GetOutboundTemplateByName(string) (*xray.OutboundFile, error) {
 	if s.templateErr != nil {
 		return nil, s.templateErr
 	}
 
-	return &xray.XrayOutboundsFile{}, nil
+	return &xray.OutboundFile{}, nil
 }
 
-func (s *fakeXrayService) GenerateConfig(string, netip.Addr, uint16) (*xray.XrayConfig, error) {
+func (s *fakeXrayService) GenerateConfig(string, netip.Addr, uint16, uint16) (*xray.Config, error) {
 	if s.generateErr != nil {
 		return nil, s.generateErr
 	}
 
-	return &xray.XrayConfig{}, nil
+	return &xray.Config{}, nil
 }
 
-func (s *fakeXrayService) ValidateConfig(context.Context, *xray.XrayConfig) error {
+func (s *fakeXrayService) ValidateConfig(context.Context, *xray.Config) error {
 	return s.validateErr
 }
 
-func (s *fakeXrayService) Start(context.Context, *xray.XrayConfig) (xray.Instance, error) {
+func (s *fakeXrayService) Start(context.Context, *xray.Config) (xray.Instance, error) {
 	if s.startErr != nil {
 		return nil, s.startErr
 	}

@@ -1,10 +1,10 @@
 package toggleinput
 
 import (
-	"github.com/MohsenBg/bgscan/internal/logger"
+	"slices"
+
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
@@ -20,10 +20,7 @@ type Model struct {
 	id   ui.ComponentID
 	name string
 
-	layout *layout.Layout
-
-	theme *theme.Theme
-	log   logger.Set
+	env *ui.Env
 
 	title    string
 	errorMsg string
@@ -42,27 +39,24 @@ type Model struct {
 }
 
 func New(
-	deps ui.Deps,
+	env *ui.Env,
 	title string,
 	options ...Option,
 ) input.Input[bool] {
 	m := &Model{
 		id:     ui.NewComponentID(),
 		name:   "toggle",
-		layout: deps.Layout,
-		theme:  deps.Theme,
-		log:    deps.Log,
+		env:    env,
 		title:  title,
 		affirm: "Yes",
 		negate: "No",
 	}
 
 	m.huhInput = huh.NewConfirm().
-		Title(title).
 		Value(&m.value)
 
-	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
-	m.huhInput.WithTheme(theme.NewHuhTheme(m.theme))
+	m.huhInput.WithKeyMap(m.keyMap())
+	m.huhInput.WithTheme(theme.NewHuhTheme(&m.env.Theme))
 	for _, opt := range options {
 		opt(m)
 	}
@@ -133,13 +127,30 @@ func (m *Model) ID() ui.ComponentID { return m.id }
 
 func (m *Model) Name() string { return m.name }
 
-func (m *Model) Mode() env.Mode { return env.NormalMode }
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
+
+// Title returns the input prompt as raw data for the dialog frame.
+func (m *Model) Title() string { return m.title }
+
+func (m *Model) DialogHints() keys.Hints {
+	k := m.env.Keys.ToggleInput
+	tl := k.Toggle
+
+	tl.Keys = slices.Clone(tl.Keys)
+	tl.Keys[0], tl.Keys[1] = tl.Keys[1], tl.Keys[0]
+
+	hints := append(
+		keys.Hints{},
+		keys.Combine("move", tl, k.Toggle),
+	)
+
+	hints = append(hints, keys.Short(k.Submit)...)
+
+	return hints
+}
 
 func (m *Model) Width() int {
-	if m.layout == nil {
-		return 50
-	}
-	return min(50, m.layout.Body.Width)
+	return min(50, m.env.Layout.Body().Width)
 }
 
 func (m *Model) CloseCmd() tea.Cmd {
@@ -150,18 +161,15 @@ func (m *Model) CloseCmd() tea.Cmd {
 
 func (m *Model) OnClose() tea.Cmd { return nil }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-// SetTheme rebuilds the huh field: huh's WithTheme is set-once and ignores
-// later calls, so a fresh field is built preserving value, labels and
-// focus.
-func (m *Model) SetTheme(th *theme.Theme) {
-	m.theme = th
+// rebuild recreates the huh field from the live theme: huh's WithTheme is
+// set-once and ignores later calls, so a fresh field is built preserving
+// value, labels and focus.
+func (m *Model) rebuild() {
 	m.huhInput = huh.NewConfirm().
 		Title(m.title).
 		Value(&m.value)
-	m.huhInput.WithKeyMap(huh.NewDefaultKeyMap())
-	m.huhInput.WithTheme(theme.NewHuhTheme(th))
+	m.huhInput.WithKeyMap(m.keyMap())
+	m.huhInput.WithTheme(theme.NewHuhTheme(&m.env.Theme))
 	inp := m.huhInput.
 		Affirmative(m.affirm).
 		Negative(m.negate).
@@ -216,6 +224,19 @@ func (m *Model) validation() error {
 		return nil
 	}
 	return m.validationFunc(m.Value())
+}
+
+// keyMap translates the shared keys into the huh keymap.
+func (m *Model) keyMap() *huh.KeyMap {
+	k := m.env.Keys.ToggleInput
+	km := huh.NewDefaultKeyMap()
+	km.Confirm.Prev.SetKeys(k.Prev.Keys...)
+	km.Confirm.Next.SetKeys(k.Next.Keys...)
+	km.Confirm.Submit.SetKeys(k.Submit.Keys...)
+	km.Confirm.Toggle.SetKeys(k.Toggle.Keys...)
+	km.Confirm.Accept.SetKeys(k.Accept.Keys...)
+	km.Confirm.Reject.SetKeys(k.Reject.Keys...)
+	return km
 }
 
 func (m *Model) submit() tea.Cmd {

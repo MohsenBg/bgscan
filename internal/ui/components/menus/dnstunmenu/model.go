@@ -3,12 +3,8 @@ package dnstunmenu
 
 import (
 	"github.com/MohsenBg/bgscan/internal/core/dns"
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -20,24 +16,20 @@ type MsgSelectProtocol struct {
 
 // Model is the DNS tunnel protocol selection menu.
 type Model struct {
-	id     ui.ComponentID
-	name   string
-	menu   ui.Component
-	Layout *layout.Layout
-	theme  *theme.Theme
-	log    logger.Set
+	id      ui.ComponentID
+	name    string
+	menu    ui.Component
+	session *ui.Session
 }
 
 // New creates the DNS tunnel protocol menu.
-func New(deps ui.Deps) *Model {
+func New(session *ui.Session) *Model {
 	m := &Model{
-		id:     ui.NewComponentID(),
-		name:   "DNS Tunnel Menu",
-		Layout: deps.Layout,
-		theme:  deps.Theme,
-		log:    deps.Log,
+		id:      ui.NewComponentID(),
+		name:    "DNS Tunnel Menu",
+		session: session,
 	}
-	m.menu = newMenu(deps)
+	m.menu = newMenu(session)
 	return m
 }
 
@@ -53,24 +45,18 @@ func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-func (m *Model) Mode() env.Mode {
-	return env.NormalMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeNormal
 }
 
 func (m *Model) Init() tea.Cmd {
-	return nil
+	return m.menu.Init()
 }
 
-func (m *Model) Theme() *theme.Theme { return m.theme }
+// Title is the dialog-frame title for the DNS tunnel protocol menu.
+const Title = "Select Protocol"
 
-func (m *Model) SetTheme(th *theme.Theme) {
-	m.theme = th
-	if mm, ok := m.menu.(*menu.Model); ok {
-		mm.SetTheme(th)
-	}
-}
-
-func newMenu(deps ui.Deps) *menu.Model {
+func newMenu(session *ui.Session) *menu.Model {
 	items := []menu.MenuItem{
 		menu.NewMenuItem(
 			"≈",
@@ -123,7 +109,7 @@ func newMenu(deps ui.Deps) *menu.Model {
 	}
 
 	return menu.New(
-		items, "Select Protocol", deps,
+		items, Title, session.Env(),
 		menu.WithHeight(20),
 		menu.WithWidth(40),
 	)

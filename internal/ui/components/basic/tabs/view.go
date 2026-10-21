@@ -1,77 +1,168 @@
 package tabs
 
 import (
+	"image/color"
+	"math"
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
-// View renders the tabs row.
 func (m *Model[T]) View() string {
 	if len(m.tabs) == 0 {
 		return ""
 	}
 
-	// Build the row of styled tab labels, tracking rendered widths so the
-	// border line beneath can line up with the active tab exactly.
-	var parts []string
-	var widths []int
-	for i, tab := range m.tabs {
-		active := i == m.idx
-
-		label := tab.Label
-		style := m.inactiveStyle
-		if active {
-			style = m.activeStyle
-		}
-
-		styled := style.Render(label)
-		parts = append(parts, styled)
-		widths = append(widths, lipgloss.Width(styled))
+	if m.animated {
+		return m.viewSlideAccent()
 	}
 
-	sepWidth := lipgloss.Width(m.separator)
-	row := strings.Join(parts, m.separator)
-
-	// Compute overall width up front, since the border line needs it
-	// whether or not it also gets used for the final Width/Align pass.
-	width := m.layout.Body.Width
-	if m.maxWidth > 0 && width > m.maxWidth {
-		width = m.maxWidth
-	}
-
+	row, widths := m.renderLabels()
+	width := m.frameWidth()
+	row = m.withTitle(width, row)
 	out := row
 
 	if m.underline {
-		// One continuous line, full width. The segment beneath the active
-		// tab is drawn in the accent color; everything else — including
-		// the gap after the last tab — is muted, so it reads as a single
-		// border with a highlighted stretch rather than separate bars.
-		offset := 0
-		for i := 0; i < m.idx; i++ {
-			offset += widths[i] + sepWidth
-		}
-		activeEnd := offset + widths[m.idx]
-
-		lineWidth := width
-		if lineWidth < offset+widths[m.idx] {
-			lineWidth = offset + widths[m.idx]
-		}
-
-		var b strings.Builder
-		b.WriteString(m.inactiveBorderStyle().Render(strings.Repeat("─", offset)))
-		b.WriteString(m.activeBorderStyle().Render(strings.Repeat("─", widths[m.idx])))
-		if rest := lineWidth - activeEnd; rest > 0 {
-			b.WriteString(m.inactiveBorderStyle().Render(strings.Repeat("─", rest)))
-		}
-
-		out = lipgloss.JoinVertical(lipgloss.Left, row, b.String())
+		line := m.underlineRow(widths, width)
+		out = lipgloss.JoinVertical(lipgloss.Left, row, line)
 	}
 
-	out = lipgloss.NewStyle().
+	return lipgloss.NewStyle().
 		Width(width).
-		Align(m.alignment).
 		Render(out)
+}
 
-	return out
+// viewSlideAccent draws an underline whose accent segment slides between tabs.
+func (m *Model[T]) viewSlideAccent() string {
+	row, widths := m.renderLabels()
+	width := m.frameWidth()
+	row = m.withTitle(width, row)
+
+	start := int(math.Round(m.slide))
+	segment := widths[m.idx]
+	lineWidth := max(width, start+segment)
+
+	th := m.env.Theme
+	line := columns(lineWidth, func(i int) color.Color {
+		if i >= start && i < start+segment {
+			return th.Primary
+		}
+		return th.Border
+	})
+
+	out := lipgloss.JoinVertical(lipgloss.Left, row, line)
+
+	return lipgloss.NewStyle().
+		Width(width).
+		Render(out)
+}
+
+func (m *Model[T]) renderLabels() (string, []int) {
+	parts := make([]string, len(m.tabs))
+	widths := make([]int, len(m.tabs))
+
+	for i, tab := range m.tabs {
+		rendered := m.styleFor(i).Render(tab.Label)
+		parts[i] = rendered
+		widths[i] = lipgloss.Width(rendered)
+	}
+
+	return strings.Join(parts, m.separator), widths
+}
+
+func (m *Model[T]) underlineRow(widths []int, width int) string {
+	sepWidth := lipgloss.Width(m.separator)
+
+	offset := 0
+	for i := 0; i < m.idx; i++ {
+		offset += widths[i] + sepWidth
+	}
+
+	activeWidth := widths[m.idx]
+	activeEnd := offset + activeWidth
+	lineWidth := max(width, activeEnd)
+
+	var b strings.Builder
+
+	if offset > 0 {
+		b.WriteString(m.inactiveBorderStyle().Render(strings.Repeat("─", offset)))
+	}
+	if activeWidth > 0 {
+		b.WriteString(m.activeBorderStyle().Render(strings.Repeat("─", activeWidth)))
+	}
+	if rest := lineWidth - activeEnd; rest > 0 {
+		b.WriteString(m.inactiveBorderStyle().Render(strings.Repeat("─", rest)))
+	}
+
+	return b.String()
+}
+
+// tabOffset returns the start column of the tab at idx.
+func (m *Model[T]) tabOffset(idx int) int {
+	sepWidth := lipgloss.Width(m.separator)
+	offset := 0
+	for i := 0; i < idx && i < len(m.tabs); i++ {
+		offset += m.labelWidth(i) + sepWidth
+	}
+	return offset
+}
+
+func (m *Model[T]) labelWidth(i int) int {
+	return lipgloss.Width(m.styleFor(i).Render(m.tabs[i].Label))
+}
+
+// columns renders ─ across width columns, grouping adjacent columns with the
+// same color to keep the output compact.
+func columns(width int, colorAt func(i int) color.Color) string {
+	var b strings.Builder
+
+	for i := 0; i < width; {
+		c := colorAt(i)
+
+		j := i + 1
+		for j < width && sameColor(c, colorAt(j)) {
+			j++
+		}
+
+		b.WriteString(
+			lipgloss.NewStyle().
+				Foreground(c).
+				Render(strings.Repeat("─", j-i)),
+		)
+
+		i = j
+	}
+
+	return b.String()
+}
+
+func sameColor(a, b color.Color) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+
+	ar, ag, ab, aa := a.RGBA()
+	br, bg, bb, ba := b.RGBA()
+
+	return ar == br && ag == bg && ab == bb && aa == ba
+}
+
+func (m *Model[T]) withTitle(width int, row string) string {
+	if m.title == "" {
+		return row
+	}
+	free := width - lipgloss.Width(row) - 1
+
+	if free <= 0 {
+		return row
+	}
+
+	title := ansi.Truncate(m.title, free, "…")
+	title = lipgloss.NewStyle().
+		Foreground(m.env.Theme.Border).
+		Render(title)
+
+	gap := width - lipgloss.Width(row) - lipgloss.Width(title)
+	return row + strings.Repeat(" ", gap) + title
 }

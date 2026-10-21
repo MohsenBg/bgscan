@@ -3,12 +3,9 @@ package textinput
 import (
 	"strings"
 
-	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -21,10 +18,7 @@ type Model struct {
 	id   ui.ComponentID
 	name string
 
-	layout *layout.Layout
-
-	theme *theme.Theme
-	log   logger.Set
+	env *ui.Env
 
 	title       string
 	placeholder string
@@ -41,7 +35,7 @@ type Model struct {
 }
 
 func New(
-	deps ui.Deps,
+	env *ui.Env,
 	title string,
 	options ...Option,
 ) input.Input[string] {
@@ -49,18 +43,19 @@ func New(
 	m := &Model{
 		id:                ui.NewComponentID(),
 		name:              "input",
-		layout:            deps.Layout,
-		theme:             deps.Theme,
-		log:               deps.Log,
+		env:               env,
 		title:             title,
 		textinput:         ti,
 		dynamicValidation: false,
 	}
 
+	m.textinput.KeyMap = m.keyMap()
 	m.textinput.SetWidth(m.Width())
 	for _, opt := range options {
 		opt(m)
 	}
+
+	m.textinput.KeyMap = m.keyMap()
 
 	return m
 }
@@ -126,15 +121,15 @@ func (m *Model) Name() string {
 	return m.name
 }
 
-func (m *Model) Mode() env.Mode {
-	return env.InputMode
+func (m *Model) Mode() ui.KeyMode {
+	return ui.KeyModeInput
 }
 
+// Title returns the input prompt as raw data for the dialog frame.
+func (m *Model) Title() string { return m.title }
+
 func (m *Model) Width() int {
-	if m.layout == nil {
-		return 50
-	}
-	return min(50, m.layout.Body.Width)
+	return min(50, m.env.Layout.Body().Width)
 }
 
 func (m *Model) CloseCmd() tea.Cmd {
@@ -146,10 +141,6 @@ func (m *Model) CloseCmd() tea.Cmd {
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
-
-func (m *Model) Theme() *theme.Theme { return m.theme }
-
-func (m *Model) SetTheme(th *theme.Theme) { m.theme = th }
 
 func (m *Model) Value() string {
 	return m.textinput.Value()
@@ -203,6 +194,36 @@ func (m *Model) validation(value string) error {
 		return nil
 	}
 	return m.validationFunc(value)
+}
+
+// keyMap translates the shared keys into the bubbles textinput keymap.
+func (m *Model) keyMap() textinput.KeyMap {
+	k := m.env.Keys.TextInput
+	defaultKeyMap := textinput.DefaultKeyMap()
+	defaultKeyMap.CharacterForward.SetKeys(k.CharacterForward.Keys...)
+	defaultKeyMap.CharacterBackward.SetKeys(k.CharacterBackward.Keys...)
+	defaultKeyMap.WordForward.SetKeys(k.WordForward.Keys...)
+	defaultKeyMap.WordBackward.SetKeys(k.WordBackward.Keys...)
+	defaultKeyMap.DeleteWordBackward.SetKeys(k.DeleteWordBackward.Keys...)
+	defaultKeyMap.DeleteWordForward.SetKeys(k.DeleteWordForward.Keys...)
+	defaultKeyMap.DeleteAfterCursor.SetKeys(k.DeleteAfterCursor.Keys...)
+	defaultKeyMap.DeleteBeforeCursor.SetKeys(k.DeleteBeforeCursor.Keys...)
+	defaultKeyMap.DeleteCharacterBackward.SetKeys(k.DeleteCharacterBackward.Keys...)
+	defaultKeyMap.DeleteCharacterForward.SetKeys(k.DeleteCharacterForward.Keys...)
+	defaultKeyMap.LineStart.SetKeys(k.LineStart.Keys...)
+	defaultKeyMap.LineEnd.SetKeys(k.LineEnd.Keys...)
+	defaultKeyMap.Paste.SetKeys(k.Paste.Keys...)
+	return defaultKeyMap
+}
+
+func (m *Model) DialogHints() keys.Hints {
+	return DialogHints(m.env.Keys.TextInput)
+}
+
+func DialogHints(k keys.TextInputKeys) keys.Hints {
+	return keys.Short(
+		k.Submit,
+	)
 }
 
 // submit trims, validates, then invokes onSubmit.

@@ -58,31 +58,31 @@ func DefaultDNSTTConfig() DNSTTConfig {
 }
 
 // Validate returns all validation errors, keyed by configuration field.
-func (c DNSTTConfig) Validate() map[string]error {
-	errs := make(map[string]error)
+func (c DNSTTConfig) Validate() map[Field]error {
+	errs := make(map[Field]error)
 
 	if err := netutil.ValidateDomain(c.Domain); err != nil {
-		errs["domain"] = err
+		errs[FieldDomain] = err
 	}
 
 	if err := validatePubKey(c.PubKey); err != nil {
-		errs["pub_key"] = err
+		errs[FieldPubKey] = err
 	}
 
 	if !c.ResolverType.IsValid() {
-		errs["resolver_type"] = fmt.Errorf("resolver type is invalid")
+		errs[FieldResolverType] = fmt.Errorf("resolver type is invalid")
 	}
 
 	if c.ResolverPort == 0 {
-		errs["resolver_port"] = fmt.Errorf("resolver port must be greater than zero")
+		errs[FieldResolverPort] = fmt.Errorf("resolver port must be greater than zero")
 	}
 
 	if err := validateRPS(c.RPS); err != nil {
-		errs["rps"] = err
+		errs[FieldRPS] = err
 	}
 
 	if err := validateFingerprint(c.Fingerprint); err != nil {
-		errs["fingerprint"] = err
+		errs[FieldFingerprint] = err
 	}
 
 	for field, err := range validateProxyAuth(

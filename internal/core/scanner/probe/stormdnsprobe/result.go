@@ -10,7 +10,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
-func joinConfigErrors(errs map[string]error) error {
+func joinConfigErrors(errs map[dns.Field]error) error {
 	var joined error
 	for field, err := range errs {
 		joined = errors.Join(joined, fmt.Errorf("%s: %w", field, err))
@@ -25,8 +25,8 @@ var Schema = result.ResultSchema{
 	Directory: "stormdns",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 35},
-		{Name: "Latency", Width: 20},
+		{Name: "IP", Width: 35, ColumnType: result.ColumnIP},
+		{Name: "Latency", Width: 20, ColumnType: result.ColumnDuration},
 		{Name: "Port", Width: 10},
 		{Name: "Query", Width: 15},
 		{Name: "Enc", Width: 15},

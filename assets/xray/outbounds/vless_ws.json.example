@@ -4,7 +4,7 @@
   "settings": {
     "vnext": [
       {
-        "address": "$ADDRESS",
+        "address": "example.com",
         "port": 443,
         "users": [
           {
@@ -26,7 +26,7 @@
     },
     "wsSettings": {
       "path": "?",
-      "host": "?",
+      "host": "?"
     }
   }
 }

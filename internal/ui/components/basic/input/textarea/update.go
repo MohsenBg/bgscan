@@ -7,21 +7,13 @@ import (
 )
 
 // Update handles textarea input.
-//
-// Enter submits without inserting a newline. When newlines are enabled
-// (the default), Shift+Enter (or Ctrl+M) inserts a literal newline. When
-// newlines are disabled via [WithNewlines], no key inserts a newline.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
-		return m, nil
-	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.textarea.SetWidth(m.Width())
 
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "shift+enter", "ctrl+m":
+		if m.env.Keys.TextArea.NewLine.Matches(msg) {
 			if m.allowNewline {
 				m.textarea.InsertRune('\n')
 				return m, nil
@@ -29,7 +21,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			return m, m.submit()
 		}
 
-		if msg.Code == tea.KeyEnter {
+		if m.env.Keys.TextArea.Submit.Matches(msg) {
 			return m, m.submit()
 		}
 	}
@@ -37,7 +29,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmd tea.Cmd
 	m.textarea, cmd = m.textarea.Update(msg)
 
-	if _, ok := msg.(tea.KeyPressMsg); ok &&
+	if _, ok := msg.(tea.KeyMsg); ok &&
 		m.dynamicValidation &&
 		m.validationFunc != nil {
 		m.errorMsg = ""

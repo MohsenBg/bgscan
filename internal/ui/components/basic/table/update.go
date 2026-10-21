@@ -1,89 +1,121 @@
 package table
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
-
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	if ui.HandleTheme(msg, m) {
-		return m, nil
-	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	var cmds []tea.Cmd
+	// The table caches lipgloss styles, so rebuild them. The message then
+	// falls through to the help child, which rebuilds its own viewport.
+	if _, ok := msg.(theme.ThemeChanged); ok {
+		m.applyStylesLocked()
+	}
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 
-		// In filter mode all keystrokes edit the filter (never nav/sort/
-		// help), so typing can't move the cursor. Esc lands here too when
-		// idle: a harmless clear that refreshes the unfiltered view.
-		if m.filtering || msg.Key().Code == tea.KeyEsc {
-			m.updateFilterLocked(msg)
+	case tea.KeyMsg:
+		if m.loading {
 			return m, nil
 		}
 
-		if cmd := m.Keys.Check(msg); cmd != nil {
-			cmds = append(cmds, cmd)
-		} else {
-			// Sort/filter keys run only when no action consumed the
-			// key, so a provider-registered action would win.
-			switch msg.String() {
-			case "s":
-				m.cycleSortColumnLocked()
-			case "o":
-				m.toggleSortDirectionLocked()
-			case "/":
-				m.filtering = true
-			}
-		}
-
-		if msg.String() == "?" {
-			m.FullHelp = !m.FullHelp
-			m.updateTableSizeLocked()
+		if cmd, handled := m.handleKey(msg); handled {
+			return m, cmd
 		}
 
 	case tea.WindowSizeMsg:
 		m.updateTableSizeLocked()
-		m.BubbleTable.SetStyles(m.tableStyles())
-		return m, nil
+		m.bubble.SetStyles(m.tableStyles())
 	}
 
-	var tableCmd tea.Cmd
-	m.BubbleTable, tableCmd = m.BubbleTable.Update(msg)
-	if tableCmd != nil {
-		cmds = append(cmds, tableCmd)
-	}
+	var cmds []tea.Cmd
+	var cmd tea.Cmd
+
+	m.bubble, cmd = m.bubble.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.help, cmd = m.help.Update(msg)
+	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
 }
 
-// updateFilterLocked edits the filter from keystrokes: printable text
-// appends and re-filters live (cursor kept), backspace deletes, enter keeps
-// the filter and exits edit mode, esc clears it and exits. Caller holds m.mu.
-func (m *Model) updateFilterLocked(msg tea.Msg) {
-	kp, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return
-	}
-	switch kp.Code {
-	case tea.KeyEsc:
-		m.filter, m.filtering = "", false
-		m.refreshDisplayLocked(false)
-	case tea.KeyEnter:
+// handleFilterKey processes filter input.
+// It must be called with m.mu held.
+func (m *Model) handleFilterKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+	switch {
+	case m.env.Keys.Filter.Clear.Matches(msg):
+		m.clearFilterLocked()
+		return nil, true
+
+	case m.env.Keys.Filter.Accept.Matches(msg):
 		m.filtering = false
-	case tea.KeyBackspace:
-		if r := []rune(m.filter); len(r) > 0 {
-			m.filter = string(r[:len(r)-1])
-			m.refreshDisplayLocked(false)
-		}
-	default:
-		if kp.Text != "" {
-			m.filter += kp.Text
-			m.refreshDisplayLocked(false)
-		}
+		m.hideCursor()
+		return nil, true
 	}
+
+	var cmd tea.Cmd
+	m.filter, cmd = m.filter.Update(msg)
+	m.refreshDisplayLocked(false)
+
+	return cmd, true
+}
+
+// handleKey processes table navigation and filter toggling.
+// It must be called with m.mu held.
+func (m *Model) handleKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+	if m.filtering {
+		return m.handleFilterKey(msg)
+	}
+
+	k := m.env.Keys.Table
+
+	switch {
+	case k.Up.Matches(msg):
+		m.bubble.MoveUp(1)
+
+	case k.Down.Matches(msg):
+		m.bubble.MoveDown(1)
+
+	case k.PageUp.Matches(msg):
+		m.bubble.MoveUp(m.bubble.Height())
+
+	case k.PageDown.Matches(msg):
+		m.bubble.MoveDown(m.bubble.Height())
+
+	case k.HalfPageUp.Matches(msg):
+		m.bubble.MoveUp(max(1, m.bubble.Height()/2))
+
+	case k.HalfPageDown.Matches(msg):
+		m.bubble.MoveDown(max(1, m.bubble.Height()/2))
+
+	case k.ChangeSort.Matches(msg):
+		m.cycleSortColumnLocked()
+
+	case k.ToggleOrder.Matches(msg):
+		m.toggleSortDirectionLocked()
+
+	case k.Filter.Matches(msg) && m.filterEnabled:
+		m.filtering = true
+		return m.showCursor(), true
+
+	case m.env.Keys.Filter.Clear.Matches(msg):
+		m.clearFilterLocked()
+		return nil, true
+
+	default:
+		return nil, false
+	}
+
+	return nil, true
 }

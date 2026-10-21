@@ -1,25 +1,27 @@
 package scanner
 
-// tickMsg drives the scanner's periodic update loop.
-// Triggered by a BubbleTea tick command.
-type tickMsg struct{}
+import (
+	"github.com/MohsenBg/bgscan/internal/core/scanner/engine"
+)
 
-// immediateTickMsg forces an instant UI refresh without
-// waiting for the next tick interval.
-type immediateTickMsg struct{}
-
-// TogglePauseMsg is emitted when the user requests to
-// pause or resume the active scan.
-type TogglePauseMsg struct{}
-
-// scanClosedMsg is sent when Scanner.Close() returns,
-// allowing the UI to navigate away without blocking.
-type scanClosedMsg struct {
-	err error
-}
-
-// scanErrorMsg is sent once when the scan goroutine
-// encounters an error that hasn't been shown yet.
 type scanErrorMsg struct {
 	err error
 }
+
+type scanCloseResultMsg struct {
+	err error
+}
+
+type stageProgressMsg struct {
+	id int
+	p  engine.Progress
+}
+
+type stageErrorMsg struct {
+	id  int
+	err error
+}
+
+type stageEndMsg struct{ id int }
+
+type pulseMsg struct{}

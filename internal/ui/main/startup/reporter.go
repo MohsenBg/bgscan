@@ -9,11 +9,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// EnableReportDelay adds a small delay between startup reports.
 const EnableReportDelay = true
 
 const (
-	minReportDelay = 100 * time.Millisecond
-	maxReportDelay = 200 * time.Millisecond
+	minReportDelay = 50 * time.Millisecond
+	maxReportDelay = 80 * time.Millisecond
 )
 
 type logMsg struct {
@@ -30,17 +31,25 @@ type reporter struct {
 	ch         chan<- tea.Msg
 	abort      *atomic.Bool
 
-	// status tracks the final (non-transient) status this category should
-	// end with consumed via categoryEndMsg once the check function returns.
+	// status is the final non-transient status for this category.
 	status categoryStatus
 }
 
 func newReporter(categoryID string, ch chan<- tea.Msg, abort *atomic.Bool) *reporter {
-	return &reporter{categoryID: categoryID, ch: ch, abort: abort, status: catRunning}
+	return &reporter{
+		categoryID: categoryID,
+		ch:         ch,
+		abort:      abort,
+		status:     catRunning,
+	}
 }
 
 func (r *reporter) report(status categoryStatus, msg string) {
-	r.ch <- logMsg{categoryID: r.categoryID, status: status, line: msg}
+	r.ch <- logMsg{
+		categoryID: r.categoryID,
+		status:     status,
+		line:       msg,
+	}
 
 	if status != catRunning || r.status == catRunning {
 		r.status = status
@@ -64,10 +73,7 @@ func (r *reporter) warn(msg string)             { r.report(catWarn, msg) }
 func (r *reporter) warnf(f string, a ...any)    { r.warn(fmt.Sprintf(f, a...)) }
 
 func (r *reporter) errMsg(msg string, err error) {
-	if err != nil {
-		msg = fmt.Sprintf("%s: %v", msg, err)
-	}
-	r.report(catError, msg)
+	r.report(catError, formatError(msg, err))
 }
 
 func (r *reporter) binaryMissing(component, binary string) {
@@ -75,12 +81,24 @@ func (r *reporter) binaryMissing(component, binary string) {
 }
 
 func (r *reporter) critical(msg string, err error) {
-	if err != nil {
-		msg = fmt.Sprintf("%s: %v", msg, err)
-	}
 	if r.abort != nil {
 		r.abort.Store(true)
 	}
+
 	r.status = catError
-	r.ch <- logMsg{categoryID: r.categoryID, status: catError, line: msg, critical: true}
+
+	r.ch <- logMsg{
+		categoryID: r.categoryID,
+		status:     catError,
+		line:       formatError(msg, err),
+		critical:   true,
+	}
+}
+
+func formatError(msg string, err error) string {
+	if err != nil {
+		return fmt.Sprintf("%s: %v", msg, err)
+	}
+
+	return msg
 }

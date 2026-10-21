@@ -39,7 +39,7 @@ type ProxyVisibility struct {
 // intentionally not editable here.
 // TODO: expose a known_hosts_file field in the proxy forms.
 func BuildProxy[C TunnelConfig](
-	deps ui.Deps,
+	env *ui.Env,
 	cfg *C,
 	refresh func() tea.Cmd,
 	getType func(C) dns.ResolverProxyType,
@@ -56,7 +56,7 @@ func BuildProxy[C TunnelConfig](
 	setPriv func(*C, string),
 ) (*ProxyInputs, *ProxyVisibility) {
 	port := textinput.New(
-		deps, "Enter proxy port",
+		env, "Enter proxy port",
 		textinput.WithValue(strconv.Itoa(int(getPort(*cfg)))),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
@@ -66,7 +66,7 @@ func BuildProxy[C TunnelConfig](
 			}
 			tmp := *cfg
 			setPort(&tmp, uint16(n))
-			if e, ok := tmp.Validate()["proxy_port"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldProxyPort]; ok {
 				return e
 			}
 			return nil
@@ -79,7 +79,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	proxyType := selectinput.New(
-		deps, "Select proxy type",
+		env, "Select proxy type",
 		selectinput.WithValue(string(getType(*cfg))),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -89,7 +89,7 @@ func BuildProxy[C TunnelConfig](
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			setType(&tmp, dns.ResolverProxyType(v))
-			if e, ok := tmp.Validate()["proxy_type"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldProxyType]; ok {
 				return e
 			}
 			return nil
@@ -112,7 +112,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	authMethod := selectinput.New(
-		deps, "Select authentication method",
+		env, "Select authentication method",
 		selectinput.WithValue(string(getAuth(*cfg))),
 		selectinput.WithFocus[string](),
 		selectinput.WithOptions(
@@ -123,7 +123,7 @@ func BuildProxy[C TunnelConfig](
 		selectinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			setAuth(&tmp, dns.AuthMethod(v))
-			if e, ok := tmp.Validate()["auth_method"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldAuthMethod]; ok {
 				return e
 			}
 			return nil
@@ -135,13 +135,13 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	username := textinput.New(
-		deps, "Enter username",
+		env, "Enter username",
 		textinput.WithValue(getUser(*cfg)),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			setUser(&tmp, v)
-			if e, ok := tmp.Validate()["username"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldUsername]; ok {
 				return e
 			}
 			return nil
@@ -153,13 +153,13 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	password := textinput.New(
-		deps, "Enter password",
+		env, "Enter password",
 		textinput.WithValue(getPass(*cfg)),
 		textinput.WithFocus(),
 		textinput.WithValidation(func(v string) error {
 			tmp := *cfg
 			setPass(&tmp, v)
-			if e, ok := tmp.Validate()["password"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldPassword]; ok {
 				return e
 			}
 			return nil
@@ -171,7 +171,7 @@ func BuildProxy[C TunnelConfig](
 	)
 
 	privateKey := textarea.New(
-		deps, "Enter private key",
+		env, "Enter private key",
 		textarea.WithValue(getPriv(*cfg)),
 		textarea.WithFocus(),
 		textarea.WithHeight(6),
@@ -179,7 +179,7 @@ func BuildProxy[C TunnelConfig](
 		textarea.WithValidation(func(v string) error {
 			tmp := *cfg
 			setPriv(&tmp, v)
-			if e, ok := tmp.Validate()["private_key"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldPrivateKey]; ok {
 				return e
 			}
 			return nil

@@ -29,7 +29,7 @@ func TestHTTPConfig(t *testing.T) {
 	tests := []struct {
 		name          string
 		mutateCfg     func(*config.HTTPConfig)
-		wantErrKeys   []string
+		wantErrKeys   []Field
 		wantWarnCount int
 		checkFixed    func(t *testing.T, cfg *config.HTTPConfig)
 	}{
@@ -45,7 +45,7 @@ func TestHTTPConfig(t *testing.T) {
 			mutateCfg: func(c *config.HTTPConfig) {
 				c.Workers = MinHTTPWorkers - 1
 			},
-			wantErrKeys:   []string{"Workers"},
+			wantErrKeys:   []Field{FieldWorkers},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.Workers != def.Workers {
@@ -58,7 +58,7 @@ func TestHTTPConfig(t *testing.T) {
 			mutateCfg: func(c *config.HTTPConfig) {
 				c.Workers = MaxHTTPWorkers + 1
 			},
-			wantErrKeys:   []string{"Workers"},
+			wantErrKeys:   []Field{FieldWorkers},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.Workers != def.Workers {
@@ -71,7 +71,7 @@ func TestHTTPConfig(t *testing.T) {
 			mutateCfg: func(c *config.HTTPConfig) {
 				c.Port = MaxHTTPPort + 1
 			},
-			wantErrKeys:   []string{"Port"},
+			wantErrKeys:   []Field{FieldPort},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.Port != def.Port {
@@ -85,7 +85,7 @@ func TestHTTPConfig(t *testing.T) {
 				c.Host = "invalid_host!"
 				c.ServerName = "invalid_sni:123"
 			},
-			wantErrKeys:   []string{"Host", "ServerName"},
+			wantErrKeys:   []Field{FieldHost, FieldServerName},
 			wantWarnCount: 2,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.Host != def.Host {
@@ -103,7 +103,7 @@ func TestHTTPConfig(t *testing.T) {
 				c.Protocol = "ftp"
 				c.Version = "http4"
 			},
-			wantErrKeys:   []string{"Protocol", "Version"},
+			wantErrKeys:   []Field{FieldProtocol, FieldVersion},
 			wantWarnCount: 2,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.Protocol != def.Protocol {
@@ -120,7 +120,7 @@ func TestHTTPConfig(t *testing.T) {
 			mutateCfg: func(c *config.HTTPConfig) {
 				c.Timeout = config.NewDurationMS(MaxHTTPTimeout + time.Second)
 			},
-			wantErrKeys:   []string{"Timeout"},
+			wantErrKeys:   []Field{FieldTimeout},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.Timeout.Duration() != def.Timeout.Duration() {
@@ -138,7 +138,7 @@ func TestHTTPConfig(t *testing.T) {
 				c.MinTLSVersion = "min-tls-invalid"
 				c.MaxTLSVersion = "max-tls-invalid"
 			},
-			wantErrKeys:   []string{"MinTLSVersion", "MaxTLSVersion"},
+			wantErrKeys:   []Field{FieldMinTLSVersion, FieldMaxTLSVersion},
 			wantWarnCount: 2,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.MinTLSVersion != def.MinTLSVersion {
@@ -164,7 +164,7 @@ func TestHTTPConfig(t *testing.T) {
 				c.MinTLSVersion = "tls1.3"
 				c.MaxTLSVersion = "tls1.0"
 			},
-			wantErrKeys:   []string{"MinTLSVersion", "MaxTLSVersion"},
+			wantErrKeys:   []Field{FieldMinTLSVersion, FieldMaxTLSVersion},
 			wantWarnCount: 1,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.MinTLSVersion != def.MinTLSVersion {
@@ -190,7 +190,7 @@ func TestHTTPConfig(t *testing.T) {
 				c.OutputPrefix = ""
 				c.AcceptedStatusCodes = []int{999}
 			},
-			wantErrKeys:   []string{"OutputPrefix", "AcceptedStatusCodes"},
+			wantErrKeys:   []Field{FieldOutputPrefix, FieldAcceptedStatusCodes},
 			wantWarnCount: 2,
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.OutputPrefix != def.OutputPrefix {

@@ -10,7 +10,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -27,74 +26,74 @@ const (
 )
 
 type Model struct {
-	state     *ui.AppState
+	session   *ui.Session
 	name      string
 	id        ui.ComponentID
 	inspector ui.Component
 }
 
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Init() tea.Cmd      { return nil }
-func (m *Model) Mode() env.Mode     { return env.NormalMode }
+func (m *Model) Init() tea.Cmd      { return m.inspector.Init() }
+func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m *Model) Name() string       { return m.name }
 func (m *Model) OnClose() tea.Cmd   { return nil }
 
-func saveTCP(state *ui.AppState) tea.Cmd {
-	if err := state.Store.SaveTCP(state.Config.TCP); err != nil {
-		state.Log.UI.Error("Failed to save TCP settings: %v", err)
-		return notice.NewNoticeCmd(state.Deps(), "Failed to save TCP settings", err.Error(), notice.NOTICE_ERROR)
+func saveTCP(session *ui.Session) tea.Cmd {
+	if err := session.Store.SaveTCP(session.Config.TCP); err != nil {
+		session.Env().Log.Error("Failed to save TCP settings: %v", err)
+		return notice.NewNoticeCmd(session.Env(), "Failed to save TCP settings", err.Error(), notice.NOTICE_ERROR)
 	}
 	return nil
 }
 
-func intInput(state *ui.AppState, title string, value int, validate func(string) error, set func(int)) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func intInput(session *ui.Session, title string, value int, validate func(string) error, set func(int)) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(strconv.Itoa(value)),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(n)
-			return saveTCP(state)
+			return saveTCP(session)
 		}),
 	)
 }
 
-func durationMSInput(state *ui.AppState, title string, value time.Duration, validate func(string) error, set func(time.Duration)) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func durationMSInput(session *ui.Session, title string, value time.Duration, validate func(string) error, set func(time.Duration)) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(strconv.FormatInt(value.Milliseconds(), 10)),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return notice.NewNoticeCmd(state.Deps(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
+				return notice.NewNoticeCmd(session.Env(), "Invalid "+title, err.Error(), notice.NOTICE_ERROR)
 			}
 			set(time.Duration(n) * time.Millisecond)
-			return saveTCP(state)
+			return saveTCP(session)
 		}),
 	)
 }
 
-func stringInput(state *ui.AppState, title, value string, validate func(string) error, set func(string)) input.Input[string] {
-	return textinput.New(state.Deps(), title,
+func stringInput(session *ui.Session, title, value string, validate func(string) error, set func(string)) input.Input[string] {
+	return textinput.New(session.Env(), title,
 		textinput.WithValue(value),
 		textinput.WithValidation(validate),
 		textinput.WithFocus(),
 		textinput.WithOnSubmit(func(v string) tea.Cmd {
 			set(v)
-			return saveTCP(state)
+			return saveTCP(session)
 		}),
 	)
 }
 
-func New(state *ui.AppState, name string) *Model {
-	cfg := &state.Config.TCP
+func New(session *ui.Session, name string) *Model {
+	cfg := &session.Config.TCP
 
-	workers := intInput(state, "Enter number of workers", cfg.Workers,
+	workers := intInput(session, "Enter number of workers", cfg.Workers,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -102,11 +101,11 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Workers = n
-			return fieldErr(validate.ValidateTCP(tmp), "Workers")
+			return fieldErr(validate.ValidateTCP(tmp), validate.FieldWorkers)
 		},
 		func(n int) { cfg.Workers = n })
 
-	port := intInput(state, "Enter TCP port", cfg.Port,
+	port := intInput(session, "Enter TCP port", cfg.Port,
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -114,11 +113,11 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Port = n
-			return fieldErr(validate.ValidateTCP(tmp), "Port")
+			return fieldErr(validate.ValidateTCP(tmp), validate.FieldPort)
 		},
 		func(n int) { cfg.Port = n })
 
-	timeout := durationMSInput(state, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
+	timeout := durationMSInput(session, "Enter timeout (milliseconds)", cfg.Timeout.Duration(),
 		func(v string) error {
 			n, err := strconv.Atoi(v)
 			if err != nil {
@@ -126,11 +125,11 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Timeout = config.NewDurationMS(time.Duration(n) * time.Millisecond)
-			return fieldErr(validate.ValidateTCP(tmp), "Timeout")
+			return fieldErr(validate.ValidateTCP(tmp), validate.FieldTimeout)
 		},
 		func(d time.Duration) { cfg.Timeout = config.NewDurationMS(d) })
 
-	tries := intInput(state, "Enter maximum attempts", int(cfg.Tries),
+	tries := intInput(session, "Enter maximum attempts", int(cfg.Tries),
 		func(v string) error {
 			n, err := strconv.ParseUint(v, 10, 16)
 			if err != nil {
@@ -138,15 +137,15 @@ func New(state *ui.AppState, name string) *Model {
 			}
 			tmp := *cfg
 			tmp.Tries = uint16(n)
-			return fieldErr(validate.ValidateTCP(tmp), "Tries")
+			return fieldErr(validate.ValidateTCP(tmp), validate.FieldTries)
 		},
 		func(n int) { cfg.Tries = uint16(n) })
 
-	prefixOutput := stringInput(state, "Enter output file prefix", cfg.OutputPrefix,
+	prefixOutput := stringInput(session, "Enter output file prefix", cfg.OutputPrefix,
 		func(v string) error {
 			tmp := *cfg
 			tmp.OutputPrefix = v
-			return fieldErr(validate.ValidateTCP(tmp), "OutputPrefix")
+			return fieldErr(validate.ValidateTCP(tmp), validate.FieldOutputPrefix)
 		},
 		func(v string) { cfg.OutputPrefix = v })
 
@@ -159,15 +158,15 @@ func New(state *ui.AppState, name string) *Model {
 	}
 
 	return &Model{
-		state:     state,
+		session:   session,
 		name:      name,
 		id:        ui.NewComponentID(),
-		inspector: inspector.New(state.Deps(), "tcp settings", fields),
+		inspector: inspector.New(session.Env(), "tcp settings", fields),
 	}
 }
 
 func alwaysVisible() bool { return true }
 
-func fieldErr(errs map[string]error, field string) error {
+func fieldErr(errs map[validate.Field]error, field validate.Field) error {
 	return errs[field]
 }

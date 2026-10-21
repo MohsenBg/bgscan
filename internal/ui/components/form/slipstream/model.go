@@ -8,7 +8,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/selectinput"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/inspector"
 	"github.com/MohsenBg/bgscan/internal/ui/components/form/formkit"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/layout"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -32,8 +31,7 @@ type Model struct {
 // New creates the Slipstream config form, either for a new config or to edit
 // an existing one described by original.
 func New(
-	l *layout.Layout,
-	state *ui.AppState,
+	session *ui.Session,
 	original *dns.DNSTunConfigFile,
 ) (*Model, error) {
 	cfg := dns.DefaultSlipstreamConfig()
@@ -57,7 +55,7 @@ func New(
 		cfg:           &cfg,
 		slipstreamSrv: srv,
 	}
-	m.Base = formkit.NewBase(l, state, name, originalName)
+	m.Base = formkit.NewBase(session, name, originalName)
 	m.buildForm(original)
 
 	return m, nil
@@ -72,7 +70,7 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 	m.BuildForm(
 		title,
 		m.buildInspector(),
-		func() map[string]error { return m.cfg.Validate() },
+		func() map[dns.Field]error { return m.cfg.Validate() },
 		m.saveConfig,
 	)
 }
@@ -80,22 +78,22 @@ func (m *Model) buildForm(original *dns.DNSTunConfigFile) {
 func (m *Model) buildInspector() *inspector.Model {
 	cfg := m.cfg
 
-	configName := formkit.ConfigNameField(m.State().Deps(), m.Name(), m.SetName)
-	domain := formkit.StringField(m.State().Deps(), cfg, "Enter domain", "domain",
+	configName := formkit.ConfigNameField(m.Session().Env(), m.Name(), m.SetName)
+	domain := formkit.StringField(m.Session().Env(), cfg, "Enter domain", "domain",
 		func(c dns.SlipstreamConfig) string { return c.Domain },
 		func(c *dns.SlipstreamConfig, v string) { c.Domain = strings.TrimSpace(v) },
 	)
-	resPort := formkit.Uint16Field(m.State().Deps(), cfg, "Enter resolver port", "resolver_port",
+	resPort := formkit.Uint16Field(m.Session().Env(), cfg, "Enter resolver port", "resolver_port",
 		func(c dns.SlipstreamConfig) uint16 { return c.ResolverPort },
 		func(c *dns.SlipstreamConfig, v uint16) { c.ResolverPort = v },
 	)
-	certPath := formkit.StringField(m.State().Deps(), cfg, "Enter certificate path", "cert_path",
+	certPath := formkit.StringField(m.Session().Env(), cfg, "Enter certificate path", "cert_path",
 		func(c dns.SlipstreamConfig) string { return c.CertPath },
 		func(c *dns.SlipstreamConfig, v string) { c.CertPath = strings.TrimSpace(v) },
 	)
 
 	dnsResolution := selectinput.New(
-		m.State().Deps(), "Select DNS resolution mode",
+		m.Session().Env(), "Select DNS resolution mode",
 		selectinput.WithValue(cfg.DNSResolution),
 		selectinput.WithFocus[dns.DNSResolution](),
 		selectinput.WithOptions(
@@ -105,7 +103,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		selectinput.WithValidation(func(v dns.DNSResolution) error {
 			tmp := *cfg
 			tmp.DNSResolution = v
-			if e, ok := tmp.Validate()["dns_resolution"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldDNSResolution]; ok {
 				return e
 			}
 			return nil
@@ -117,7 +115,7 @@ func (m *Model) buildInspector() *inspector.Model {
 	)
 
 	congestion := selectinput.New(
-		m.State().Deps(), "Select congestion control",
+		m.Session().Env(), "Select congestion control",
 		selectinput.WithValue(cfg.CongestionControl),
 		selectinput.WithFocus[dns.CongestionControl](),
 		selectinput.WithOptions(
@@ -127,7 +125,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		selectinput.WithValidation(func(v dns.CongestionControl) error {
 			tmp := *cfg
 			tmp.CongestionControl = v
-			if e, ok := tmp.Validate()["congestion_control"]; ok {
+			if e, ok := tmp.Validate()[dns.FieldCongestionControl]; ok {
 				return e
 			}
 			return nil
@@ -139,7 +137,7 @@ func (m *Model) buildInspector() *inspector.Model {
 	)
 
 	gso := selectinput.New(
-		m.State().Deps(), "Select GSO",
+		m.Session().Env(), "Select GSO",
 		selectinput.WithValue(cfg.GSO),
 		selectinput.WithFocus[bool](),
 		selectinput.WithOptions(
@@ -152,7 +150,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		}),
 	)
 
-	proxy, vis := formkit.BuildProxy(m.State().Deps(), cfg, m.Refresh,
+	proxy, vis := formkit.BuildProxy(m.Session().Env(), cfg, m.Refresh,
 		func(c dns.SlipstreamConfig) dns.ResolverProxyType { return c.ProxyType },
 		func(c *dns.SlipstreamConfig, v dns.ResolverProxyType) { c.ProxyType = v },
 		func(c dns.SlipstreamConfig) uint16 { return c.ProxyPort },
@@ -185,7 +183,7 @@ func (m *Model) buildInspector() *inspector.Model {
 		{Name: "Private Key", Description: formkit.DescPrivateKey, Group: formkit.GroupProxyAuth, Input: inspector.Adapt(proxy.PrivateKey), Visible: vis.Key, Format: inspector.FormatPrivateKey},
 	}
 
-	return inspector.New(m.State().Deps(), "slipstream config", fields)
+	return inspector.New(m.Session().Env(), "slipstream config", fields)
 }
 
 func (m *Model) saveConfig() tea.Msg {

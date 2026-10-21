@@ -2,40 +2,50 @@ package form
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
-// FormatValidationErrors formats a map of validation errors into a
-// user-friendly string with bullet points and indented messages.
-//
-// Field names are converted from snake_case to Title Case for display.
-func FormatValidationErrors(errs map[string]error) string {
+// FormatValidationErrors renders field errors as a stable bulleted list.
+func FormatValidationErrors[K ~string](errs map[K]error) string {
 	if len(errs) == 0 {
 		return ""
 	}
 
+	names := make([]string, 0, len(errs))
+	for field := range errs {
+		names = append(names, string(field))
+	}
+	sort.Strings(names)
+
 	var b strings.Builder
-	for field, e := range errs {
-		if b.Len() > 0 {
+	for i, name := range names {
+		if i > 0 {
 			b.WriteString("\n\n")
 		}
-		fmt.Fprintf(&b, "- %s\n  %s", toTitleCase(field), e)
+		fmt.Fprintf(&b, "- %s\n  %s", toTitleCase(name), formatError(errs[K(name)]))
 	}
+
 	return b.String()
 }
 
-// toTitleCase converts a snake_case string to Title Case.
-// Examples: "domain" -> "Domain", "pub_key" -> "Pub Key"
+func formatError(err error) string {
+	msg := strings.TrimSpace(err.Error())
+	return strings.ReplaceAll(msg, "\n", "\n  ")
+}
+
 func toTitleCase(s string) string {
 	if s == "" {
-		return s
+		return ""
 	}
 
-	words := strings.Split(s, "_")
+	words := strings.FieldsFunc(s, func(r rune) bool {
+		return r == '_' || r == '-'
+	})
+
 	for i, word := range words {
-		if len(word) > 0 {
-			words[i] = strings.ToUpper(word[:1]) + word[1:]
-		}
+		words[i] = strings.ToUpper(word[:1]) + word[1:]
 	}
+
 	return strings.Join(words, " ")
 }

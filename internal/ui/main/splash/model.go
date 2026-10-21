@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -61,23 +60,23 @@ const (
 type tickMsg time.Time
 
 type model struct {
-	id    ui.ComponentID
-	name  string
-	state *ui.AppState
-	frame int
+	id      ui.ComponentID
+	name    string
+	session *ui.Session
+	frame   int
 }
 
 func (m model) ID() ui.ComponentID { return m.id }
-func (m model) Mode() env.Mode     { return env.NormalMode }
+func (m model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m model) Name() string       { return m.name }
 func (m model) OnClose() tea.Cmd   { return nil }
 
-func New(state *ui.AppState) ui.Component {
+func New(session *ui.Session) ui.Component {
 	return &model{
-		id:    ui.NewComponentID(),
-		name:  "splash screen",
-		state: state,
-		frame: 0,
+		id:      ui.NewComponentID(),
+		name:    "splash screen",
+		session: session,
+		frame:   0,
 	}
 }
 
@@ -87,6 +86,6 @@ func tickCmd() tea.Cmd {
 	return tea.Tick(tickInterval, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
 
-func (m model) baseColor() color.Color   { return m.state.Theme().Success }
-func (m model) glitchColor() color.Color { return m.state.Theme().Muted }
-func (m model) accentColor() color.Color { return m.state.Theme().Secondary }
+func (m model) baseColor() color.Color   { return m.session.Env().Theme.Success }
+func (m model) glitchColor() color.Color { return m.session.Env().Theme.Muted }
+func (m model) accentColor() color.Color { return m.session.Env().Theme.Secondary }

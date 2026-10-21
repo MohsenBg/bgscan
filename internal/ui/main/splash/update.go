@@ -9,13 +9,16 @@ import (
 func (m model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg.(type) {
 	case tickMsg:
-		if m.state.Layout.HasSpace() {
+		if m.session.Env().Layout.HasSpace() {
 			m.frame++
 		}
 		if m.frame >= totalFrames {
 			return m, func() tea.Msg { return SplashDoneMsg{} }
 		}
 		return m, tickCmd()
+
+	case tea.KeyMsg:
+		return m, func() tea.Msg { return SplashDoneMsg{} }
 	}
 	return m, nil
 }

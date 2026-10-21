@@ -52,52 +52,52 @@ const (
 )
 
 // ValidateHTTP strictly validates an HTTPConfig and returns errors by field name.
-func ValidateHTTP(cfg config.HTTPConfig) map[string]error {
-	errs := map[string]error{}
+func ValidateHTTP(cfg config.HTTPConfig) map[Field]error {
+	errs := map[Field]error{}
 
 	if err := checkInt("Workers", cfg.Workers, MinHTTPWorkers, MaxHTTPWorkers); err != nil {
-		errs["Workers"] = err
+		errs[FieldWorkers] = err
 	}
 
 	if err := checkHost("Host", cfg.Host); err != nil {
-		errs["Host"] = err
+		errs[FieldHost] = err
 	}
 
 	if err := checkSNI("ServerName", cfg.ServerName); err != nil {
-		errs["ServerName"] = err
+		errs[FieldServerName] = err
 	}
 
 	if err := checkInt("Port", cfg.Port, MinHTTPPort, MaxHTTPPort); err != nil {
-		errs["Port"] = err
+		errs[FieldPort] = err
 	}
 
 	if err := checkEnum("Protocol", cfg.Protocol, allowedProtocols); err != nil {
-		errs["Protocol"] = err
+		errs[FieldProtocol] = err
 	}
 
 	if err := checkDuration("Timeout", cfg.Timeout.Duration(),
 		MinHTTPTimeout, MaxHTTPTimeout); err != nil {
-		errs["Timeout"] = err
+		errs[FieldTimeout] = err
 	}
 
 	if err := checkEnum("HTTP Version", cfg.Version, allowedHTTPVersions); err != nil {
-		errs["Version"] = err
+		errs[FieldVersion] = err
 	}
 
 	if cfg.Fingerprint != "" && !config.ValidFingerprint(cfg.Fingerprint) {
-		errs["Fingerprint"] = fmt.Errorf("unknown fingerprint %q; valid: %s",
+		errs[FieldFingerprint] = fmt.Errorf("unknown fingerprint %q; valid: %s",
 			cfg.Fingerprint, strings.Join(config.FingerprintLabels(), ", "))
 	}
 
 	hasTLSErr := false
 
 	if err := checkEnum("MinTLSVersion", cfg.MinTLSVersion, allowedTLSVersions); err != nil {
-		errs["MinTLSVersion"] = err
+		errs[FieldMinTLSVersion] = err
 		hasTLSErr = true
 	}
 
 	if err := checkEnum("MaxTLSVersion", cfg.MaxTLSVersion, allowedTLSVersions); err != nil {
-		errs["MaxTLSVersion"] = err
+		errs[FieldMaxTLSVersion] = err
 		hasTLSErr = true
 	}
 
@@ -109,17 +109,17 @@ func ValidateHTTP(cfg config.HTTPConfig) map[string]error {
 			cfg.MaxTLSVersion,
 			allowedTLSVersions,
 		); err != nil {
-			errs["MinTLSVersion"] = err
-			errs["MaxTLSVersion"] = err
+			errs[FieldMinTLSVersion] = err
+			errs[FieldMaxTLSVersion] = err
 		}
 	}
 
 	if err := checkPrefix("OutputPrefix", cfg.OutputPrefix); err != nil {
-		errs["OutputPrefix"] = err
+		errs[FieldOutputPrefix] = err
 	}
 
 	if err := checkStatusCodes("AcceptedStatusCodes", cfg.AcceptedStatusCodes); err != nil {
-		errs["AcceptedStatusCodes"] = err
+		errs[FieldAcceptedStatusCodes] = err
 	}
 
 	return errs

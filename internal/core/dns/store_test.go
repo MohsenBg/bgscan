@@ -15,12 +15,12 @@ type fakeStoreConfig struct {
 	Domain string
 }
 
-func (c fakeStoreConfig) Validate() map[string]error {
+func (c fakeStoreConfig) Validate() map[Field]error {
 	if c.Valid {
 		return nil
 	}
 
-	return map[string]error{"valid": errors.New("invalid config")}
+	return map[Field]error{"valid": errors.New("invalid config")}
 }
 
 func newFakeStore(t *testing.T) configStore[fakeStoreConfig] {

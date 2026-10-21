@@ -23,28 +23,28 @@ const (
 )
 
 // ValidateTCP strictly validates a TCPConfig and returns errors by field name.
-func ValidateTCP(cfg config.TCPConfig) map[string]error {
-	errs := map[string]error{}
+func ValidateTCP(cfg config.TCPConfig) map[Field]error {
+	errs := map[Field]error{}
 
 	if err := checkInt("Workers", cfg.Workers, MinTCPWorkers, MaxTCPWorkers); err != nil {
-		errs["Workers"] = err
+		errs[FieldWorkers] = err
 	}
 
 	if err := checkInt("Port", cfg.Port, MinTCPPort, MaxTCPPort); err != nil {
-		errs["Port"] = err
+		errs[FieldPort] = err
 	}
 
 	if err := checkDuration("Timeout", cfg.Timeout.Duration(),
 		MinTCPTimeout, MaxTCPTimeout); err != nil {
-		errs["Timeout"] = err
+		errs[FieldTimeout] = err
 	}
 
 	if err := checkUint16("Tries", cfg.Tries, MinTCPTries, MaxTCPTries); err != nil {
-		errs["Tries"] = err
+		errs[FieldTries] = err
 	}
 
 	if err := checkPrefix("OutputPrefix", cfg.OutputPrefix); err != nil {
-		errs["OutputPrefix"] = err
+		errs[FieldOutputPrefix] = err
 	}
 
 	return errs

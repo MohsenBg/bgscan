@@ -11,7 +11,7 @@ func TestTheFeedConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  TheFeedConfig
-		wantErr string
+		wantErr Field
 	}{
 		{
 			name: "valid config",
@@ -25,22 +25,22 @@ func TestTheFeedConfig_Validate(t *testing.T) {
 		{
 			name:    "empty domain",
 			config:  TheFeedConfig{Passphrase: "secret"},
-			wantErr: "domain",
+			wantErr: FieldDomain,
 		},
 		{
 			name:    "empty passphrase",
 			config:  TheFeedConfig{Domain: "test.example.com"},
-			wantErr: "passphrase",
+			wantErr: FieldPassphrase,
 		},
 		{
 			name:    "zero port",
 			config:  TheFeedConfig{Domain: "test.example.com", Passphrase: "secret"},
-			wantErr: "resolver_port",
+			wantErr: FieldResolverPort,
 		},
 		{
 			name:    "invalid query mode",
 			config:  TheFeedConfig{Domain: "test.example.com", Passphrase: "secret", QueryMode: "invalid"},
-			wantErr: "query_mode",
+			wantErr: FieldQueryMode,
 		},
 	}
 

@@ -53,8 +53,8 @@ const (
 )
 
 // ValidateGeneral strictly validates a GeneralConfig and returns errors by field name.
-func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
-	errs := map[string]error{}
+func ValidateGeneral(cfg config.GeneralConfig) map[Field]error {
+	errs := map[Field]error{}
 
 	if err := checkDuration(
 		"StatusInterval",
@@ -62,15 +62,15 @@ func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
 		MinGeneralStatusInterval,
 		MaxGeneralStatusInterval,
 	); err != nil {
-		errs["StatusInterval"] = err
+		errs[FieldStatusInterval] = err
 	}
 
 	if cfg.MaxSuccessfulIPs < MinGeneralMaxSuccessfulIPs {
-		errs["MaxSuccessfulIPs"] = fmt.Errorf("must be non-negative")
+		errs[FieldMaxSuccessfulIPs] = fmt.Errorf("must be non-negative")
 	}
 
 	if cfg.MaxIPsToTest < MinGeneralMaxIPsToTest {
-		errs["MaxIPsToTest"] = fmt.Errorf("must be non-negative")
+		errs[FieldMaxIPsToTest] = fmt.Errorf("must be non-negative")
 	}
 
 	if err := checkInt(
@@ -79,7 +79,7 @@ func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
 		MinGeneralMaxIPsPerStage,
 		MaxGeneralMaxIPsPerStage,
 	); err != nil {
-		errs["MaxIPsPerStage"] = err
+		errs[FieldMaxIPsPerStage] = err
 	}
 
 	if err := checkInt(
@@ -88,7 +88,7 @@ func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
 		MinGeneralBatchSize,
 		MaxGeneralBatchSize,
 	); err != nil {
-		errs["BatchSize"] = err
+		errs[FieldBatchSize] = err
 	}
 
 	if err := checkEnum(
@@ -96,7 +96,7 @@ func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
 		cfg.PipelineMode,
 		allowedPipelineModes,
 	); err != nil {
-		errs["PipelineMode"] = err
+		errs[FieldPipelineMode] = err
 	}
 
 	if err := checkDuration(
@@ -105,7 +105,7 @@ func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
 		MinGeneralProbeDuration,
 		MaxGeneralProbeDuration,
 	); err != nil {
-		errs["MinProbeDuration"] = err
+		errs[FieldMinProbeDuration] = err
 	}
 
 	if err := checkInt(
@@ -114,7 +114,7 @@ func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
 		MinGeneralProbePerSec,
 		MaxGeneralProbePerSec,
 	); err != nil {
-		errs["ProbePerSec"] = err
+		errs[FieldProbePerSec] = err
 	}
 
 	if err := checkInt(
@@ -123,7 +123,7 @@ func ValidateGeneral(cfg config.GeneralConfig) map[string]error {
 		MinGeneralProbeBurst,
 		MaxGeneralProbeBurst,
 	); err != nil {
-		errs["ProbeBurst"] = err
+		errs[FieldProbeBurst] = err
 	}
 
 	return errs

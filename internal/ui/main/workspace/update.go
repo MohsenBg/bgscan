@@ -1,86 +1,29 @@
 package workspace
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
 
+// Update routes messages through the workspace.
 func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	ui.SyncState(msg, m.state)
 	var cmds []tea.Cmd
 
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.state.Layout.Update(msg.Width, msg.Height)
-
-	case tea.KeyPressMsg:
-		if len(m.dialog) > 0 {
-			lastIdx := len(m.dialog) - 1
-			top := m.dialog[lastIdx]
-
-			if env.IsBackKey(msg, top.Mode()) || env.IsQuitKey(msg, top.Mode()) {
-				cmds = append(cmds, top.OnClose())
-				delete(m.dialogPlacements, top.ID())
-				m.dialog[lastIdx] = nil
-				m.dialog = m.dialog[:lastIdx]
-				return m, tea.Batch(cmds...)
-			}
-		}
-
-	case dialog.OpenDialogMsg:
-		m.dialog = append(m.dialog, msg.Component)
-		m.dialogPlacements[msg.Component.ID()] = &dialogOptions{
-			XPos:    msg.XPos,
-			YPos:    msg.YPos,
-			XOffset: msg.XOffset,
-			YOffset: msg.YOffset,
-			OnClose: msg.OnClose,
-		}
-		return m, msg.Component.Init()
-
-	case ui.CloseComponentMsg:
-		for i, ov := range m.dialog {
-			if ov.ID() != msg.ID {
-				continue
-			}
-
-			if opts := m.dialogPlacements[msg.ID]; opts != nil && opts.OnClose != nil {
-				cmds = append(cmds, opts.OnClose)
-			}
-
-			m.dialog = append(m.dialog[:i], m.dialog[i+1:]...)
-			delete(m.dialogPlacements, msg.ID)
-			break
-		}
+	if _, themed := msg.(theme.ThemeChanged); themed {
+		cmds = append(cmds, m.forwardToLayout(msg)...)
+		return m, tea.Batch(cmds...)
 	}
 
-	if _, ok := msg.(ui.ThemeChangedMsg); ok {
-		// Broadcast to every open dialog, not just the top one:
-		// background dialogs also cache theme styles.
-		for i, d := range m.dialog {
-			updated, cmd := d.Update(msg)
-			m.dialog[i] = updated
-			cmds = append(cmds, cmd)
-		}
-	} else if len(m.dialog) > 0 {
-		lastIdx := len(m.dialog) - 1
-		newLayer, cmd := m.dialog[lastIdx].Update(msg)
-		m.dialog[lastIdx] = newLayer
-
-		if _, ok := msg.(tea.KeyMsg); ok {
-			return m, cmd
-		}
-		cmds = append(cmds, cmd)
-	}
-
-	var hCmd, bCmd, fCmd tea.Cmd
-	m.header, hCmd = m.header.Update(msg)
-	m.body, bCmd = m.body.Update(msg)
-	m.footer, fCmd = m.footer.Update(msg)
-	cmds = append(cmds, hCmd, bCmd, fCmd)
-
+	cmds = append(cmds, m.forwardToLayout(msg)...)
 	return m, tea.Batch(cmds...)
+}
+
+// forwardToLayout passes msg to the body and footer.
+func (m *model) forwardToLayout(msg tea.Msg) []tea.Cmd {
+	var bodyCmd, footerCmd tea.Cmd
+	m.body, bodyCmd = m.body.Update(msg)
+	m.footer, footerCmd = m.footer.Update(msg)
+	return []tea.Cmd{bodyCmd, footerCmd}
 }

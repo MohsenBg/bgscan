@@ -1,0 +1,41 @@
+package dns
+
+// Field identifies a tunnel configuration field in validation errors.
+type Field string
+
+const (
+	FieldAuthMethod             Field = "auth_method"
+	FieldClientIDSize           Field = "client_id_size"
+	FieldCongestionControl      Field = "congestion_control"
+	FieldDNSPort                Field = "dns_port"
+	FieldDNSQueryType           Field = "dns_query_type"
+	FieldDNSResolution          Field = "dns_resolution"
+	FieldDomain                 Field = "domain"
+	FieldEncMethod              Field = "enc_method"
+	FieldEncryptionKey          Field = "encryption_key"
+	FieldFingerprint            Field = "fingerprint"
+	FieldKnownHostsFile         Field = "known_hosts_file"
+	FieldMaxDownloadMTU         Field = "max_download_mtu"
+	FieldMaxNumLabels           Field = "max_num_labels"
+	FieldMaxQNameLen            Field = "max_qname_len"
+	FieldMaxUploadMTU           Field = "max_upload_mtu"
+	FieldMinDownloadMTU         Field = "min_download_mtu"
+	FieldMinUploadMTU           Field = "min_upload_mtu"
+	FieldMTU                    Field = "mtu"
+	FieldMTUParallelism         Field = "mtu_parallelism"
+	FieldPassphrase             Field = "passphrase"
+	FieldPassword               Field = "password"
+	FieldPrivateKey             Field = "private_key"
+	FieldProxyPort              Field = "proxy_port"
+	FieldProxyType              Field = "proxy_type"
+	FieldPubKey                 Field = "pub_key"
+	FieldQueryMode              Field = "query_mode"
+	FieldRecordType             Field = "record_type"
+	FieldResolverPort           Field = "resolver_port"
+	FieldResolverType           Field = "resolver_type"
+	FieldRPS                    Field = "rps"
+	FieldRxTxWorkers            Field = "rx_tx_workers"
+	FieldSessionInitRacingCount Field = "session_init_racing_count"
+	FieldSessionInitRetryMaxSec Field = "session_init_retry_max_sec"
+	FieldUsername               Field = "username"
+)

@@ -64,24 +64,24 @@ func DefaultMasterDNSConfig() MasterDNSConfig {
 	}
 }
 
-func (c MasterDNSConfig) Validate() map[string]error {
-	errs := make(map[string]error)
+func (c MasterDNSConfig) Validate() map[Field]error {
+	errs := make(map[Field]error)
 
 	if err := netutil.ValidateDomain(strings.TrimSpace(c.Domain)); err != nil {
-		errs["domain"] = err
+		errs[FieldDomain] = err
 	}
 
 	if c.DataEncMethod < 0 || c.DataEncMethod > 5 {
-		errs["enc_method"] = fmt.Errorf("must be between 0 and 5")
+		errs[FieldEncMethod] = fmt.Errorf("must be between 0 and 5")
 	}
 
 	if c.DataEncMethod != 0 {
 		if err := validateEncryptionKey(c.EncryptionKey); err != nil {
-			errs["encryption_key"] = err
+			errs[FieldEncryptionKey] = err
 		}
 	}
 	if c.ResolverPort == 0 {
-		errs["resolver_port"] = fmt.Errorf("must be between 1 and 65535")
+		errs[FieldResolverPort] = fmt.Errorf("must be between 1 and 65535")
 	}
 
 	if c.MTUTestTimeoutSec < 0 || c.MTUTestTimeoutSec > 60 {
@@ -93,35 +93,35 @@ func (c MasterDNSConfig) Validate() map[string]error {
 	}
 
 	if c.SessionInitRetryMaxSec < 0 || c.SessionInitRetryMaxSec > 3600 {
-		errs["session_init_retry_max_sec"] = fmt.Errorf("must be between 0 and 3600")
+		errs[FieldSessionInitRetryMaxSec] = fmt.Errorf("must be between 0 and 3600")
 	}
 
 	if c.SessionInitRacingCount < 1 || c.SessionInitRacingCount > 5 {
-		errs["session_init_racing_count"] = fmt.Errorf("must be between 1 and 5")
+		errs[FieldSessionInitRacingCount] = fmt.Errorf("must be between 1 and 5")
 	}
 
 	if c.MinUploadMTU < 10 || c.MinUploadMTU > c.MaxUploadMTU {
-		errs["min_upload_mtu"] = fmt.Errorf("must be between 10 and max_upload_mtu")
+		errs[FieldMinUploadMTU] = fmt.Errorf("must be between 10 and max_upload_mtu")
 	}
 
 	if c.MaxUploadMTU < 1 || c.MaxUploadMTU > 255 {
-		errs["max_upload_mtu"] = fmt.Errorf("must be between 1 and 255")
+		errs[FieldMaxUploadMTU] = fmt.Errorf("must be between 1 and 255")
 	}
 
 	if c.MinDownloadMTU < 1 || c.MinDownloadMTU > c.MaxDownloadMTU {
-		errs["min_download_mtu"] = fmt.Errorf("must be between 1 and max_download_mtu")
+		errs[FieldMinDownloadMTU] = fmt.Errorf("must be between 1 and max_download_mtu")
 	}
 
 	if c.MaxDownloadMTU < 1 {
-		errs["max_download_mtu"] = fmt.Errorf("must be between 1 and 65535")
+		errs[FieldMaxDownloadMTU] = fmt.Errorf("must be between 1 and 65535")
 	}
 
 	if c.MTUParallelism < 1 || c.MTUParallelism > 100 {
-		errs["mtu_parallelism"] = fmt.Errorf("must be between 1 and 100")
+		errs[FieldMTUParallelism] = fmt.Errorf("must be between 1 and 100")
 	}
 
 	if c.RxTxWorkers < 1 || c.RxTxWorkers > 64 {
-		errs["rx_tx_workers"] = fmt.Errorf("must be between 1 and 64")
+		errs[FieldRxTxWorkers] = fmt.Errorf("must be between 1 and 64")
 	}
 
 	return errs

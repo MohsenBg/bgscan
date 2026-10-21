@@ -107,23 +107,23 @@ func DefaultSlipstreamConfig() SlipstreamConfig {
 	}
 }
 
-func (c SlipstreamConfig) Validate() map[string]error {
-	errs := make(map[string]error)
+func (c SlipstreamConfig) Validate() map[Field]error {
+	errs := make(map[Field]error)
 
 	if err := netutil.ValidateDomain(c.Domain); err != nil {
-		errs["domain"] = err
+		errs[FieldDomain] = err
 	}
 
 	if c.ResolverPort == 0 {
-		errs["dns_port"] = fmt.Errorf("DNS port must be greater than zero")
+		errs[FieldDNSPort] = fmt.Errorf("DNS port must be greater than zero")
 	}
 
 	if !c.DNSResolution.IsValid() {
-		errs["dns_resolution"] = fmt.Errorf("must be %q or %q", DNSResolutionRecursive, DNSResolutionAuthoritative)
+		errs[FieldDNSResolution] = fmt.Errorf("must be %q or %q", DNSResolutionRecursive, DNSResolutionAuthoritative)
 	}
 
 	if !c.CongestionControl.IsValid() {
-		errs["congestion_control"] = fmt.Errorf("must be %q or %q", CongestionControlBBR, CongestionControlCubic)
+		errs[FieldCongestionControl] = fmt.Errorf("must be %q or %q", CongestionControlBBR, CongestionControlCubic)
 	}
 
 	for field, err := range validateProxyAuth(

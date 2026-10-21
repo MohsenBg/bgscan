@@ -15,10 +15,10 @@ var Schema = result.ResultSchema{
 	Directory: "xray",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 40},
-		{Name: "Latency", Width: 20},
-		{Name: "Download", Width: 20},
-		{Name: "Upload", Width: 20},
+		{Name: "IP", Width: 40, ColumnType: result.ColumnIP},
+		{Name: "Latency", Width: 20, ColumnType: result.ColumnDuration},
+		{Name: "Download", Width: 20, ColumnType: result.ColumnBandwidth},
+		{Name: "Upload", Width: 20, ColumnType: result.ColumnBandwidth},
 	},
 
 	Parser: parseXrayResult,

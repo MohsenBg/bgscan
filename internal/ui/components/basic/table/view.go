@@ -2,58 +2,160 @@ package table
 
 import (
 	"fmt"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 )
 
 func (m *Model) View() string {
-	width := m.Layout.Body.Width
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
-	tableView := m.tableViewStyle(width).Render(m.BubbleTable.View())
+	width := m.tableWidthLocked()
+
+	tableView := m.tableViewStyle().Render(m.renderTableBody())
+	helpView := m.helpStyle().Render(m.help.View())
+	statusView := m.renderStatus()
+
+	blocks := make([]string, 0, 5)
+
+	if t := m.renderTitle(); t != "" {
+		blocks = append(blocks, t)
+	}
+
+	if f := m.renderFilter(); f != "" {
+		blocks = append(blocks, f)
+	}
+
+	blocks = append(blocks, tableView, statusView, helpView)
 
 	return lipgloss.NewStyle().
 		Width(width).
-		Render(lipgloss.JoinVertical(
-			lipgloss.Center,
-			m.renderTitle(),
-			m.renderFilter(),
-			tableView,
-			m.renderHelpView(),
-		))
+		Align(lipgloss.Center).
+		Render(lipgloss.JoinVertical(lipgloss.Center, blocks...))
 }
 
-func (m *Model) renderHelpView() string {
-	width := m.Layout.Body.Width
-	m.Help.SetWidth(width)
+// renderTableBody renders the table body. When there are no rows, it keeps
+// the header visible and injects a centered message into the empty body.
+func (m *Model) renderTableBody() string {
+	view := m.bubble.View()
 
-	helpView := ""
-	if m.FullHelp {
-		helpView = m.helpViewStyle(width).Render(m.Help.FullHelpView(m.Keys.FullHelp(m.Layout.Body.Width)))
-	} else {
-		helpView = m.helpViewStyle(width).Render(m.Help.ShortHelpView(m.Keys.ShortHelp()))
+	if !m.loading && len(m.bubble.Rows()) > 0 {
+		return m.markSelected(view)
 	}
 
-	return helpView
+	// bubbles/table renders header text, header border, then body lines.
+	lines := strings.Split(view, "\n")
+
+	const headerEnd = 2
+	if len(lines) <= headerEnd {
+		return view
+	}
+
+	bodyLines := len(lines) - headerEnd
+	contentWidth := m.contentWidthLocked()
+
+	base := lipgloss.NewStyle().
+		Width(contentWidth).
+		Align(lipgloss.Center)
+
+	var msgLines []string
+
+	switch {
+	case m.loading:
+		msgLines = append(
+			msgLines,
+			base.Foreground(m.env.Theme.Text).Render(m.renderLoading()),
+		)
+
+	case m.filterValue() != "":
+		filter := m.filterValue()
+		if runes := []rune(filter); len(runes) > maxFilterChar {
+			filter = string(runes[:maxFilterChar-3]) + "..."
+		}
+
+		msgLines = append(
+			msgLines,
+			base.Foreground(m.env.Theme.Text).Render(fmt.Sprintf("No matches for %q", filter)),
+			base.Foreground(m.env.Theme.Muted).Render(fmt.Sprintf(
+				"press %s to clear the filter",
+				m.env.Keys.Filter.Clear.Keys[0],
+			)),
+		)
+
+	default:
+		msgLines = append(
+			msgLines,
+			base.Foreground(m.env.Theme.Muted).Render(m.emptyMessage),
+		)
+	}
+
+	start := max(headerEnd, headerEnd+(bodyLines-len(msgLines))/2)
+	msgLen := len(msgLines)
+
+	for i := headerEnd; i < len(lines); i++ {
+		idx := i - start
+
+		if idx >= 0 && idx < msgLen {
+			lines[i] = msgLines[idx]
+		} else if m.loading {
+			lines[i] = ""
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func (m *Model) renderTitle() string {
-	width := m.Layout.Body.Width
-	if m.Title != "" {
-		return m.titleStyles(width).Render(m.Title)
-	}
-	return ""
-}
-
-// renderFilter shows "filter: text [matched/total]" while editing or while
-// a filter is applied; empty otherwise so the layout doesn't shift.
-func (m *Model) renderFilter() string {
-	if !m.filtering && m.filter == "" {
+	if m.title == "" {
 		return ""
 	}
-	text := m.filter
-	if m.filtering {
-		text += "▊"
+
+	return m.titleStyles(m.tableWidthLocked()).Render(m.title)
+}
+
+func (m *Model) renderFilter() string {
+	if !m.filtering && m.filterValue() == "" {
+		return ""
 	}
-	return m.filterStyle().Render(fmt.Sprintf("filter: %s [%d/%d]",
-		text, len(m.BubbleTable.Rows()), len(m.originalRows)))
+
+	left := " / " + lipgloss.NewStyle().
+		Foreground(m.env.Theme.Text).
+		Render(m.filter.View())
+
+	right := lipgloss.NewStyle().
+		Foreground(m.env.Theme.Secondary).
+		Render(fmt.Sprintf(
+			"%d / %d ",
+			len(m.bubble.Rows()),
+			len(m.originalRows),
+		))
+
+	style := m.filterStyle()
+	gap := max(1, style.GetWidth()-lipgloss.Width(left)-lipgloss.Width(right))
+
+	return style.Render(left + strings.Repeat(" ", gap) + right)
+}
+
+// renderStatus draws the bottom border and status text, continuing the
+// table's rounded border.
+func (m *Model) renderStatus() string {
+	total := len(m.originalRows)
+
+	selected := 0
+	if !m.loading && total > 0 {
+		selected = m.bubble.Cursor() + 1
+	}
+
+	text := fmt.Sprintf(" Row %d of %d ──╯", selected, total)
+	width := m.tableWidthLocked()
+
+	left := "╰"
+	dashes := max(0, width-lipgloss.Width(text)-lipgloss.Width(left))
+	line := left + strings.Repeat("─", dashes) + text
+
+	return lipgloss.NewStyle().
+		Width(width).
+		Foreground(m.env.Theme.Info).
+		Render(line)
 }

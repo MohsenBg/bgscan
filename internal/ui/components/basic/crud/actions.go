@@ -1,69 +1,121 @@
 package crud
 
 import (
-	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/env"
-
 	tea "charm.land/bubbletea/v2"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
 )
 
-type MsgActionTrigger struct{ ActionType string }
+// TriggerActionMsg requests the model to execute a specific action by name.
+type TriggerActionMsg struct{ Action string }
 
-// registerActions builds the name → handler table; only non-nil hooks are
-// registered.
-func (m *Model[T]) registerActions() {
-	if m.hooks.OnSelect != nil {
-		m.actions["select"] = actionEntry[T]{needsItem: true, run: m.hooks.OnSelect}
+type actionEntry[T any] struct {
+	name      string
+	binding   keys.Binding
+	needsItem bool
+	run       func(item T) tea.Cmd
+}
+
+func (m *Model[T]) bindActions(k keys.Keys) {
+	m.actions = m.actions[:0]
+
+	if hook := m.hooks.OnSelect; hook != nil {
+		m.actions = append(m.actions, actionEntry[T]{
+			name:      "select",
+			binding:   k.Crud.Select,
+			needsItem: true,
+			run:       hook,
+		})
+	}
+	if hook := m.hooks.OnAdd; hook != nil {
+		m.actions = append(m.actions, actionEntry[T]{
+			name:    "add",
+			binding: k.Crud.Add,
+			run:     func(T) tea.Cmd { return hook() },
+		})
 	}
 	if m.hooks.OnDelete != nil {
-		m.actions["delete"] = actionEntry[T]{needsItem: true, run: m.requestDeletion}
+		m.actions = append(m.actions, actionEntry[T]{
+			name:      "delete",
+			binding:   k.Crud.Delete,
+			needsItem: true,
+			run:       m.requestDeletion,
+		})
 	}
 	if m.hooks.OnRename != nil {
-		m.actions["rename"] = actionEntry[T]{needsItem: true, run: m.requestRename}
+		m.actions = append(m.actions, actionEntry[T]{
+			name:      "rename",
+			binding:   k.Crud.Rename,
+			needsItem: true,
+			run:       m.requestRename,
+		})
 	}
-	if m.hooks.OnAdd != nil {
-		add := m.hooks.OnAdd
-		m.actions["add"] = actionEntry[T]{run: func(T) tea.Cmd { return add() }}
-	}
+
 	for _, a := range m.hooks.Custom {
-		m.actions[a.Name] = actionEntry[T]{needsItem: a.NeedsItem, run: a.Handler}
+		m.actions = append(m.actions, actionEntry[T]{
+			name: a.Name,
+			binding: keys.Binding{
+				Keys:      a.Key,
+				HelpText:  a.Help,
+				ShortText: a.Name,
+			},
+			needsItem: a.NeedsItem,
+			run:       a.Handler,
+		})
 	}
 }
 
-func (m *Model[T]) configureKeymaps() {
-	var keys []table.ActionKey
+func (m *Model[T]) shortHints() keys.Hints {
+	hints := make(keys.Hints, 0, len(m.actions))
+	for _, a := range m.actions {
+		hints = append(hints, a.binding.ShortItem())
+	}
+	return hints
+}
 
-	if m.hooks.OnSelect != nil {
-		keys = append(keys, table.NewKey(
-			[]string{env.KeyEnter}, "select", "select item",
-			func() tea.Msg { return MsgActionTrigger{ActionType: "select"} },
-		))
+func (m *Model[T]) longHints() keys.Hints {
+	hints := make(keys.Hints, 0, len(m.actions))
+	for _, a := range m.actions {
+		hints = append(hints, a.binding.LongItem(m.source.Name()))
 	}
-	if m.hooks.OnAdd != nil {
-		keys = append(keys, table.NewKey(
-			[]string{"a"}, "add", "create item",
-			func() tea.Msg { return MsgActionTrigger{ActionType: "add"} },
-		))
-	}
-	if m.hooks.OnDelete != nil {
-		keys = append(keys, table.NewKey(
-			[]string{"x"}, "delete", "delete item",
-			func() tea.Msg { return MsgActionTrigger{ActionType: "delete"} },
-		))
-	}
-	if m.hooks.OnRename != nil {
-		keys = append(keys, table.NewKey(
-			[]string{"r"}, "rename", "rename item",
-			func() tea.Msg { return MsgActionTrigger{ActionType: "rename"} },
-		))
-	}
-	for _, a := range m.hooks.Custom {
-		a := a
-		keys = append(keys, table.NewKey(
-			a.Key, a.Name, a.Help,
-			func() tea.Msg { return MsgActionTrigger{ActionType: a.Name} },
-		))
-	}
+	return hints
+}
 
-	m.table.SetKeys(keys...)
+// resolveItem fetches the currently selected item if the action requires one.
+func (m *Model[T]) resolveItem(needsItem bool) (T, error) {
+	var zero T
+	if !needsItem {
+		return zero, nil
+	}
+	return m.getSelected()
+}
+
+func (m *Model[T]) handleAction(key tea.KeyMsg) (tea.Cmd, bool) {
+	for _, a := range m.actions {
+		if !a.binding.Matches(key) {
+			continue
+		}
+
+		item, err := m.resolveItem(a.needsItem)
+		if err != nil {
+			return m.showNotice("Selection", err.Error(), notice.NOTICE_INFO), true
+		}
+		return a.run(item), true
+	}
+	return nil, false
+}
+
+func (m *Model[T]) dispatchAction(name string) tea.Cmd {
+	for _, a := range m.actions {
+		if a.name != name {
+			continue
+		}
+
+		item, err := m.resolveItem(a.needsItem)
+		if err != nil {
+			return m.showNotice("Selection", err.Error(), notice.NOTICE_INFO)
+		}
+		return a.run(item)
+	}
+	return nil
 }

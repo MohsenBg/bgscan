@@ -130,47 +130,47 @@ func validateProxyAuth(
 	proxyPort uint16,
 	authMethod AuthMethod,
 	username, password, privateKey, knownHostsFile string,
-) map[string]error {
-	errs := make(map[string]error)
+) map[Field]error {
+	errs := make(map[Field]error)
 
 	if proxyType != "" {
 		if proxyPort == 0 {
-			errs["proxy_port"] = fmt.Errorf("proxy port must be greater than zero")
+			errs[FieldProxyPort] = fmt.Errorf("proxy port must be greater than zero")
 		}
 
 		switch proxyType {
 		case ResolverProxySSH:
 			if authMethod == AuthNone {
-				errs["auth_method"] = fmt.Errorf("authentication is required for SSH proxy")
+				errs[FieldAuthMethod] = fmt.Errorf("authentication is required for SSH proxy")
 			}
 		case ResolverProxySOCKS:
 			if authMethod == AuthKey {
-				errs["auth_method"] = fmt.Errorf("key auth is not supported for SOCKS proxy")
+				errs[FieldAuthMethod] = fmt.Errorf("key auth is not supported for SOCKS proxy")
 			}
 		default:
-			errs["proxy_type"] = fmt.Errorf("proxy type must be socks or ssh")
+			errs[FieldProxyType] = fmt.Errorf("proxy type must be socks or ssh")
 		}
 	}
 
 	if authMethod == AuthPassword {
 		if strings.TrimSpace(username) == "" {
-			errs["username"] = fmt.Errorf("username is required for password auth")
+			errs[FieldUsername] = fmt.Errorf("username is required for password auth")
 		}
 		if strings.TrimSpace(password) == "" {
-			errs["password"] = fmt.Errorf("password is required for password auth")
+			errs[FieldPassword] = fmt.Errorf("password is required for password auth")
 		}
 	}
 
 	if authMethod == AuthKey {
 		if strings.TrimSpace(username) == "" {
-			errs["username"] = fmt.Errorf("username is required for key auth")
+			errs[FieldUsername] = fmt.Errorf("username is required for key auth")
 		}
 		if err := validatePrivateKey(privateKey); err != nil {
-			errs["private_key"] = err
+			errs[FieldPrivateKey] = err
 		}
 		if knownHostsFile != "" {
 			if err := validateKnownHostsFile(knownHostsFile); err != nil {
-				errs["known_hosts_file"] = err
+				errs[FieldKnownHostsFile] = err
 			}
 		}
 	}

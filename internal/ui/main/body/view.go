@@ -1,8 +1,19 @@
 package body
 
 func (m *Model) View() string {
+	env := m.session.Env()
+	term := env.Layout.Body()
+
+	content := ""
+	if m.swap != nil {
+		content = m.swapView()
+	}
+	if content == "" {
+		content = m.screens[len(m.screens)-1].component.View()
+	}
+
 	return containerStyle(
-		m.state.Layout.Body.Width,
-		m.state.Layout.Body.Height,
-	).Render(m.components[len(m.components)-1].View())
+		term.Width,
+		term.Height,
+	).Render(content)
 }

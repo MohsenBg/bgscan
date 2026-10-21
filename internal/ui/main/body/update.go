@@ -58,9 +58,13 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		keys := env.Keys
 		switch top.Mode() {
 		case ui.KeyModeNormal:
-			if n > 1 && keys.Global.Back.Matches(msg) {
-				return m.popComponent()
+			if keys.Global.Back.Matches(msg) {
+				if n > 1 {
+					return m.popComponent()
+				}
+				return m, confirm.ExitConfirmCmd(env)
 			}
+
 			if keys.Global.Quit.Matches(msg) {
 				return m, confirm.ExitConfirmCmd(env)
 			}

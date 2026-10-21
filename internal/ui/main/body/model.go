@@ -8,36 +8,40 @@ import (
 )
 
 type Model struct {
-	id         ui.ComponentID
-	name       string
-	session    *ui.Session
-	components []ui.Component
+	id      ui.ComponentID
+	name    string
+	session *ui.Session
+	screens []screen
+
+	// swap is the running screen transition; nil when the stack is settled.
+	swap *swap
 }
 
 func New(session *ui.Session) *Model {
 	return &Model{
-		id:         ui.NewComponentID(),
-		name:       "body",
-		session:    session,
-		components: make([]ui.Component, 0, 4),
+		id:      ui.NewComponentID(),
+		name:    "body",
+		session: session,
+		screens: make([]screen, 0, 4),
 	}
 }
 
 func (m *Model) Init() tea.Cmd {
-	m.components = append(m.components, mainMenu.New(m.session))
-	return m.components[0].Init()
+	m.screens = append(m.screens, screen{component: mainMenu.New(m.session)})
+	return m.screens[0].component.Init()
 }
 
 func (m *Model) ID() ui.ComponentID { return m.id }
 func (m *Model) Name() string       { return m.name }
 
-// Mode delegates to the topmost open component; the app's key-mode gate
-// relies on it to see Manage/Input state buried under the body stack.
 func (m *Model) Mode() ui.KeyMode {
-	if n := len(m.components); n > 0 {
-		return m.components[n-1].Mode()
+	for i := len(m.screens) - 1; i >= 0; i-- {
+		if s := m.screens[i]; !s.closing() {
+			return s.component.Mode()
+		}
 	}
 
 	return ui.KeyModeNormal
 }
+
 func (m *Model) OnClose() tea.Cmd { return nil }

@@ -10,10 +10,8 @@ type Layout struct {
 	terminal    TerminalSize
 	content     ContentSize
 	minTerminal TerminalSize
-	header      ComponentSize
 	body        ComponentSize
 	footer      ComponentSize
-	showHeader  bool
 }
 
 // TerminalSize represents the raw terminal dimensions.
@@ -49,7 +47,6 @@ func New() *Layout {
 			Width:  75,
 			Height: 35,
 		},
-		showHeader: true,
 	}
 
 	l.recalculate()
@@ -57,7 +54,7 @@ func New() *Layout {
 }
 
 // recalculate rebuilds the component regions based on the current terminal
-// dimensions and header visibility.
+// dimensions.
 func (l *Layout) recalculate() {
 	l.content = ContentSize{
 		Width:   l.terminal.Width - 2,
@@ -67,23 +64,11 @@ func (l *Layout) recalculate() {
 
 	innerWidth := l.content.Width - frameBorderWidth
 
-	headerHeight := 0
-	if l.showHeader {
-		headerHeight = 8
-	}
-
-	l.header = ComponentSize{
-		Width:  innerWidth,
-		Height: headerHeight,
-		X:      0,
-		Y:      0,
-	}
-
 	l.body = ComponentSize{
 		Width:  innerWidth,
-		Height: l.content.Height - (headerHeight + 2),
+		Height: l.content.Height - 2,
 		X:      0,
-		Y:      headerHeight,
+		Y:      0,
 	}
 
 	l.footer = ComponentSize{
@@ -100,15 +85,6 @@ func (l *Layout) Update(termWidth, termHeight int) {
 	l.terminal.Width = termWidth
 	l.terminal.Height = termHeight
 	l.recalculate()
-}
-
-// SetHeaderVisible toggles header visibility and recalculates regions
-// from the current terminal dimensions.
-func (l *Layout) SetHeaderVisible(visible bool) {
-	if l.showHeader != visible {
-		l.showHeader = visible
-		l.recalculate()
-	}
 }
 
 // SetMinTerminal sets the minimum terminal dimensions required for the layout.
@@ -132,11 +108,6 @@ func (l *Layout) MinTerminal() TerminalSize {
 	return l.minTerminal
 }
 
-// Header returns the header component's size and position.
-func (l *Layout) Header() ComponentSize {
-	return l.header
-}
-
 // Body returns the body component's size and position.
 func (l *Layout) Body() ComponentSize {
 	return l.body
@@ -145,11 +116,6 @@ func (l *Layout) Body() ComponentSize {
 // Footer returns the footer component's size and position.
 func (l *Layout) Footer() ComponentSize {
 	return l.footer
-}
-
-// ShowHeader reports whether the header region is currently visible.
-func (l *Layout) ShowHeader() bool {
-	return l.showHeader
 }
 
 // HasSpace reports whether the current terminal dimensions meet the minimum

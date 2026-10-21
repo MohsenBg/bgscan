@@ -4,7 +4,6 @@ package workspace
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/main/body"
 	"github.com/MohsenBg/bgscan/internal/ui/main/footer"
-	"github.com/MohsenBg/bgscan/internal/ui/main/header"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -16,7 +15,6 @@ type model struct {
 	name    string
 	session *ui.Session
 
-	header ui.Component
 	body   ui.Component
 	footer ui.Component
 }
@@ -28,7 +26,6 @@ func New(session *ui.Session) ui.Component {
 		id:      ui.NewComponentID(),
 		name:    "workspace",
 		session: session,
-		header:  header.New(env),
 		body:    body.New(session),
 		footer:  footer.New(env),
 	}
@@ -42,10 +39,10 @@ func (m *model) Name() string       { return m.name }
 func (m *model) Mode() ui.KeyMode { return m.body.Mode() }
 
 func (m *model) Init() tea.Cmd {
-	return tea.Batch(m.header.Init(), m.body.Init(), m.footer.Init())
+	return tea.Batch(m.body.Init(), m.footer.Init())
 }
 
 // OnClose shuts down the workspace's children.
 func (m *model) OnClose() tea.Cmd {
-	return tea.Batch(m.header.OnClose(), m.body.OnClose(), m.footer.OnClose())
+	return tea.Batch(m.body.OnClose(), m.footer.OnClose())
 }

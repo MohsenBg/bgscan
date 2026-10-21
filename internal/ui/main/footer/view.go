@@ -19,7 +19,7 @@ func (m *Model) View() string {
 	leftSection := leftSectionStyle(leftWidth).Render(
 		fmt.Sprintf("%s %s",
 			appNameStyle(&th).Render("⚡ BGScan"),
-			versionStyle(&th).Render("v"+m.appVersion),
+			versionStyle(&th).Render(m.appVersion),
 		),
 	)
 

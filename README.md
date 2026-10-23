@@ -33,11 +33,13 @@ It is built for developers and researchers who want speed and a modern terminal 
 <div align="center">
   <video
     src="https://github.com/user-attachments/assets/4a4c216e-0179-427c-8fe1-89a8fa197730"
-    controls
+    autoplay
+    muted
+    loop
     playsinline
-    preload="metadata"
+    controls
     width="100%"
-    style="max-width: 900px; border-radius: 12px; border: 1px solid #30363d; background: #0d1117;"
+    style="max-width: 900px; border-radius: 12px; border: 1px solid #30363d;"
   ></video>
 </div>
 

@@ -30,7 +30,16 @@ Use it for host discovery, web service testing, DNS resolver analysis, tunneling
 
 It is built for developers and researchers who want speed and a modern terminal experience without leaving the keyboard.
 
-<img width="1258" height="690" alt="bgscan" src="https://github.com/user-attachments/assets/998c2c7c-f960-4a71-a022-72d86b13c6fb" />
+<div align="center">
+  <video
+    src="https://github.com/user-attachments/assets/4a4c216e-0179-427c-8fe1-89a8fa197730"
+    controls
+    playsinline
+    preload="metadata"
+    width="100%"
+    style="max-width: 900px; border-radius: 12px; border: 1px solid #30363d; background: #0d1117;"
+  ></video>
+</div>
 
 ---
 

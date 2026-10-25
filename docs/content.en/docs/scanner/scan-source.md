@@ -3,14 +3,14 @@ title: "Scan Source"
 weight: 1
 ---
 
-# Scan Source
+# Scan source
 
-Before configuring a scan, bgscan asks you to choose where the target IPs come from. Navigate to **Main Menu → Scan** to open the source picker, which presents two options:
+Before the scan starts, you must define which addresses bgscan should check. For this, go to **Main Menu → Run Scan** and open the scan source picker. Here you have two options:
 
 | Key | Option | Description |
 |---|---|---|
-| `i` | IP List | Pick from your imported IP list files |
-| `r` | Result List | Pick from a previous scan's result file |
+| `i` | IP List | Pick a file from the IP lists |
+| `r` | Result List | Pick a result file from an earlier scan |
 
 ---
 
@@ -18,26 +18,26 @@ Before configuring a scan, bgscan asks you to choose where the target IPs come f
 
 ## IP List
 
-Choosing **IP List** opens your IP file browser. Select any file from the `ips/` directory and bgscan will use its enabled entries as the scan targets.
+Choosing **IP List** opens the IP file list. Pick the file you want from the `ips/` directory so bgscan uses the addresses inside it for the scan.
 
-Use this when you want to scan a fresh set of IPs — for example, a CDN range, a country block, or a custom list you imported.
+This option is for when you want to check a new set of IPs. For example, ranges from a CDN, addresses from a country, or a list you prepared yourself.
 
-See [IP Files](./ip-files.md) for how to import and manage IP list files.
+To learn how to import and manage files, see the [IP lists](./ip-files.md) page.
 
 ---
 
 ## Result List
 
-Choosing **Result List** opens your result file browser. Select any previously saved result file and bgscan will re-scan the IPs it contains.
+Choosing **Result List** opens the result file list. Pick one of the files you saved earlier so bgscan scans the addresses inside it again.
 
-Use this when you want to run a deeper or different scan type against IPs that already passed an earlier stage — for example, running an Xray scan on IPs that passed an ICMP pre-scan.
+This method is useful when you want to do a closer check on the results of an earlier scan or run a different scan type. For example, you can choose the IPs that passed an ICMP pre-scan for an Xray scan.
 
-See [Result Files](./result-files.md) for how result files are organized.
+To learn about the structure of these files, see the [Result files](./result-files.md) page.
 
 ---
 
-## Next Step
+## Next step
 
-After selecting a source file, bgscan moves you directly to **Scan Type** selection where you choose which probe to run against those targets.
+After you choose a file, bgscan takes you to the **Scan Type** selection stage. Here you define which probe runs on the chosen addresses.
 
-See [Scan Types](./scan-types.md) for details on each available scan type.
+Read the description of each probe on the [Scan types](./scan-types.md) page.

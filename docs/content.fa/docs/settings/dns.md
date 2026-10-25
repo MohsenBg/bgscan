@@ -1,3 +1,4 @@
+
 ---
 title: "تنظیمات DNS"
 weight: 8
@@ -5,96 +6,111 @@ weight: 8
 
 # تنظیمات DNS
 
-> 💡 **نکته:** از **Settings → DNS Settings** هم می‌توانید این گزینه‌ها را تغییر دهید.
+> **نکته:** لازم نیست فایل TOML رو دستی ویرایش کنید. می‌تونید تنظیمات رو مستقیماً از داخل خود BGScan تغییر بدید.
+>
+> از منوی اصلی وارد **Settings → DNS Settings** بشید و گزینه‌ها رو با Inspector داخل TUI تنظیم کنید.
 
 فایل تنظیمات: `settings/dns_settings.toml`
 
-این فایل دو بخش دارد: `resolver` برای تست Resolver معمولی، و `dns_tunneling` برای هماهنگی اسکن Tunnel DNS. تنظیمات مخصوص هر پروتکل Tunnel (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed) داخل این فایل نیست و در فایل‌های TOML جداگانه زیر `assets/dns-tunneling/` ذخیره می‌شود.
+این فایل دو بخش داره:
 
-## خلاصهٔ گزینه‌ها
+- **`resolver`:** تنظیمات اسکن ریزالورهای DNS.
+- **`dns_tunneling`:** تنظیمات اجرای اسکن تونل DNS.
 
-| گزینه | پیش‌فرض | توضیح |
-|---|---:|---|
-| `resolver.workers` | وابسته به سیستم | پرس‌وجوی DNS هم‌زمان، ۱ تا ۲۵۰۰ |
-| `resolver.protocol` | `"udp"` | روش انتقال: `udp`، `tcp` یا `dot` |
-| `resolver.domain` | `"example.com"` | Domainی که از هر Resolver پرسیده می‌شود |
-| `resolver.port` | `53` | پورت Resolver، ۱ تا ۶۵۵۳۵ |
-| `resolver.check_types` | `["TXT"]` | Record typeها به‌ترتیب آزمایش |
-| `resolver.edns_buffer_size` | `1232` | اندازهٔ بافر EDNS0 بر حسب بایت؛ `0` خاموش |
-| `resolver.timeout` | وابسته به سیستم | Timeout هر پرس‌وجو، میلی‌ثانیه |
-| `resolver.tries` | `1` | تلاش برای هر Record type، ۱ تا ۱۰ |
-| `resolver.random_subdomain` | `true` | افزودن Label تصادفی برای دورزدن Cache |
-| `resolver.accepted_rcodes` | `["NOERROR","NXDOMAIN","SERVFAIL"]` | RCodeهای حساب‌شده به‌عنوان Resolver زنده |
-| `resolver.output_prefix` | `"dns_"` | پیشوند فایل نتیجه |
-| `resolver.dpi.enabled` | `true` | اجرای بررسی Hijacking قبل از پرس‌وجو |
-| `resolver.dpi.timeout` | `2000` | Timeout بررسی DPI، میلی‌ثانیه |
-| `resolver.dpi.tries` | `1` | تلاش بررسی DPI، ۱ تا ۱۰ |
-| `dns_tunneling.workers` | وابسته به سیستم | Workerهای تست Tunnel هم‌زمان، ۱ تا ۵۰۰ |
-| `dns_tunneling.tries` | `1` | تلاش برای هر هدف، ۱ تا ۱۰ |
-| `dns_tunneling.timeout` | وابسته به سیستم | Timeout تست Tunnel، میلی‌ثانیه |
-| `dns_tunneling.check_dns_resolver` | `true` | اجرای اسکن Resolver قبل از تست Tunnel |
-| `dns_tunneling.adaptive_resolver` | `true` | تطبیق تنظیمات Resolver با Config Tunnel |
-| `dns_tunneling.output_prefix` | `"dns_tun_"` | پیشوند فایل نتیجه |
+تنظیمات اختصاصی هر پروتکل تونل، یعنی DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed، در فایل‌های جداگانه‌ای زیر `assets/dns-tunneling/` قرار دارن.
+
+## مرجع سریع
+
+| تنظیم | پیش‌فرض | توضیح |
+|---|---|---|
+| `resolver.workers` | وابسته به پلتفرم | تعداد کوئری‌های هم‌زمان DNS، از ۱ تا ۲۵۰۰ |
+| `resolver.protocol` | `"udp"` | پروتکل ارتباطی: `udp`، `tcp` یا `dot` |
+| `resolver.domain` | `"example.com"` | دامنه‌ای که از هر ریزالور پرسیده می‌شه |
+| `resolver.port` | `53` | پورت ریزالور، از ۱ تا ۶۵۵۳۵ |
+| `resolver.check_types` | `["TXT"]` | نوع رکوردهایی که به‌ترتیب بررسی می‌شن |
+| `resolver.edns_buffer_size` | `1232` | اندازه بافر UDP در EDNS0 به بایت، مقدار `0` یعنی غیرفعال |
+| `resolver.timeout` | وابسته به پلتفرم | Timeout هر کوئری به میلی‌ثانیه، از ۱۰۰ تا ۳۰۰۰۰ |
+| `resolver.tries` | `1` | تعداد تلاش برای هر نوع رکورد، از ۱ تا ۱۰ |
+| `resolver.random_subdomain` | `true` | اضافه کردن یک برچسب تصادفی برای دور زدن کش |
+| `resolver.accepted_rcodes` | `["NOERROR","NXDOMAIN","SERVFAIL"]` | کدهای پاسخی که نشون می‌دن ریزالور پاسخ می‌ده |
+| `resolver.output_prefix` | `"dns_"` | پیشوند نام فایل‌های نتیجه |
+| `resolver.dpi.enabled` | `true` | فعال کردن بررسی DPI قبل از پروب اصلی |
+| `resolver.dpi.timeout` | `2000` | Timeout بررسی DPI به میلی‌ثانیه، از ۱۰۰ تا ۱۰۰۰۰ |
+| `resolver.dpi.tries` | `1` | تعداد تلاش برای بررسی DPI، از ۱ تا ۱۰ |
+| `dns_tunneling.workers` | وابسته به پلتفرم | تعداد Workerهای هم‌زمان تست تونل، از ۱ تا ۵۰۰ |
+| `dns_tunneling.tries` | `1` | تعداد تلاش برای هر هدف، از ۱ تا ۱۰ |
+| `dns_tunneling.timeout` | وابسته به پلتفرم | Timeout تست تونل به میلی‌ثانیه، از ۱۰۰ تا ۶۰۰۰۰ |
+| `dns_tunneling.check_dns_resolver` | `true` | اجرای اسکن ریزالور قبل از تست تونل |
+| `dns_tunneling.adaptive_resolver` | `true` | هماهنگ کردن تنظیمات ریزالور با Config تونل |
+| `dns_tunneling.output_prefix` | `"dns_tun_"` | پیشوند نام فایل‌های نتیجه |
 
 ## Resolver
 
-هر IP هدف به‌عنوان Resolver استفاده می‌شود. پروب `domain` را از طریق آن می‌پرسد و فقط وقتی هدف را نگه می‌دارد که کد پاسخ داخل `accepted_rcodes` باشد.
+در این اسکن، هر IP هدف به‌عنوان یک ریزالور بررسی می‌شه. پروب از اون درباره دامنه تنظیم‌شده سؤال می‌کنه و اگه کد پاسخ در `accepted_rcodes` باشه، هدف رو نگه می‌داره.
 
-### Workers
+### Workerها
 
 ```toml
 [resolver]
 workers = 150
 ```
 
-تعداد پرس‌وجوهای هم‌زمان. پیش‌فرض مؤثر به پلتفرم و منابع سیستم بستگی دارد. پرس‌وجوی UDP سبک است، پس این مقدار بیشتر از پروب HTTP جا دارد، اما نرخ خیلی بالا روی یک شبکهٔ بالادستی قابل‌مشاهده خواهد بود.
+این گزینه تعداد کوئری‌های هم‌زمان رو مشخص می‌کنه. مقدار پیش‌فرض مؤثر به پلتفرم و منابع در دسترس بستگی داره.
 
-### Protocol
+چون کوئری‌های UDP نسبتاً کم‌هزینه هستن، می‌تونید تعداد Workerها رو بیشتر از اسکن HTTP تنظیم کنید. البته اگه تعداد زیادی درخواست به یک شبکه بالادستی مشخص بفرستید، ترافیک اسکن راحت‌تر قابل تشخیص می‌شه.
+
+### پروتکل
 
 ```toml
 [resolver]
 protocol = "udp"
 ```
 
-روش انتقال پرس‌وجوها: `udp`، `tcp` یا `dot`. خواندن مقدار حساس به بزرگی و کوچکی حروف نیست و مقدار ناشناخته به `udp` برمی‌گردد.
+پروتکل مورد استفاده برای ارسال کوئری‌هاست. سه مقدار `udp`، `tcp` و `dot` پشتیبانی می‌شن. مقدار ورودی به بزرگی و کوچکی حروف حساس نیست و اگه ناشناخته باشه، به `udp` برمی‌گرده.
 
-### Domain
+### دامنه
 
 ```toml
 [resolver]
 domain = "example.com"
 ```
 
-Domainی که از هر Resolver پرسیده می‌شود. باید فقط Domain باشد؛ Scheme، پورت یا Path ندهید. نامی انتخاب کنید که همه‌جا قابل Resolve باشد، وگرنه Resolverهای سالم هم خراب به نظر می‌رسند.
+دامنه‌ای که از هر ریزالور پرسیده می‌شه. فقط نام دامنه رو وارد کنید. نیازی به Scheme، پورت یا مسیر نیست.
 
-### Port
+دامنه‌ای انتخاب کنید که در اینترنت به‌درستی Resolve بشه. اگه دامنه انتخابی قابل Resolve نباشه، ممکنه ریزالورهای سالم هم نامعتبر تشخیص داده بشن.
+
+### پورت
 
 ```toml
 [resolver]
 port = 53
 ```
 
-پورتی که Resolver روی آن گوش می‌دهد. با `protocol = "dot"` پورت 853 را بگذارید.
+پورتی که کوئری‌ها به اون ارسال می‌شن. برای DNS روی UDP یا TCP معمولاً از پورت `53` استفاده می‌شه. اگه `protocol = "dot"` باشه، پورت معمول `853` هست.
 
-### Check Types
+### نوع رکوردهای بررسی
 
 ```toml
 [resolver]
 check_types = ["TXT"]
 ```
 
-Record typeها به‌ترتیب آزمایش می‌شوند. پروب با اولین نوعی که RCode قابل قبول بدهد متوقف می‌شود و همان نوع در نتیجه ثبت می‌شود. اگر ممکن است یک Resolver برای نوعی جواب بدهد و نوع دیگری را رد کند، نوع بیشتری به فهرست اضافه کنید.
+نوع رکوردهایی که پروب به‌ترتیب امتحان می‌کنه. بررسی به محض دریافت اولین پاسخ با Rcode قابل قبول متوقف می‌شه و نوع رکورد موفق هم در نتیجه ثبت می‌شه.
 
-Record typeهای پشتیبانی‌شده: `A`، `AAAA`، `CNAME`، `NS`، `MX`، `TXT`، `SRV`، `NULL`، `CAA`.
+اگه بعضی ریزالورها به یک نوع رکورد جواب می‌دن ولی نوع دیگه‌ای رو رد می‌کنن، می‌تونید چند نوع رکورد رو در این فهرست قرار بدید.
 
-### EDNS Buffer Size
+نوع‌های پشتیبانی‌شده:
+
+`A`، `AAAA`، `CNAME`، `NS`، `MX`، `TXT`، `SRV`، `NULL` و `CAA`.
+
+### اندازه بافر EDNS
 
 ```toml
 [resolver]
 edns_buffer_size = 1232
 ```
 
-اندازهٔ UDP payload اعلام‌شده در رکورد OPT. `0` یعنی EDNS0 خاموش.
+اندازه Payload مربوط به UDP رو مشخص می‌کنه که در رکورد OPT مربوط به EDNS0 اعلام می‌شه. مقدار `0` یعنی EDNS0 غیرفعال باشه.
 
 ### Timeout
 
@@ -103,56 +119,60 @@ edns_buffer_size = 1232
 timeout = 2000
 ```
 
-Timeout هر پرس‌وجو بر حسب میلی‌ثانیه.
+حداکثر زمان انتظار برای هر کوئری، برحسب میلی‌ثانیه.
 
-### Tries
+### تعداد تلاش
 
 ```toml
 [resolver]
 tries = 1
 ```
 
-تعداد تلاش برای هر Record type. Retry فقط خطاهای شبکه را پوشش می‌دهد. به‌محض رسیدن هر پاسخ DNS، حتی با RCode ردشده، پروب بدون تلاش دوباره سراغ Record type بعدی می‌رود.
+تعداد تلاش برای هر نوع رکورد رو مشخص می‌کنه. تلاش مجدد فقط برای خطاهای شبکه انجام می‌شه.
 
-### Random Subdomain
+به‌محض دریافت پاسخ DNS، حتی اگه Rcode اون قابل قبول نباشه، پروب تلاش مجدد نمی‌کنه و سراغ نوع رکورد بعدی می‌ره.
+
+### زیردامنه تصادفی
 
 ```toml
 [resolver]
 random_subdomain = true
 ```
 
-برای هر پروب یک Label تصادفی ۱۰کاراکتری به اول `domain` اضافه می‌کند. این کار Cache Resolver را دور می‌زند و Lookup بازگشتی واقعی را اجباری می‌کند، پس Latency نشان‌دهندهٔ کار واقعی Resolver است نه پاسخ Cache‌شده.
+با فعال بودن این گزینه، برای هر پروب یک برچسب تصادفی ۱۰ کاراکتری به دامنه اضافه می‌شه.
 
-### Accepted RCodes
+این کار احتمال استفاده از پاسخ ذخیره‌شده در کش ریزالور رو کاهش می‌ده و باعث می‌شه درخواست به‌جای استفاده از کش، نیاز به Resolve شدن داشته باشه. در نتیجه، زمان پاسخ اطلاعات مفیدتری درباره عملکرد واقعی ریزالور می‌ده.
+
+### Rcodeهای قابل قبول
 
 ```toml
 [resolver]
 accepted_rcodes = ["NOERROR", "NXDOMAIN", "SERVFAIL"]
 ```
 
-RCodeهایی که Resolver را زنده حساب می‌کنند.
+این گزینه مشخص می‌کنه دریافت کدوم پاسخ‌های DNS برای زنده در نظر گرفتن ریزالور کافیه.
 
-| مقدار | نام دیگر | کد |
+| مقدار | نام‌های دیگر | کد |
 |---|---|---:|
 | `NOERROR` | `success` | 0 |
 | `FORMERR` | `formaterror` | 1 |
 | `SERVFAIL` | `serverfailure` | 2 |
 | `NXDOMAIN` | `nameerror` | 3 |
 | `NOTIMP` | `notimplemented` | 4 |
-| `REFUSED` | | 5 |
+| `REFUSED` | ندارد | 5 |
 
-با فعال‌بودن `random_subdomain`، پاسخ `NXDOMAIN` برای Label ساختگی طبیعی است و به همین دلیل به‌صورت پیش‌فرض پذیرفته می‌شود.
+وقتی `random_subdomain` فعاله، دریافت `NXDOMAIN` برای یک زیردامنه تصادفی طبیعیه، چون چنین نامی معمولاً وجود نداره. به همین دلیل، `NXDOMAIN` به‌صورت پیش‌فرض جزو پاسخ‌های قابل قبول قرار گرفته.
 
-### Output Prefix
+### پیشوند خروجی
 
 ```toml
 [resolver]
 output_prefix = "dns_"
 ```
 
-پیشوند فایل‌های نتیجهٔ Resolver. فایل‌ها داخل `result/dns_resolver/` ذخیره می‌شوند.
+این گزینه پیشوند نام فایل‌های نتیجه اسکن ریزالور رو مشخص می‌کنه. فایل‌ها در مسیر `result/dns_resolver/` ذخیره می‌شن.
 
-### DPI Check
+### بررسی DPI
 
 ```toml
 [resolver.dpi]
@@ -161,31 +181,40 @@ timeout = 2000
 tries = 1
 ```
 
-بررسی DPI (Deep Packet Inspection) قبل از پرس‌وجوهای واقعی اجرا می‌شود. پروب از Resolver یک نام تصادفی `.invalid` می‌پرسد که نمی‌تواند وجود داشته باشد. Resolverی که به چنین نامی پاسخ `NOERROR` بدهد دارد نتیجه ساخت می‌کند، پس هدف کنار گذاشته می‌شود. هر RCode دیگری سالم حساب می‌شود. نتیجهٔ این بررسی با `passed` یا `skipped` در هر رکورد ثبت می‌شود.
+بررسی DPI یا Deep Packet Inspection قبل از کوئری‌های اصلی اجرا می‌شه. پروب یک نام تصادفی زیر دامنه `.invalid` می‌پرسه، دامنه‌ای که برای نام‌های معمول اینترنتی قابل ثبت نیست.
 
-`timeout` بر حسب میلی‌ثانیه است (محدودهٔ ۱۰۰ تا ۱۰۰۰۰) و `tries` از ۱ تا ۱۰ می‌گیرد. Timeout بررسی DPI را خیلی کمتر از `timeout` اصلی بگذارید تا هدف‌های مرده سریع کنار بروند.
+طبق منطق این بررسی، اگه ریزالور برای این نام پاسخ `NOERROR` برگردونه، احتمال دست‌کاری پاسخ یا جعل DNS وجود داره و هدف رد می‌شه. دریافت Rcode دیگری به معنی عبور از این بررسیه.
 
-## DNS Tunneling
+نتیجه بررسی در هر رکورد با مقدار `passed` یا `skipped` ثبت می‌شه.
 
-بخش `dns_tunneling` هماهنگی اسکن Tunnel را کنترل می‌کند و تنظیمات خود پروتکل‌ها را ندارد. هر Worker یک پروب Tunnel کامل اجرا می‌کند و یک پورت محلی SOCKS5 نگه می‌دارد، پس بسیار سنگین‌تر از پروب Resolver است.
+- `timeout`: حداکثر زمان انتظار به میلی‌ثانیه، از ۱۰۰ تا ۱۰۰۰۰.
+- `tries`: تعداد تلاش، از ۱ تا ۱۰.
 
-### Workers
+بهتره Timeout بررسی DPI از Timeout اصلی کمتر باشه تا هدف‌هایی که پاسخ نمی‌دن، سریع‌تر کنار گذاشته بشن.
+
+## تونل DNS
+
+بخش `dns_tunneling` تنظیمات مربوط به اجرای اسکن تونل DNS رو کنترل می‌کنه. تنظیمات اختصاصی هر پروتکل در این بخش قرار ندارن و باید از فایل TOML مربوط به همون پروتکل استفاده کنید.
+
+### Workerها
 
 ```toml
 [dns_tunneling]
 workers = 16
 ```
 
-تعداد Workerهای تست Tunnel هم‌زمان. پیش‌فرض مؤثر به پلتفرم و منابع سیستم بستگی دارد.
+تعداد Workerهای هم‌زمان تست تونل رو مشخص می‌کنه. هر Worker پروب تونل خودش رو اجرا می‌کنه و یک پورت محلی در اختیار داره. بنابراین، تست تونل معمولاً از بررسی ساده ریزالور منابع بیشتری مصرف می‌کنه.
 
-### Tries
+مقدار پیش‌فرض مؤثر به پلتفرم و منابع در دسترس بستگی داره.
+
+### تعداد تلاش
 
 ```toml
 [dns_tunneling]
 tries = 1
 ```
 
-تعداد تلاش برای هر هدف.
+تعداد تلاش برای هر هدف رو مشخص می‌کنه.
 
 ### Timeout
 
@@ -194,40 +223,57 @@ tries = 1
 timeout = 10000
 ```
 
-بودجهٔ زمانی برپاکردن Tunnel و اعتبارسنجی آن بر حسب میلی‌ثانیه. تست Tunnel به زمان بیشتری از پرس‌وجوی معمولی DNS نیاز دارد.
+حداکثر زمان اختصاص‌یافته به راه‌اندازی تونل و اعتبارسنجی اون، برحسب میلی‌ثانیه.
 
-### Check DNS Resolver
+از اونجا که برقراری تونل به مراحل بیشتری نسبت به یک کوئری ساده DNS نیاز داره، معمولاً باید Timeout بیشتری براش در نظر بگیرید.
+
+### بررسی ریزالور DNS
 
 ```toml
 [dns_tunneling]
 check_dns_resolver = true
 ```
 
-وقتی `true` باشد، قبل از تست Tunnel یک اسکن Resolver اجرا می‌شود و فقط Resolverهایی که از آن عبور کنند به‌عنوان کاندید Tunnel تست می‌شوند. این کار از هدررفتن پروب‌های Tunnel روی Resolverهایی که حتی به پرس‌وجوی ساده هم جواب نمی‌دهند جلوگیری می‌کند.
+اگه این گزینه فعال باشه، قبل از شروع تست تونل یک پیش‌اسکن ریزالور اجرا می‌شه. فقط ریزالورهایی که از این مرحله عبور کنن، برای تست تونل بررسی می‌شن.
 
-### Adaptive Resolver
+به این ترتیب، منابع صرف تست تونل‌هایی نمی‌شن که ریزالورشون حتی به یک کوئری ساده DNS هم جواب نمی‌ده.
+
+### ریزالور تطبیقی
 
 ```toml
 [dns_tunneling]
 adaptive_resolver = true
 ```
 
-وقتی `true` باشد، تنظیمات Resolver (روش انتقال، پورت و Domain) به‌طور خودکار با Config Tunnel انتخاب‌شده هماهنگ می‌شوند. مثلاً اگر Config DNSTT با `resolver_type = "tcp"` روی پورت 853 تعریف شده باشد، اسکن Resolver هم همان مسیر را تست می‌کند. وقتی `false` باشد، اسکن Resolver از تنظیمات بخش `[resolver]` همان‌طور که هستند استفاده می‌کند.
+با فعال بودن این گزینه، تنظیمات ریزالور شامل پروتکل، پورت و دامنه به‌صورت خودکار با Config تونل انتخاب‌شده هماهنگ می‌شن.
 
-### Output Prefix
+برای مثال، اگه Config مربوط به DNSTT از `resolver_type = "tcp"` و پورت `853` استفاده کنه، پیش‌اسکن ریزالور هم با همین پروتکل و پورت اجرا می‌شه. در نتیجه، پیش‌اسکن مسیری رو بررسی می‌کنه که تونل قراره ازش استفاده کنه.
+
+اگه این گزینه غیرفعال باشه، پیش‌اسکن از تنظیمات بخش `[resolver]` استفاده می‌کنه.
+
+### پیشوند خروجی
 
 ```toml
 [dns_tunneling]
 output_prefix = "dns_tun_"
 ```
 
-پیشوند فایل‌های نتیجهٔ Tunnel. فایل‌ها بسته به پروتکل داخل `result/dnstt/`، `result/vaydns/`، `result/slipstream/`، `result/masterdns/`، `result/stormdns/` یا `result/thefeed/` ذخیره می‌شوند.
+این گزینه پیشوند نام فایل‌های نتیجه اسکن تونل رو مشخص می‌کنه. محل ذخیره نتیجه‌ها به پروتکل انتخاب‌شده بستگی داره:
 
-## Configهای Tunnel
+- `result/dnstt/`
+- `result/vaydns/`
+- `result/slipstream/`
+- `result/masterdns/`
+- `result/stormdns/`
+- `result/thefeed/`
 
-پروتکل‌های Tunnel DNS (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed) با فایل‌های TOML جداگانه زیر `assets/dns-tunneling/` تنظیم می‌شوند:
+## Configهای تونل
 
-```
+هر پروتکل تونل DNS، یعنی DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed، تنظیمات اختصاصی خودش رو در فایل‌های TOML جداگانه زیر `assets/dns-tunneling/` نگه می‌داره.
+
+ساختار پوشه‌ها به این شکله:
+
+```text
 assets/dns-tunneling/
 ├── dnstt/
 │   ├── my-dnstt-config.toml
@@ -249,14 +295,17 @@ assets/dns-tunneling/
     └── ...
 ```
 
-این Configها از داخل برنامه در **Main Menu → DNS Tunneling** ساخته و مدیریت می‌شوند. هر Config یک نام، نوع پروتکل و فیلدهای مخصوص همان پروتکل دارد. برای تنظیمات هر پروتکل [Tunnel DNS](../dns-tunneling/) را ببینید.
+می‌تونید این Configها رو از طریق TUI و مسیر **Main Menu → DNS Tunneling** بسازید و مدیریت کنید. هر Config یک نام، نوع پروتکل و گزینه‌های مخصوص خودش رو داره.
+
+برای آشنایی با تنظیمات هر پروتکل، صفحه [تونل DNS](../dns-tunneling/) رو ببینید.
 
 ## فایل‌های مرتبط
 
-- [`general_settings.toml`](./general.md)
-- [`icmp_settings.toml`](./icmp.md)
-- [`tcp_settings.toml`](./tcp.md)
-- [`http_settings.toml`](./http.md)
-- [`xray_settings.toml`](./xray.md)
-- [`writer_settings.toml`](./writer.md)
-- [Tunnel DNS](../dns-tunneling/) — تنظیمات پروتکل‌های Tunnel
+- [`general_settings.toml`](./general.md): تنظیمات کلی اسکن و حالت اجرای اسکن
+- [`icmp_settings.toml`](./icmp.md): تنظیمات اسکن ICMP
+- [`tcp_settings.toml`](./tcp.md): تنظیمات اسکن پورت TCP
+- [`http_settings.toml`](./http.md): تنظیمات پروب HTTP، HTTPS و HTTP/3
+- [`xray_settings.toml`](./xray.md): تنظیمات اسکن Xray و اعتبارسنجی Outboundها
+- [`writer_settings.toml`](./writer.md): تنظیمات ذخیره نتیجه‌ها
+- [تونل DNS](../dns-tunneling/): تنظیمات اختصاصی پروتکل‌های تونل
+

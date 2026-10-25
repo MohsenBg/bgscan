@@ -1,5 +1,4 @@
 ---
-
 title: "Installation"
 weight: 3
 bookFlatSection: false
@@ -7,9 +6,9 @@ bookFlatSection: false
 
 # Installation
 
-bgscan runs on Linux, macOS, Windows, and Android (Termux). Pick the method that fits your environment.
+bgscan runs on Linux, macOS, Windows, and Android (Termux). Pick the method that fits your operating system.
 
-## Quick Install
+## Quick install
 
 **Linux / macOS**
 
@@ -29,38 +28,49 @@ irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/in
 { command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
 ```
 
-The install scripts use `bgscan-installer`, a small standalone Rust binary from the separate [bgscan-installer](https://github.com/MohsenBg/bgscan-installer) project. It resolves the requested release asset for your platform, verifies its SHA-256 checksum against `checksum.txt`, and installs bgscan into `bgscan/` (or into the current directory if a `bgscan` binary is already there). If an installation already exists, you choose how to proceed: update in place (replaces the binary and adds missing files, keeps your `ips`, `assets`, and `settings`), clean install, back up the existing installation to a timestamped `bgscan_<timestamp>` directory, or cancel.
+The install scripts use `bgscan-installer`. This is a small standalone binary written in Rust and kept in a separate repository ([bgscan-installer](https://github.com/MohsenBg/bgscan-installer)).
 
-To install a specific version instead of the latest, pass `--version`:
+`bgscan-installer` finds the release that fits your system, checks its SHA-256 checksum against the value recorded in `checksum.txt`, and installs bgscan inside the `bgscan/` directory. If a `bgscan` binary already exists in the current directory, the installation happens there.
+
+If an earlier installation is found, you can choose one of these options:
+
+- **Update:** The binary is replaced and new files are added, but the `ips`, `assets`, and `settings` directories stay untouched.
+- **Clean install:** The earlier installation is replaced with a fresh one.
+- **Backup:** A backup of the current installation is made in a directory named `bgscan_<timestamp>`.
+- **Cancel:** The installation stops.
+
+If you have a specific version in mind and do not want the latest release, use the `--version` option:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh -s -- --version v2.11.0
+curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh -s -- --version v2.12.0
 ```
 
-## Manual Install
+## Manual install
 
-1. Download the ZIP for your platform from the [Releases page](https://github.com/MohsenBg/bgscan/releases/latest).
-2. Extract the archive.
-3. **Run the application:**
-   - **Linux/macOS/Termux:** Open terminal, navigate to the folder, and run `./bgscan`.
-   - **Windows:** Simply double-click `bgscan.exe` to launch, or run `.\bgscan.exe` in PowerShell.
+1. Download the ZIP for your operating system and device architecture from the [Releases page](https://github.com/MohsenBg/bgscan/releases/latest).
+2. Extract the ZIP file.
+3. Run the program:
+   - **Linux/macOS/Termux:** Open a terminal, go into the program directory, and run `./bgscan`.
+   - **Windows:** Double click `bgscan.exe` or run `.\bgscan.exe` in PowerShell.
 
-The first run creates the default `settings/` folder with configuration files and an `ips/` folder with bundled IP lists.
+On the first run, a `settings/` directory is created with the default settings files, along with an `ips/` directory holding the bundled IP lists.
 
-## Build from Source
+## Build from source
 
-> **Note:** bgscan cannot be installed via `go install` because it needs the platform-specific Slipstream sidecar binary. You must build it using the companion **`bgscan-builder`** tool. `bgscan-builder` only builds; installing and updating releases is handled by the separate `bgscan-installer` tool described above. (Xray needs no binary: it runs in-process through a vendored library.)
+> **Note:** bgscan cannot be installed with `go install`, because the program needs the Slipstream library for each platform. To build the program you must use the companion tool **`bgscan-builder`**. This tool is only for building the program. Installing and updating released versions is handled by `bgscan-installer`.
+
+> Xray does not need a separate binary. It runs inside the same process through an internal library.
 
 #### Prerequisites
 
-- Go 1.27+
+- Go 1.27 or higher
 - Git
 
-#### Clone and Build
+#### Clone and build
 
 ```bash
 # Clone the repository
-git clone https://github.com/MohsenBg/bgscan.git
+git clone --recurse-submodules https://github.com/MohsenBg/bgscan.git
 cd bgscan
 
 # Install the builder tool
@@ -70,7 +80,7 @@ curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scr
 # Windows (PowerShell)
 irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install-builder.ps1 | iex
 
-# Fetch the Slipstream sidecar and bundled IP lists for your platform
+# Fetch the Slipstream client library and bundled IP lists for your platform
 # Linux/macOS
 ./scripts/install-deps.sh
 # Windows (PowerShell)
@@ -88,17 +98,19 @@ go run ./cmd/bgscan/
 
 ## Upgrading
 
-To upgrade, simply re-run the [Quick Install](#quick-install) script. It will detect the existing installation and offer to update, clean install, back up, or cancel.
+To update bgscan, simply run the [quick install](#quick-install) script again. The installer finds the earlier installation and gives you the options to update, do a clean install, take a backup, or cancel.
 
-The update option keeps your `settings`, `ips`, and `assets`. If you choose a clean install instead, back up first:
+In update mode the `settings`, `ips`, and `assets` directories are kept.
 
-- Copy your custom `settings/*.toml` files to the new installation.
-- Move any custom IP lists from `ips/`.
-- Stop any running bgscan instance before replacing files.
+If you choose a clean install, it is better to back up what you need from the earlier version first:
 
-## Requirements
+- Move the `settings/*.toml` files you changed to the new installation.
+- Take your custom IP lists from the `ips/` directory.
+- Close bgscan before replacing the program files.
 
-- **OS:** Linux, macOS, Windows 10+, or Android 7.0+ (Termux)
-- **Tools:** `curl` (installer handles missing dependencies on most systems)
-- **Windows:** PowerShell 5.1+
-- **Termux:** Install from F-Droid (Play Store version is outdated)
+## System requirements
+
+- **Operating system:** Linux, macOS, Windows 10 or higher, or Android 7.0 or higher with Termux
+- **Tools:** `curl`. On most systems the installer installs the tools it needs itself.
+- **Windows:** PowerShell 5.1 or higher
+- **Termux:** Install the F-Droid version. The Play Store version is old.

@@ -476,14 +476,14 @@ layout: landing
           </div>
         </div>
         <div class="lp-cmd" id="lp-install-windows">
-          <p class="lp-cmd-label">ویندوز (PowerShell)</p>
+          <p class="lp-cmd-label">ویندوز با PowerShell</p>
           <div class="lp-cmd-box" dir="ltr">
             <code>irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.ps1 | iex</code>
             <button class="lp-copy" type="button">کپی</button>
           </div>
         </div>
         <div class="lp-cmd" id="lp-install-android">
-          <p class="lp-cmd-label">اندروید (Termux)</p>
+          <p class="lp-cmd-label">اندروید با Termux</p>
           <div class="lp-cmd-box" dir="ltr">
             <code>{ command -v curl >/dev/null 2>&amp;1 || pkg install -y curl; } &amp;&amp; curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh</code>
             <button class="lp-copy" type="button">کپی</button>

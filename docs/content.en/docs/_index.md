@@ -6,9 +6,11 @@ bookComments: false
 
 # bgscan
 
-**bgscan** is a powerful terminal-based multi-protocol scanner built in Go. It probes IPs and ranges using ICMP, TCP, DNS, HTTP (including HTTP/3), Xray, and DNS tunneling (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed) protocols all through an intuitive keyboard-driven terminal UI.
+bgscan is a scanner for many protocols, written in Go, and it runs from the terminal. It checks IPv4 and IPv6 addresses with ICMP, TCP, DNS, HTTP (including HTTP/3), Xray, and DNS tunnels such as DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, and TheFeed.
 
-Whether you're testing network connectivity, finding optimal endpoints, or scanning for Xray proxies, bgscan provides fast, reliable results with minimal resource usage.
+The interface is fully terminal based and you drive it with the keyboard.
+
+With bgscan you can check whether a connection works, compare different endpoints, or test Xray outbounds. Results appear as the scan runs, and you can save them as CSV so a later scan can use them again.
 
 <div align="center">
   <video
@@ -22,5 +24,4 @@ Whether you're testing network connectivity, finding optimal endpoints, or scann
     style="max-width: 900px; border-radius: 12px; border: 1px solid #30363d;"
   ></video>
 </div>
-
 

@@ -3,45 +3,67 @@ title: "Result Files"
 weight: 5
 ---
 
-# Result Files
+# Result files
 
-After a scan completes, bgscan writes the discovered IPs and their measurements to result files. These files are organized by created time and can be browsed, viewed, renamed, or deleted from the TUI.
+When the scan finishes, BGScan saves the successful addresses and the information it measured in a result file. Files go into separate directories based on the scan type. From inside the TUI you can also see the files, rename them, or delete them.
 
 ---
 
-## Viewing Result Files
+## Viewing result files
 
-Navigate to **Main Menu → Result Files** to open the result file browser.
+Go to **Result Files** from the main menu (`r`) to see the list of result files.
 
-The table lists every result file across all scan types, sorted newest-first, and shows:
+The table shows the files registered in the result registry. Files are sorted from newest to oldest and display this information:
 
 | Column | Description |
 |---|---|
-| File Name | The result file name (without `.csv`) |
-| Created Time | File creation or last modification timestamp |
-| Type | The scan engine that produced the file (`icmp`, `tcp`, `http`, etc.) |
-| Size | File size on disk |
+| File Name | The result file name without the `.csv` extension |
+| Created Time | The time the file was last changed |
+| Type | The result type, such as `ICMP`, `TCP`, `HTTP`, `DNSResolver`, and `DNSTT` |
+| Size | The file size on disk |
 
-Two keyboard actions are available:
+The main keys in this section:
 
 | Key | Action |
 |---|---|
-| `r` | Rename the selected file |
-| `x` | Delete the selected file permanently |
+| `Enter` | Open the selected file in the IP Viewer |
+| `r` | Rename the file |
+| `x` | Delete the file permanently |
 
 {{< img "/bgscan-result.webp" "bgscan result file" >}}
 
-#### Opening a result file
+### Table keys
 
-Press Enter on any file to open the IP viewer, which displays the targets found in that file along with the columns defined by that scan type's result schema. ICMP, TCP, HTTP, DNS, DNSTT, VayDNS, and Slipstream show latency plus their type-specific columns; Xray results additionally show download and upload measurements.
+The result file browser uses the same shared table as the rest of the program:
+
+| Key | Action |
+|---|---|
+| `↑` / `↓` or `k` / `j` | Move up or down one row |
+| `u` / `d` | Move by half a page |
+| `PgUp` / `PgDn` | Move up or down one page |
+| `g` / `G` | Go to the first or last row |
+| `s` | Change the sort column |
+| `o` | Reverse the sort order |
+| `/` | Filter the rows |
+| `b` or `Esc` | Go back to the previous screen |
+
+Sorting follows the data type of each column. For example, IPs, times, numbers, and text each sort in their natural way. Time and bandwidth are formatted for display, but sorting uses their real values.
+
+### Opening a result file
+
+Press `Enter` on the file you want to open it in the IP Viewer. The displayed columns depend on the result type. For example, ICMP, TCP, HTTP, DNS, and tunnel results have their own details, and Xray results show download and upload speed in addition to latency.
+
+Time and bandwidth values are also colored based on their quality.
+
+> **Current limitation:** MasterDNS and StormDNS result files are saved to disk, but their schemas are not registered when the program starts. As a result, these files do not appear in the Result Files browser and cannot be opened from there. You can still open their CSV files with other tools that support CSV.
 
 ---
 
-## Storage Location
+## Where files are stored
 
-Result files are stored under the `result/` directory next to the bgscan binary, in a subdirectory per scan type:
+Result files are stored in the `result/` directory next to the BGScan binary. Each scan type has its own directory:
 
-```
+```text
 <bgscan-root>/
 └── result/
     ├── icmp/
@@ -51,95 +73,114 @@ Result files are stored under the `result/` directory next to the bgscan binary,
     ├── dns_resolver/
     ├── dnstt/
     ├── vaydns/
-    └── slipstream/
+    ├── slipstream/
+    ├── masterdns/
+    ├── stormdns/
+    └── thefeed/
 ```
 
-Each directory holds `.csv` files produced by its corresponding scan engine. Files are created automatically when a scan runs — you do not need to create these directories manually.
+Each directory holds the `.csv` files for that scan type. These directories are created automatically when a scan runs, so you do not need to create them by hand.
 
 ---
 
-## File Naming
+## Result file names
 
-Result files are named using the scan engine's configured prefix followed by a timestamp:
+Each file name is built from the prefix set for the scan type and the time it was created:
 
-```
+```text
 <prefix><YYYYMMDD_HHMMSS>.csv
 ```
 
-Each scan type has a default prefix set in its configuration:
+Each scan type has its own default prefix:
 
-| Scan Type | Default Prefix | Example Filename |
+| Scan type | Default prefix | Example file name |
 |---|---|---|
 | ICMP | `icmp_` | `icmp_20240711_143022.csv` |
 | TCP | `tcp_` | `tcp_20240711_143022.csv` |
 | HTTP | `http_` | `http_20240711_143022.csv` |
 | Xray | `xray_` | `xray_20240711_143022.csv` |
-| DNS Resolver | `dns_` | `dns_20240711_143022.csv` |
+| DNS resolver | `dns_` | `dns_20240711_143022.csv` |
 | DNSTT | `dns_tun_` | `dns_tun_20240711_143022.csv` |
 | VayDNS | `dns_tun_` | `dns_tun_20240711_143022.csv` |
 | Slipstream | `dns_tun_` | `dns_tun_20240711_143022.csv` |
+| MasterDNS | `dns_tun_` | `dns_tun_20240711_143022.csv` |
+| StormDNS | `dns_tun_` | `dns_tun_20240711_143022.csv` |
+| TheFeed | `dns_tun_` | `dns_tun_20240711_143022.csv` |
 
-The prefix for each scan type is set in its own settings file. See [Settings Overview](../settings/overview.md).
+You can change the prefix for each scan type in the settings file for that type. For more information, see the [Settings overview](../settings/overview.md).
 
 ---
 
-## File Format
+## Structure of result files
 
-Result files are plain CSV with no header row. Each row is one responsive target, serialized according to that scan type's result schema. Every scan type records at least the target IP and latency; additional columns depend on what the probe measures.
+Result files are stored in CSV format and have no header row. Each row holds the details of one target that the scan accepted. The structure of each row depends on the schema for that scan type.
 
-| Scan Type | CSV Columns |
+Every scan type saves at least the target IP and the latency. The other columns depend on what each probe measures.
+
+| Scan type | CSV columns |
 |---|---|
 | ICMP | `ip, latency, tries, mode` |
 | TCP | `ip, latency, port, tries` |
 | HTTP | `ip, latency, status, version, tls` |
 | Xray | `ip, latency, download, upload` |
-| DNS Resolver | `ip, latency, record_type, tries, rcode, dpi_check` |
+| DNS resolver | `ip, latency, record_type, tries, rcode, dpi_check` |
 | DNSTT | `ip, latency, transport, port, auth, proxy` |
 | VayDNS | `ip, latency, transport, port, auth, proxy` |
 | Slipstream | `ip, latency, port, auth, proxy` |
+| MasterDNS | `ip, latency, port, enc` |
+| StormDNS | `ip, latency, port, query, enc` |
+| TheFeed | `ip, latency, domain, mode` |
 
-- `ip` — the IPv4 or IPv6 address that responded.
-- `latency` — round-trip or connection latency (e.g. `123ms`).
-- `download` / `upload` — bandwidth measurements for Xray in bits per second (bps); 0 bps when the corresponding test is not enabled.
-- `status` / `version` / `tls` — HTTP response status code, negotiated HTTP version, and whether TLS was used.
-- `tries` — number of attempts before success.
-- `mode` — ICMP socket mode (`raw` or `udp`).
-- `rcode` / `dpi_check` — DNS response code and whether the anti-hijacking DPI check passed.
-- `transport` / `port` — DNS transport used and the local SOCKS5 port allocated for tunnel probes.
-- `auth` / `proxy` — authentication method and proxy type configured for the tunnel probe.
+What the columns mean:
 
-#### Example (HTTP)
+- `ip`: The IPv4 or IPv6 address of the target that responded.
+- `latency`: The round trip or connection latency, for example `123ms`.
+- `download` / `upload`: The download and upload speed in an Xray scan. When the matching test did not run, the value is `0 bps`.
+- `status` / `version` / `tls`: The HTTP status code, the agreed HTTP version, and whether TLS was used.
+- `tries`: The number of attempts until a successful result.
+- `mode`: The ICMP socket type (`raw` or `udp`) or the TheFeed query mode.
+- `rcode` / `dpi_check`: The DNS response code and the result of the DPI check for detecting tampered answers.
+- `transport`: The DNS transport type in DNSTT or VayDNS, such as `udp`, `tcp`, or `dot`.
+- `port`: The resolver port in DNSTT, VayDNS, MasterDNS, and StormDNS, or the local SOCKS listener port in Slipstream.
+- `auth` / `proxy`: The authentication method and proxy type set for DNSTT, VayDNS, or Slipstream.
+- `enc`: The encryption method number in MasterDNS or StormDNS.
+- `query`: The query type in StormDNS.
+- `domain`: The domain used in TheFeed.
+
+#### HTTP file example
 
 ```csv
 1.2.3.4,45ms,200,HTTP/2.0,true
 2606:4700::6810:85e5,120ms,403,HTTP/1.1,true
 ```
 
-#### Example (Xray)
+#### Xray file example
 
 ```csv
 1.2.3.4,45ms,0 bps,0 bps
 5.6.7.8,120ms,10.00 Mbps,5.00 Mbps
 ```
 
-For scan types that do not measure speed, the download and upload columns are absent.
+In scan types that do not measure speed, the download and upload columns do not exist.
 
 ---
 
-## Result Ordering
+## Order of results
 
-IPs within a result file are sorted by a per-schema quality score — higher is better. Each scan type defines its own `Score()`:
+Targets in a result file are sorted by the quality score for each schema. A higher score means a better result.
 
-- **ICMP, TCP, HTTP, DNS, DNSTT, VayDNS, Slipstream** — inverse latency (`1000 / latency_ms`), so the lowest-latency targets sort first.
-- **Xray** — weighted blend of latency (10%), download throughput (60%), and upload throughput (30%). When a speed test is disabled, its component is zero, so a connectivity-only Xray scan sorts purely by latency.
+Each scan type has its own `Score()` method:
 
-The writer merge-sorts new results against the existing file by score and replaces duplicate IPs with the newer record. Equal scores retain their relative order.
+- **ICMP, TCP, HTTP, DNS, DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, and TheFeed:** The score is based on the inverse latency (`1000 / latency_ms`). Targets with lower latency therefore appear higher.
+- **Xray:** The score combines latency (10 percent), download speed (60 percent), and upload speed (30 percent). If one of the speed tests is disabled, its share of the score becomes zero. In an Xray scan that only checks the connection, the result order is therefore based entirely on latency.
+
+When saving new results, BGScan merges them with the existing file by score using Merge Sort. If an IP is a duplicate, the newer record replaces the earlier one. The order of entries with the same score is also defined in a fixed way so repeated merges produce the same result.
 
 ---
 
-## Related Topics
+## Related topics
 
-- [Scan Types](./scan-types.md)
-- [Scan Source](./scan-source.md)
-- [IP Lists](./ip-files.md)
-- [Scan Pipeline](./scan-pipeline.md)
+- [Scan types](./scan-types.md)
+- [Scan source](./scan-source.md)
+- [IP lists](./ip-files.md)
+- [Scan stages](./scan-pipeline.md)

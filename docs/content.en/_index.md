@@ -408,7 +408,7 @@ layout: landing
     <figure class="lp-shot">
       <div class="lp-window">
         <video autoplay loop muted playsinline preload="auto" width="1280" height="768" aria-label="BGScan running a scan in the terminal">
-          <source src="./bgscan-demo.mp4" type="video/mp4">
+          <source src="/bgscan/bgscan-demo.mp4" type="video/mp4">
         </video>
       </div>
       <figcaption>Running a chained scan from the terminal.</figcaption>
@@ -469,21 +469,21 @@ layout: landing
         <p class="lp-muted">The install script picks the right release for your system. You can also grab an archive from the <a href="https://github.com/MohsenBg/bgscan/releases">releases page</a>.</p>
         <div class="lp-cmd" id="lp-install-unix">
           <p class="lp-cmd-label">Linux and macOS</p>
-          <div class="lp-cmd-box">
+          <div class="lp-cmd-box" dir="ltr">
             <code>curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh</code>
             <button class="lp-copy" type="button">Copy</button>
           </div>
         </div>
         <div class="lp-cmd" id="lp-install-windows">
           <p class="lp-cmd-label">Windows (PowerShell)</p>
-          <div class="lp-cmd-box">
+          <div class="lp-cmd-box" dir="ltr">
             <code>irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.ps1 | iex</code>
             <button class="lp-copy" type="button">Copy</button>
           </div>
         </div>
         <div class="lp-cmd" id="lp-install-android">
           <p class="lp-cmd-label">Android (Termux)</p>
-          <div class="lp-cmd-box">
+          <div class="lp-cmd-box" dir="ltr">
             <code>{ command -v curl >/dev/null 2>&amp;1 || pkg install -y curl; } &amp;&amp; curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh</code>
             <button class="lp-copy" type="button">Copy</button>
           </div>

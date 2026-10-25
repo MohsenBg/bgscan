@@ -4,55 +4,63 @@ weight: 4
 bookFlatSection: false
 ---
 
-# Getting Started with bgscan
+# Getting started with bgscan
 
-What you see after installation, and how to run a first scan.
+This section introduces the program environment and shows you how to run your first scan.
 
-## Launching bgscan
+## Running bgscan
 
-Navigate to the installation folder and run the application:
+Go into the directory where you installed the program and run it:
 
-- **Windows:** Double-click `bgscan.exe` or run `.\bgscan.exe` in PowerShell
-- **Linux/macOS/Termux:** Run `./bgscan` in your terminal
+- **Windows:** Double click `bgscan.exe` or run `.\bgscan.exe` in PowerShell.
+- **Linux/macOS/Termux:** Run `./bgscan` in the terminal.
 
-## Main Menu Overview
+## Main menu
 
-When you launch bgscan, you'll see the main menu with the following options:
+When you run bgscan, the Splash screen appears first and then the program runs a few initial checks. At this stage it checks the settings, starts the internal Xray core, checks the optional Slipstream library, and also checks the settings for the DNS tunnels.
+
+When the checks finish, press `Enter` to enter the program. Only an error reading the settings stops the program from running.
+
+The main menu has these options:
 
 | Option | Description |
 |--------|-------------|
-| **Run Scan** | Start a new network scan |
-| **IP Files** | Manage and select IP list files for scanning |
-| **Result Files** | View and manage saved scan results |
-| **Xray Outbounds** | Manage Xray proxy configurations |
-| **DNS Tunneling** | Configure and manage DNS tunnel connections |
-| **Settings** | Configure scan parameters and preferences |
-| **Logs** | View application and scan logs |
+| **Run Scan** | Start a network scan |
+| **IP Files** | Choose and manage the IP files for scanning |
+| **Result Files** | View and manage saved results |
+| **Xray Outbound** | Manage the Xray proxy settings |
+| **DNS Tunneling** | Set up and manage DNS tunnel connections |
+| **Settings** | Set the scan parameters and other preferences |
+| **Logs** | View the program and scan logs |
 
-## Navigation Controls
+## Navigation keys
 
-Use these keyboard shortcuts to navigate:
+Use these keys to move through the menus:
 
-- **Arrow Keys** (↑ ↓) — Move up and down between menu items
-- **Enter** — Select the highlighted option
-- **b** or **Esc** — Go back to the previous screen
-- **q** — Quit the application
+- **Arrow keys (↑ ↓):** Move between options
+- **Enter:** Select the highlighted option
+- **b or Esc:** Go back to the previous screen
+- **q:** Quit the main menu with confirmation
+- **Ctrl+C:** Quit the program immediately
 
-> 💡 **Tip:** Press `q` at any time to exit bgscan safely.
+> **Note:** On most screens you can press `?` to see the shortcuts for that screen.
 
-## Running Your First Scan
+## First scan
 
-1. **Launch bgscan** from your installation folder
-2. Select **Run Scan** and press Enter
-3. Choose an IP list (start with a built-in list like `cloudflare_IPv4`)
-4. Select a scan type (try `tcp` for a quick connectivity test)
-5. Press Enter to start the scan
-6. Wait for the scan to complete
-7. Review the results on the screen, or open Result Files from the main menu to view them later.
+To run your first scan, follow these steps:
 
-## What's Next?
+1. Run bgscan from the installation directory.
+2. Choose **Run Scan** and press `Enter`.
+3. Choose an IP list. To start, you can use one of the built-in lists such as `cloudflare_IPv4`.
+4. Choose the scan type. For a simple connection test, `tcp` is a good option.
+5. Press `Enter` to start the scan.
+6. Wait for the scan to finish.
+7. See the results there, or later enter **Result Files** from the main menu.
 
-- [Scan Types](../scanner/scan-types/) — what each probe measures
-- [Scan Pipeline](../scanner/scan-pipeline/) — chaining stages so each one filters the next
-- [IP Lists](../scanner/ip-files/) — importing your own targets
-- [Settings](../settings/overview/) — tuning workers, timeouts, and output
+## What to read next
+
+- [Scan types](../scanner/scan-types/): what each probe checks.
+- [Scan pipeline](../scanner/scan-pipeline/): how targets are filtered before the scan starts.
+- [IP lists](../scanner/ip-files/): how to import your own IPs.
+- [Settings](../settings/overview/): set the workers, timeouts, and output.
+- [User interface settings](../settings/ui/): set the theme, animation, table row count, and log level.

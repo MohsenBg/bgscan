@@ -3,33 +3,33 @@ title: "IP Lists"
 weight: 2
 ---
 
-# IP Lists
+# IP lists
 
-Scanners read target addresses from IP list files. Before a list can be used for scanning, it must be prepared and imported into bgscan.
+The scanner reads target addresses from IP list files. To use a list, you must prepare it and import it into bgscan.
 
 ---
 
-## Preparing a File to Import
+## Preparing a file to import
 
-The file you import must be a plain `.txt` file with **one entry per line**. Both **IPv4 and IPv6** are supported — single addresses and CIDR ranges of either family are accepted.
+The input file must be a plain `.txt` file with **one entry per line**. Both IPv4 and IPv6 addresses are supported, along with CIDR ranges.
 
 | Format | Example |
 |---|---|
-| Single IPv4 address | `192.168.1.1` |
+| IPv4 address | `192.168.1.1` |
 | IPv4 CIDR range | `10.0.0.0/24` |
-| Single IPv6 address | `2606:4700::6810:85e5` |
+| IPv6 address | `2606:4700::6810:85e5` |
 | IPv6 CIDR range | `2606:4700::/32` |
 
-**Rules:**
+**Input file rules:**
 
-- One entry per line — do not put multiple addresses on the same line.
-- Empty lines and lines that cannot be parsed as a valid IPv4 or IPv6 address or CIDR are silently skipped.
-- There is no comment syntax; lines starting with `#` will be skipped as unparseable.
-- Leading/trailing whitespace on each line is trimmed automatically.
+- Each line must have only one entry. Do not write several addresses on one line.
+- Empty lines and entries that are not a valid IPv4, IPv6, or CIDR address are skipped without showing an error.
+- The file does not support comments. Even lines that start with `#` are skipped.
+- Spaces at the start and end of each line are removed automatically.
 
-> **Note on large IPv6 ranges:** a `/32` or wider IPv6 prefix contains 2^96+ addresses. bgscan expands CIDRs on the fly during scanning, but scanning such a range to completion is impractical — use `max_ips_to_test` in [General Settings](../settings/general.md) to cap the count.
+> **About large IPv6 ranges:** A prefix such as ` /32` has more than 2^96 addresses. bgscan expands CIDR ranges during the scan, but scanning such a large range to completion is not practical. To limit the number of addresses that are checked, set the `max_ips_to_test` value in [General settings](../settings/general.md).
 
-### Example import file
+### Example input file
 
 ```
 192.168.1.1
@@ -42,33 +42,33 @@ The file you import must be a plain `.txt` file with **one entry per line**. Bot
 
 ---
 
-## Built-in IP Lists
+## Built-in lists
 
-bgscan ships with a set of pre-built IP lists in the `ips/` directory. These are automatically loaded and available for scanning without additional configuration.
+bgscan also has several ready IP lists in the `ips/` directory. These lists load automatically and need no extra settings.
 
 | Name | Description |
 |---|---|
-| `akamai_IPv4` | Akamai CDN IPv4 ranges |
+| `akamai_IPv4` | Akamai IPv4 ranges |
 | `aws_IPv4` | Amazon Web Services IPv4 ranges |
 | `azure_IPv4` | Microsoft Azure IPv4 ranges |
 | `bunny_IPv4` | Bunny CDN IPv4 ranges |
 | `cloudflare_IPv4` | Cloudflare IPv4 ranges |
 | `cloudflare_IPv6` | Cloudflare IPv6 ranges |
-| `cloudflare_ipv6_known` | Cloudflare IPv6 known-good ranges |
-| `cloudflare_common_IPv6` | Cloudflare common IPv6 ranges |
-| `cloudflare_full_IPv6` | Cloudflare full IPv6 ranges |
-| `fastly_IPv4` | Fastly CDN IPv4 ranges |
+| `cloudflare_ipv6_known` | Healthy known Cloudflare IPv6 ranges |
+| `cloudflare_common_IPv6` | Common Cloudflare IPv6 ranges |
+| `cloudflare_full_IPv6` | All Cloudflare IPv6 ranges |
+| `fastly_IPv4` | Fastly IPv4 ranges |
 | `gcore_IPv4` | G-Core Labs IPv4 ranges |
 | `google_IPv4` | Google IPv4 ranges |
 | `iran_IPv4` | Iranian IPv4 addresses |
-| `pub_dns_IPv4` | Public DNS server IPv4 addresses |
+| `pub_dns_IPv4` | IPv4 addresses of public DNS servers |
 
-These files follow the same internal CSV format as any imported list and can be renamed or deleted like any other file.
+The built-in lists use the same CSV format and you can rename or delete them like any other list.
 
 ---
 
-## Related Topics
+## Related topics
 
-- [Scan Source](./scan-source.md)
-- [Scan Types](./scan-types.md)
-- [Result Files](./result-files.md)
+- [Scan source](./scan-source.md)
+- [Scan types](./scan-types.md)
+- [Result files](./result-files.md)

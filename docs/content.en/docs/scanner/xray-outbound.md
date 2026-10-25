@@ -3,68 +3,77 @@ title: "Xray Outbounds"
 weight: 6
 ---
 
-# Xray Outbounds
+# Xray outbounds
 
-An outbound template tells bgscan how to route traffic through your proxy server during an Xray scan. Each template is a JSON file stored in `assets/xray/outbounds/` that describes the protocol, transport, and security settings for one proxy configuration.
+Each outbound defines how BGScan passes traffic through the proxy during an Xray scan. Every outbound is saved as a JSON file in the `assets/xray/outbounds/` directory and defines the proxy protocol, transport, and security settings.
 
-Before running an Xray scan you must have at least one outbound template configured.
+To run an Xray scan, you need at least one outbound.
 
-Navigate to **Main Menu → Xray → Outbounds** to open the outbound manager.
+To manage the outbounds, go to **Xray Outbound** from the main menu (`x`).
 
 ---
 
 {{< img "/bgscan-outbound-menu.webp" "bgscan outbound menu" >}}
 
-## The Outbound Table
+## Outbound list
 
-The table lists all configured outbound templates, sorted newest-first, and shows:
+The table shows the available outbounds from newest to oldest:
 
 | Column | Description |
 |---|---|
-| Name | Template name (without `.json`) |
-| Protocol | Proxy protocol (`vless`, `vmess`, `trojan`, etc.) |
-| Network | Transport layer (`ws`, `grpc`, `xhttp`, `tcp`, etc.) |
-| TLS | Whether TLS is enabled (`Yes` / `No`) |
-| Created Time | File creation or last modification timestamp |
+| Name | The outbound name without the `.json` extension |
+| Protocol | The proxy protocol, such as `vless`, `vmess`, or `socks` |
+| Network | The transport type, such as `ws`, `grpc`, `xhttp`, or `tcp` |
+| Security | The `streamSettings.security` value, such as `tls`, `reality`, or an empty value |
+| Created | The time the file was last changed |
 
-Three keyboard actions are available:
+Use these keys to manage the outbounds:
 
 | Key | Action |
 |---|---|
-| `a` | Add a new outbound template |
-| `r` | Rename the selected template |
-| `x` | Delete the selected template permanently |
+| `a` | Add a new outbound |
+| `r` | Rename the selected outbound |
+| `x` | Delete the selected outbound |
+
+The sort and filter keys are also available:
+
+- `s`: change the sort column
+- `o`: reverse the sort order
+- `/`: open the filter
+- `b` or `Esc`: go back to the previous screen
 
 ---
 
 {{< img "/bgscan-outbound-empty.webp" "bgscan outbound empty" >}}
 
-## Adding an Outbound (`a`)
+## Adding an outbound (`a`)
 
-Press `a` to open the **Add Outbound** dialog. bgscan offers two ways to add a template:
+Pressing `a` opens the **Addition Method** menu. There are two ways to add an outbound.
 
 ---
 
-#### Option 1 — From a Share Link
+### First method: From Link
 
-Choose **From Link** and paste your proxy share link when prompted. bgscan parses the link automatically and saves it as a template.
+Choose **From Link**, enter the proxy link, and then set a name for the outbound. BGScan parses the link, extracts the outbound details from it, and saves them as a JSON file.
 
 {{< img "/bgscan-outbound-select-link.webp" "bgscan outbound select link" >}}
 
-Supported link schemes:
+These links are supported:
 
-| Scheme | Protocol |
+| Link scheme | Protocol |
 |---|---|
 | `vmess://` | VMess |
 | `vless://` | VLESS |
 | `trojan://` | Trojan |
 | `ss://` | Shadowsocks |
+| `socks://` | SOCKS |
 | `hysteria2://` or `hy2://` | Hysteria2 |
-| `wireguard://` or `wg://` | WireGuard |
 
-After pasting the link, enter a name for the template when prompted. The name must be unique — you cannot use the same name as an existing template.
+WireGuard share links are not supported, but you can import the related outbound through a JSON file.
 
-```
+After entering the link, set the outbound name. This name must be unique and must not already be used for another outbound.
+
+```text
 a → From Link → Paste link → Enter name → Done
 ```
 
@@ -73,22 +82,30 @@ a → From Link → Paste link → Enter name → Done
 
 ---
 
-#### Option 2 — From a JSON File
+### Second method: From File
 
-Choose **From JSON File** and select a `.json` file from your filesystem. bgscan validates the file and saves it as a template.
+Choose **From File** and open a JSON or JSONC file from your system. BGScan extracts the proxy outbound from the file, checks that it is valid, and saves it.
 
 {{< img "/bgscan-outbound-select-json.webp" "bgscan outbound select json" >}}
 
-The JSON file must be a **single outbound object** — not a full Xray config. It must contain the `"$ADDRESS"` placeholder in the `address` field, which bgscan replaces with each target IP at scan time.
+The input file can be one of these forms:
 
-**Requirements:**
+- **A single outbound:** For example, a JSON object with a `protocol` field.
+- **An array of outbounds:** Containing several outbounds.
+- **A full Xray config:** A file that has an `outbounds` array.
 
-- Must be valid JSON.
-- Must contain `"address": "$ADDRESS"` somewhere in the outbound object — import will be rejected without it.
-- Must pass Xray's own config validation (`xray --test`).
-- Must not be a full Xray config (no `inbounds`, `routing`, or `outbounds` array wrapping it).
+If the file has several outbounds, BGScan chooses the first outbound it recognizes as a proxy. If none is recognized that way, it chooses the first outbound with the tag `proxy`. The rest of the full config is not saved.
 
-Minimal valid example:
+**Input file conditions:**
+
+- The file must be valid JSON or JSONC. The `//` and `/* */` comments and a UTF-8 BOM are also accepted.
+- The outbound must have a destination address that BGScan can replace with each target IP. This address can be in `settings.address`, one of the `settings.vnext` or `settings.servers` entries, or the endpoint of a WireGuard peer.
+- The proxy protocol must be valid.
+- The config must pass the internal Xray core validation. BGScan does not use an external `xray` binary for this.
+
+You can use `$ADDRESS` as an address placeholder, but it is not required. Any address in one of the replaceable fields is swapped for the target IP during the scan, and the outbound port is kept. So if you already have a ready config, you do not need to remove the original server address before importing it.
+
+A minimal example of a valid outbound:
 
 ```json
 {
@@ -113,10 +130,10 @@ Minimal valid example:
 }
 ```
 
-After selecting the file, enter a name for the template when prompted. The name must be unique.
+After choosing the file, enter a name for the outbound. This name must also be unique.
 
-```
-a → From JSON File → Select file → Enter name → Done
+```text
+a → From File → Select file → Enter name → Done
 ```
 
 {{< img "/bgscan-outbound-name.webp" "bgscan outbound name" >}}
@@ -124,11 +141,11 @@ a → From JSON File → Select file → Enter name → Done
 
 ---
 
-## Storage Location
+## Where outbounds are stored
 
-All outbound templates are stored as `.json` files in:
+Outbounds are saved as `.json` files in this directory:
 
-```
+```text
 <bgscan-root>/
 └── assets/
     └── xray/
@@ -138,30 +155,34 @@ All outbound templates are stored as `.json` files in:
             └── ...
 ```
 
-The template's display name in the TUI is the filename without the `.json` extension.
+The name you see in the TUI is the file name without the `.json` extension.
 
-bgscan also ships example templates with a `.json.example` extension in the same directory. These are reference files only and are not loaded as active outbounds. To use one, copy it, remove the `.example` suffix, fill in your values, and place it in the same directory — or import it via **From JSON File** in the TUI.
+BGScan also places several example outbounds with a `.json.example` extension in the same directory. These files do not load automatically.
 
----
-
-## The `$ADDRESS` Placeholder
-
-Every outbound template must contain `"address": "$ADDRESS"` in its settings. During an Xray scan, bgscan generates a temporary per-IP config by replacing `$ADDRESS` with each target IP before starting an in-process Xray instance. The generated configs are written to `assets/xray/configs/` and cleaned up after each probe.
-
-Do not change or remove this placeholder — templates missing it will be rejected on import.
+If you want to use one of the examples, copy the file, remove the `.example` extension, replace its values with your own settings, and then put the file in the same directory or import it with the **From File** option.
 
 ---
 
-## Renaming and Deleting
+## Address replacement and validation
 
-**Rename (`r`):** Select a template and press `r`. Enter the new name at the prompt. The new name must be unique.
+During an Xray scan, BGScan builds a config in memory for each IP and replaces the destination address of the outbound with the target IP. The port stays the same and no temporary file is written to disk.
 
-**Delete (`x`):** Select a template and press `x`. The file is removed from `assets/xray/outbounds/` permanently. There is no undo.
+When adding an outbound, BGScan checks that it has a replaceable address and that the built config passes the internal Xray core validation.
+
+Saved outbounds are checked again when the program starts. If an outbound is invalid, its error is reported during the initial program checks.
 
 ---
 
-## Related Topics
+## Renaming and deleting an outbound
 
-- [Scan Types](./scan-types.md)
-- [Scan Source](./scan-source.md)
-- [Result Files](./result-files.md)
+**Rename (`r`):** Select the outbound, press `r`, and enter the new name. The new name must not be a duplicate.
+
+**Delete (`x`):** Select the outbound and press `x`. The file is removed permanently from `assets/xray/outbounds/` and there is no way to bring it back from inside the program.
+
+---
+
+## Related topics
+
+- [Scan types](./scan-types.md)
+- [Scan source](./scan-source.md)
+- [Result files](./result-files.md)

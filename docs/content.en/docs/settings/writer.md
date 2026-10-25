@@ -3,68 +3,93 @@ title: "Result Writer Settings"
 weight: 4
 ---
 
-# Result Writer Settings
+# Result writer settings
 
-> 💡 **Tip:** You can change these settings directly in the bgscan application instead of editing the TOML file manually.
+> 💡 **Note:** You do not need to edit the TOML file by hand. You can change these settings directly inside BGScan.
 >
-> Navigate to **Settings** → **General Settings** tab 2 in the main menu to configure these options interactively using the TUI inspector.
+> Go to **Settings → General Settings** from the main menu, open the **Writer** tab, and change the options with the Inspector inside the TUI.
 
-Configuration file: `settings/writer_settings.toml`
+Settings file: `settings/writer_settings.toml`
 
-Buffering and flush behavior of the result writer, plus where result files are stored.
+This section defines the result buffering settings, the flush timing, and the directory where result files are saved.
 
-Each scan stage owns one writer. Workers push results into a channel, the writer accumulates them into a batch, and each flush merge-sorts that batch into the stage's CSV file.
+Each scan stage has its own Writer. The workers send results to the Writer through a channel. The Writer collects the results in a batch and on each flush merge-sorts them into the CSV file for that stage.
 
-## Quick Reference
+## Quick reference
 
 | Setting | Default | Description |
-| --------- | --------- | ------------- |
-| `merge_flush_interval` | `2000` | Flush interval in milliseconds |
-| `chan_size` | platform-dependent | Capacity of the worker to writer channel |
-| `batch_size` | platform-dependent | Results buffered in memory before a flush |
-| `result_directory` | `"result"` | Base directory for result files |
+|---|---|---|
+| `merge_flush_interval` | `2000` | The time between flushes, in milliseconds |
+| `chan_size` | Depends on the platform | The capacity of the channel between the workers and the Writer |
+| `batch_size` | Depends on the platform | The number of results collected in memory before a flush |
+| `result_directory` | `"result"` | The main directory for result files |
 
-## Merge Flush Interval
+## Time between flushes
 
-```toml
+```toml id="2f7x9c"
 merge_flush_interval = 2000
 ```
 
-Time between periodic flushes, in milliseconds. Valid range is 100 ms to 5 minutes. A flush also happens as soon as `batch_size` results accumulate, and once more when the writer stops, so nothing accepted before shutdown is lost.
+Sets the time between periodic flushes in milliseconds. The allowed range is from 100 milliseconds to 5 minutes.
 
-Shorter intervals write results to disk sooner and rewrite the file more often. Longer intervals cut disk I/O and hold more results in memory.
+Besides the periodic flush, another flush happens when the number of results reaches `batch_size`. A final flush also happens when the Writer stops so results received up to that point are not lost.
 
-## Channel Size
+- **Shorter interval:** Results are written to disk sooner, but the CSV file is rewritten and sorted more often.
+- **Longer interval:** There are fewer disk operations, but more results stay in memory for longer.
 
-```toml
+## Channel size
+
+```toml id="9g5v2k"
 chan_size = 1024
 ```
 
-Capacity of the channel workers use to hand results to the writer goroutine. When the channel fills, workers block until the writer catches up. Raise it if a stage produces results in bursts faster than the merge can absorb. Valid range is 1 to 1,000,000.
+Sets the capacity of the channel the workers use to send results to the Writer.
 
-## Batch Size
+When the channel fills, the workers wait until there is free capacity. If results are produced faster than the Writer can handle them, you can raise this value.
 
-```toml
+The allowed range is `1` to `1000000`.
+
+## Batch size
+
+```toml id="4n8w6j"
 batch_size = 4096
 ```
 
-Number of results held in memory before a flush is forced. It also sets the initial batch slice capacity and the size of the buffered writer used during the merge. Valid range is 1 to 1,000,000.
+Sets the number of results collected in memory so that a flush happens once this count is reached.
 
-## Result Directory
+This value also affects the initial capacity of the batch slice and how much memory is used to hold results during the merge.
 
-```toml
+The allowed range is `1` to `102400`.
+
+## Result directory
+
+```toml id="7m3q5v"
 result_directory = "result"
 ```
 
-Base directory, relative to the bgscan binary, holding one subdirectory per result schema: `result/icmp/`, `result/tcp/`, `result/http/`, `result/xray/`, `result/dns_resolver/`, `result/dnstt/`, `result/vaydns/`, `result/slipstream/`, `result/masterdns/`, `result/stormdns/`, and `result/thefeed/`. Directories are created on demand.
+Sets the main directory for result files. The path of this directory is relative to the BGScan binary and a separate subdirectory is created for each result type:
 
-The value must be a plain directory name, not a path.
+- `result/icmp/`
+- `result/tcp/`
+- `result/http/`
+- `result/xray/`
+- `result/dns_resolver/`
+- `result/dnstt/`
+- `result/vaydns/`
+- `result/slipstream/`
+- `result/masterdns/`
+- `result/stormdns/`
+- `result/thefeed/`
 
-## Related Files
+These directories are created automatically when needed.
 
-- [`general_settings.toml`](./general.md) — Global scan control and pipeline mode
-- [`icmp_settings.toml`](./icmp.md) — ICMP scan configuration
-- [`tcp_settings.toml`](./tcp.md) — TCP port scan configuration
-- [`http_settings.toml`](./http.md) — HTTP/HTTPS/HTTP3 probe configuration
-- [`dns_settings.toml`](./dns.md) — DNS scan configuration
-- [`xray_settings.toml`](./xray.md) — Xray outbound validation
+**Note:** The `result_directory` value must be only a directory name, not a full path.
+
+## Related files
+
+- [`general_settings.toml`](./general.md): general scan settings and the scan execution mode
+- [`icmp_settings.toml`](./icmp.md): ICMP scan settings
+- [`tcp_settings.toml`](./tcp.md): TCP port scan settings
+- [`http_settings.toml`](./http.md): HTTP, HTTPS, and HTTP/3 probe settings
+- [`dns_settings.toml`](./dns.md): DNS scan settings
+- [`xray_settings.toml`](./xray.md): Xray scan settings and outbound validation

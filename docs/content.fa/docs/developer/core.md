@@ -1,38 +1,37 @@
-
 ---
-
 title: "هسته"
 weight: 3
 ---
 
-# هسته
+# Core
 
-تمام بخش‌هایی که مربوط به رابط کاربری متنی (TUI) نیستند در `internal/core` قرار دارند: تنظیمات، موتور اسکن، Probeها، فهرست‌های IP، نتیجه‌ها، DNS، Xray و مدیریت Processها.
+پوشه `internal/core` بخش‌های اصلی BGScan به‌جز رابط کاربری TUI رو در خودش نگه می‌داره، از تنظیمات و موتور اسکن گرفته تا Probeها، فهرست‌های IP، نتایج، DNS، Xray و ابزار قدیمی مدیریت پروسه‌ها.
 
 ## نقشه پکیج‌ها
 
 | پکیج | مسئولیت |
-| --- | --- |
-| `config` | انواع `ScannerConfig`، مقادیر پیش‌فرض داخلی و `Store` برای خواندن/نوشتن `settings/*.toml` |
-| `config/validate` | اعتبارسنجی و نرمال‌سازی هر پروتکل، تجمیع شده در `aggregate.go` |
-| `scanner` | اینترفیس `Scanner`، ساخت Stageها و سرهم‌بندی Pipeline |
-| `scanner/engine` | اجرا: اسکن تکی، زنجیره‌ای ترتیبی، Pipeline استریمینگ و Pipeline دسته‌ای (batch) |
-| `scanner/probe` | اینترفیس `Probe` و یک زیرپکیج به ازای هر Probe |
-| `scanner/portmgr` | استخر پورت‌های محلی موقت برای پروب‌های تونل و Xray |
-| `result` | `Writer`، ادغام فایل‌های CSV، ثبت Schema، بارگذاری و شمارنده‌ها |
-| `iplist` | ورود CSV لیست IPها، پارس کردن، ثبت، Shuffle و الاستریم |
-| `dns` | توابع کمکی کوئری DNS، پارس Transport، سرویس‌های Config تونل (DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed) و مدیریت تونل |
-| `socks` | کلاینت SOCKS5 برای اعتبارسنجی تونل |
-| `ssh` | کلاینت SSH برای اتصال‌های تونل‌شده از طریق Proxyهای SSH |
-| `xray` | سرویس Xray داخل برنامه (کتابخانهٔ داخلی)، کانفیگ Inbound/Outbound، پارس لینک و تست سرعت |
-| `speedtest` | سنجش Latency، دانلود و آپلود برای استفاده در Probe مربوط به Xray |
-| `netutil` | نرمال‌سازی Host، پارس نسخه TLS و استخراج SNI برای Probeهای HTTP |
-| `process` | مدیریت Process جانبی Slipstream در چند پلتفرم |
-| `fileutil` | توابع کمکی CSV، JSON، TOML، متن، فایل موقت و Path |
+|---|---|
+| `config` | تعریف `ScannerConfig`، پیش‌فرض‌های کامپایل‌شده و `Store` برای خواندن و نوشتن فایل‌های `settings/*.toml`. |
+| `config/validate` | اعتبارسنجی و نرمال‌سازی تنظیمات هر پروتکل، این بخش‌ها در `aggregate.go` با هم ترکیب می‌شن. |
+| `scanner` | اینترفیس `Scanner`، سازنده‌های Stage و سرهم‌بندی مراحل اسکن. |
+| `scanner/engine` | اجرای اسکن به‌صورت Sequential، Streaming یا Batch. حالت Sequential برای اسکن تک‌مرحله‌ای هم استفاده می‌شه. |
+| `scanner/probe` | اینترفیس `Probe` و زیربسته‌های مربوط به هر Probe. |
+| `scanner/portmgr` | مدیریت Pool پورت‌های محلی موقت برای Probeهای تونل و Xray. |
+| `result` | `Writer`، ادغام فایل‌های CSV، Registry مربوط به Schemaها، Loader و شمارنده‌های نتایج. |
+| `iplist` | خواندن فهرست IPها از CSV، Parse، Registry، Shuffle و پردازش جریانی ورودی‌ها. |
+| `dns` | ابزارهای کوئری DNS، Parse ترنسپورت، مدیریت تنظیمات تونل‌های DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed، و مدیریت خود تونل‌ها. |
+| `socks` | کلاینت SOCKS5 برای اعتبارسنجی تونل. |
+| `ssh` | کلاینت SSH برای اتصال‌های تونل‌شده. |
+| `xray` | سرویس Xray داخل پروسه، تنظیمات ورودی و خروجی، Parse لینک‌ها و تست سرعت. |
+| `speedtest` | اندازه‌گیری تأخیر، سرعت دانلود و آپلود، مورد استفاده Probe مربوط به Xray. |
+| `netutil` | نرمال‌سازی Host، Parse نسخه TLS و استخراج SNI برای Probeهای HTTP. |
+| `process` | ابزار قدیمی ردیابی پروسه که اسکنر و TUI فعلی ازش استفاده نمی‌کنن. |
+| `ffi` | اتصال با purego به کتابخانه کلاینت Slipstream. |
+| `fileutil` | ابزارهای کمکی برای CSV، JSON، TOML، متن، فایل‌های موقت و مسیرها. |
 
 ## Scanner
 
-عبارت `scanner.Scanner` یک اینترفیس است، نه Struct. رابط کاربری آن را نگه می‌دارد، Stage به آن اضافه می‌کند و آن را اجرا می‌نماید.
+`scanner.Scanner` یک اینترفیسه، نه یک Struct. رابط کاربری نمونه‌ای از اون رو نگه می‌داره، Stageها رو بهش اضافه می‌کنه و اسکن رو اجرا می‌کنه.
 
 ```go
 type Scanner interface {
@@ -40,7 +39,7 @@ type Scanner interface {
     Close() error
 
     GetStages() []StageConfig
-    AddStage(StageConfig)
+    AddStage(StageConfig) error
     UpdateStageHooks(index int, hooks engine.ScanHooks) error
 
     Pause()
@@ -62,72 +61,82 @@ type Scanner interface {
 }
 ```
 
-متدهای `BuildXrayStage`، `BuildDNSTTStage`، `BuildSlipStreamStage`، `BuildVayDNSStage`، `BuildMasterDNSStage`، `BuildStormDNSStage` و `BuildTheFeedStage` نام Config را می‌گیرند و یک اسلایس Stage برمی‌گردانند (مرحلهٔ پیش‌اسکن Resolver اختیاری به‌علاوهٔ مرحلهٔ اصلی). بقیه Builderها فقط یک Stage برمی‌گردانند. همهٔ Builderها آرگومان‌های variadic اختیاری `ScanHooks` می‌پذیرند.
+متدهای `BuildXrayStage`، `BuildDNSTTStage`، `BuildSlipStreamStage`، `BuildVayDNSStage`، `BuildMasterDNSStage`، `BuildStormDNSStage` و `BuildTheFeedStage` نام فایل Config رو می‌گیرن و یک Slice از Stageها برمی‌گردونن. این Slice می‌تونه شامل یک Stage پیش‌اسکن اختیاری و Stage اصلی باشه.
 
-ساختار یک Stage:
+Xray از گزینه `pre_scan_type` استفاده می‌کنه که می‌تونه `tcp`، `icmp`، `http` یا `none` باشه. سازنده‌های تونل DNS هم وقتی `check_dns_resolver` فعال باشه، یک مرحله برای بررسی ریزالور اضافه می‌کنن. بقیه سازنده‌ها فقط یک Stage برمی‌گردونن.
+
+همه سازنده‌ها می‌تونن `ScanHooks` رو به‌صورت آرگومان‌های Variadic دریافت کنن. بنابراین، لازم نیست برای استفاده از Hookها امضای جداگانه‌ای داشته باشن.
+
+ساختار یک Stage به این شکله:
 
 ```go
 type StageConfig struct {
-    Workers int
-    Probe   probe.Probe
-    Writer  result.Writer
-    Rate    int
-    Hooks   engine.ScanHooks
+    Workers          int
+    ProgressInterval time.Duration
+    Probe            probe.Probe
+    Writer           result.Writer
+    Hooks            engine.ScanHooks
 }
 ```
 
-هر Builder تنظیمات پروتکل خود را می‌خواند، Probe را می‌سازد، یک `result.Writer` متصل به Schemaی همان Probe ایجاد می‌کند و Stage را برمی‌گرداند. سپس `AddHooks` Callbackهای UI را متصل می‌کند.
+هر سازنده، تنظیمات پروتکل مربوط به خودش رو می‌خونه، Probe رو می‌سازه، یک `result.Writer` متناسب با Schema همون Probe ایجاد می‌کنه و در نهایت Stage رو برمی‌گردونه. متد `AddHooks` هم برای وصل کردن Callbackهای رابط کاربری استفاده می‌شه.
+
+جریان کلی استفاده از Scanner به این شکله:
 
 ```text
 NewScanner(ctx, input, opts...)
-  ├─ AddStage(BuildICMPStage(ctx))
-  ├─ AddStage(BuildTCPStage(ctx))
-  └─ Run()
-      ├─ تک Stage   → engine.RunScan
-      └─ چند Stage  → engine.RunScanWithChain
+ ├─ AddStage(BuildICMPStage(ctx))
+ ├─ AddStage(BuildTCPStage(ctx))
+ └─ Run()
+     └─ engine.RunScanWithChain
+          sequential | streaming | batch
 ```
 
-مقدار concrete برای `scanner` گزینه‌هایی می‌پذیرد: `WithConfig` به جای خواندن از دیسک، کانفیگ را تزریق می‌کند و `WithPauseController` یک کنترل‌کننده Pause مشترک فراهم می‌کند. تست‌ها از `scanRunner` برای ساخت Pipeline بدون شروع Workerها استفاده می‌کنند.
+پیاده‌سازی واقعی `scanner` چند Option می‌گیره. گزینه `WithConfig` اجازه می‌ده Config از بیرون به Scanner داده بشه، به‌جای اینکه خودش از دیسک بخونه. `WithPauseController` هم یک کنترلر Pause مشترک در اختیارش می‌ذاره.
+
+تست‌ها از نقطه اتصال `scanRunner` استفاده می‌کنن تا مراحل اسکن رو بدون راه‌اندازی Workerها سرهم‌بندی کنن.
 
 ## Engine
 
-پکیج `scanner/engine` مسئول جابه‌جایی IPها و نتیجه‌هاست و اطلاعی از کارکرد داخلی Probeها ندارد.
+پکیج `scanner/engine` مسئول اجرای مراحل اسکنه. این بخش فقط با IPها و نتایج سروکار داره و از جزئیات کاری که هر Probe انجام می‌ده خبر نداره.
 
-#### اسکن تکی (Single Scan)
+### اسکن تک‌مرحله‌ای
+
+اسکن تک‌مرحله‌ای هم از همون مسیر اجرای اسکن استفاده می‌کنه. فقط حالت Sequential اجرا می‌شه. برای اسکن تک‌مرحله‌ای، مسیر جداگانه‌ای در Engine وجود نداره.
 
 ```text
 iplist.StreamActiveIPs
-   │
-   ▼
- کانال ips ──► استخر ورکرها (N گوروتین)
-                    ├─ محدودکننده نرخ (rate limiter)
-                    ├─ probe.Run(ctx, addr)
-                    ├─ موفقیت  → writer + OnSuccess
-                    └─ خطا     → log + OnError
-                    │
-                    ▼
-              result.Writer ──► ادغام CSV ──► دیسک
+       │
+       ▼
+ips channel ──► worker pool (N goroutines)
+                   ├─ rate limiter
+                   ├─ probe.Run(ctx, addr)
+                   ├─ success → writer + OnSuccess
+                   └─ error   → log + OnError
+                   │
+                   ▼
+             result.Writer ──► CSV merge ──► disk
 
-گوروتین پیشرفت → فراخوانی OnProgress در هر status_interval
+progress goroutine → OnProgress every status_interval
 ```
 
-تابع `RunScan` زمانی برمی‌گردد که Reader تمام شود، Workerها خالی شوند، Writer داده‌ها را Flush کند و آخرین گزارش پیشرفت ارسال شود.
+اجرای اسکن وقتی تموم می‌شه که Reader به انتهای ورودی رسیده باشه، همه Workerها کارشون رو تموم کرده باشن، Writer داده‌ها رو Flush کرده باشه و گزارش نهایی پیشرفت هم ارسال شده باشه.
 
-#### اسکن زنجیره‌ای (Chain Scan)
+### اسکن زنجیره‌ای
 
-تابع `RunScanWithChain` بر اساس `PipelineMode` عمل می‌کند:
+تابع `RunScanWithChain` با توجه به مقدار `PipelineMode`، نحوه اجرای Stageها رو انتخاب می‌کنه.
 
-| حالت (Mode) | تابع | ارتباط بین Stageها |
-| --- | --- | --- |
-| `sequential` | `executeSequentialChain` | مرحله N روی فایل می‌نویسد، مرحله N+1 از روی آن می‌خواند. |
-| `streaming` | `executeStreamingPipeline` | کانال بافرشده `chan netip.Addr`؛ همه Stageها هم‌زمان اجرا می‌شوند. |
-| `batch` | `executeBatchPipeline` | چانک‌های با اندازه ثابت به ترتیب از تمام Stageها عبور می‌کنند. |
+| حالت | تابع | نحوه ارتباط Stageها |
+|---|---|---|
+| `sequential` | `runSequential` | هر Stage نتایجش رو در فایل می‌نویسه و Stage بعدی اون فایل رو می‌خونه. |
+| `streaming` | `runStreaming` | همه Stageها هم‌زمان اجرا می‌شن و IPها از طریق یک `chan netip.Addr` بافرشده بینشون منتقل می‌شن. |
+| `batch` | `runBatch` | داده‌ها به Batchهای با اندازه مشخص تقسیم می‌شن و هر Batch به‌ترتیب از Stageها عبور می‌کنه. |
 
-تابع `createStageChannels` اندازه هر کانال را برابر `MaxBuffer` قرار می‌دهد (در صورت عدم تنظیم پیش‌فرض ۱۰,۰۰۰ است) و اگر تعداد Workerهای Stage بعدی بیشتر باشد، آن را افزایش می‌دهد.
+تابع `createStageChannels` اندازه بافر هر کانال رو از `MaxBuffer` می‌گیره. اگه این مقدار تنظیم نشده باشه، پیش‌فرض `10,000` هست. اگه تعداد Workerهای Stage بعدی بیشتر باشه، اندازه بافر متناسب با تعداد اون‌ها افزایش پیدا می‌کنه.
 
-تابع `calculateBatchSize` برای تک‌مرحله مقدار `BatchSize` را برمی‌گرداند، در غیر این صورت `max(BatchSize, بالاترین تعداد ورکر در مراحل بعدی)` را محاسبه کرده و در صورت عدم تنظیم پیش‌فرض ۱,۰۰۰ را اعمال می‌کند.
+تابع `pipeline.batchSize` برای اسکن تک‌مرحله‌ای مقدار `BatchSize` رو برمی‌گردونه. در اسکن چندمرحله‌ای، مقدار بزرگ‌تر بین `BatchSize` و بیشترین تعداد Worker در Stageهای بعد از Stage اول انتخاب می‌شه. اگه `BatchSize` تنظیم نشده باشه، مقدار پیش‌فرض `1,000` هست.
 
-#### تایپ‌ها
+### ساختارها و نوع‌ها
 
 ```go
 type ChainConfig struct {
@@ -135,24 +144,21 @@ type ChainConfig struct {
     MaxBuffer        int
     BatchSize        int
     MaxIPsToTest     uint64
-    Stages           []ScanConfig
+    Stages           []StageConfig
     MinProbeDuration time.Duration
     Pause            PauseController
     Shuffled         bool
     RateLimiter      *rate.Limiter
+    MaxSuccessfulIPs uint64
+    Log              *logger.Logger
 }
 
-type ScanConfig struct {
+type StageConfig struct {
     Workers          int
-    MaxIPsToTest     uint64
-    MinProbeDuration time.Duration
     ProgressInterval time.Duration
     Probe            probe.Probe
     Writer           result.Writer
     Hooks            ScanHooks
-    Pause            PauseController
-    Shuffled         bool
-    RateLimiter      *rate.Limiter
 }
 
 type ScanHooks struct {
@@ -163,17 +169,30 @@ type ScanHooks struct {
 }
 ```
 
-استفاده از Hookها اختیاری است. Engine از طریق توابع `callOnSuccess`، `callOnError` و `callOnScanEnd` عمل می‌کند که در صورت `nil` بودن بدون خطا عبور می‌کنند.
+استفاده از Hookها اختیاریه. Engine برای اجرای Callbackها از توابع `callOnSuccess`، `callOnError` و `callOnScanEnd` استفاده می‌کنه. اگه Callback مربوطه `nil` باشه، این توابع کاری انجام نمی‌دن.
 
-تابع `ParsePipelineMode` نام‌های مستعار را می‌پذیرد: `simple` برای sequential، `parallel` برای streaming و `pipeline` برای batch. مقادیر ناشناخته حالت `ModeSequential` را برمی‌گردانند.
+تابع `ParsePipelineMode` فقط مقدارهای `sequential`، `streaming` و `batch` رو می‌شناسه. مقدارهایی مثل `simple`، `parallel` و `pipeline` به‌عنوان حالت ناشناخته در نظر گرفته می‌شن و نتیجه `ModeSequential` خواهد بود.
 
-#### محدودسازی نرخ (Rate limiting)
+اعتبارسنج تنظیمات هنوز سه اسم قدیمی رو قبول می‌کنه، اما Engine اون‌ها رو به‌عنوان حالت‌های شناخته‌شده نمی‌شناسه. در نتیجه، این مقادیر از اعتبارسنجی عبور می‌کنن، ولی اجرا در نهایت به حالت Sequential برمی‌گرده.
 
-تنظیمات `min_probe_duration`، `probe_per_sec` و `probe_burst` در `GeneralConfig` به یک `rate.Limiter` واحد (Token Bucket) و یک تاخیر به ازای هر Probe تبدیل می‌شوند که به طور یکسان روی تمام Stageها در هر دو حالت اسکن تکی و زنجیره‌ای اعمال می‌گردد (این تنظیمات به ازای هر Stage نیستند). متد `Wait` محدودکننده، هر Worker را قبل از اجرای `probe.Run` متوقف می‌کند؛ اگر یک Probe سریع‌تر از `MinProbeDuration` تمام شود، Worker به اندازه باقیمانده زمان می‌خوابد. `probe_per_sec` نرخ شارژ Tokenها (سقف پایدار اسکن) و `probe_burst` ظرفیت Bucket (حداکثر اسکن پشت‌سرهم) است. تعداد `Workers` هم‌روندی را کنترل می‌کند نه نرخ اسکن را — محدودکننده مستقلاً حجم اسکن را کنترل می‌کند.
+### محدودیت نرخ
 
-#### کنترل توقف (Pause control)
+گزینه‌های `min_probe_duration`، `probe_per_sec` و `probe_burst` از `GeneralConfig` به یک `rate.Limiter` از نوع Token Bucket و یک تأخیر برای هر Probe تبدیل می‌شن. این محدودیت‌ها در اسکن تک‌مرحله‌ای و زنجیره‌ای، روی همه Stageها اعمال می‌شن و تنظیم جداگانه‌ای برای هر Stage ندارن.
 
-تایپ `PauseController` اینترفیسی است که توسط `NewPauseController()` پیاده‌سازی شده است. Workerها قبل از هر Probe به Checkpoint می‌رسند و در صورت متوقف بودن اسکن، آنجا منتظر می‌مانند. متد `PausedDuration()` زمان توقف را جمع می‌زند تا نرخ پیشرفت دقیق بماند.
+- `probe_per_sec` نرخ پر شدن سطل توکن رو تعیین می‌کنه و روی نرخ پایدار اجرای Probeها اثر می‌ذاره.
+- `probe_burst` ظرفیت سطل رو مشخص می‌کنه، یعنی چند Probe می‌تونن پشت‌سرهم اجرا بشن.
+- `Workers` تعداد کارهای هم‌زمان رو کنترل می‌کنه، نه نرخ اجرای Probeها.
+- Limiter نرخ رو مستقل از تعداد Workerها محدود می‌کنه.
+
+هر Worker قبل از اجرای `probe.Run` منتظر `Wait` مربوط به Limiter می‌مونه. اگه Probe زودتر از مقدار `MinProbeDuration` تموم بشه، Worker باقی زمان رو منتظر می‌مونه.
+
+### کنترل Pause
+
+اینترفیس `PauseController` رفتار توقف و ادامه اسکن رو مشخص می‌کنه و تابع `NewPauseController()` پیاده‌سازی اون رو می‌سازه.
+
+Workerها قبل از اجرای هر Probe به یک Checkpoint می‌رسن. اگه اسکن Pause شده باشه، همون‌جا منتظر می‌مونن تا اجرا دوباره ادامه پیدا کنه.
+
+متد `PausedDuration()` مدت زمانی رو که اسکن در حالت Pause بوده محاسبه می‌کنه تا زمان توقف روی محاسبه نرخ پیشرفت واقعی تأثیر نذاره.
 
 ## اینترفیس Probe
 
@@ -186,30 +205,34 @@ type Probe interface {
 }
 ```
 
-متد `Init` یک‌بار قبل از اجرای هر `Run` و متد `Close` در پایان اجرا می‌شود. متد `Run` یک `netip.Addr` می‌گیرد (نه String) که باعث می‌شود IPv4 و IPv6 از یک مسیر کد یکسان استفاده کنند. متد `Schema` ارتباط Probe با چیدمان نتیجه و دایرکتوری خروجی را مشخص می‌کند.
+متد `Init` یک بار، پیش از اجرای `Run`ها، فراخوانی می‌شه و `Close` هم در پایان کار اجرا می‌شه. متد `Run` به‌جای String یک `netip.Addr` دریافت می‌کنه. به همین دلیل IPv4 و IPv6 از یک مسیر کد استفاده می‌کنن.
 
-هر Probe زیرپکیج اختصاصی خود را در `scanner/probe` دارد:
+متد `Schema` هم مشخص می‌کنه نتایج Probe با چه ساختاری ذخیره بشن و در کدوم پوشه قرار بگیرن.
 
-| پکیج | Probe | سازنده (Constructor) |
-| --- | --- | --- |
-| `icmpprobe` | ICMP echo برای IPv4 و IPv6 | `NewICMPProbe(Options)` |
-| `tcpprobe` | اتصال TCP | `NewTCPProbe(port, timeout, tries)` |
-| `httpprobe` | HTTP/1.1 و HTTP/2 روی ALPN | `NewHTTPProbe(req, acceptedCodes)` |
-| `httpprobe` | HTTP/3 روی QUIC | `NewHTTP3Probe(req, acceptedCodes)` |
-| `resolveprobe` | ریزالور DNS همراه با بررسی DPI | `NewResolverProbe(*DNSRequest)` |
-| `dnsttprobe` | اعتبارسنجی تانل DNSTT | `NewDNSTTProbe(config, timeout, ...)` |
-| `vaydnsprobe` | اعتبارسنجی تانل VayDNS | `NewVayDNSProbe(config, timeout, ...)` |
-| `slipstreamprobe` | اعتبارسنجی تانل SlipStream | `NewSlipstreamProbe(config, timeout, portMgr, ...)` |
-| `masterdnsprobe` | اعتبارسنجی تانل MasterDNS | `NewMasterDNSProbe(config, timeout, portMgr, ...)` |
-| `stormdnsprobe` | اعتبارسنجی تانل StormDNS | `NewStormDNSProbe(config, timeout, portMgr, ...)` |
-| `thefeedprobe` | اعتبارسنجی تانل TheFeed | `NewTheFeedProbe(config, timeout, ...)` |
-| `xrayprobe` | اتصال و پهنای باند Xray | `NewXrayProbe(cfg, template, portMgr)` |
+هر Probe در زیربسته خودش زیر `scanner/probe` پیاده‌سازی شده:
 
-فقط پروب Slipstream یک پروسهٔ خارجی اجرا می‌کند. پروب‌های تونل و Xray یک `portmgr.Manager` می‌گیرند و به ازای هر Probe یک پورت محلی اجاره می‌کنند تا Workerهای هم‌روند با هم تداخل پیدا نکنند.
+| پکیج | نوع Probe | سازنده |
+|---|---|---|
+| `icmpprobe` | بررسی پاسخ ICMP در IPv4 و IPv6 | `NewICMPProbe(Options)` |
+| `tcpprobe` | بررسی اتصال TCP | `NewTCPProbe(port, timeout, tries)` |
+| `httpprobe` | بررسی HTTP/1.1 و HTTP/2 از طریق ALPN | `NewHTTPProbe(req, acceptedCodes)` |
+| `httpprobe` | بررسی HTTP/3 روی QUIC | `NewHTTP3Probe(req, acceptedCodes)` |
+| `resolveprobe` | بررسی ریزالور DNS با تشخیص DPI | `NewResolverProbe(*DNSRequest)` |
+| `dnsttprobe` | اعتبارسنجی تونل DNSTT | `NewDNSTTProbe(config, timeout, ...)` |
+| `vaydnsprobe` | اعتبارسنجی تونل VayDNS | `NewVayDNSProbe(config, timeout, ...)` |
+| `slipstreamprobe` | اعتبارسنجی تونل Slipstream | `NewSlipstreamProbe(config, timeout, portMgr, ...)` |
+| `masterdnsprobe` | اعتبارسنجی تونل MasterDNS | `NewMasterDNSProbe(config, timeout, portMgr, ...)` |
+| `stormdnsprobe` | اعتبارسنجی تونل StormDNS | `NewStormDNSProbe(config, timeout, portMgr, ...)` |
+| `thefeedprobe` | اعتبارسنجی تونل TheFeed | `NewTheFeedProbe(config, timeout, ...)` |
+| `xrayprobe` | بررسی اتصال و پهنای باند Xray | `NewXrayProbe(cfg, template, portMgr)` |
 
-## سیستم نتیجه‌ها (Result System)
+فقط Probe مربوط به Slipstream یک کتابخانه Native داخلی به نام `libslipstream-client` بارگذاری می‌کنه.
 
-هر Probe یک ساختار داده متناسب با اینترفیس `result.Result` و یک `result.ResultSchema` برای توصیف آن تعریف می‌کند.
+Probeهای Slipstream، MasterDNS، StormDNS و Xray یک `portmgr.Manager` دریافت می‌کنن و برای هر Probe یک پورت محلی اجاره می‌کنن تا Workerهای هم‌زمان از یک پورت مشترک استفاده نکنن.
+
+## سیستم نتیجه
+
+هر Probe نوع نتیجه مخصوص خودش رو داره که اینترفیس `result.Result` رو پیاده‌سازی می‌کنه. علاوه بر اون، هر Probe یک `result.ResultSchema` داره که ساختار نتیجه رو مشخص می‌کنه.
 
 ```go
 type Result interface {
@@ -228,23 +251,37 @@ type ResultSchema struct {
 }
 ```
 
-ترتیب خروجی `ToRecord` باید با ترتیب `Columns` یکسان باشد و `Parser` جهت بارگذاری معکوس فایل استفاده می‌شود. متد `Key` برای یکسان‌سازی و حذف داده‌های تکراری، `KeyType` برای تفکیک نتایج بر اساس IP یا Domain و `Score` برای مرتب‌سازی نتایج کاربرد دارد.
+ترتیب مقادیر خروجی `ToRecord` باید با ترتیب `Columns` یکسان باشه. `Parser` هم برای تبدیل رکوردهای ذخیره‌شده به نتیجه، هنگام خواندن دوباره فایل استفاده می‌شه.
 
-#### ثبت (Registration)
+- `Key` مشخص می‌کنه نتایج چطور برای تشخیص تکراری‌ها مقایسه بشن.
+- `KeyType` نتایجی رو که کلیدشون IP هست از نتایجی که کلیدشون دامنه است جدا می‌کنه.
+- `Score` برای مرتب‌سازی نتایج استفاده می‌شه.
 
-تابع `core.Init()` در `internal/core/core.go` قبل از اجرای هر بخش دیگری، تمام Schemaهای داخلی را در `result.DefaultRegistry` ثبت می‌کند:
+### ثبت Schemaها
+
+تابع `core.Init()` در فایل `internal/core/core.go`، نُه Schema داخلی رو در `result.DefaultRegistry` ثبت می‌کنه:
 
 ```go
 result.DefaultRegistry.Register(icmpprobe.Schema)
 result.DefaultRegistry.Register(tcpprobe.Schema)
-// http, resolve, dnstt, vaydns, slipstream, xray
+result.DefaultRegistry.Register(httpprobe.Schema)
+result.DefaultRegistry.Register(resolveprobe.Schema)
+result.DefaultRegistry.Register(dnsttprobe.Schema)
+result.DefaultRegistry.Register(vaydnsprobe.Schema)
+result.DefaultRegistry.Register(slipstreamprobe.Schema)
+result.DefaultRegistry.Register(thefeedprobe.Schema)
+result.DefaultRegistry.Register(xrayprobe.Schema)
 ```
 
-این Registry نام دایرکتوری را به Schema نگاشت می‌دهد؛ بدین ترتیب مرورگر فایل نتایج متوجه می‌شود که چگونه یک فایل روی دیسک را پارس کرده و نمایش دهد.
+Schemaهای `masterdnsprobe` و `stormdnsprobe` هم تعریف شدن، اما در این فهرست ثبت نمی‌شن. در نتیجه، Registry نمی‌تونه پوشه‌های این دو پروتکل رو به Schema مربوط به خودشون وصل کنه و فایل‌هاشون در مرورگر Result Files نمایش داده نمی‌شن.
 
-برای افزودن یک نوع اسکن جدید کافیست Struct نتیجه، Schema، Probe و Stage Builder را بنویسید و Schema را در `core.Init()` ثبت کنید. نیازی به تغییر در Writer، Registry یا جدول نتایج وجود ندارد.
+با این حال، نتایج این دو پروتکل همچنان به‌صورت CSV در مسیرهای `result/masterdns/` و `result/stormdns/` ذخیره می‌شن.
 
-#### Writer
+Registry نام پوشه رو به Schema مربوط به اون وصل می‌کنه. به این ترتیب، مرورگر فایل‌های نتیجه می‌تونه تشخیص بده هر فایل روی دیسک رو چطور بخونه و نمایش بده.
+
+برای اضافه کردن یک نوع اسکن جدید، باید نوع نتیجه، Schema، Probe و سازنده Stage مربوط به اون رو پیاده‌سازی کنید و Schema رو در `core.Init()` ثبت کنید. برای این کار نیازی به تغییر Writer، Registry یا جدول نتایج نیست.
+
+### Writer
 
 ```go
 type Writer interface {
@@ -258,26 +295,39 @@ type WriterOptions struct {
     ResultPrefix string
     Schema       ResultSchema
     Config       config.WriterConfig
+    Log          *logger.Logger
 }
 ```
 
-تابع `NewWriter` تنظیمات Writer و Schema را اعتبارسنجی کرده، سپس مسیر خروجی را از روی `result_directory`، دایرکتوری Schema، Prefix و برچسب زمانی محاسبه می‌کند. متد `Start` دایرکتوری را ساخته و فایل‌های قدیمی را پاک می‌سازد. متد `Write` داده‌ها را در کانالی با اندازه `chan_size` صف‌بندی می‌کند و در صورت لغو Context، نتیجه را نادیده می‌گیرد.
+تابع `NewWriter` تنظیمات Writer و Schema رو اعتبارسنجی می‌کنه. بعد مسیر خروجی رو با استفاده از `result_directory`، پوشه Schema، پیشوند فایل و یک مهر زمانی می‌سازه.
 
-عملیات Flush زمانی رخ می‌دهد که تعداد به `batch_size` برسد، زمان `merge_flush_interval` سر برسد، یا هنگام خروج برنامه. در صورت لغو اجرا، Writer ابتدا کانال را خالی می‌کند تا داده‌هایی که قبل از `Stop` دریافت شده‌اند روی دیسک بنشینند.
+متد `Start` پوشه خروجی رو ایجاد می‌کنه و فایل‌های قدیمی رو پاک می‌کنه. متد `Write` نتیجه رو داخل کانالی با ظرفیت `chan_size` قرار می‌ده. اگه Context از قبل Cancel شده باشه، نتیجه کنار گذاشته می‌شه.
 
-#### ادغام (Merge)
+Writer در سه حالت داده‌ها رو روی دیسک می‌نویسه:
 
-فایل `merger.go` دسته داده‌ها را بر اساس Score مرتب کرده، با فایل موجود به صورت Merge-Sort ترکیب می‌کند، در `<path>.tmp` می‌نویسد، `Sync` را فراخوانی کرده و روی فایل اصلی Rename می‌کند. داده‌های تکراری بر اساس کلید جایگزین می‌شوند و هیچ‌کدام از فایل‌ها به طور کامل وارد حافظه RAM نمی‌شوند.
+- وقتی تعداد رکوردهای Batch به `batch_size` برسه.
+- وقتی زمان `merge_flush_interval` فرا برسه.
+- هنگام خاموش شدن Writer.
 
-#### Registry و Loader
+هنگام Cancel شدن، Writer ابتدا داده‌های باقی‌مونده در کانال رو پردازش می‌کنه. به این ترتیب، داده‌هایی که پیش از فراخوانی `Stop` پذیرفته شده باشن، فرصت ذخیره شدن روی دیسک رو دارن.
 
-- فایل `registry.go` شامل `DefaultRegistry` است که نام دایرکتوری را به Schema نگاشت می‌دهد. توابع `FindResultFiles` و `GetResultFiles` دایرکتوری نتایج را پیمایش کرده و Schemaی مربوطه را به هر فایل متصل می‌کنند.
-- فایل `loader.go` نتایج را از طریق `LoadResult` به صورت استریم یا با `LoadAll` به صورت بخش‌های محدود برمی‌گرداند که هر دو از Parser موجود در Schema استفاده می‌کنند.
-- فایل `count.go` رکوردها را بدون بارگذاری کامل فایل شمارش می‌کند.
+### ادغام نتایج
 
-## تنظیمات (Config)
+فایل `merger.go` مسئول مرتب‌سازی و ادغام نتایجه. این بخش ابتدا Batch رو بر اساس امتیاز مرتب می‌کنه، بعد اون رو با فایل موجود ادغام می‌کنه.
 
-هیچ Singleton یا دسترسی‌دهنده سراسری (Package-level) برای تنظیمات وجود ندارد. مرحلهٔ Startup داخل TUI یک `Store` می‌سازد، مقدار `ScannerConfig` را بارگذاری کرده و هر دو را در `ui.AppState` قرار می‌دهد تا کامپوننت‌ها و Scanner از آن‌ها بخوانند.
+نتیجه در فایل موقت `\<path>.tmp` نوشته می‌شه، سپس `Sync` اجرا می‌شه و در پایان فایل موقت با فایل اصلی جایگزین می‌شه.
+
+رکوردهای تکراری بر اساس کلید با هم مقایسه می‌شن و فقط رکورد مناسب نگه داشته می‌شه. برای ادغام هم نیازی نیست محتوای کامل هر دو فایل به‌طور هم‌زمان در حافظه بارگذاری بشه.
+
+### Registry و Loader
+
+- `registry.go`، مقدار `DefaultRegistry` رو نگه می‌داره که نام پوشه رو به Schema مربوط به اون وصل می‌کنه. توابع `FindResultFiles` و `GetResultFiles` پوشه نتایج رو می‌گردن و Schema مناسب رو به هر فایل نسبت می‌دن.
+- `loader.go`، با `LoadResult` نتایج رو به‌صورت جریانی می‌خونه و با `LoadAll` یک Slice محدود از نتایج می‌سازه. هر دو از Parser مربوط به Schema استفاده می‌کنن.
+- `count.go`، تعداد رکوردها رو بدون بارگذاری کامل نتایج در حافظه می‌شماره.
+
+## تنظیمات
+
+برای Config از Singleton یا Accessor سراسری در سطح پکیج استفاده نمی‌شه. بررسی‌های Startup یک `Store` می‌سازن، تنظیمات `ScannerConfig` رو می‌خونن و اون‌ها رو در اختیار Session رابط کاربری قرار می‌دن تا رابط و اسکنر از تنظیمات یکسانی استفاده کنن.
 
 ```go
 type ScannerConfig struct {
@@ -290,99 +340,135 @@ type ScannerConfig struct {
     DNS     DNSConfig
 }
 
-store := config.NewStore()          // به صورت پیش‌فرض دایرکتوری "settings"
+store := config.NewStore() // defaults to the "settings" directory
 cfg, err := store.Load()
 ```
 
-استفاده از `WithSettingsDir(dir)` مسیر `Store` را تغییر می‌دهد که برای تست‌ها در دایرکتوری موقت کاربرد دارد.
+با `WithSettingsDir(dir)` می‌شه مسیر تنظیمات یک Store رو تغییر داد. تست‌ها از این قابلیت استفاده می‌کنن تا تنظیمات رو در یک پوشه موقت بخونن و بنویسن، نه در مسیر تنظیمات واقعی سیستم.
 
-متد `Load` به ازای هر بخش یک فایل TOML می‌خواند. اگر فایلی وجود نداشته باشد، از روی مقادیر پیش‌فرض ساخته می‌شود. اگر فایلی وجود داشته باشد اما پارس نشود، به جای بازگشت خاموش به پیش‌فرض، خطا برمی‌گرداند.
+متد `Load` فایل TOML هر بخش رو می‌خونه. اگه فایل وجود نداشته باشه، با پیش‌فرض‌های کامپایل‌شده ساخته می‌شه. اما اگه فایل وجود داشته باشه و Parse نشه، تابع خطا برمی‌گردونه. در این حالت تنظیمات به‌صورت بی‌صدا با پیش‌فرض‌ها جایگزین نمی‌شن.
 
-ذخیره‌سازی به صورت بخش‌بندی شده انجام می‌شود: `SaveGeneral`، `SaveWriter`، `SaveICMP`، `SaveTCP`، `SaveHTTP`، `SaveXray` و `SaveDNS`. Inspector ساختار داخل حافظه را ادیت کرده و متد مربوطه را فراخوانی می‌کند.
+ذخیره تنظیمات هم برای هر بخش متد جداگانه داره:
 
-رابط کاربری هر دو را در `ui.AppState` نگه می‌دارد:
+`SaveGeneral`، `SaveWriter`، `SaveICMP`، `SaveTCP`، `SaveHTTP`، `SaveXray` و `SaveDNS`.
+
+Inspector هر بخش، Struct تنظیمات رو در حافظه تغییر می‌ده و هنگام ذخیره، متد مربوط به همون بخش رو صدا می‌زنه.
+
+رابط کاربری تنظیمات و Store رو از طریق `ui.Session` در اختیار بخش‌های مختلف قرار می‌ده:
 
 ```go
-type AppState struct {
-    Layout *layout.Layout
-    Config *config.ScannerConfig
-    Store  *config.Store
+type Session struct {
+    Config  *config.ScannerConfig
+    Store   *config.Store
+    Program ui.Program
+    // env and core logger
 }
 ```
 
-#### اعتبارسنجی (Validation)
+متد `Session.Env()` هم اطلاعات محیط رابط کاربری، از جمله Layout، تم، کلیدها، لاگر رابط و `UISettings` رو برمی‌گردونه.
 
-پکیج `config/validate` به ازای هر بخش یک فایل دارد. توابع `ValidateXxx` نگاشتی از خطاهای فیلدها را برمی‌گردانند و چیزی را تغییر نمی‌دهند. توابع `NormalizeXxx` فیلدهای نامعتبر را به مقادیر پیش‌فرض تغییر داده و برای هر تصحیح یک `Warning` برمی‌گردانند. فایل `aggregate.go` این‌ها را در `ValidateAll` و `NormalizeAll` ترکیب می‌کند.
+### اعتبارسنجی تنظیمات
 
-در زمان Startup، تابع `NormalizeAll` فراخوانی می‌شود و هر اصلاح در نوار وضعیت بررسی اولیه گزارش می‌گردد. مقدارهای اصلاح‌شده در حافظه می‌مانند تا وقتی کاربر بخشی را از Inspector ذخیره کند.
+پکیج `config/validate` برای هر بخش تنظیمات فایل جداگانه‌ای داره.
 
-## فهرست‌های IP (IP Lists)
+- توابع `ValidateXxx` یک Map از خطاهای مربوط به فیلدها برمی‌گردونن، بدون اینکه مقدارها رو تغییر بدن.
+- توابع `NormalizeXxx` مقدارهای نامعتبر رو به پیش‌فرض برمی‌گردونن و برای هر اصلاح یک `Warning` تولید می‌کنن.
+- فایل `aggregate.go` این توابع رو در `ValidateAll` و `NormalizeAll` ترکیب می‌کنه.
 
-- فایل `parser.go` تابع `StreamActiveIPs(ctx, path, limit, shuffled, out)` (تابعی که Engine از آن برای تغذیه Workerها استفاده می‌کند) و `StreamCIDR` را برای باز کردن Prefix ارائه می‌دهد.
-- فایل‌های `csv.go` و `parser.go` فرمت دو ستونی `<ip_or_cidr>,<enabled>` را می‌خوانند.
-- فایل `loader.go` وارد کردن لیست‌های خارجی به همراه `CountIPs` و `CountActiveIPs` را برای مجموع پیشرفت مدیریت می‌کند.
-- فایل `registry.go` فایل‌های زیر `ips/` را لیست می‌کند و `shuffle.go` ترتیب آن‌ها را تصادفی می‌سازد.
+Startup، `NormalizeAll` رو اجرا می‌کنه و اصلاحات رو به کاربر نشون می‌ده. مقدارهای اصلاح‌شده در حافظه باقی می‌مونن و فقط وقتی روی دیسک ذخیره می‌شن که کاربر از طریق Inspector بخش مربوطه رو ذخیره کنه.
 
-ورودی‌های غیرفعال (`enabled=false`) هنگام استریم نادیده گرفته می‌شوند. هر دو Prefix مربوط به IPv4 و IPv6 پشتیبانی می‌شوند؛ بنابراین شمارش یک Prefix بزرگ IPv6 به جای یک مقدار دقیق، یک مقدار اشباع‌شده برمی‌گرداند.
+## فهرست‌های IP
+
+- `parser.go`، تابع `StreamActiveIPs(ctx, path, limit, shuffled, out)` رو داره که Engine برای فرستادن IPها به Workerها ازش استفاده می‌کنه. تابع `StreamCIDR` هم برای پردازش یک پیشوند شبکه استفاده می‌شه.
+- `csv.go` و `parser.go`، قالب CSV دو ستونی `<ip_or_cidr>,<enabled>` رو می‌خونن.
+- `loader.go`، فهرست‌های خارجی رو بارگذاری می‌کنه و توابع `CountIPs` و `CountActiveIPs` رو برای محاسبه تعداد کل IPها در اختیار می‌ذاره.
+- `registry.go`، فایل‌های موجود در `ips/` رو فهرست می‌کنه و `shuffle.go` ترتیب ورودی‌ها رو به‌هم می‌زنه.
+
+ورودی‌های غیرفعال هنگام پردازش جریانی کنار گذاشته می‌شن. پیشوندهای IPv4 و IPv6 هر دو پشتیبانی می‌شن. بنابراین، شمارش IPهای یک پیشوند بزرگ IPv6 ممکنه به‌جای تعداد دقیق، به مقدار اشباع‌شده برسه.
 
 ## زیرسیستم DNS
 
-- فایل `query.go` کوئری‌ها را ساخته و روی UDP، TCP و DoT ارسال می‌کند.
-- فایل `types.go` انواع Transport، Record typeها، Rcodeها، روش‌های احراز هویت و نام پروتکل‌های تونل را پارس می‌کند.
-- فایل‌های `dnstt.go`، `vaydns.go`، `slipstream.go`، `masterdns.go`، `stormdns.go` و `thefeed.go` ساختارهای Config، اینترفیس‌های سرویس (`DNSTTService`، `VayDNSService`، `SlipstreamService`، `MasterDNSService`، `StormDNSService` و `TheFeedService`) و مدیریت فایل‌های Config تونل زیر `assets/dns-tunneling/` را تعریف می‌کنند.
-- فایل `store.go` انبار عمومی فایل‌های Config است، `registry.go` تجمیع‌گر `GetAllDNSTunsFile` را دارد که Configهای هر شش سرویس را با هم ادغام می‌کند، `validate.go` توابع کمکی اعتبارسنجی مشترک را دارد و `embedded.go` کلاینت‌های داخلی MasterDNS و StormDNS را جمع می‌کند.
-- پوشهٔ `socks/` یک کلاینت SOCKS5 است که برای اعتبارسنجی تونل پس از بالا آمدن استفاده می‌شود.
-- پوشهٔ `ssh/` یک کلاینت SSH برای اتصال‌های تونل‌شده از طریق Proxyهای SSH است.
+- `query.go`، کوئری‌های DNS رو روی UDP، TCP و DoT می‌سازه و ارسال می‌کنه.
+- `types.go`، ترنسپورت‌ها، نوع‌های Record، کدهای Rcode، روش‌های احراز هویت و نام پروتکل‌های تونل رو Parse می‌کنه.
+- فایل‌های `dnstt.go`، `vaydns.go`، `slipstream.go`، `masterdns.go`، `stormdns.go` و `thefeed.go`، Structهای Config و اینترفیس‌های سرویس مربوط به هر پروتکل رو تعریف می‌کنن و فایل‌های تنظیمات زیر `assets/dns-tunneling/` رو مدیریت می‌کنن. اینترفیس‌ها شامل `DNSTTService`، `VayDNSService`، `SlipstreamService`، `MasterDNSService`، `StormDNSService` و `TheFeedService` هستن.
+- `store.go`، ذخیره‌گاه عمومی فایل‌های Config رو فراهم می‌کنه.
+- `registry.go`، تابع تجمیعی `GetAllDNSTunsFile` رو داره که تنظیمات هر شش سرویس رو کنار هم قرار می‌ده.
+- `validate.go`، ابزارهای مشترک اعتبارسنجی رو نگه می‌داره.
+- `embedded.go`، کلاینت‌های داخلی MasterDNS و StormDNS رو پوشش می‌ده.
+- پکیج `socks/`، کلاینت SOCKS5 رو برای اعتبارسنجی تونل پس از برقراری اتصال فراهم می‌کنه.
+- پکیج `ssh/`، کلاینت SSH رو برای اتصال‌های تونل‌شده از طریق پروکسی SSH فراهم می‌کنه.
 
-## یکپارچه‌سازی Xray
+## یکپارچگی Xray
 
-- فایل `service.go` نمونه‌های داخل برنامه را از طریق کتابخانهٔ داخلی xray-core اجرا و کنترل می‌کند، و فایل‌های `inbound.go` و `outbound.go` JSON کانفیگ را تولید می‌کنند.
-- فایل `link.go` لینک‌های اشتراکی را پارس می‌کند.
-- فایل‌های `download.go`، `latency.go` و `upload.go` میزان سرعت (Throughput) را اندازه‌گیری می‌کنند.
+- `service.go`، نمونه‌های Xray رو با استفاده از کتابخانه داخلی `xray-core` در همان پروسه اجرا و مدیریت می‌کنه. فایل‌های `inbound.go` و `outbound.go` تنظیمات JSON ورودی و خروجی رو می‌سازن.
+- `link.go`، لینک‌های اشتراک رو Parse می‌کنه.
+- فایل‌های `download.go`، `latency.go` و `upload.go` در پکیج `speedtest`، سرعت و تأخیر اتصال رو اندازه می‌گیرن.
 
-پکیج `xrayprobe` کانفیگ Outbound انتخابی را می‌سازد، یک پورت اجاره می‌کند، یک نمونهٔ Xray داخل خود برنامه بالا می‌آورد، Latency را از طریق پروکسی محلی می‌سنجد، در صورت تنظیم تست سرعت را اجرا کرده و در نهایت همه چیز را پاکسازی می‌کند.
+`xrayprobe` برای Outbound انتخاب‌شده تنظیمات لازم رو می‌سازه، یک پورت اجاره می‌کنه، نمونه Xray رو داخل همون پروسه بالا می‌آره و تأخیر اتصال رو از طریق پروکسی محلی اندازه می‌گیره. در صورت نیاز، تست سرعت هم اجرا می‌شه و در پایان منابع استفاده‌شده آزاد می‌شن.
 
-## مدیریت پروسس‌ها (Process Management)
+## مدیریت پروسه
 
-فایل `process.go` اینترفیس را تعریف می‌کند و فایل‌های `process_unix.go` و `process_windows.go` رفتار اختصاصی هر سیستم‌عامل را پیاده‌سازی می‌کنند. فقط باینری جانبی Slipstream به‌صورت Process فرزند اجرا می‌شود.
+پکیج `internal/core/process` شامل ابزار قدیمی ردیابی پروسه‌ها برای چند پلتفرمه، از جمله `process_unix.go` و `process_windows.go`.
 
-## لاگر (Logger)
+اسکنر فعلی از این پکیج استفاده نمی‌کنه، اما کدش هنوز در پروژه وجود داره. تنها پروسه‌های فرزندی که اسکنر اجرا می‌کنه، دستورهای `termux-wake-lock` و `termux-wake-unlock` در اندروید هستن.
 
-| لاگر | فایل | پوشش |
-| --- | --- | --- |
-| Core | `logs/core.log` | Engine، Probeها، Config و I/O نتایج |
-| UI | `logs/ui.log` | چرخه حیات کامپوننت‌ها، عملیات فایل و خطاهای UI |
-| Debug | `logs/debug.log` | State Dumpها و Traceهای دقیق |
+## Logger
 
-هر لاگر در فایل می‌نویسد و داده‌ها را برای هر کانال نمایشگر فعال ارسال می‌کند. سیستم چرخش (Rotation) از نوع lumberjack است: سقف ۵۰ مگابایت، ۳ فایل پشتیبان، نگهداری ۷ روز و به صورت فشرده (compressed).
+| Logger | فایل | کاربرد |
+|---|---|---|
+| Core | `logs/core.log` | لاگ‌های Engine، Probeها، تنظیمات و عملیات ورودی و خروجی نتایج |
+| UI | `logs/ui.log` | چرخه عمر کامپوننت‌ها، عملیات فایل و خطاهای رابط کاربری |
 
-## راه‌اندازی (Startup)
+هر دو Logger مقدار `log_level` رو از `settings/ui_settings.toml` می‌خونن. علاوه بر نوشتن در فایل، لاگ‌ها رو به مشترک‌هایی که به‌صورت زنده اون‌ها رو دریافت می‌کنن هم می‌فرستن.
 
-مرحلهٔ راه‌اندازی داخل TUI و در مسیر `internal/ui/main/startup` قرار دارد. این مرحله بعد از انیمیشن Splash و قبل از Workspace اجرا می‌شود و هر قدم را زنده در نوار وضعیت کناری نشان می‌دهد.
+برای چرخش فایل‌های لاگ از lumberjack استفاده می‌شه. تنظیمات فعلی شامل سقف حجم ۵۰ مگابایت، نگهداری ۳ نسخه پشتیبان، حداکثر ۷ روز نگهداری و فشرده‌سازی فایل‌های قدیمیه.
 
-بررسی‌ها توابع خصوصی داخل `checklist.go` هستند و به‌ترتیب در یک گوروتین اجرا می‌شوند:
+## Startup
+
+مرحله Startup درون TUI و در مسیر `internal/ui/main/startup` پیاده‌سازی شده. این مرحله بعد از انیمیشن Splash و قبل از نمایش Workspace اجرا می‌شه و وضعیت بررسی‌ها رو به‌صورت زنده در نوار وضعیت نشون می‌ده.
+
+بررسی‌ها به‌صورت توابع خصوصی در `checklist.go` تعریف شدن. کامپوننت Startup با متدهای `Init` و `Update` این فرایند رو مدیریت می‌کنه و بررسی‌ها رو به‌ترتیب، داخل یک Goroutine اجرا می‌کنه.
+
+ترتیب بررسی‌ها به این شکله:
 
 ```text
-1. Logger      راه‌اندازی لاگرهای core و UI و debug؛ سپس core.Init()
-               برای ثبت Schemaهای نتیجه
-2. Config      store.Load() و سپس validate.NormalizeAll برای
-               گزارش مقدارهای خارج از محدوده
-3. Xray        گزارش نسخهٔ هستهٔ داخلی، فهرست و اعتبارسنجی
-                قالب‌های Outbound
-4. DNSTT       اعتبارسنجی فایل‌های Config
-5. Slipstream  پیدا کردن باینری، تأیید و اعتبارسنجی Configها
-6. Vaydns      اعتبارسنجی فایل‌های Config
-7. MasterDNS   اعتبارسنجی فایل‌های Config
-8. StormDNS    اعتبارسنجی فایل‌های Config
-9. TheFeed     اعتبارسنجی فایل‌های Config
-10. App        انتظار برای زدن Enter
+1. Logger       بررسی لاگرهای Core و UI. اجرای core.Init()
+                برای ثبت Schemaهای نتایج Probeها
+
+2. Config       اجرای store.Load(). در صورت نامعتبر بودن TOML،
+                گزارش خطا. اجرای validate.NormalizeAll برای
+                اصلاح مقدارهای خارج از محدوده
+
+3. Xray         نمایش نسخه هسته داخلی و بررسی Outboundها
+
+4. DNSTT        بررسی فایل‌های تنظیمات DNSTT
+
+5. Slipstream   پیدا کردن و بارگذاری کتابخانه کلاینت
+                و بررسی فایل‌های تنظیمات
+
+6. VayDNS       بررسی فایل‌های تنظیمات VayDNS
+
+7. MasterDNS    بررسی فایل‌های تنظیمات MasterDNS
+
+8. StormDNS     بررسی فایل‌های تنظیمات StormDNS
+
+9. TheFeed      بررسی فایل‌های تنظیمات TheFeed
+
+10. App         انتظار برای فشردن Enter توسط کاربر
 ```
 
-هر بررسی وضعیت خود را از طریق `reporter` گزارش می‌کند که پیام‌های `[INFO]`، `[SUCCESS]`، `[WARN]` یا `[ERROR]` صادر می‌کند. خطاهای بحرانی بررسی‌های بعدی را متوقف می‌کنند. نبودِ باینری Slipstream فقط هشدار می‌دهد و همان اسکن Slipstream را غیرفعال می‌کند. بعد از پاس‌شدن همهٔ بررسی‌ها و زدن Enter، برنامه به مرحلهٔ Workspace می‌رود.
+هر بررسی وضعیت خودش رو از طریق یک `reporter` گزارش می‌ده. پیام‌ها می‌تونن یکی از این سطح‌ها رو داشته باشن: `[INFO]`، `[SUCCESS]`، `[WARN]` یا `[ERROR]`.
 
-برخلاف طراحی قبلی، `main.go` نه Config را بارگذاری می‌کند و نه بررسی‌ای اجرا می‌کند — فقط `theme.Init()` را صدا می‌زند، برنامه را می‌سازد و BubbleTea را اجرا می‌کند. بارگذاری Config، ثبت Schema و بررسی باینری‌ها همه به‌صورت قدم‌های قابل‌مشاهده در UI انجام می‌شوند. مقدارهای اصلاح‌شده در حافظه می‌مانند تا کاربر بخش مربوطه را از Inspector ذخیره کند.
+خطاهای بحرانی باعث می‌شن بررسی‌های بعدی اجرا نشن. نبود کتابخانه Slipstream خطا رو گزارش می‌کنه، اما جلوی ادامه Startup رو نمی‌گیره. در این حالت فقط اسکن Slipstream قابل اجرا نیست.
 
-## صفحات مرتبط
+بعد از پایان بررسی‌ها، کاربر با فشردن Enter وارد Workspace می‌شه.
 
-- [معماری (Architecture)](../architecture/) — چیدمان پروژه و لایه‌بندی
-- [رابط کاربری (UI)](../ui/) — مدل کامپوننت‌ها و پوسته (Theme)
+در ساختار فعلی، `main.go` تنظیمات رو بارگذاری نمی‌کنه و بررسی‌های Startup رو هم انجام نمی‌ده. وظیفه اون ساخت لاگرها، ایجاد اپلیکیشنی که تم و تنظیمات رابط کاربری رو راه‌اندازی می‌کنه، و شروع برنامه Bubble Tea هست.
+
+خطاهای خواندن تنظیمات، ثبت Schema، بارگذاری کتابخانه و اعتبارسنجی Config در خود رابط Startup نمایش داده می‌شن، نه به‌شکل خطاهای خاموش پیش از بالا آمدن TUI. مقدارهای اصلاح‌شده هم در حافظه باقی می‌مونن تا کاربر در صورت نیاز، اون بخش رو از طریق Inspector ذخیره کنه.
+
+## صفحه‌های مرتبط
+
+- [معماری](./architecture/): ساختار کلی پروژه و لایه‌ها
+- [رابط کاربری](./ui/): معماری کامپوننت‌ها و تم‌ها
+

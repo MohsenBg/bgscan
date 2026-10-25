@@ -2,23 +2,22 @@
 title: "Contributing"
 weight: 6
 ---
-# Contributing Guide
 
-Thank you for your interest in contributing to **bgscan**! Every contribution is appreciated, whether it's fixing bugs, improving documentation, or implementing new features.
+# Contributing guide
 
-## Before You Start
+Thank you for wanting to help **BGScan**. Whether you fix a bug, improve the docs, or add a new feature, your contribution helps the project get better.
 
-* Search existing Issues before opening a new one.
-* If you're planning a large feature or major change, please open an Issue first to discuss it.
-* Keep pull requests focused on a single change.
+## Before you start
+
+- Check the existing issues before opening a new one, to make sure the topic has not come up already.
+- If you plan to add a large feature or make an important change, it is better to open an issue first and talk about the proposed solution.
+- Try to keep each Pull Request focused on one specific change.
 
 ---
 
-## Branch Strategy
+## Branch strategy
 
-Please **do not commit directly to the `main` branch**.
-
-Create a new branch from `main`:
+Please **do not commit directly on `main`**. Create a separate branch for your changes:
 
 ```bash
 git checkout main
@@ -26,9 +25,9 @@ git pull origin main
 git checkout -b feature/my-feature
 ```
 
-Suggested branch names:
+You can use these patterns for branch names:
 
-```
+```text
 feature/add-xray-parser
 feature/ui-improvements
 fix/memory-leak
@@ -40,23 +39,23 @@ test/unit-tests
 
 ---
 
-## Coding Style
+## Coding style
 
-* Follow existing project conventions.
-* Keep code simple and readable.
-* Prefer small, focused commits.
-* Avoid unrelated formatting changes.
-* Add comments only when necessary.
+- Follow the conventions and patterns already in the project.
+- Write simple, readable code.
+- Break changes into small, specific commits.
+- Avoid formatting changes unrelated to your work.
+- Add comments only where they help the code read better.
 
 ---
 
-## Commit Messages
+## Commit messages
 
-Use descriptive commit messages.
+A commit message should be short and specific and explain what changed.
 
-Examples:
+A few examples:
 
-```
+```text
 feat: add HTTP/3 support
 fix: resolve race condition in scanner
 docs: improve installation guide
@@ -66,61 +65,61 @@ test: add unit tests for parser
 
 ---
 
-## Pull Requests
+## Pull Request
 
-Before opening a Pull Request, ensure:
+Before opening a Pull Request, check these items:
 
-* Project builds successfully.
-* Existing tests pass.
-* New functionality is tested.
-* Documentation is updated if necessary.
+- The project builds without errors.
+- The existing tests pass.
+- A new feature has suitable tests when needed.
+- The related documentation has been updated.
 
-Please include:
+In the Pull Request description, please also write:
 
-* What changed
-* Why it changed
-* Screenshots (for UI changes)
-* Related Issue (if applicable)
-
----
-
-## Reporting Bugs
-
-Include as much information as possible:
-
-* Operating System
-* Architecture
-* bgscan version
-* Configuration
-* Steps to reproduce
-* Expected behavior
-* Actual behavior
-* Logs (if available)
+- What changed?
+- Why is this change needed?
+- If the interface changed, add a suitable screenshot or image.
+- If there is a related issue, link to it.
 
 ---
 
-## Feature Requests
+## Reporting a bug
 
-Please describe:
+To make the bug easier to review and fix, include as much of this information as you can in the issue:
 
-* The problem you're trying to solve.
-* Your proposed solution.
-* Possible alternatives.
-* Additional context.
+- Operating system
+- System architecture
+- BGScan version
+- Relevant settings
+- Steps to reproduce the bug
+- Expected behavior
+- Actual program behavior
+- Relevant logs, if available
+
+The more precise the information you give, the easier it is to find the cause of the problem.
 
 ---
 
-## Code of Conduct
+## Feature request
 
-Be respectful and constructive.
+If you want to suggest a new feature, it is better to explain these items:
 
-Healthy discussions are encouraged. Personal attacks, harassment, or disrespectful behavior will not be tolerated.
+- What problem do you have and what will this feature solve?
+- What solution do you suggest?
+- Is there another alternative solution?
+- What other information or details could help review the suggestion?
 
-Thank you for helping make bgscan better!
+---
+
+## Code of conduct
+
+Treat others with respect and be constructive. We welcome healthy discussion, but personal insults, harassment, and disrespectful behavior are not acceptable.
+
+Thank you for taking the time to make BGScan better!
 
 ## Related pages
 
-* [Getting Started](../getting-started/) — build and run instructions
-* [Architecture](../architecture/) — high-level project layout
-* [Core](../core/) — scanner engine, probe interface, config, and result pipeline in detail
-* [UI](../ui/) — TUI architecture, component model, layout, and theming
+- [Getting started](./getting-started/): build and run commands for the project
+- [Architecture](./architecture/): an introduction to the overall project structure
+- [Core](./core/): details of the scan engine, the Probe interface, settings, and result processing
+- [User interface](./ui/): TUI architecture, components, layout, and themes

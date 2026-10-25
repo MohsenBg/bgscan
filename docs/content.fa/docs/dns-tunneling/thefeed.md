@@ -5,21 +5,23 @@ weight: 6
 
 # تنظیمات TheFeed
 
-TheFeed با کتابخانهٔ داخلی خودش داخل برنامه اجرا می‌شود. کوئری‌ها و پاسخ‌ها با کلیدهای AES-256 رمزنگاری می‌شوند که از یک Passphrase مشترک ساخته می‌شوند. تنظیمات Proxy ندارد. مهلت زمانی پروب داخل این فایل نیست و از تنظیمات کلی تونل DNS می‌آید (`dns_settings.toml` و `dns_tunneling.timeout`).
+TheFeed داخل خود BGScan و از طریق یک کتابخانه کلاینت داخلی اجرا می‌شه. کوئری‌ها و پاسخ‌ها با کلیدهای ۲۵۶ بیتی AES رمزنگاری می‌شن که از یک Passphrase مشترک ساخته می‌شن.
+
+این پروتکل تنظیمات پروکسی نداره. مقدار Timeout پروب هم از تنظیمات کلی تونل DNS، یعنی `dns_settings.toml` و گزینه `dns_tunneling.timeout`، گرفته می‌شه. بنابراین، لازم نیست اون رو در فایل Config مربوط به TheFeed تنظیم کنید.
 
 ## تنظیمات اتصال
 
-| فیلد | پیش‌فرض | توضیحات |
+| فیلد | پیش‌فرض | توضیح |
 | --- | --- | --- |
-| `Domain` | (لازم) | ساب‌دامین DNS که به کوئری‌های فید جواب می‌دهد (مثلاً `t.example.com`) |
-| `Passphrase` | (لازم) | همان Passphrase سرور که کلیدهای AES-256 از آن ساخته می‌شوند |
-| `ResolverPort` | `53` | پورت Resolver (سرورهای TheFeed معمولاً روی 5300 هستند) |
-| `ResolverType` | `'udp'` | روش انتقال: `udp`، `tcp` یا `dot` |
-| `QueryMode` | `'single'` | کدگذاری کوئری: `single` (یک لیبل base32) یا `double` (چند لیبل hex) |
+| `domain` | الزامی | زیردامنه‌ای که به کوئری‌های Feed پاسخ می‌ده، مثلاً `t.example.com` |
+| `passphrase` | الزامی | همون Passphrase سرور که برای ساخت کلیدهای ۲۵۶ بیتی AES استفاده می‌شه |
+| `resolver_port` | `53` | پورت ریزالور، سرورهای TheFeed معمولاً از پورت `5300` استفاده می‌کنن |
+| `resolver_type` | `'udp'` | ترنسپورت ارتباط با ریزالور: `udp`، `tcp` یا `dot` |
+| `query_mode` | `'single'` | روش کدگذاری کوئری: `single` برای یک برچسب Base32 یا `double` برای چند برچسب Hex |
 
-## نمونهٔ Config
+## نمونه Config
 
-```toml
+```toml id="q6v3nw"
 domain = 't.example.com'
 passphrase = 'your-passphrase'
 resolver_port = 53
@@ -29,5 +31,6 @@ query_mode = 'single'
 
 ## موضوعات مرتبط
 
-- [تونل DNS](../) — نمای کلی پروتکل‌ها و نحوهٔ اسکن
-- [تنظیمات DNS](../../settings/dns.md) — مهلت کلی تونل و پیش‌اسکن Resolver
+- [تونل DNS](../): آشنایی با پروتکل‌ها و روند اسکن
+- [تنظیمات DNS](../settings/dns.md): تنظیم Timeout تونل و پیش‌اسکن ریزالور
+

@@ -3,123 +3,159 @@ title: "General Settings"
 weight: 3
 ---
 
-# General Settings
+# General settings
 
-> 💡 **Tip:** You can change these settings directly in the bgscan application instead of editing the TOML file manually.
+> 💡 **Note:** You do not need to edit the TOML file by hand. You can change these settings directly inside BGScan.
 >
-> Navigate to **Settings** → **General Settings** in the main menu to configure these options interactively using the TUI inspector.
+> Go to **Settings → General Settings** from the main menu and set the options with the Inspector inside the TUI.
 
-Configuration file: `settings/general_settings.toml`
+Settings file: `settings/general_settings.toml`
 
-Global scan limits, probe rate limiting, pipeline execution mode, and buffer sizing.
+This file defines the general scan settings, including the limit on the number of IPs, the probe rate, how multi stage scans run, and the buffer sizes.
 
-## Quick Reference
+## Quick reference
 
 | Setting | Default | Description |
-| --------- | --------- | ------------- |
-| `status_interval` | `1000` | Progress update interval in milliseconds |
-| `max_successful_ips` | `0` | Stop after N successful results (0 = scan all) |
-| `max_ips_to_test` | `0` | Cap on IPs read from the input source |
-| `pipeline_mode` | `"streaming"` | Execution mode for multi-stage scans |
-| `max_ips_per_stage` | platform-dependent | Channel buffer size between streaming stages |
-| `batch_size` | platform-dependent | Batch size for batch mode |
-| `shuffled` | `true` | Randomize target order |
-| `min_probe_duration` | platform-dependent | Minimum time spent per probe (ms) |
-| `probe_per_sec` | platform-dependent | Sustained probe rate ceiling (token-bucket refill) |
-| `probe_burst` | platform-dependent | Max probes in a burst (token-bucket capacity) |
+|---|---|---|
+| `status_interval` | `1000` | How often the scan status updates, in milliseconds |
+| `max_successful_ips` | `0` | Stops the scan after reaching a set number of successful results. `0` means no limit |
+| `max_ips_to_test` | `0` | The maximum number of IPs read from the scan input |
+| `pipeline_mode` | `"streaming"` | How the multi stage scan runs |
+| `max_ips_per_stage` | Depends on the platform | The channel buffer size between stages in Streaming mode |
+| `batch_size` | Depends on the platform | The size of each part in Batch mode |
+| `shuffled` | `true` | Shuffles the target order randomly |
+| `min_probe_duration` | Depends on the platform | The minimum time each probe runs, in milliseconds |
+| `probe_per_sec` | Depends on the platform | The allowed sustained probe rate |
+| `probe_burst` | Depends on the platform | The maximum number of probes back to back |
 
-## Status Interval
+## Status update interval
 
 ```toml
 status_interval = 1000
 ```
 
-How often each stage emits a progress snapshot to the UI, in milliseconds. Valid range is 100 ms to 60 s. Lower values give smoother feedback and cost more CPU on very large scans.
+This option defines how often each stage sends its progress status to the interface, in milliseconds. The allowed range is from 100 milliseconds to 60 seconds.
 
-## Max Successful IPs
+A lower value makes the scan status update more smoothly, but on very large scans it may increase CPU use.
+
+## Successful IP limit
 
 ```toml
 max_successful_ips = 0
 ```
 
-Halt a scan after N successful results. The scan engine stops once this limit is reached. `0` scans all targets.
+The number of successful results after which the scan stops.
 
-## Max IPs to Test
+For example, if you set the value to `1000`, the scan stops after reaching 1000 successful results. A value of `0` means the scan continues until every target is checked.
+
+## Target IP limit
 
 ```toml
 max_ips_to_test = 0
 ```
 
-Caps how many IPs are read from the input source. `0` reads everything. Useful when sampling a large list or a wide IPv6 prefix, where scanning to completion is not practical.
+The maximum number of IPs read from the scan input.
 
-## Pipeline Mode
+A value of `0` means there is no limit. This option is useful for sampling large lists or wide IPv6 prefixes, especially when checking every address would take a long time.
+
+## Scan execution mode
 
 ```toml
 pipeline_mode = "streaming"
 ```
 
-Controls how targets flow through a multi-stage scan.
+This option defines how targets move between stages in a multi stage scan.
 
 | Value | Behavior |
-| --- | --- |
-| `streaming` (alias `parallel`) | All stages run concurrently. Successful IPs move to the next stage through in-memory channels. |
-| `sequential` (alias `simple`) | Stage N finishes and writes its result file. Stage N+1 reads that file as input. |
-| `batch` (alias `pipeline`) | IPs are chunked. Each chunk traverses every stage before the next chunk is read. |
+|---|---|
+| `streaming` | All stages run at the same time and successful IPs move to the next stage through in-memory channels. |
+| `sequential` | Each stage runs to completion and saves its results in its own file. The next stage reads the result file of the earlier stage as input. |
+| `batch` | IPs are split into smaller parts. Each part passes through all the stages and then the next part is processed. |
 
-Unrecognized or empty values fall back to `sequential` at parse time, but the config validator rejects anything outside the list above and restores the default first. See [Scan Pipeline](../scanner/scan-pipeline.md) for the trade-offs.
+Use these three exact values: `streaming`, `sequential`, and `batch`.
 
-## Max IPs Per Stage
+The settings validator also accepts the values `simple`, `parallel`, and `pipeline`, but the scan engine does not convert them to the other modes, so they run as `sequential`.
+
+Invalid values also fall back to the default `streaming` mode during the initial settings check before the scan starts, and the change is reported.
+
+To learn more about the differences between these modes, see the [Scan stages](../scanner/scan-pipeline.md) page.
+
+## IP limit per stage
 
 ```toml
 max_ips_per_stage = 100000
 ```
 
-Buffer size of the channel connecting one streaming stage to the next. A larger buffer means a fast stage blocks less often when the following stage is slower, at the cost of memory. Each buffered entry is a single address.
+This option defines the buffer size of the channel that carries the output of one stage to the next in `streaming` mode. Each buffer entry holds one IP address.
 
-The value is raised to the next stage's worker count when that count is higher. Only used in `streaming` mode. Valid range is 1 to 10,000,000.
+A larger buffer means a faster stage waits less often for a slower stage, but it also increases memory use.
 
-## Batch Size
+If the next stage has more workers than the set value, the buffer capacity grows to that stage's worker count.
+
+This option is used only in `streaming` mode. The allowed range is from 1 to 10,000,000.
+
+## Part size in Batch mode
 
 ```toml
 batch_size = 5000
 ```
 
-Number of IPs per chunk in `batch` mode. With more than one stage, the effective size is `max(batch_size, highest worker count among stages after the first)`, so a batch is never smaller than the workers that have to drain it.
+The number of IPs processed in each part of `batch` mode.
 
-## Shuffle Targets
+If the scan has more than one stage, the actual size of each part is the largest value between `batch_size` and the highest worker count among the stages after the first stage:
+
+`max(batch_size, highest worker count among stages after the first)`
+
+This way the part size is never smaller than the number of workers in the later stages that need input.
+
+## Shuffling the target order
 
 ```toml
 shuffled = true
 ```
 
-Randomizes target order before scanning. Useful to spread load across subnets, avoid hammering one range, and get a representative sample when combined with `max_ips_to_test`.
+When this option is enabled, the target order is changed randomly before the scan.
 
-## Probe Rate Limit
+This keeps requests from piling up on one range and spreads the scan load across different subnets. If you use this option with `max_ips_to_test`, you can also check a sample from a large list of targets.
+
+## Probe rate limit
 
 ```toml
 probe_per_sec = 500
 probe_burst = 100
 ```
 
-`probe_per_sec` and `probe_burst` form a token-bucket limiter applied to every probe across all stages. `probe_per_sec` is the sustained ceiling — tokens refilled per second. `probe_burst` is the bucket capacity — how many probes may fire back-to-back before the limiter blocks. Together they cap outgoing request volume regardless of `Workers`, which is how you avoid tripping upstream rate limits or DPI.
+These two options together build a Token Bucket rate limiter that applies to the probes of every stage.
 
-Both are validated. `probe_per_sec` ranges 1 to 1,000,000; `probe_burst` ranges 1 to 10,000. Out-of-range values are rejected, the default is restored, and the correction is logged. The effective default is platform-dependent (see the Quick Reference table).
+- `probe_per_sec`: Sets the sustained probe rate, meaning how many tokens are added to the bucket each second.
+- `probe_burst`: Sets the bucket capacity, meaning how many probes can run back to back before the limiter holds back further requests.
 
-## Minimum Probe Duration
+The combination of these two options controls the outgoing request rate independently of the worker count. This is useful for reducing the chance of hitting a rate limit or being detected by upstream network DPI.
+
+Both values are validated:
+
+- `probe_per_sec`: from 1 to 1,000,000
+- `probe_burst`: from 1 to 10,000
+
+A value outside the range is rejected, the default value replaces it, and the correction is recorded in the log. The effective default for each option depends on the platform. See the quick reference table for more information.
+
+## Minimum probe duration
 
 ```toml
 min_probe_duration = 50
 ```
 
-Enforces a floor on how long each probe takes, in milliseconds. After a probe finishes faster than this, the worker sleeps for the remainder before moving to the next target. Used to normalize timing-based side channels and to pace scans that would otherwise complete too fast.
+Sets the minimum time each probe runs in milliseconds. If a probe finishes sooner than this time, the worker waits until the set minimum and then moves to the next target.
 
-Valid range is 10 ms to 5 s. The effective default is platform-dependent (see the Quick Reference table).
+This option is useful for making probe times more even and for slowing scans that would otherwise finish very fast, including when you want to check timing based side channels.
 
-## Related Files
+The allowed range is from 10 milliseconds to 5 seconds. The effective default depends on the platform. See the quick reference table for the details.
 
-- [`icmp_settings.toml`](./icmp.md) — ICMP scan configuration
-- [`tcp_settings.toml`](./tcp.md) — TCP port scan configuration
-- [`http_settings.toml`](./http.md) — HTTP/HTTPS/HTTP3 probe configuration
-- [`dns_settings.toml`](./dns.md) — DNS scan configuration
-- [`xray_settings.toml`](./xray.md) — Xray outbound validation
-- [`writer_settings.toml`](./writer.md) — Result output configuration
+## Related files
+
+- [`icmp_settings.toml`](./icmp.md): ICMP scan settings
+- [`tcp_settings.toml`](./tcp.md): TCP port scan settings
+- [`http_settings.toml`](./http.md): HTTP, HTTPS, and HTTP/3 probe settings
+- [`dns_settings.toml`](./dns.md): DNS scan settings
+- [`xray_settings.toml`](./xray.md): Xray scan settings and outbound validation
+- [`writer_settings.toml`](./writer.md): result saving settings

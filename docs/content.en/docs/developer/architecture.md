@@ -5,7 +5,11 @@ weight: 2
 
 # Architecture
 
-bgscan is layered. `main` initializes the theme and hands control to a BubbleTea TUI. The TUI runs a three-stage experience — splash, startup, workspace — where the **startup** stage initializes loggers, registers result schemas, loads and validates config, and runs binary health checks. Once startup passes, the workspace drives a multi-stage scanner engine whose probes and writers are pluggable.
+BGScan has a layered structure. The entry point, `main`, hands control to the Bubble Tea interface. The interface has three stages: Splash, Startup, and Workspace.
+
+During the **Startup** stage, the loggers are checked, the result schemas are registered, the settings are loaded and validated, and the status of the internal Xray core, the tunnel settings files, and the optional Slipstream library is checked.
+
+Once Startup finishes successfully, the app enters the Workspace. From there you can run a scan. The scan engine is built from several stages, and its probes and writers can be replaced.
 
 ## Directory layout
 
@@ -20,7 +24,6 @@ bgscan is layered. `main` initializes the theme and hands control to a BubbleTea
 │   │   ├── thefeed
 │   │   └── vaydns
 │   ├── xray
-│   │   ├── configs
 │   │   └── outbounds
 │   └── slipstream-client
 ├── cmd
@@ -33,6 +36,7 @@ bgscan is layered. `main` initializes the theme and hands control to a BubbleTea
 │   │   ├── config
 │   │   │   └── validate
 │   │   ├── dns
+│   │   ├── ffi
 │   │   ├── fileutil
 │   │   ├── iplist
 │   │   ├── netutil
@@ -64,7 +68,6 @@ bgscan is layered. `main` initializes the theme and hands control to a BubbleTea
 │       │   ├── app
 │       │   ├── body
 │       │   ├── footer
-│       │   ├── header
 │       │   ├── splash
 │       │   ├── startup
 │       │   └── workspace
@@ -77,7 +80,7 @@ bgscan is layered. `main` initializes the theme and hands control to a BubbleTea
 
 ## Layer overview
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │                 cmd/bgscan                   │
 │   theme.Init → app.New → tea.Run             │
@@ -86,13 +89,14 @@ bgscan is layered. `main` initializes the theme and hands control to a BubbleTea
 │   main                                       │
 │     splash  startup  workspace               │
 │     app (root model, stage transitions)      │
-│     body, header, footer                     │
+│     body, footer                             │
 │   components (menus, tables, inspector)      │
 │   shared (layout, env, dialog, ui, valid.)   │
 │   theme                                      │
 │                                              │
 │   ui/main/startup performs (inside the TUI): │
-│     logger, core.Init, config, binary checks │
+│     logger, core.Init, config, shared-lib    │
+│     and tunnel-config checks                 │
 ├─────────────────────────────────────────────┤
 │               internal/core                  │
 │  ┌──────────┐ ┌────────┐ ┌───────────────┐  │
@@ -118,51 +122,52 @@ bgscan is layered. `main` initializes the theme and hands control to a BubbleTea
 
 | Path | Description |
 |---|---|
-| `cmd/bgscan` | Entry point. Initializes the theme, constructs the app, and starts the BubbleTea program. |
-| `internal/core/core.go` | `core.Init()` registers every built-in probe schema into `result.DefaultRegistry`. Called from the startup stage. |
-| `internal/core/config` | `ScannerConfig` types, compiled-in defaults, and the `Store` that reads and writes `settings/*.toml`. |
-| `internal/core/config/validate` | Per-section validators and normalizers, combined by `aggregate.go`. |
-| `internal/core/scanner` | `Scanner` interface, `StageConfig`, and the stage builders. |
-| `internal/core/scanner/engine` | Pipeline execution: single scan, sequential, streaming, batch, pause control. |
-| `internal/core/scanner/probe` | `Probe` interface plus one subpackage per probe. |
-| `internal/core/scanner/portmgr` | Local port leasing for tunnel and Xray probes. |
-| `internal/core/result` | `Result` interface, schemas, registry, async writer, CSV merge, loader. |
-| `internal/core/iplist` | IP list import, parsing, registry, shuffle, streaming. |
+| `cmd/bgscan` | Entry point of the program. It creates the loggers, starts the application (including the theme and the interface settings), and hands control to Bubble Tea. |
+| `internal/core/core.go` | The `core.Init()` function registers nine probe schemas in `result.DefaultRegistry`. The MasterDNS and StormDNS schemas are defined but not registered. This function runs during Startup. |
+| `internal/core/config` | Defines the `ScannerConfig` types, the compiled defaults, and the `Store` that reads and writes `settings/*.toml`. |
+| `internal/core/config/validate` | Validators and normalizers for each settings section, combined in `aggregate.go`. |
+| `internal/core/scanner` | The `Scanner` interface, the `StageConfig` struct, and the functions that build stages. |
+| `internal/core/scanner/engine` | Runs scan stages in Sequential, Streaming, or Batch mode, along with pause control. Every scan passes through this part. |
+| `internal/core/scanner/probe` | The `Probe` interface and one subpackage for each probe type. |
+| `internal/core/scanner/portmgr` | Manages leases on local ports for the tunnel and Xray probes. |
+| `internal/core/result` | The `Result` interface, schemas, registry, asynchronous writer, CSV merge, and loader. |
+| `internal/core/iplist` | Reads and parses IP lists, plus the registry, shuffle, and streaming processing of input. |
 | `internal/core/netutil` | Host normalization, TLS version parsing, and SNI extraction for the HTTP probes. |
-| `internal/core/dns` | DNS queries, transports, tunnel config services (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed), and tunnel management. |
+| `internal/core/dns` | DNS queries, transports, the tunnel settings services (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, and TheFeed), and tunnel management. |
 | `internal/core/socks` | SOCKS5 client for tunnel validation. |
-| `internal/core/ssh` | SSH client for tunneled connections through SSH proxies. |
-| `internal/core/xray` | In-process Xray service (vendored core), inbound and outbound config, share link parsing. |
-| `internal/core/speedtest` | Latency, download, and upload measurement used by the Xray probe. |
-| `internal/core/process` | Cross-platform process tracking for the Slipstream sidecar. |
-| `internal/core/fileutil` | CSV, JSON, TOML, text, temp-file, sorting, and path helpers. |
-| `internal/logger` | Three leveled log streams with lumberjack rotation and live subscribers. |
-| `internal/ui/main/app` | Root BubbleTea model. Owns the stage machine: splash → startup → workspace. |
-| `internal/ui/main/splash` | Animated splash screen, runs first. |
-| `internal/ui/main/startup` | Sequential health checks (Logger, Config, Xray, DNSTT, Slipstream, Vaydns, MasterDNS, StormDNS, TheFeed, App) shown to the user with a live status sidebar. |
-| `internal/ui/main/workspace` | Main workspace shell (header, body, footer) after startup passes. |
-| `internal/ui/main/body` | Stack of body screens (main menu, scan, settings, logs) inside the workspace. |
-| `internal/ui/main/header` / `footer` | Workspace chrome. |
-| `internal/ui/components` | Widgets, settings inspectors, menus, tables, and the live scanner view. |
-| `internal/ui/shared` | Layout geometry, dialog system, key modes, component interface, validation. |
-| `internal/ui/theme` | Dark and light palettes plus the huh form theme adapter. |
-| `assets/xray` | Xray configs, routing data, and outbound templates. No binary lives here: Xray runs in-process through the vendored core. |
-| `assets/slipstream-client` | Slipstream sidecar binary, the only external process bgscan spawns. |
-| `assets/dns-tunneling` | DNS tunnel config files (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed). |
-| `ips` | Bundled provider IP lists as CSV. |
-| `settings` | Live `.toml` settings. |
-| `scripts` | Install, build, and release helpers. |
+| `internal/core/ssh` | SSH client for tunnel connections through an SSH proxy. |
+| `internal/core/xray` | The Xray service that runs in the same process, inbound and outbound settings management, and share link parsing. |
+| `internal/core/speedtest` | Measures latency, download speed, and upload speed. Used by the Xray probe. |
+| `internal/core/process` | Older process management helpers for several platforms. The current scanner does not use them. |
+| `internal/core/ffi` | Connection to the internal Slipstream client library through purego. |
+| `internal/core/fileutil` | Helper tools for CSV, JSON, TOML, text, temporary files, sorting, and path handling. |
+| `internal/logger` | Two leveled log streams (`core.log` and `ui.log`) with file rotation through lumberjack, plus live subscription to logs. |
+| `internal/ui/main/app` | The main Bubble Tea model that manages the Splash, Startup, and Workspace stages. |
+| `internal/ui/main/splash` | An animated start screen that shows the ASCII logo and the application version. |
+| `internal/ui/main/startup` | Runs the startup checks in order: Logger, Config, Xray, DNSTT, Slipstream, VayDNS, MasterDNS, StormDNS, TheFeed, and App. The status of each check is shown live. |
+| `internal/ui/main/workspace` | The main Workspace shell that appears after Startup succeeds and holds the Body and the Footer. |
+| `internal/ui/main/body` | Manages the screens inside the Workspace, such as the main menu, scan, settings, and logs. |
+| `internal/ui/main/footer` | The status bar at the bottom of the interface. The Workspace has no separate header. |
+| `internal/ui/components` | Interface components, settings inspectors, menus, tables, and the live scan view. |
+| `internal/ui/shared` | Layout tools, the dialog system, key handling, the component interface, and validation. |
+| `internal/ui/theme` | The built in light and dark themes and the theme adapter for huh forms. |
+| `assets/xray` | Xray routing data and outbounds. The Xray binary or any generated settings directory is not placed here. Xray runs with the internal core inside the same process. |
+| `assets/slipstream-client` | The Slipstream client library, loaded with purego. It does not run as a separate process. |
+| `assets/dns-tunneling` | DNS tunnel settings files for DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, and TheFeed. |
+| `ips` | Provider IP lists in CSV format. |
+| `settings` | The `.toml` settings files that the application uses. |
+| `scripts` | Helper scripts for installation, building, and releasing versions. |
 
 ## Application flow
 
-```
+```text
 main()
   │
-  ├─ theme.Init()                   resolve dark / light palette
+  ├─ logger.New("core.log"), logger.New("ui.log")
   │
   ├─ config.AppVersion = Version    recorded for the result files
   │
-  ├─ app := app.New()               splash + startup + workspace components
+  ├─ app := app.New()               theme.Init + splash/startup/workspace
   ├─ p := tea.NewProgram(app)       hand off to BubbleTea
   │
   └─ inside the TUI:
@@ -172,14 +177,15 @@ main()
         ├─ StageStartup             ui/main/startup runs each check
         │     │                     in a goroutine, reports status live
         │     │
-        │     ├─ Logger             init loggers, then core.Init()
+        │     ├─ Logger             verify loggers, then core.Init()
         │     │                     to register probe schemas
         │     ├─ Config             store.Load(), validate.NormalizeAll,
         │     │                     report any clamped values
         │     ├─ Xray               report embedded core version,
         │     │                     validate outbound templates
         │     ├─ DNSTT              validate config files
-        │     ├─ Slipstream         find binary, verify, validate configs
+        │     ├─ Slipstream         locate and load the client library,
+        │     │                     validate configs
         │     ├─ Vaydns             validate config files
         │     ├─ MasterDNS          validate config files
         │     ├─ StormDNS           validate config files
@@ -187,7 +193,6 @@ main()
         │     └─ App                wait for Enter
         │
         └─ StageWorkspace           main workspace:
-              ├─ header
               ├─ body               component stack: main menu → scan / settings / logs
               └─ footer
 
@@ -195,30 +200,47 @@ on Run Scan:
   ├─ scanner.NewScanner(ctx, input)
   ├─ AddStage(BuildICMPStage) ...
   ├─ Run()
-  │     ├─ one stage   → engine.RunScan
-  │     └─ many stages → engine.RunScanWithChain
-  │                        sequential | streaming | batch
+  │     └─ engine.RunScanWithChain
+  │          sequential | streaming | batch
   └─ result.Writer → CSV merge → disk
 ```
 
-## Key design principles
+## Main design decisions
 
-**Config is passed, not global.** There is no config singleton. The startup stage constructs a `config.Store`, calls `store.Load()`, and puts the resulting `*ScannerConfig` and `*Store` on `ui.AppState` for components and the scanner to read. Tests construct a `Store` with `WithSettingsDir` against a temp directory, so nothing touches real settings.
+**Settings are passed through structs, not global variables.**
 
-**Invalid config self-heals.** `validate.NormalizeAll` clamps out-of-range fields to defaults and reports each correction in the startup sidebar. A bad hand edit degrades to a working default instead of failing the run — corrected values live in memory until the user saves a section through the settings inspector.
+There is no singleton for the settings. The Startup stage creates a `config.Store`, runs `store.Load()`, and makes the `*ScannerConfig` and `*Store` values available to `ui.Session` so components and the scanner can reach them. Tests create a `Store` on a temporary directory with `WithSettingsDir`, so the real settings on the system are not changed.
 
-**Probes are pluggable.** `probe.Probe` is the only contract: `Init`, `Run`, `Schema`, `Close`. `Run` takes a `netip.Addr`, which is what gives IPv4 and IPv6 one code path.
+**Invalid settings are corrected automatically.**
 
-**Results are self-describing.** Each probe ships a `result.ResultSchema` naming its output directory, columns, and parser. Registering it in `core.Init()` is what makes the writer, the file browser, and the result table understand a new probe. No shared result struct to extend.
+The `validate.NormalizeAll` function returns values that fall outside the allowed range to their default and shows the corrections in the Startup status bar. As a result, a wrong value in a settings file usually gets replaced with a usable default instead of stopping the application. The corrected values stay in memory until the user saves that section through the Inspector, if they want to.
 
-**The engine is protocol-agnostic.** It moves addresses and results, and never inspects what a probe measured. Pipeline mode is a config choice, not an engine rewrite.
+**Probes can be replaced.**
 
-**External binaries are optional.** ICMP, TCP, HTTP, and DNS resolver probes need only the Go standard library and `golang.org/x/net`. Xray runs in-process through the vendored xray-core library, so there is no Xray binary to install. Only the Slipstream sidecar is an external binary: it is checked at startup, and when it is missing a warning is logged and just that scan type is disabled. The other tunnel protocols run in-process through vendored libraries.
+The main probe contract is defined in the `probe.Probe` interface and includes the `Init`, `Run`, `Schema`, and `Close` methods. The `Run` method receives a `netip.Addr`, which is why IPv4 and IPv6 go through one code path.
 
-**The UI is a component tree.** Every screen implements `ui.Component`. Overlays stack, and the top one consumes all input.
+**The result structure keeps the information it needs for processing.**
+
+Each probe has a `result.ResultSchema` that defines the output directory, the columns, and the parser for its results. The writer uses the same schema directly. Registering schemas in `core.Init()` lets the file browser and the result table connect any file on disk to its own schema. Adding a new result type does not require a shared struct for all probes.
+
+**The scan engine does not depend on protocol details.**
+
+The engine only moves addresses and results between stages and does not care what each probe actually measures. The way scan stages run is chosen through settings, and adding a new mode does not require rewriting the whole engine.
+
+**The scanner does not use external processes.**
+
+The ICMP, TCP, HTTP, and DNS resolver probes need only the Go standard library and `golang.org/x/net`. Xray, DNSTT, VayDNS, MasterDNS, StormDNS, and TheFeed also run through internal libraries inside the same process.
+
+Slipstream works the same way. At startup the application loads the `libslipstream-client` library with purego. If the library is not available, Startup reports the error and Slipstream scans cannot run.
+
+On Termux, the scanner runs the `termux-wake-lock` and `termux-wake-unlock` system commands to keep the CPU awake during a scan. These are the only child processes the scanner starts.
+
+**The interface is built from independent components.**
+
+Every interface screen implements `ui.Component`. Overlays stack on top of each other, and at any moment the topmost overlay receives the user's input.
 
 ## Related pages
 
-- [Core](../core/) — engine, probes, config, and the result pipeline in detail
-- [UI](../ui/) — component model, layout, and theming
-- [Getting Started](../getting-started/) — build and run
+- [Core](./core/): details of the scan engine, probes, settings, and result processing
+- [UI](./ui/): component structure, layout, and themes
+- [Getting Started](../getting-started/): guide to building and running the project

@@ -5,63 +5,67 @@ bookFlatSection: true
 bookCollapseSection: true
 ---
 
-# DNS Tunneling
+# DNS tunnel
 
-bgscan tests whether DNS resolvers can carry a tunnel connection. Six protocols are supported, each with its own configuration format stored as a separate TOML file under `assets/dns-tunneling/`.
+BGScan checks which DNS resolvers can carry the traffic of a tunnel. Six protocols are supported for now, each with its own settings. These settings are stored in separate TOML files under the `assets/dns-tunneling/` directory.
 
-Navigate to **Main Menu → DNS Tunneling** to manage tunnel configurations.
+To create and manage tunnel configs, go to **Main Menu → DNS Tunneling**.
 
 ## Protocols
 
-| Protocol | Description | Requires |
+| Protocol | Description | Requirements |
 | --- | --- | --- |
-| [**DNSTT**](./dnstt/) | DNS tunnel using the vaydns library with DNSTT-compatible framing | Domain, public key |
-| [**VayDNS**](./vaydns/) | Native vaydns protocol with tunable QNAME, MTU, and record type | Domain, public key |
-| [**Slipstream**](./slipstream/) | External `slipstream-client` binary based tunnel | Domain, binary on PATH |
-| [**MasterDNS**](./masterdns/) | In-process tunnel with configurable encryption and MTU discovery | Domain, encryption key |
-| [**StormDNS**](./stormdns/) | In-process tunnel with configurable encryption, MTU discovery, and query type selection | Domain, encryption key |
-| [**TheFeed**](./thefeed/) | Encrypted feed tunnel over UDP, TCP, or DNS-over-TLS | Domain, passphrase |
+| [**DNSTT**](./dnstt/) | A DNS tunnel using the VayDNS library and DNSTT compatible framing | Domain, public key |
+| [**VayDNS**](./vaydns/) | The native VayDNS protocol with settings for QNAME, MTU, and record type | Domain, public key |
+| [**Slipstream**](./slipstream/) | An internal tunnel client that loads the `libslipstream-client` library | Domain, Slipstream library |
+| [**MasterDNS**](./masterdns/) | An internal tunnel with configurable encryption and MTU discovery | Domain, encryption key |
+| [**StormDNS**](./stormdns/) | An internal tunnel with encryption, MTU discovery, and a choice of query type | Domain, encryption key |
+| [**TheFeed**](./thefeed/) | An encrypted tunnel over UDP, TCP, or DNS-over-TLS | Domain, passphrase |
 
-DNSTT, VayDNS, MasterDNS, StormDNS, and TheFeed run the tunnel in-process using vendored libraries. Slipstream shells out to an external binary and communicates through a local SOCKS5 port.
+All six protocols run inside BGScan itself. Slipstream uses its own client library, which loads through `purego`, and the rest use internal Go libraries.
 
-DNSTT, VayDNS, and Slipstream support optional SOCKS5 or SSH proxy routing with password or key authentication. MasterDNS, StormDNS, and TheFeed configs carry no proxy settings.
+Slipstream, MasterDNS, and StormDNS start a local SOCKS5 listener for each probe.
 
-The scan flow runs all six configurations. Pick any saved tunnel config and the matching stage is built automatically, with an optional resolver pre-scan ahead of it.
+DNSTT, VayDNS, and Slipstream support optional routing of traffic through a SOCKS5 or SSH proxy. These proxies can authenticate with a Password or a Key. The MasterDNS, StormDNS, and TheFeed configs have no proxy settings.
 
-## How It Works
+For each scan you must choose a saved config. BGScan builds the matching scan stage based on the chosen protocol. If the related option is enabled, a resolver pre-scan also runs before the tunnel test.
 
-A DNS tunnel scan proceeds in two stages when `check_dns_resolver` is enabled:
+## How it works
 
-1. **Resolver pre-scan** — each target IP is tested as a DNS resolver. Only resolvers that pass basic DNS queries (and the DPI check when enabled) proceed to the tunnel stage.
-2. **Tunnel probe** — each surviving resolver is tested for its ability to carry a tunnel connection. The probe brings up the tunnel through the selected protocol and validates that traffic passes.
+If the `check_dns_resolver` option is enabled, the DNS tunnel scan runs in two stages:
 
-When `adaptive_resolver` is enabled, the resolver pre-scan automatically uses the same transport, port, and domain as the tunnel configuration, ensuring the resolver test matches the tunnel's actual path.
+1. **Resolver pre-scan:** Each target IP is checked as a DNS resolver. Only resolvers that answer basic DNS queries and, when the DPI check is enabled, pass that check move on to the next stage.
+2. **Tunnel test:** Each remaining resolver is checked to find out whether it can carry the traffic of a tunnel connection. The probe brings up the tunnel with the chosen protocol and checks that traffic passes through it.
 
-Reported latency measures the tunnel after it is up, excluding startup cost.
+If `adaptive_resolver` is enabled, the resolver pre-scan settings are adjusted automatically to match the transport, port, and domain of the tunnel config. This way the pre-scan checks the same path the tunnel is going to use.
 
-## Managing Configurations
+The latency reported in the result is measured after the tunnel is up, so the time spent bringing the tunnel up is not included in this value.
 
-The DNS Tunneling table at **Main Menu → DNS Tunneling** lists all saved tunnel configurations:
+## Managing configs
+
+The table in **Main Menu → DNS Tunneling** shows all saved configs.
 
 | Column | Description |
 | --- | --- |
-| Name | Configuration name |
-| Protocol | DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, or TheFeed |
-| Auth | Authentication method (none, password, key) |
-| Created Time | File creation timestamp |
+| Name | Config name |
+| Protocol | The protocol type: DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, or TheFeed |
+| Auth | A summary of the proxy and authentication details for DNSTT, VayDNS, and Slipstream, or the encryption and Passphrase label for the other protocols |
+| Created Time | The time the file was created |
+
+The available keys:
 
 | Key | Action |
 | --- | --- |
-| `a` | Add a new configuration (opens protocol selector) |
-| `r` | Rename the selected configuration |
-| `x` | Delete the selected configuration |
-| `Enter` | Edit or start a scan with the selected configuration |
+| `a` | Create a new config and open the protocol picker |
+| `r` | Rename the selected config |
+| `x` | Delete the selected config |
+| `Enter` | Edit the selected config |
 
-## Configuration Storage
+## Where configs are stored
 
-Tunnel configs are stored as TOML files:
+Tunnel configs are stored as TOML files in a directory for each protocol:
 
-```
+```text
 assets/dns-tunneling/
 ├── dnstt/
 │   └── <config-name>.toml
@@ -77,30 +81,36 @@ assets/dns-tunneling/
     └── <config-name>.toml
 ```
 
-## Platform Defaults
+## Platform default settings
 
-Worker counts and timeouts are automatically adjusted based on the detected platform and resource tier:
+BGScan adjusts the number of workers and the timeout automatically based on the platform and the system resource level.
 
-| Setting | Desktop Low | Desktop Mid | Desktop High |
-| --- | --- | --- | --- |
-| DNS Tunnel Workers | 8 | 16 | 32 |
-| DNS Tunnel Timeout | 10s | 10s | 10s |
-| DNS Resolver Workers | 30 | 150 | 300 |
+**Desktop**
 
-| Setting | Android Low | Android Mid | Android High |
-| --- | --- | --- | --- |
-| DNS Tunnel Workers | 3 | 6 | 12 |
-| DNS Tunnel Timeout | 10s | 10s | 10s |
-| DNS Resolver Workers | 15 | 60 | 100 |
+| Setting | Low | Mid | High |
+| --- | ---: | ---: | ---: |
+| DNS tunnel workers | 8 | 16 | 32 |
+| DNS tunnel timeout | 10s | 10s | 10s |
+| DNS resolver workers | 30 | 80 | 100 |
 
-| Setting | Server Low | Server Mid | Server High |
-| --- | --- | --- | --- |
-| DNS Tunnel Workers | 12 | 24 | 64 |
-| DNS Tunnel Timeout | 10s | 10s | 8s |
-| DNS Resolver Workers | 100 | 400 | 1000 |
+**Android**
 
-## Related Topics
+| Setting | Low | Mid | High |
+| --- | ---: | ---: | ---: |
+| DNS tunnel workers | 3 | 6 | 12 |
+| DNS tunnel timeout | 10s | 10s | 10s |
+| DNS resolver workers | 15 | 40 | 80 |
 
-- [DNS Settings](../settings/dns.md) — Resolver and tunnel orchestration settings
-- [Scan Types](../scanner/scan-types.md) — How DNS tunneling fits in the scan pipeline
-- [Result Files](../scanner/result-files.md) — Tunnel result file format
+**Server**
+
+| Setting | Low | Mid | High |
+| --- | ---: | ---: | ---: |
+| DNS tunnel workers | 12 | 24 | 64 |
+| DNS tunnel timeout | 10s | 10s | 8s |
+| DNS resolver workers | 80 | 100 | 200 |
+
+## Related topics
+
+- [DNS settings](../settings/dns.md): the resolver settings and how they match the tunnel
+- [Scan types](../scanner/scan-types.md): where the DNS tunnel scan fits in the scan stages
+- [Result files](../scanner/result-files.md): the structure of the tunnel scan result files

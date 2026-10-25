@@ -3,33 +3,44 @@ title: "Settings Overview"
 weight: 1
 ---
 
-# Settings Overview
+# Settings overview
 
-bgscan keeps all configuration in plain TOML files inside `settings/`. The app also exposes these same options through the in-app Settings inspector, which writes changes back to disk automatically.
+BGScan settings are kept in TOML files inside the `settings/` directory. You can change most scan and interface settings from inside the program too. Changes made through the Inspector are saved to disk automatically.
 
-## Setting files
+## Settings files
 
 | File | Purpose |
-|------|---------|
-| `settings/general_settings.toml` | Global scan control and pipeline mode |
-| `settings/writer_settings.toml` | Result buffering and disk writes |
-| `settings/icmp_settings.toml` | ICMP probe tuning |
-| `settings/tcp_settings.toml` | TCP connect tuning |
-| `settings/http_settings.toml` | HTTP/HTTPS/HTTP3 probe tuning |
-| `settings/xray_settings.toml` | Xray test tuning |
-| `settings/dns_settings.toml` | DNS resolver and tunnel scan orchestration |
+|---|---|
+| `settings/general_settings.toml` | General scan settings and the scan execution mode |
+| `settings/writer_settings.toml` | Buffer settings and saving results to disk |
+| `settings/icmp_settings.toml` | ICMP probe settings |
+| `settings/tcp_settings.toml` | TCP connection settings |
+| `settings/http_settings.toml` | HTTP, HTTPS, and HTTP/3 probe settings |
+| `settings/xray_settings.toml` | Xray scan settings |
+| `settings/dns_settings.toml` | DNS scan and DNS tunnel settings |
+| `settings/ui_settings.toml` | Theme, background, animation, maximum table rows, and log level settings |
 
-## Two ways to edit settings
+## Two ways to change settings
 
-- **TOML files** — open any `settings/*.toml` file in a text editor, change values, save, and restart bgscan. This works well under version control.
-- **In-app inspector** — open bgscan, navigate to **Settings** in the main menu, pick a category, press `Enter` on any field to edit it. Changes are saved immediately to disk.
+- **Editing the TOML files:** Open the file you want from the `settings/` directory with a text editor, change the values, and save. Run BGScan again for the changes to take effect. This method also works well for managing settings with version control.
+- **Using the Inspector inside the program:** Run BGScan, go to **Settings** from the main menu, and choose the section you want. Pressing `Enter` on any option lets you change its value. Changes are saved to disk right away. Interface settings such as the theme and log level also take effect without a restart.
 
-Some fields are dynamic. For example, TLS-related options only show when HTTPS is selected, and DNSTT/Slipstream fields only show when those probes are enabled.
+The Inspector shows only the options related to the current settings. For example, the HTTP TLS options appear only when HTTPS is selected.
 
-## Defaults and validation
+## Default values and validation
 
-Defaults are compiled into bgscan. A missing settings file is created with its defaults on first run, and a field absent from an existing file falls back to its default. A file that exists but cannot be parsed is an error, not a fallback.
+The default values are defined inside BGScan itself. If a settings file does not exist, the program creates it with the default values on the first run. Fields that are missing from a file also get their own default value.
 
-On startup, every loaded config is validated. Out-of-range values are replaced with the default and the correction is logged, so a bad edit degrades to the default instead of failing the run.
+However, if a file exists and its content cannot be parsed, the program reports an error and does not silently go back to the default values.
 
-DNS tunnel protocol settings (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed) are stored in separate TOML files under `assets/dns-tunneling/`, not in `dns_settings.toml`. These are created and managed through the TUI at **Main Menu → DNS Tunneling**.
+When the program starts, the loaded settings are validated. If a value is outside the allowed range, it is replaced with the default value and this is reported in the initial program checks. An invalid value therefore usually does not stop the program from running.
+
+Corrected values change only in memory at first. To save them to the file, you must save that section through the Inspector.
+
+## DNS tunnel settings
+
+The settings for the DNS tunnel protocols, including DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, and TheFeed, are stored in separate TOML files inside the `assets/dns-tunneling/` directory, not in `dns_settings.toml`.
+
+To create and manage these settings, go to this path inside the program:
+
+**Main Menu → DNS Tunneling**

@@ -3,15 +3,19 @@ title: "Scan Pipeline"
 weight: 3
 ---
 
-# Scan Pipeline
+# Scan stages
 
-A pipeline chains scan stages so that only the targets surviving one stage reach the next. Stages come from the scan type you pick: a DNS tunneling scan with resolver pre-scan builds two, an Xray scan with a pre-scan builds two, and a plain ICMP scan builds one.
+BGScan can connect several scan stages so that only the targets accepted by one stage reach the next. The scan engine supports multi stage chains, but in version 2.12 the terminal interface (TUI) builds the chain based on the chosen scan type:
 
-A single-stage scan skips the chain logic entirely. The pipeline mode only matters once there are two or more stages.
+- In a DNS tunnel scan, if `check_dns_resolver = true`, a resolver check stage runs before the tunnel starts.
+- In an Xray scan, if `pre_scan_type` is `tcp`, `icmp`, or `http`, that scan runs before Xray.
+- The other scans have only one stage.
 
-## Pipeline Modes
+Even single stage scans use this same mechanism. The difference between execution modes appears when a scan has several stages and targets move between them.
 
-Set in [`general_settings.toml`](../settings/general.md):
+## Scan execution modes
+
+You set the execution mode in the [`general_settings.toml`](../settings/general.md) file:
 
 ```toml
 pipeline_mode = "streaming"
@@ -19,71 +23,74 @@ pipeline_mode = "streaming"
 
 ### Streaming
 
+```text
+[TCP pre-scan] ──chan──> [Xray]
+      │                    │
+      ▼                    ▼
+result/tcp/          result/xray/
 ```
-[ICMP] ──chan──> [TCP] ──chan──> [HTTP]
-   │               │               │
-   ▼               ▼               ▼
-result/icmp/   result/tcp/    result/http/
-```
 
-Every stage runs at the same time with its own worker pool. A target that passes a stage is pushed straight into the next stage's channel, so later stages start working before earlier ones finish.
+All stages run at the same time and each has its own worker pool. Any target accepted by a stage is sent straight to the next stage through a channel. As a result, the next stage does not need to wait for the earlier stage to finish.
 
-Channel capacity comes from `max_ips_per_stage`, raised to the next stage's worker count when that is higher. When a downstream stage falls behind, its channel fills and the upstream stage blocks, which bounds memory.
+The channel capacity comes from `max_ips_per_stage`. If the next stage has more workers, the channel capacity grows to that count. When the next stage cannot process targets fast enough, its channel fills and the earlier stage pauses temporarily. This helps keep memory use under control.
 
-Fastest option, and the default. Memory scales with the channel buffers.
+This mode is the fastest option and the default. Memory use depends on the size of the channel buffers.
 
 ### Sequential
 
+```text
+[TCP pre-scan] ──> result/tcp/ ──> [Xray] ──> result/xray/
 ```
-[ICMP] ──> result/icmp/ ──> [TCP] ──> result/tcp/ ──> [HTTP] ──> result/http/
-```
 
-Each stage runs to completion and writes its result file. The next stage reads that file as its input. Nothing runs concurrently across stages.
+Each stage runs to completion and saves its results in its own file. The next stage reads that same file as input. The stages therefore do not run at the same time.
 
-Lowest memory, slowest wall-clock time, since total time is the sum of all stages. If a stage produces no results, the chain stops there.
+This mode uses the least memory, but it is usually slower, because the stages run one after another and their run times add up. If a stage produces no results, the remaining stages do not run.
 
-Note that `sequential` is what an unrecognized mode string falls back to at parse time.
+**Note about the mode names:** If the `pipeline_mode` value is unknown when parsed, it falls back to `sequential`. The settings validator also accepts the values `simple`, `parallel`, and `pipeline`, but the engine does not convert these names to the other modes and they run as `sequential` too.
+
+To set this option, use the exact names `streaming`, `sequential`, or `batch`. Any other invalid value falls back to the default `streaming` mode during the initial program check, before the scan starts.
 
 ### Batch
 
-```
-batch 1 ──> [ICMP] ──> [TCP] ──> [HTTP]
-batch 2 ──> [ICMP] ──> [TCP] ──> [HTTP]
+```text
+batch 1 ──> [TCP pre-scan] ──> [Xray]
+batch 2 ──> [TCP pre-scan] ──> [Xray]
 ...
 ```
 
-Targets are read in chunks of `batch_size`. A chunk passes through every stage before the next chunk is read. Survivors are handed between stages in memory, without a round trip through disk.
+In this mode the inputs are split into parts with the size `batch_size`. Each part passes through all the stages and then the next part takes its turn. Targets accepted by a stage are kept in memory until they reach the next stage, so they do not need to be written to disk and read back to move between stages.
 
-With more than one stage the effective chunk size is `max(batch_size, highest worker count among the stages after the first)`, so a chunk is never too small to keep the later stages busy. Memory sits between the other two modes and stays predictable regardless of input size.
+When there is more than one stage, the actual size of each part is the larger of `batch_size` and the highest worker count among the stages after the first stage. This way the parts do not get so small that the next stage sits idle for lack of input.
 
-## Data Flow
+Memory use in this mode usually falls between `streaming` and `sequential` and is more predictable with the part size, even when the number of inputs is large.
 
-Only targets a stage accepts are forwarded. What counts as accepted is the probe's own success condition:
+## Passing targets between stages
 
-- ICMP: an echo reply arrived within the timeout
-- TCP: the handshake completed on the configured port
-- HTTP: a response arrived and its status code is in `accepted_status_codes`
-- DNS resolver: the response code is in `accepted_rcodes`, and the DPI check passed when enabled
-- DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, and TheFeed: the tunnel came up and validated (DNSTT, VayDNS, and Slipstream validate through the local SOCKS5 port)
-- Xray: the proxy connected, and any enabled speed test met its minimum
+Only targets accepted by a stage reach the next one. The acceptance rule depends on the probe type:
 
-Each stage writes its own result file regardless of what happens downstream, so intermediate output is always available for a later re-scan.
+- **ICMP:** An echo reply arrives before the timeout.
+- **TCP:** The connection and handshake complete on the configured port.
+- **HTTP:** A response arrives and its status code is in `accepted_status_codes`.
+- **DNS resolver:** The response code is in `accepted_rcodes` and, when the DPI check is enabled, that check also succeeds.
+- **DNS tunnel:** The DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, or TheFeed tunnel comes up and validates. Slipstream, MasterDNS, and StormDNS check the connection through a local SOCKS5 listener.
+- **Xray:** The proxy connection is made and any enabled speed test meets the configured minimum speed.
+
+Each stage saves its own result file, even if later stages fail or produce no results. You can therefore use the results of each stage separately for later scans.
 
 ## Example
 
-Starting from 10,000 IPs with an ICMP → TCP → HTTP chain:
+Suppose we start a scan with 10,000 IPs and have a TCP pre-scan before Xray:
 
-| Stage | Input | Passes | Result file |
-|---|---|---|---|
-| ICMP | 10,000 | 2,000 | `result/icmp/` |
-| TCP | 2,000 | 500 | `result/tcp/` |
-| HTTP | 500 | 300 | `result/http/` |
+| Stage | Input | Accepted | Result file |
+|---|---:|---:|---|
+| TCP pre-scan | 10,000 | 2,000 | `result/tcp/` |
+| Xray | 2,000 | 500 | `result/xray/` |
 
-Each result file contains that stage's passing targets, not everything it examined.
+Each stage result file keeps only the targets that stage accepted, not every target it checked.
 
-## Stage Configuration
+## Settings for each stage
 
-Every stage reads its own settings file. Worker counts, timeouts, and retries are per stage, so a cheap first stage can run far wider than an expensive last one.
+Each stage has its own settings. You can set the worker count, timeout, and attempt count separately for each stage. This way a cheap first stage can check a large number of IPs and the final stage runs on a smaller set of targets.
 
 - [`icmp_settings.toml`](../settings/icmp.md)
 - [`tcp_settings.toml`](../settings/tcp.md)
@@ -91,8 +98,8 @@ Every stage reads its own settings file. Worker counts, timeouts, and retries ar
 - [`dns_settings.toml`](../settings/dns.md)
 - [`xray_settings.toml`](../settings/xray.md)
 
-## Related Topics
+## Related topics
 
-- [Scan Types](./scan-types.md)
-- [Result Files](./result-files.md)
-- [General Settings](../settings/general.md)
+- [Scan types](./scan-types.md)
+- [Result files](./result-files.md)
+- [General settings](../settings/general.md)

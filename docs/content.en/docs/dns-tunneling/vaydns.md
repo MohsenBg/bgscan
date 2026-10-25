@@ -3,61 +3,61 @@ title: "VayDNS"
 weight: 2
 ---
 
-# VayDNS Configuration
+# VayDNS settings
 
-VayDNS is the native vaydns protocol. It uses the same tunnel stack as DNSTT (DNS → KCP → Noise → smux) but with native framing and additional tuning parameters for QNAME structure, MTU, and record type.
+VayDNS is the native version of the VayDNS protocol. It uses the same stack as DNSTT (DNS, then KCP, then Noise, then smux), but has its own framing and also gives you several options to set the QNAME structure, the MTU value, and the record type.
 
-## Connection Settings
-
-| Field | Default | Range | Description |
-| --- | --- | --- | --- |
-| `Domain` | (required) | valid domain | Zone delegated to your VayDNS server |
-| `PubKey` | (required) | 64 hex chars | Server public key |
-| `ResolverType` | `"udp"` | `udp`, `tcp`, `dot` | Transport to resolver |
-| `ResolverPort` | `53` | > 0 | Resolver port |
-| `Fingerprint` | `"Chrome"` | see DNSTT fingerprints | uTLS ClientHello fingerprint |
-| `RecordType` | `"TXT"` | see below | DNS record type for tunnel queries |
-| `RPS` | `0` | 0-500 | Rate limit (queries/sec); 0 = unlimited |
-
-## Advanced Settings
+## Connection settings
 
 | Field | Default | Range | Description |
 | --- | --- | --- | --- |
-| `ClientIDSize` | `2` | 1-8 | Client ID byte size |
-| `MaxQnameLen` | `101` | 0-253 | Max QNAME length in DNS packets (0 = auto) |
-| `MaxNumLabels` | `0` | 0-4 | Max number of labels in QNAME (0 = auto) |
-| `MTU` | `0` | 0-1452 | Max transmission unit (0 = auto) |
+| `domain` | Required | Valid domain | The zone delegated to your VayDNS server |
+| `pub_key` | Required | 64 hex characters | The server public key |
+| `resolver_type` | `"udp"` | `udp`, `tcp`, `dot` | The connection type to the resolver |
+| `resolver_port` | `53` | Greater than `0` | The resolver port |
+| `fingerprint` | `"Chrome"` | The DNSTT fingerprints | The ClientHello fingerprint in uTLS for DNS-over-TLS |
+| `record_type` | `"TXT"` | The table below | The record type for tunnel queries |
+| `rps` | `0` | `0` to `500` | The query rate limit per second. A value of `0` means no limit |
 
-## DNS Record Types
+## Advanced settings
 
-Supported `RecordType` values: `A`, `AAAA`, `CNAME`, `NS`, `MX`, `TXT`, `SRV`, `NULL`, `CAA`.
+| Field | Default | Range | Description |
+| --- | --- | --- | --- |
+| `client_id_size` | `2` | `1` to `8` | The Client ID size in bytes |
+| `max_qname_len` | `101` | `0` to `253` | The maximum QNAME length in DNS packets. A value of `0` means automatic |
+| `max_num_labels` | `0` | `0` to `4` | The maximum number of labels in the QNAME. A value of `0` means automatic |
+| `mtu` | `0` | `0` to `1452` | The maximum transmission unit. A value of `0` means automatic |
 
-The record type determines which DNS record type is used for tunnel queries. `TXT` is the default and most widely supported.
+## Record types
 
-## Proxy and Authentication
+The allowed values for `record_type` are: `A`, `AAAA`, `CNAME`, `NS`, `MX`, `TXT`, `SRV`, `NULL`, and `CAA`.
 
-Same fields as DNSTT (see [Proxy and Authentication](../dnstt/#proxy-and-authentication)).
+This option defines which DNS record type the tunnel queries use. The default is `TXT`, which has the widest support.
 
-## Example Config
+## Proxy and authentication
+
+VayDNS uses the same proxy and authentication settings as DNSTT. See the [DNSTT proxy and authentication](./dnstt/#proxy-and-authentication) section for the details.
+
+## Example config
 
 ```toml
-Domain = "example.com"
-PubKey = "0000000000000000000000000000000000000000000000000000000000000000"
-ResolverType = "udp"
-ResolverPort = 53
-Fingerprint = "Chrome"
-RecordType = "TXT"
-ClientIDSize = 2
-MaxQnameLen = 101
-MaxNumLabels = 0
-MTU = 0
-RPS = 0
-ProxyType = "socks"
-ProxyPort = 1080
-AuthMethod = "none"
+domain = "example.com"
+pub_key = "0000000000000000000000000000000000000000000000000000000000000000"
+resolver_type = "udp"
+resolver_port = 53
+fingerprint = "Chrome"
+record_type = "TXT"
+client_id_size = 2
+max_qname_len = 101
+max_num_labels = 0
+mtu = 0
+rps = 0
+proxy_type = "socks"
+proxy_port = 1080
+auth_method = "none"
 ```
 
-## Related Topics
+## Related topics
 
-- [DNS Tunneling](../) — Protocol overview and scan flow
-- [DNSTT](../dnstt/) — DNSTT-compatible framing and TLS fingerprints
+- [DNS tunnel](../): an introduction to the protocols and the scan flow
+- [DNSTT](./dnstt/): an introduction to DNSTT compatible framing and TLS fingerprints

@@ -3,23 +3,25 @@ title: "TheFeed"
 weight: 6
 ---
 
-# TheFeed Configuration
+# TheFeed settings
 
-TheFeed runs in-process through a vendored client library. Queries and responses are encrypted with AES-256 keys derived from a shared passphrase. There are no proxy settings. The probe timeout comes from the global DNS tunnel settings (`dns_settings.toml`, `dns_tunneling.timeout`), not from this file.
+TheFeed runs inside BGScan itself through an internal client library. Queries and responses are encrypted with AES-256 keys built from a shared passphrase.
 
-## Connection Settings
+This protocol has no proxy settings. The probe timeout also comes from the general DNS tunnel settings, meaning `dns_settings.toml` and the `dns_tunneling.timeout` option, so you do not need to set it in the TheFeed config file.
+
+## Connection settings
 
 | Field | Default | Description |
 | --- | --- | --- |
-| `Domain` | (required) | DNS subdomain that answers feed queries (for example `t.example.com`) |
-| `Passphrase` | (required) | Same passphrase as the server; used to derive the AES-256 keys |
-| `ResolverPort` | `53` | Resolver port (TheFeed servers often use 5300) |
-| `ResolverType` | `'udp'` | Transport: `udp`, `tcp`, or `dot` |
-| `QueryMode` | `'single'` | Query encoding: `single` (one base32 label) or `double` (multi-label hex) |
+| `domain` | Required | The subdomain that answers Feed queries, for example `t.example.com` |
+| `passphrase` | Required | The same server passphrase used to build the AES-256 keys |
+| `resolver_port` | `53` | The resolver port. TheFeed servers usually use port `5300` |
+| `resolver_type` | `'udp'` | The transport for talking to the resolver: `udp`, `tcp`, or `dot` |
+| `query_mode` | `'single'` | The query encoding method: `single` for one Base32 label or `double` for several Hex labels |
 
-## Example Config
+## Example config
 
-```toml
+```toml id="q6v3nw"
 domain = 't.example.com'
 passphrase = 'your-passphrase'
 resolver_port = 53
@@ -27,7 +29,7 @@ resolver_type = 'udp'
 query_mode = 'single'
 ```
 
-## Related Topics
+## Related topics
 
-- [DNS Tunneling](../) — Protocol overview and scan flow
-- [DNS Settings](../../settings/dns.md) — Global tunnel timeout and resolver pre-scan
+- [DNS tunnel](../): an introduction to the protocols and the scan flow
+- [DNS settings](../settings/dns.md): the tunnel timeout and resolver pre-scan settings

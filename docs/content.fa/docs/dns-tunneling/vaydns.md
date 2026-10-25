@@ -5,59 +5,60 @@ weight: 2
 
 # تنظیمات VayDNS
 
-VayDNS پروتکل بومی vaydns است. همان پشتهٔ تونل DNSTT را دارد (کانال بسته‌های DNS روی انتقال KCP با رمزنگاری Noise و چندگانه‌سازی smux) اما با قاب‌بندی بومی و پارامترهای تنظیم اضافه برای ساختار QNAME، MTU و نوع Record.
+VayDNS نسخه بومی پروتکل VayDNS هست. از همون پشته‌ای استفاده می‌کنه که DNSTT داره، یعنی زنجیرهٔ DNS → KCP → Noise → smux. اما فریمینگ مخصوص خودش رو داره و چند گزینه هم برای تنظیم ساختار QNAME، مقدار MTU و نوع Record در اختیار شما می‌ذاره.
 
 ## تنظیمات اتصال
 
-| فیلد | پیش‌فرض | محدوده | توضیحات |
+| فیلد | پیش‌فرض | محدوده | توضیح |
 | --- | --- | --- | --- |
-| `Domain` | (لازم) | دامین معتبر | Zone واگذارشده به سرور VayDNS شما |
-| `PubKey` | (لازم) | ۶۴ کاراکتر hex | کلید عمومی سرور |
-| `ResolverType` | `"udp"` | `udp`، `tcp`، `dot` | روش انتقال به Resolver |
-| `ResolverPort` | `53` | بزرگ‌تر از 0 | پورت Resolver |
-| `Fingerprint` | `"Chrome"` | جدول DNSTT | اثر انگشت uTLS ClientHello |
-| `RecordType` | `"TXT"` | پایین را ببینید | نوع Record برای پرس‌وجوهای تونل |
-| `RPS` | `0` | 0-500 | محدودیت نرخ (پرس‌وجو در ثانیه)؛ 0 یعنی بدون محدودیت |
+| `domain` | الزامی | دامنه معتبر | Zoneای که به سرور VayDNS شما واگذار شده |
+| `pub_key` | الزامی | ۶۴ کاراکتر Hex | کلید عمومی سرور |
+| `resolver_type` | `"udp"` | `udp`، `tcp`، `dot` | نوع اتصال به ریزالور |
+| `resolver_port` | `53` | بزرگ‌تر از `0` | پورت ریزالور |
+| `fingerprint` | `"Chrome"` | Fingerprintهای DNSTT | Fingerprint مربوط به ClientHello در uTLS برای ارتباط DNS با TLS |
+| `record_type` | `"TXT"` | جدول پایین | نوع Record برای کوئری‌های تونل |
+| `rps` | `0` | `0` تا `500` | محدودیت تعداد کوئری در ثانیه، مقدار `0` یعنی بدون محدودیت |
 
 ## تنظیمات پیشرفته
 
-| فیلد | پیش‌فرض | محدوده | توضیحات |
+| فیلد | پیش‌فرض | محدوده | توضیح |
 | --- | --- | --- | --- |
-| `ClientIDSize` | `2` | 1-8 | اندازهٔ Client ID بر حسب بایت |
-| `MaxQnameLen` | `101` | 0-253 | بیشترین طول QNAME در بسته‌های DNS (0 = خودکار) |
-| `MaxNumLabels` | `0` | 0-4 | بیشترین تعداد Label در QNAME (0 = خودکار) |
-| `MTU` | `0` | 0-1452 | بیشترین واحد انتقال (0 = خودکار) |
+| `client_id_size` | `2` | `1` تا `8` | اندازه Client ID برحسب بایت |
+| `max_qname_len` | `101` | `0` تا `253` | حداکثر طول QNAME در بسته‌های DNS، مقدار `0` یعنی خودکار |
+| `max_num_labels` | `0` | `0` تا `4` | حداکثر تعداد برچسب‌ها در QNAME، مقدار `0` یعنی خودکار |
+| `mtu` | `0` | `0` تا `1452` | حداکثر واحد انتقال، مقدار `0` یعنی خودکار |
 
-## نوع Recordهای DNS
+## نوع‌های Record
 
-مقادیر پشتیبانی‌شدهٔ `RecordType`: `A`، `AAAA`، `CNAME`، `NS`، `MX`، `TXT`، `SRV`، `NULL`، `CAA`.
+مقدارهای مجاز برای `record_type` عبارت‌اند از: `A`، `AAAA`، `CNAME`، `NS`، `MX`، `TXT`، `SRV`، `NULL` و `CAA`.
 
-نوع Record تعیین می‌کند پرس‌وجوهای تونل با کدام نوع Record انجام شوند. `TXT` پیش‌فرض است و بیشترین پشتیبانی را دارد.
+این گزینه مشخص می‌کنه کوئری‌های تونل با چه نوع DNS Recordای ارسال بشن. مقدار پیش‌فرض `TXT` هست که بیشترین پشتیبانی رو داره.
 
 ## پروکسی و احراز هویت
 
-همان فیلدهای DNSTT است؛ جدول [پروکسی و احراز هویت](../dnstt/#پروکسی-و-احراز-هویت) در صفحهٔ DNSTT را ببینید.
+VayDNS از همون تنظیمات پروکسی و احراز هویت DNSTT استفاده می‌کنه. جزئیات رو در بخش [پروکسی و احراز هویت DNSTT](./dnstt/#پروکسی-و-احراز-هویت) ببینید.
 
-## نمونهٔ Config
+## نمونه Config
 
 ```toml
-Domain = "example.com"
-PubKey = "0000000000000000000000000000000000000000000000000000000000000000"
-ResolverType = "udp"
-ResolverPort = 53
-Fingerprint = "Chrome"
-RecordType = "TXT"
-ClientIDSize = 2
-MaxQnameLen = 101
-MaxNumLabels = 0
-MTU = 0
-RPS = 0
-ProxyType = "socks"
-ProxyPort = 1080
-AuthMethod = "none"
+domain = "example.com"
+pub_key = "0000000000000000000000000000000000000000000000000000000000000000"
+resolver_type = "udp"
+resolver_port = 53
+fingerprint = "Chrome"
+record_type = "TXT"
+client_id_size = 2
+max_qname_len = 101
+max_num_labels = 0
+mtu = 0
+rps = 0
+proxy_type = "socks"
+proxy_port = 1080
+auth_method = "none"
 ```
 
 ## موضوعات مرتبط
 
-- [تونل DNS](../) — نمای کلی پروتکل‌ها و نحوهٔ اسکن
-- [DNSTT](../dnstt/) — قاب‌بندی سازگار با DNSTT و Fingerprintهای TLS
+- [تونل DNS](../): آشنایی با پروتکل‌ها و روند اسکن
+- [DNSTT](./dnstt/): آشنایی با فریمینگ سازگار با DNSTT و Fingerprintهای TLS
+

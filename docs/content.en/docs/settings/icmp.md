@@ -3,75 +3,92 @@ title: "ICMP Settings"
 weight: 5
 ---
 
-# ICMP Settings
+# ICMP settings
 
-> 💡 **Tip:** You can change these settings directly in the bgscan application instead of editing the TOML file manually.
+> 💡 **Note:** You do not need to edit the TOML file by hand. You can change these settings directly inside BGScan.
 >
-> Navigate to **Settings** → **ICMP Settings** in the main menu to configure these options interactively using the TUI inspector.
+> Go to **Settings → ICMP Settings** from the main menu and set the options with the Inspector inside the TUI.
 
-Configuration file: `settings/icmp_settings.toml`
+Settings file: `settings/icmp_settings.toml`
 
-The ICMP probe sends echo requests and records the round-trip time. It opens one shared IPv4 socket and, when the system allows it, one shared IPv6 socket, then demultiplexes replies to the waiting workers.
+The ICMP probe sends an Echo request to each target and records the round trip time of the reply. To receive replies it uses one shared IPv4 socket and, when possible, one shared IPv6 socket. Incoming replies are shared among the workers waiting for them.
 
-## Quick Reference
+## Quick reference
 
 | Setting | Default | Range | Description |
-| --------- | --------- | ------- | ------------- |
-| `timeout` | platform-dependent | 100-30000 | Time to wait for an echo reply, in milliseconds |
-| `tries` | `1` | 1-10 | Echo requests per target |
-| `workers` | platform-dependent | 1-5000 | Concurrent probes in flight |
-| `output_prefix` | `"icmp_"` | | Result filename prefix |
+|---|---|---|---|
+| `timeout` | Depends on the platform | 100 to 30000 | The maximum wait for an Echo reply, in milliseconds |
+| `tries` | `1` | 1 to 10 | The number of Echo requests for each target |
+| `workers` | Depends on the platform | 1 to 5000 | The number of concurrent probes |
+| `output_prefix` | `"icmp_"` | — | The result file name prefix |
 
 ## Timeout
 
-```toml
+```toml id="6c7k2a"
 timeout = 2000
 ```
 
-How long a single echo request waits for its reply, in milliseconds. Applies per attempt, so the worst case for a target is `timeout * tries`.
+The maximum time each Echo request waits for a reply, in milliseconds.
 
-- `1500-2000` on servers and desktops
-- `2500-3000` on Android devices
+This time is counted for each attempt separately, so in the worst case checking one target may take up to `timeout * tries`.
 
-## Retries
+Suggested values to start with:
 
-```toml
+- `1500-2000` milliseconds for servers and desktops
+- `2500-3000` milliseconds for Android devices
+
+## Number of attempts
+
+```toml id="k6j4ba"
 tries = 1
 ```
 
-Number of echo requests sent before a target is declared unreachable. The attempt count that produced the reply is stored in the result.
+The number of Echo requests sent for each target. If the target does not answer within the set attempts, it is considered unreachable.
+
+The number of the attempt that received the reply is also saved in the result.
 
 ## Workers
 
-```toml
+```toml id="6fj7uk"
 workers = 200
 ```
 
-Number of targets probed concurrently. Workers share the same sockets, so raising this mostly affects packet rate rather than file descriptors. Very high values can trigger rate limiting on intermediate routers.
+The number of targets checked at the same time.
 
-- `15-100` on Android devices
-- `30-400` on desktop machines
-- `100-1000` on servers
+The workers use shared sockets, so raising this value affects the packet rate more than the number of file descriptors used. Even so, a very high value may make intermediate routers limit requests or apply rate limits.
 
-## Output Prefix
+Suggested values to start with:
 
-```toml
+- `15-100` for Android devices
+- `30-400` for desktops
+- `100-1000` for servers
+
+## Output prefix
+
+```toml id="w4kx3d"
 output_prefix = "icmp_"
 ```
 
-Filename prefix for result files written by this probe. Files land in `result/icmp/`.
+Sets the file name prefix for the result files this probe produces. Files are saved under `result/icmp/`.
 
-## Socket Mode
+## Socket type
 
-There is no setting for this, but it shows up in the results. The probe first tries to open a raw ICMP socket. If the process lacks the privileges, it falls back to an unprivileged UDP (datagram) ICMP socket. The mode actually used is recorded per result as `raw` or `udp`.
+There is no separate setting for choosing the socket type, but the socket type used is recorded in each target result.
 
-IPv6 support is best effort. If the IPv6 socket cannot be opened, IPv4 scanning still works and IPv6 targets fail with an error.
+The probe first tries to open a Raw ICMP socket. If the program does not have the needed access, it falls back to a Datagram ICMP socket over UDP, which does not need special access.
 
-## Related Files
+The socket type used is recorded in the result with one of these values:
 
-- [`general_settings.toml`](./general.md) — Global scan control and pipeline mode
-- [`tcp_settings.toml`](./tcp.md) — TCP port scan configuration
-- [`http_settings.toml`](./http.md) — HTTP/HTTPS/HTTP3 probe configuration
-- [`dns_settings.toml`](./dns.md) — DNS scan configuration
-- [`xray_settings.toml`](./xray.md) — Xray outbound validation
-- [`writer_settings.toml`](./writer.md) — Result output configuration
+- `raw`
+- `udp`
+
+IPv6 support also depends on the system features and permissions. If the IPv6 socket cannot be opened, the IPv4 scan still runs, but IPv6 targets fail with an error.
+
+## Related files
+
+- [`general_settings.toml`](./general.md): general scan settings and the scan execution mode
+- [`tcp_settings.toml`](./tcp.md): TCP port scan settings
+- [`http_settings.toml`](./http.md): HTTP, HTTPS, and HTTP/3 probe settings
+- [`dns_settings.toml`](./dns.md): DNS scan settings
+- [`xray_settings.toml`](./xray.md): Xray scan settings and outbound validation
+- [`writer_settings.toml`](./writer.md): result saving settings

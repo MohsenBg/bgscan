@@ -3,52 +3,54 @@ title: "StormDNS"
 weight: 5
 ---
 
-# StormDNS Configuration
+# StormDNS settings
 
-StormDNS runs in-process through a vendored client library. It works like MasterDNS with its own defaults, plus a selectable DNS query type used to carry the tunnel traffic. There are no proxy settings.
+StormDNS runs inside BGScan itself through an internal client library. Its structure is similar to MasterDNS, but it has its own defaults and you can also choose the DNS query type used to carry the tunnel traffic.
 
-## Connection Settings
+This protocol has no proxy settings.
 
-| Field | Default | Description |
-| --- | --- | --- |
-| `Domain` | (required) | Zone served by your StormDNS server |
-| `DataEncMethod` | `1` | Encryption: `0` = None, `1` = XOR (default), `2` = ChaCha20, `3` = AES-128-GCM, `4` = AES-192-GCM, `5` = AES-256-GCM |
-| `EncryptionKey` | (required unless method is None) | 32 hex characters, must match the server |
-| `ResolverPort` | `53` | Resolver port |
-| `DNSQueryType` | `'TXT'` | Query type carrying the tunnel: `TXT`, `NS`, `CNAME`, or `ROTATE` (empty means TXT) |
-
-## MTU and Session Tuning
+## Connection settings
 
 | Field | Default | Description |
 | --- | --- | --- |
-| `MTUTestTimeoutSec` | `2.0` | Seconds to wait per MTU probe packet |
-| `MTUTestRetries` | `3` | Retries per MTU size before trying the next |
-| `SessionInitRetryMaxSec` | `60.0` | Retry window for session init before restarting |
-| `MinUploadMTU` / `MaxUploadMTU` | `100` / `200` | Upload MTU range in bytes |
-| `MinDownloadMTU` / `MaxDownloadMTU` | `1000` / `4000` | Download MTU range in bytes |
-| `MTUParallelism` | `16` | Parallel MTU test workers |
-| `RxTxWorkers` | `4` | Concurrent tunnel data streams |
+| `domain` | Required | The domain your StormDNS server serves |
+| `data_enc_method` | `1` | The encryption method: `0` = none, `1` = XOR (default), `2` = ChaCha20, `3` = AES-128-GCM, `4` = AES-192-GCM, `5` = AES-256-GCM |
+| `encryption_key` | Required, except in the unencrypted mode | A 32 character hex key that must match the server key |
+| `resolver_port` | `53` | The resolver port |
+| `dns_query_type` | `TXT` | The query type used to carry the tunnel traffic: `TXT`, `NS`, `CNAME`, or `ROTATE`. An empty value means `TXT` |
 
-## Example Config
+## MTU and session settings
 
-```toml
+| Field | Default | Description |
+| --- | --- | --- |
+| `mtu_test_timeout_sec` | `2.0` | How long to wait for each MTU test packet, in seconds |
+| `mtu_test_retries` | `2` | The number of attempts for each MTU size before moving to the next size |
+| `session_init_retry_max_sec` | `2.0` | How long to retry bringing up the session before starting over |
+| `min_upload_mtu` / `max_upload_mtu` | `38` / `150` | The minimum and maximum upload MTU size in bytes |
+| `min_download_mtu` / `max_download_mtu` | `100` / `500` | The minimum and maximum download MTU size in bytes |
+| `mtu_parallelism` | `1` | The number of concurrent workers for the MTU test |
+| `rx_tx_workers` | `4` | The number of concurrent data streams in the tunnel |
+
+## Example config
+
+```toml id="b7m2qx"
 domain = 'example.com'
 data_enc_method = 1
 encryption_key = 'cd6d78e954f48f62cb74cdcf8a2459d3'
 resolver_port = 53
 dns_query_type = 'TXT'
 mtu_test_timeout_sec = 2.0
-mtu_test_retries = 3
-session_init_retry_max_sec = 60.0
-min_upload_mtu = 100
-max_upload_mtu = 200
-min_download_mtu = 1000
-max_download_mtu = 4000
-mtu_parallelism = 16
+mtu_test_retries = 2
+session_init_retry_max_sec = 2.0
+min_upload_mtu = 38
+max_upload_mtu = 150
+min_download_mtu = 100
+max_download_mtu = 500
+mtu_parallelism = 1
 rx_tx_workers = 4
 ```
 
-## Related Topics
+## Related topics
 
-- [DNS Tunneling](../) — Protocol overview and scan flow
-- [MasterDNS](../masterdns/) — Same model with its own defaults
+- [DNS tunnel](../): an introduction to the protocols and the scan flow
+- [MasterDNS](./masterdns/): a protocol with a similar structure and its own default settings

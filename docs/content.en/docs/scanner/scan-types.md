@@ -3,77 +3,91 @@ title: "Scan Types"
 weight: 2
 ---
 
-# Scan Types
+# Scan types
 
-The scan type menu offers six entries, each bound to a key:
+The scan type menu has six options, each chosen with a key:
 
-| Key | Scan Type | What it does | Configuration File |
+| Key | Scan type | What it does | Settings file |
 |-----|-----------|--------------|--------------------|
-| `i` | ICMP Scan | Sends echo requests and measures round-trip time | [`icmp_settings.toml`](../settings/icmp.md) |
-| `t` | TCP Scan | Opens a connection to one port and measures handshake latency | [`tcp_settings.toml`](../settings/tcp.md) |
-| `h` | HTTP Scan | Sends one HTTP request and records status, version, and TLS | [`http_settings.toml`](../settings/http.md) |
-| `x` | Xray Scan | Routes traffic through an Xray outbound and measures it | [`xray_settings.toml`](../settings/xray.md) |
-| `r` | DNS Resolve | Queries each target as a resolver, tests for DPI hijacking | [`dns_settings.toml`](../settings/dns.md) |
-| `d` | DNS Tunneling | Tests whether resolvers can carry a DNS tunnel | [`dns_settings.toml`](../settings/dns.md) |
+| `i` | ICMP scan | Sends an echo request and measures the round trip time | [`icmp_settings.toml`](../settings/icmp.md) |
+| `t` | TCP scan | Connects to a port and measures the handshake latency | [`tcp_settings.toml`](../settings/tcp.md) |
+| `h` | HTTP scan | Sends an HTTP request and records the response status, version, and TLS | [`http_settings.toml`](../settings/http.md) |
+| `x` | Xray scan | Passes traffic through an outbound and checks the connection | [`xray_settings.toml`](../settings/xray.md) |
+| `r` | DNS resolver | Tests each IP as a resolver and checks for DPI hijacking when needed | [`dns_settings.toml`](../settings/dns.md) |
+| `d` | DNS tunnel | Checks which resolvers can carry a DNS tunnel | [`dns_settings.toml`](../settings/dns.md) |
 
-**DNS Resolve** runs a standalone resolver scan. It tests each target IP as a DNS resolver and optionally checks for DPI hijacking.
+**DNS resolver** is a standalone scan. It checks each target IP as a resolver and, when the matching option is enabled, also detects DPI hijacking.
 
-**DNS Tunneling** opens a config browser first. You select a saved tunnel configuration (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, or TheFeed) before the scan starts. The tunnel stage optionally chains a resolver pre-scan when `check_dns_resolver` is enabled in the DNS tunneling settings.
+**DNS tunnel** first opens the config browser so you can choose one of the saved configs: DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, or TheFeed. If the `check_dns_resolver` option is enabled in the DNS tunnel settings, a resolver pre-scan also runs before the tunnel starts.
 
-**Xray Scan** first asks which outbound template to use. If `pre_scan_type` is `icmp`, `tcp`, or `http`, that stage runs ahead of the Xray stage and filters the targets. With `none`, Xray runs directly.
+**Xray scan** first asks you to choose the outbound template. If `pre_scan_type` is `icmp`, `tcp`, or `http`, that scan runs before Xray and filters the targets. With `none`, the Xray scan starts without a pre-scan.
 
 {{< img "/bgscan-scan-type.webp" "bgscan scan type" >}}
 
 ## ICMP
 
-Echo request and reply. The probe shares one IPv4 socket and, when the system allows, one IPv6 socket across all workers, matching replies back to the worker that sent them.
+This probe sends an echo request and waits for a reply. It uses one shared IPv4 socket across the workers and, if the system allows, a shared IPv6 socket as well. The reply to each request goes back to the same worker that sent it.
 
-It records latency, the number of attempts, and whether the socket was raw or unprivileged UDP. Cheapest way to narrow a large range before a heavier scan.
+It records the latency, the number of attempts, and the socket type. The socket can be raw or, when the needed access is missing, it can use UDP.
+
+ICMP is a low cost way to narrow a large range of IPs before running heavier scans.
 
 ## TCP
 
-A full connect scan, not a SYN scan. It completes the handshake to the configured port and records the latency of the first successful attempt. Timeouts are retried up to `tries`, while a refused connection fails immediately so dead ranges drain quickly.
+The TCP scan is a full connect scan, not a SYN scan. That means it carries the connection to the configured port through the end of the handshake and records the latency of the first successful attempt.
 
-Records latency, port, and attempt count.
+If the connection times out, it tries again up to the `tries` limit. If the connection is refused, it fails right away so checking inactive IPs finishes faster.
+
+The result has the latency, the port, and the attempt count.
 
 ## HTTP
 
-One request per target over HTTP/1.1, HTTP/2, or HTTP/3. Version selection happens over ALPN for `h1,h2`; `h3` uses a separate QUIC probe. Responses outside `accepted_status_codes` are discarded, and an empty list accepts everything.
+For each target it sends a request with HTTP/1.1, HTTP/2, or HTTP/3. The choice between `h1` and `h2` happens through ALPN, but `h3` has its own probe that uses QUIC.
 
-Records latency, status code, negotiated version, and whether TLS was used.
+Responses whose status code is not in `accepted_status_codes` are not accepted. When this list is empty, every status code is acceptable.
+
+The result has the latency, the status code, the chosen HTTP version, and whether TLS was used.
 
 ## Xray
 
-Starts an in-process Xray instance per target using the selected outbound template, then measures latency through the local proxy. Depending on `connectivity_test_type`, it also runs a download test, an upload test, or both, and fails the target when the measured speed falls below the configured minimum.
+For each target, an Xray instance runs with the chosen outbound template. Latency is then measured through the local proxy.
 
-Records latency plus download and upload throughput. Both speeds are zero when only connectivity is tested.
+Depending on the `connectivity_test_type` value, a download test, an upload test, or both also run. If the speed is lower than the configured minimum, that target is rejected.
 
-## DNS Resolve
+The result has the latency and the download and upload speed. If only the connection is checked, both speed values stay at zero.
 
-Each target IP is treated as a resolver. With `check_dpi` enabled, the probe first asks for a random `.invalid` name. A resolver that claims success for a name that cannot exist is fabricating answers and gets dropped. Surviving targets are then queried for the configured record types until one returns an accepted response code.
+## DNS resolver
 
-Records latency, the record type that worked, attempt count, response code, and whether the DPI check ran.
+In this scan, each target IP is checked as a DNS resolver. If `check_dpi` is enabled, the probe first asks for a random name under the `.invalid` domain. If the resolver returns a successful answer for this invalid name, it is probably tampering with DNS answers, so that resolver is dropped from the rest of the scan.
 
-## DNS Tunneling
+After this step, the probe asks the remaining resolvers about the configured record types. If one of the requests gets an acceptable response code, the resolver is accepted.
 
-Tests whether resolvers can carry a DNS tunnel. You first select a saved tunnel configuration from the config browser. All six protocols can be scanned:
+The result has the latency, the record type that answered, the attempt count, the response code, and whether the DPI check ran.
 
-- **DNSTT** — DNS tunnel using the vaydns library with legacy DNSTT-compatible framing
-- **VayDNS** — Native vaydns protocol with tunable QNAME, MTU, and record type settings
-- **Slipstream** — External binary (`slipstream-client`) based tunnel
-- **TheFeed** — Encrypted feed tunnel over UDP, TCP, or DNS-over-TLS with single or double query encoding
-- **MasterDNS** — In-process tunnel with configurable encryption and MTU discovery
-- **StormDNS** — In-process tunnel with configurable encryption, MTU discovery, and query type selection
+## DNS tunnel
 
-DNSTT, VayDNS, and Slipstream probes each allocate a local SOCKS5 port per target, so they are much slower than the resolver stage. Latency measures the tunnel once it is up, not the time to bring it up.
+This scan checks which resolvers can carry the traffic of a DNS tunnel. First you must choose one of the saved configs from the config browser.
 
-When `check_dns_resolver` is enabled in the DNS tunneling settings, a resolver pre-scan runs first and feeds surviving targets into the tunnel stage. When `adaptive_resolver` is enabled, the resolver settings are automatically adjusted to match the tunnel configuration's transport, port, and domain.
+All six protocols below can be scanned:
 
-See [DNS Tunneling](../dns-tunneling/) for detailed configuration of each protocol.
+- **DNSTT:** A DNS tunnel using the VayDNS library and framing compatible with the old DNSTT version
+- **VayDNS:** The native VayDNS protocol with settings for QNAME, MTU, and record type
+- **Slipstream:** The internal tunnel client `libslipstream-client` with settings for DNS resolution and congestion control
+- **TheFeed:** An encrypted tunnel over UDP, TCP, or DNS-over-TLS with single query or double query encoding
+- **MasterDNS:** An internal tunnel with configurable encryption and MTU discovery
+- **StormDNS:** An internal tunnel with configurable encryption, MTU discovery, and a choice of query type
 
-## Related Topics
+Slipstream, MasterDNS, and StormDNS run their own tunnel client for each target and listen on a local SOCKS5 port. For this reason, scanning them is much slower than the resolver check stage.
 
-- [Scan Source](./scan-source.md)
-- [Scan Pipeline](./scan-pipeline.md)
-- [Result Files](./result-files.md)
-- [DNS Tunneling](../dns-tunneling/)
+DNSTT and VayDNS validate the connection through the tunnel itself. In all these protocols, latency is measured after the tunnel is up, not the time it took to bring the tunnel up.
+
+If `check_dns_resolver` is enabled, a resolver pre-scan runs before the tunnel and only active targets reach the tunnel stage. The `adaptive_resolver` option also adjusts the resolver settings to match the transport, port, and domain in the tunnel config.
+
+For details on the settings for each protocol, see the [DNS tunnel](../dns-tunneling/) page.
+
+## Related topics
+
+- [Scan source](./scan-source.md)
+- [Scan stages](./scan-pipeline.md)
+- [Result files](./result-files.md)
+- [DNS tunnel](../dns-tunneling/)

@@ -5,59 +5,70 @@ weight: 5
 
 # Logs
 
-bgscan maintains three separate log streams, each covering a different layer of the application. You can view any of them live from inside the TUI.
+BGScan records two kinds of logs. One belongs to the scanner core and the other belongs to the terminal interface. You can view both live from inside the TUI.
 
-Navigate to **Main Menu → Logs** to open the log menu.
+To reach the logs, go to **Main Menu → Logs**.
 
----
+## Log types
 
-## Log Categories
-
-| Key | Category | Description |
+| Key | Section | Description |
 |---|---|---|
-| `c` | Core Logs | Scan engine activity — IP probing, file I/O, result writing, and internal errors from the scanner core |
-| `u` | UI Logs | Interface-layer events — component lifecycle, file operations triggered from the TUI, and UI-level errors |
-| `d` | Debug Logs | Low-level diagnostic output — detailed internal state, data dumps, and verbose error traces for troubleshooting |
+| `c` | Core Logs | The scanner core activity, such as running probes on IPs, file operations, saving results, and internal errors |
+| `u` | UI Logs | Interface events, such as the component lifecycle, file operations started from inside the TUI, and interface errors |
 
-Press the corresponding key to open that log's viewer.
+Press the key for each section to see its logs.
 
----
+## Log level
 
-## The Log Viewer
+Both log types use the `log_level` value in `settings/ui_settings.toml`:
 
-Each log viewer shows a scrollable list of timestamped entries for that category. New messages stream in automatically while the viewer is open — you do not need to refresh manually.
-
-Each line is formatted as:
-
+```toml id="8v4m2k"
+log_level = "info"
 ```
+
+The allowed values are `debug`, `info`, `warn`, and `error`.
+
+This value is applied to both loggers when the program starts. If you change it from **Settings → UI Settings**, the new setting takes effect right away and BGScan does not need to restart.
+
+The `debug` level records more details, including probe errors with the full target IP. This level is useful for troubleshooting, but it also increases the log size. The default level is `info`.
+
+## Viewing logs
+
+Each viewer shows a scrollable list of timestamped messages for that section. New messages are added automatically while the viewer is open, so there is no need to refresh by hand.
+
+Each log line has this format:
+
+```text
 2006/01/02 15:04:05 [LEVEL] message
 ```
 
-Log levels are `INFO`, `WARN`, `ERROR`, and `DEBUG`.
+The message levels are `INFO`, `WARN`, `ERROR`, and `DEBUG`. Which messages appear depends on the `log_level` value.
 
-The viewer pre-loads the last 200 lines from the log file when it opens, so you can see recent activity immediately even if nothing new is happening.
+When a viewer opens, the last 200 lines of the log file are read so you can see recent activity right away, even if nothing new has happened.
 
-#### Navigation
+### Movement keys
 
 | Key | Action |
 |---|---|
-| `↑` / `↓` | Scroll up / down |
-| `b` or `Esc` | Close the log viewer |
+| `↑` / `↓` | Move up and down the list |
+| `b` or `Esc` | Close the viewer |
 
----
+## Where log files are stored
 
-## Log Files
+Log files are stored in the `logs/` directory next to the BGScan binary:
 
-All logs are written to the `logs/` directory next to the bgscan binary:
-
-```
+```text
 <bgscan-root>/
 └── logs/
     ├── core.log
-    ├── ui.log
-    └── debug.log
+    └── ui.log
 ```
 
-Log files are rotated automatically — each file is capped at **50 MB**, up to **3 backup files** are kept, and files older than **7 days** are removed. Older backups are compressed to save space.
+Log files rotate automatically so they do not take up much space. The limits are:
 
-You can read these files directly with any text editor or `tail -f` if you need to inspect logs outside the TUI.
+- Maximum size of each file: **50 megabytes**
+- Number of backup files: at most **3 files**
+- Removal of files older than **7 days**
+- Compression of older backup files to reduce space use
+
+If you want to check the logs outside the TUI, you can open the files with any text editor or use the `tail -f` command to watch messages live.

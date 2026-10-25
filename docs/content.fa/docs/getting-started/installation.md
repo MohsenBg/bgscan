@@ -4,9 +4,9 @@ weight: 3
 bookFlatSection: false
 ---
 
-# نصب و راه‌اندازی
+# نصب
 
-bgscan روی Linux، macOS، Windows و Android (Termux) اجرا می‌شود. روشی را انتخاب کنید که برای سیستم شما مناسب‌تر است.
+bgscan روی Linux، macOS، Windows و Android از طریق Termux اجرا می‌شه. روش نصب متناسب با سیستم‌عامل خودتون رو انتخاب کنید.
 
 ## نصب سریع
 
@@ -16,69 +16,80 @@ bgscan روی Linux، macOS، Windows و Android (Termux) اجرا می‌شود
 curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
 ```
 
-**Windows (PowerShell)**
+**Windows با PowerShell**
 
 ```powershell
 irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.ps1 | iex
 ```
 
-**Android (Termux)**
+**Android با Termux**
 
 ```bash
 { command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
 ```
 
-اسکریپت‌های نصب از `bgscan-installer` استفاده می‌کنند؛ یک باینری کوچک و مستقل که با Rust نوشته شده و پروژهٔ جداگانهٔ خودش را دارد ([bgscan-installer](https://github.com/MohsenBg/bgscan-installer)). این ابزار نسخهٔ مناسب پلتفرم شما را پیدا می‌کند، چک‌سام SHA-256 آن را با `checksum.txt` بررسی می‌کند و bgscan را داخل پوشهٔ `bgscan/` نصب می‌کند (یا داخل همان پوشهٔ فعلی، اگر باینری `bgscan` از قبل آن‌جا باشد). اگر از قبل نسخه‌ای نصب شده باشد، از شما می‌پرسد که چگونه ادامه دهید: به‌روزرسانی در همان محل (باینری را عوض می‌کند و فایل‌های جدید را اضافه می‌کند، ولی `ips`، `assets` و `settings` شما دست نمی‌خورد)، نصب تمیز، پشتیبان‌گیری از نصب قبلی در پوشه‌ای با مهر زمانی به نام `bgscan_<timestamp>`، یا انصراف.
+اسکریپت‌های نصب از `bgscan-installer` استفاده می‌کنن. این ابزار یه باینری مستقل و کوچیکه که با Rust نوشته شده و مخزن جداگانه‌ای داره که در [bgscan-installer](https://github.com/MohsenBg/bgscan-installer) قرار گرفته.
 
-برای نصب یک نسخهٔ مشخص به‌جای آخرین نسخه، `--version` بدهید:
+`bgscan-installer` نسخه مناسب سیستم شما رو از بین نسخه‌های منتشرشده پیدا می‌کنه، چک‌سام SHA256 اون رو با مقدار ثبت‌شده در `checksum.txt` تطبیق می‌ده و bgscan رو داخل پوشه `bgscan/` نصب می‌کنه. اگه باینری `bgscan` از قبل توی پوشه فعلی وجود داشته باشه، نصب همون‌جا انجام می‌شه.
+
+اگه نصب قبلی پیدا بشه، می‌تونید یکی از این گزینه‌ها رو انتخاب کنید:
+
+- **به‌روزرسانی:** باینری جایگزین می‌شه و فایل‌های جدید اضافه می‌شن، اما پوشه‌های `ips`، `assets` و `settings` دست‌نخورده می‌مونن.
+- **نصب تمیز:** نصب قبلی با یه نصب تازه جایگزین می‌شه.
+- **پشتیبان‌گیری:** از نصب فعلی توی پوشه‌ای با مهر زمانی به اسم `bgscan_<timestamp>` نسخه پشتیبان گرفته می‌شه.
+- **انصراف:** عملیات نصب متوقف می‌شه.
+
+اگه نسخه مشخصی مدنظرتونه و نمی‌خواید آخرین نسخه نصب بشه، از گزینه `--version` استفاده کنید:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh -s -- --version v2.11.0
+curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh -s -- --version v2.12.0
 ```
 
 ## نصب دستی
 
-1. فایل ZIP مناسب سیستم‌عامل خود را از [صفحهٔ Releases](https://github.com/MohsenBg/bgscan/releases/latest) دانلود کنید.
-2. فایل ZIP را باز کنید.
-3. **برنامه را اجرا کنید:**
-   - **Linux، macOS و Termux:** ترمینال را باز کنید، وارد پوشهٔ برنامه شوید و `./bgscan` را اجرا کنید.
-   - **Windows:** روی `bgscan.exe` دو بار کلیک کنید یا در PowerShell دستور `./bgscan.exe` را اجرا کنید.
+1. فایل ZIP مناسب سیستم‌عامل و معماری دستگاهتون رو از [صفحه Releases](https://github.com/MohsenBg/bgscan/releases/latest) دانلود کنید.
+2. فایل ZIP رو از حالت فشرده خارج کنید.
+3. برنامه رو اجرا کنید:
+   - **Linux/macOS/Termux:** ترمینال رو باز کنید، وارد پوشه برنامه بشید و دستور `./bgscan` رو اجرا کنید.
+   - **Windows:** روی `bgscan.exe` دوبار کلیک کنید یا در PowerShell دستور `.\bgscan.exe` رو اجرا کنید.
 
-در اولین اجرا، پوشهٔ `settings/` با فایل‌های تنظیمات پیش‌فرض و پوشهٔ `ips/` با فهرست‌های IP آماده ساخته می‌شود.
+در اولین اجرا، پوشه `settings/` با فایل‌های تنظیمات پیش‌فرض و پوشه `ips/` با فهرست‌های IP آماده ساخته می‌شن.
 
 ## ساخت از سورس
 
-> **نکته:** bgscan را نمی‌توان با `go install` نصب کرد چون به باینری Slipstream مخصوص پلتفرم نیاز دارد. برای ساخت آن باید از ابزار همراه **`bgscan-builder`** استفاده کنید. این ابزار فقط برای ساخت است؛ نصب و به‌روزرسانی نسخه‌ها با ابزار جداگانهٔ `bgscan-installer` انجام می‌شود که بالاتر توضیح داده شد. (خود Xray باینری نمی‌خواهد و داخل برنامه اجرا می‌شود.)
+> **نکته:** نصب bgscan با `go install` امکان‌پذیر نیست، چون برنامه به کتابخانه Slipstream مخصوص هر پلتفرم نیاز داره. برای ساخت برنامه باید از ابزار همراهش، **`bgscan-builder`**، استفاده کنید. این ابزار فقط برای ساخت برنامه است. نصب و به‌روزرسانی نسخه‌های منتشرشده با `bgscan-installer` انجام می‌شه.
 
-### پیش‌نیازها
+> Xray به باینری جداگانه نیاز نداره و از طریق یه کتابخانه داخلی، داخل همون پروسه اجرا می‌شه.
 
-- Go نسخهٔ 1.27 یا جدیدتر
+#### پیش‌نیازها
+
+- Go 1.27 یا بالاتر
 - Git
 
-### دریافت سورس و ساخت برنامه
+#### کلون و ساخت
 
 ```bash
-# دریافت سورس
-git clone https://github.com/MohsenBg/bgscan.git
+# Clone the repository
+git clone --recurse-submodules https://github.com/MohsenBg/bgscan.git
 cd bgscan
 
-# نصب ابزار builder
-# Linux / macOS
+# Install the builder tool
+# Linux/macOS
 curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install-builder.sh | bash
 
 # Windows (PowerShell)
 irm https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install-builder.ps1 | iex
 
-# گرفتن باینری جانبی Slipstream و فهرست‌های IP مخصوص پلتفرم شما
-# Linux / macOS
+# Fetch the Slipstream client library and bundled IP lists for your platform
+# Linux/macOS
 ./scripts/install-deps.sh
 # Windows (PowerShell)
 ./scripts/install-deps.ps1
 
-# اجرا در محیط توسعه
+# Run in development
 go run ./cmd/bgscan/
 
-# یا ساخت خروجی نهایی برای یک پلتفرم خاص (همهٔ فلگ‌ها را با `bgscan-builder release -h` ببینید)
+# Or build release artifacts targeting a specific platform (see `bgscan-builder release -h` for all flags)
 ./bgscan-builder release -os linux -arch amd64
 ./bgscan-builder release -os windows -arch amd64
 ./bgscan-builder release -os macos -arch arm64
@@ -87,17 +98,19 @@ go run ./cmd/bgscan/
 
 ## ارتقا
 
-برای ارتقا، دوباره اسکریپت [نصب سریع](#نصب-سریع) را اجرا کنید. اسکریپت نصب قبلی را پیدا می‌کند و به‌روزرسانی، نصب تمیز، پشتیبان‌گیری یا انصراف را پیشنهاد می‌دهد.
+برای به‌روزرسانی bgscan، کافیه دوباره اسکریپت [نصب سریع](#نصب-سریع) رو اجرا کنید. نصب‌کننده، نصب قبلی رو پیدا می‌کنه و گزینه‌های به‌روزرسانی، نصب تمیز، پشتیبان‌گیری یا انصراف رو در اختیارتون می‌ذاره.
 
-گزینهٔ به‌روزرسانی `settings`، `ips` و `assets` شما را نگه می‌دارد. اگر نصب تمیز را انتخاب کردید، اول پشتیبان بگیرید:
+در حالت به‌روزرسانی، پوشه‌های `settings`، `ips` و `assets` حفظ می‌شن.
 
-- فایل‌های `settings/*.toml` را به نصب جدید منتقل کنید.
-- فهرست‌های IP شخصی خود را از پوشهٔ `ips/` کپی کنید.
-- قبل از جایگزین‌کردن فایل‌ها، مطمئن شوید bgscan در حال اجرا نیست.
+اگه نصب تمیز رو انتخاب کردید، بهتره قبلش از اطلاعات موردنیاز نسخه قبلی پشتیبان بگیرید:
 
-## نیازمندی‌ها
+- فایل‌های `settings/*.toml` که تغییر دادید، به نصب جدید منتقل کنید.
+- فهرست‌های IP سفارشی رو از پوشه `ips/` بردارید.
+- قبل از جایگزین کردن فایل‌های برنامه، bgscan رو ببندید.
 
-- **سیستم‌عامل:** Linux، macOS، Windows 10 یا جدیدتر، یا Android 7.0 یا جدیدتر (Termux)
-- **ابزارها:** `curl`؛ نصب‌کننده در بیشتر سیستم‌ها وابستگی‌های لازم را خودش آماده می‌کند
-- **Windows:** PowerShell نسخهٔ 5.1 یا جدیدتر
-- **Termux:** نسخهٔ F-Droid را نصب کنید؛ نسخهٔ Play Store قدیمی است
+## پیش‌نیازهای سیستم
+
+- **سیستم‌عامل:** Linux، macOS، Windows 10 یا بالاتر، یا Android 7.0 یا بالاتر با Termux
+- **ابزارها:** `curl`. نصب‌کننده در بیشتر سیستم‌ها ابزارهای موردنیاز رو خودش نصب می‌کنه.
+- **Windows:** PowerShell 5.1 یا بالاتر
+- **Termux:** نسخه F-Droid رو نصب کنید. نسخه Play Store قدیمیه.

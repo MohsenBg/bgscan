@@ -3,33 +3,33 @@ title: "HTTP Settings"
 weight: 7
 ---
 
-# HTTP Settings
+# HTTP settings
 
-> 💡 **Tip:** You can change these settings directly in the bgscan application instead of editing the TOML file manually.
+> 💡 **Note:** You do not need to edit the TOML file by hand. You can change these settings directly inside BGScan.
 >
-> Navigate to **Settings** → **HTTP Settings** in the main menu to configure these options interactively using the TUI inspector.
+> Go to **Settings → HTTP Settings** from the main menu and set the options with the Inspector inside the TUI.
 
-Configuration file: `settings/http_settings.toml`
+Settings file: `settings/http_settings.toml`
 
-The HTTP probe sends one request per target and records status code, negotiated protocol version, and whether TLS was used. HTTP/1.1 and HTTP/2 go over TCP, HTTP/3 over QUIC.
+The HTTP probe sends one request to each target and records the status code, the agreed HTTP version, and whether TLS was used. HTTP/1.1 and HTTP/2 use TCP, but HTTP/3 runs over QUIC.
 
-## Quick Reference
+## Quick reference
 
 | Setting | Default | Description |
-|---------|---------|-------------|
-| `workers` | platform-dependent | Concurrent requests (1-1000) |
-| `host` | `"example.com"` | Request host, optionally with a path |
-| `server_name` | `""` | SNI override; empty means derive from `host` |
-| `port` | `443` | Target port (1-65535) |
-| `protocol` | `"https"` | `http` or `https` |
-| `version` | `"h1,h2"` | Protocol version to negotiate |
-| `fingerprint` | `""` | uTLS ClientHello fingerprint; empty uses the standard library |
-| `tls_validation` | `true` | Verify the server certificate |
-| `min_tls_version` | `"tls1.1"` | Lowest TLS version allowed |
-| `max_tls_version` | `"tls1.3"` | Highest TLS version allowed |
-| `timeout` | platform-dependent | Request timeout in milliseconds (100-60000) |
-| `accepted_status_codes` | `[]` | Status codes treated as success; empty accepts all |
-| `output_prefix` | `"http_"` | Result filename prefix |
+|---|---|---|
+| `workers` | Depends on the platform | The number of concurrent requests (1 to 1000) |
+| `host` | `"example.com"` | The request host, with the option of setting a path |
+| `server_name` | `""` | An alternate SNI value. When empty, `host` is used |
+| `port` | `443` | The target port (1 to 65535) |
+| `protocol` | `"https"` | The connection protocol: `http` or `https` |
+| `version` | `"h1,h2"` | The HTTP version to use |
+| `fingerprint` | `""` | The ClientHello fingerprint in uTLS. An empty value means using the Go standard library |
+| `tls_validation` | `true` | Checks the validity of the server TLS certificate |
+| `min_tls_version` | `"tls1.1"` | The lowest allowed TLS version |
+| `max_tls_version` | `"tls1.3"` | The highest allowed TLS version |
+| `timeout` | Depends on the platform | The request timeout in milliseconds (100 to 60000) |
+| `accepted_status_codes` | `[]` | The acceptable status codes. An empty list means every code is accepted |
+| `output_prefix` | `"http_"` | The result file name prefix |
 
 ## Workers
 
@@ -37,11 +37,13 @@ The HTTP probe sends one request per target and records status code, negotiated 
 workers = 50
 ```
 
-Concurrent requests in flight. HTTP probes hold a connection and read a response, so they cost more per worker than TCP.
+The number of requests that run at the same time. Each worker in the HTTP probe makes a connection and reads a response, so it usually uses more resources than a TCP scan worker.
 
-- `10-50` on limited resources
+Suggested values to start with:
+
+- `10-50` for systems with limited resources
 - `50-100` for typical use
-- `100-200` for high-throughput scanning
+- `100-200` for scanning with more capacity
 
 ## Host
 
@@ -49,7 +51,7 @@ Concurrent requests in flight. HTTP probes hold a connection and read a response
 host = "example.com"
 ```
 
-Host used for the request. A path may be included (`example.com/path`) and is appended to the request URL. The `Host` header always carries only the domain part.
+The host the HTTP request is sent to. You can also set a path, for example `example.com/path`. This path is added to the request URL, but the `Host` header contains only the domain name.
 
 ## Port
 
@@ -57,7 +59,12 @@ Host used for the request. A path may be included (`example.com/path`) and is ap
 port = 443
 ```
 
-Target port. Use 80 for plain HTTP, 443 for HTTPS, or any port the service listens on.
+Sets the destination port of the request. The usual ports are:
+
+- `80` for HTTP
+- `443` for HTTPS
+
+You can of course set any port the service listens on.
 
 ## Protocol
 
@@ -65,30 +72,45 @@ Target port. Use 80 for plain HTTP, 443 for HTTPS, or any port the service liste
 protocol = "https"
 ```
 
-Either `"http"` or `"https"`. This decides whether the connection is wrapped in TLS.
+Sets the connection protocol. The value of this option must be `http` or `https`. Choosing `https` makes the connection use TLS.
 
-## TLS Validation
+## TLS validation
 
 ```toml
 tls_validation = true
 ```
 
-When `true`, the certificate must be valid and trusted by the system. When `false`, expired and self-signed certificates are accepted. Turn it off when scanning IPs directly, where the certificate rarely matches the address.
+When this option is `true`, the server TLS certificate must be valid and trusted by the system.
 
-## HTTP Version
+With `false`, the certificate check is disabled and expired or self signed certificates are also accepted.
+
+If you scan IPs directly, the server certificate may not match the destination IP. In this situation you can disable validation if needed.
+
+## HTTP version
 
 ```toml
 version = "h1,h2"
 ```
 
+This option defines which HTTP version the probe uses.
+
 | Value | Meaning |
 |---|---|
 | `h1` | HTTP/1.1 only |
 | `h2` | HTTP/2 only |
-| `h1,h2` | Negotiated over ALPN |
+| `h1,h2` | The version is chosen through ALPN |
 | `h3` | HTTP/3 over QUIC |
 
-Longer aliases are also accepted: `http1`, `http1.1`, `http2`, `http3`, `http1,http2`, `http2,http1`. HTTP/3 uses a separate QUIC probe and always runs over TLS 1.3, so `min_tls_version` and `max_tls_version` are ignored.
+These alternate names are also accepted:
+
+- `http1`
+- `http1.1`
+- `http2`
+- `http3`
+- `http1,http2`
+- `http2,http1`
+
+HTTP/3 uses a separate probe over QUIC and always runs with TLS 1.3. The `min_tls_version` and `max_tls_version` settings therefore have no effect on it.
 
 ## Timeout
 
@@ -96,70 +118,97 @@ Longer aliases are also accepted: `http1`, `http1.1`, `http2`, `http3`, `http1,h
 timeout = 4000
 ```
 
-Time budget for a single request, in milliseconds.
+The maximum time assigned to each request, in milliseconds.
 
-- `2000-5000` for reliable networks
-- `5000-10000` for distant or unreliable networks
+To start, you can consider these ranges:
 
-## TLS Version Range
+- `2000-5000` for stable networks
+- `5000-10000` for distant or unstable networks
+
+If the timeout is too low, slow connections may be recorded as failed.
+
+## TLS version range
 
 ```toml
 min_tls_version = "tls1.1"
 max_tls_version = "tls1.3"
 ```
 
-Bounds passed to the TLS handshake. Accepted values are `tls1.0`, `tls1.1`, `tls1.2`, and `tls1.3`. The minimum must not exceed the maximum. Ignored when `version = "h3"`.
+These set the minimum and maximum TLS version that can be used in the handshake.
 
-## TLS Fingerprint
+The allowed values for both options are:
+
+- `tls1.0`
+- `tls1.1`
+- `tls1.2`
+- `tls1.3`
+
+The minimum version must not be higher than the maximum version. These settings are ignored for `version = "h3"`, because HTTP/3 always uses TLS 1.3.
+
+## TLS fingerprint
 
 ```toml
 fingerprint = ""
 ```
 
-A uTLS ClientHello fingerprint for the TLS handshake. When set, the probe mimicks the chosen browser profile instead of the standard library ClientHello, which can help bypass TLS fingerprinting — commonly used when scanning behind DPI. Labels are matched case-insensitively.
+This option sets the ClientHello fingerprint using uTLS. When you give it a value, the probe uses the chosen profile instead of the default ClientHello of the Go standard library, so the handshake details are closer to the browser you have in mind.
 
-| Category | Labels |
+This feature can be useful for checking how networks behave when they identify or filter traffic based on the TLS fingerprint.
+
+Fingerprint names are not case sensitive.
+
+| Category | Usable values |
 |---|---|
 | Chrome | `Chrome`, `Chrome_58`, `Chrome_62`, `Chrome_70`, `Chrome_72`, `Chrome_83`, `Chrome_87`, `Chrome_96`, `Chrome_100`, `Chrome_102`, `Chrome_120` |
 | Firefox | `Firefox`, `Firefox_55`, `Firefox_56`, `Firefox_63`, `Firefox_65`, `Firefox_99`, `Firefox_102`, `Firefox_105`, `Firefox_120` |
 | iOS | `iOS`, `iOS_11_1`, `iOS_12_1`, `iOS_13`, `iOS_14` |
 | Other | `random` |
 
-An empty value (the default) uses Go's standard `crypto/tls` ClientHello. HTTP/3 over QUIC does not use uTLS; an empty fingerprint is always used for `version = "h3"`.
+An empty value, meaning the default, uses the standard `crypto/tls` ClientHello in Go.
 
-## Server Name Indication
+The HTTP/3 probe over QUIC does not use uTLS, so when `version = "h3"`, the chosen fingerprint is not applied.
+
+## Server Name Indication (SNI)
 
 ```toml
 server_name = ""
 ```
 
-SNI sent during the TLS handshake. When empty, the domain from `host` is used. Set it to test domain fronting, or to probe an IP while presenting a specific hostname.
+This option sets the SNI value sent during the TLS handshake.
 
-## Accepted Status Codes
+If its value is empty, the domain name comes from `host`. If you want to test a specific IP with a particular domain name, or check Domain Fronting behavior, you can set the SNI value separately.
+
+## Acceptable status codes
 
 ```toml
 accepted_status_codes = []
 ```
 
-Allow-list of status codes counted as a successful result. An empty list, or a list covering every code, disables filtering and accepts anything the server returns. Responses outside the list are discarded and do not reach the next pipeline stage.
+Sets the list of HTTP status codes that count as a successful result.
+
+If the list is empty or covers every status code, the filter is disabled and any status code the server returns is accepted.
+
+For example, if you want only specific responses to be accepted, you can set it like this:
 
 ```toml
 accepted_status_codes = [200, 204, 301, 302, 307, 308]
 ```
 
-## Output Prefix
+Responses whose status code is not in the list are not considered successful and do not reach the next stage of a multi stage scan.
+
+## Output prefix
 
 ```toml
 output_prefix = "http_"
 ```
 
-Filename prefix for result files written by this probe. Files land in `result/http/`.
+Sets the file name prefix for the result files this probe produces. Files are saved under `result/http/`.
 
-## Related Files
+## Related files
 
-- [`general_settings.toml`](./general.md) — Global scan control and pipeline mode
-- [`icmp_settings.toml`](./icmp.md) — ICMP scan configuration
-- [`tcp_settings.toml`](./tcp.md) — TCP port scan configuration
-- [`dns_settings.toml`](./dns.md) — DNS scan configuration
-- [`xray_settings.toml`](./xray.md) — Xray outbound validation
-- [`writer_settings.toml`](./writer.md) — Result output configuration
+- [`general_settings.toml`](./general.md): general scan settings and the scan execution mode
+- [`icmp_settings.toml`](./icmp.md): ICMP scan settings
+- [`tcp_settings.toml`](./tcp.md): TCP port scan settings
+- [`dns_settings.toml`](./dns.md): DNS scan settings
+- [`xray_settings.toml`](./xray.md): Xray scan settings and outbound validation
+- [`writer_settings.toml`](./writer.md): result saving settings

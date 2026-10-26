@@ -77,6 +77,9 @@ type utlsRoundTripper struct {
 	mu    sync.Mutex
 	inner http.RoundTripper
 	close func()
+
+	httpOnce sync.Once
+	httpRT   *http.Transport
 }
 
 func newUTLSRoundTripper(
@@ -96,7 +99,7 @@ func newUTLSRoundTripper(
 func (rt *utlsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	switch req.URL.Scheme {
 	case "http":
-		return http.DefaultTransport.RoundTrip(req)
+		return rt.plainHTTPTransport().RoundTrip(req)
 
 	case "https":
 	default:
@@ -260,6 +263,26 @@ func (rt *utlsRoundTripper) newHTTP2Transport(
 	tr.DialTLSContext = dialTLSContext
 
 	return tr
+}
+
+func (rt *utlsRoundTripper) plainHTTPTransport() *http.Transport {
+	rt.httpOnce.Do(func() {
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		tr.Proxy = nil
+		tr.DialContext = func(
+			ctx context.Context,
+			network, addr string,
+		) (net.Conn, error) {
+			_, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				port = "80"
+			}
+			dialAddr := net.JoinHostPort(rt.targetIP.String(), port)
+			return (&net.Dialer{}).DialContext(ctx, network, dialAddr)
+		}
+		rt.httpRT = tr
+	})
+	return rt.httpRT
 }
 
 // utlsHTTPClientFactory creates an HTTP client that uses uTLS for HTTPS

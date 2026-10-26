@@ -446,6 +446,53 @@ func TestBuildClient_H2_ForcesHTTP2(t *testing.T) {
 	}
 }
 
+// TestBuildClient_H1H2NegotiatesHTTP2 is the regression test for F6. The
+// default h1,h2 mode has both a custom TLS config and a custom dialer, so Go
+// only attempts HTTP/2 when ForceAttemptHTTP2 is set.
+func TestBuildClient_H1H2NegotiatesHTTP2(t *testing.T) {
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	ts.EnableHTTP2 = true
+	ts.StartTLS()
+	defer ts.Close()
+
+	req := HTTPRequest{
+		URL:           ts.URL,
+		Timeout:       5 * time.Second,
+		Version:       HTTPVersionH1H2,
+		UseTLS:        true,
+		SkipTLSVerify: true,
+	}
+
+	p := &HTTPProbe{
+		req:    req,
+		dialer: &net.Dialer{Timeout: req.Timeout},
+		tls:    newTLSConfig(req),
+	}
+
+	res := p.newStdClient(netip.MustParseAddr("127.0.0.1"))
+	defer res.close()
+
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodHead, ts.URL, nil)
+	if err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+
+	resp, err := res.client.Do(httpReq)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.ProtoMajor != 2 {
+		t.Fatalf("Proto = %q, want HTTP/2", resp.Proto)
+	}
+	if resp.TLS == nil || resp.TLS.NegotiatedProtocol != "h2" {
+		t.Fatalf("negotiated ALPN = %v, want h2", resp.TLS.NegotiatedProtocol)
+	}
+}
+
 // TestBuildClient_DialRedirectsToIP verifies that DialContext rewrites the
 // target address to the specified IP while preserving the original port.
 func TestBuildClient_DialRedirectsToIP(t *testing.T) {

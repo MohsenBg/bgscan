@@ -142,7 +142,7 @@ func (p *HTTPProbe) newStdClient(ip netip.Addr) httpClientResult {
 		TLSHandshakeTimeout:   p.req.Timeout,
 		ResponseHeaderTimeout: p.req.Timeout,
 		TLSClientConfig:       p.tls,
-		ForceAttemptHTTP2:     p.req.Version == HTTPVersionH2,
+		ForceAttemptHTTP2:     p.req.Version != HTTPVersionH1,
 		TLSNextProto:          tlsNextProto(p.req.Version),
 	}
 

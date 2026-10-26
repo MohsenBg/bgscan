@@ -29,10 +29,10 @@ func TestBitsPerSec_String(t *testing.T) {
 	}
 }
 
-func TestBitsPerSec_Bps(t *testing.T) {
+func TestBitsPerSec_Uint64(t *testing.T) {
 	val := BitsPerSec(5000)
-	if val.Bps() != 5000 {
-		t.Errorf("Bps() = %d, want 5000", val.Bps())
+	if val.Uint64() != 5000 {
+		t.Errorf("Uint64() = %d, want 5000", val.Uint64())
 	}
 }
 

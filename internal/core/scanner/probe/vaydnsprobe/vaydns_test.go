@@ -11,6 +11,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/socks"
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/ssh"
 )
 
 type mockVayDNSService struct {
@@ -369,4 +370,66 @@ type closeTrackingConn struct {
 func (c *closeTrackingConn) Close() error {
 	*c.closed = true
 	return c.Conn.Close()
+}
+
+type fakeSSHService struct {
+	called    bool
+	gotConfig ssh.SSHConfig
+}
+
+func (f *fakeSSHService) Connect(
+	_ context.Context,
+	_ net.Conn,
+	_ string,
+	config ssh.SSHConfig,
+) (*ssh.Client, error) {
+	f.called = true
+	f.gotConfig = config
+	return nil, errors.New("stop after capture")
+}
+
+func (f *fakeSSHService) SSHDialContext(*ssh.Client) func(context.Context, string, string) (net.Conn, error) {
+	return nil
+}
+
+// TestDialSSH_KeyAuthPreservesUser is the regression test for the key-auth
+// branch dropping the configured SSH username.
+func TestDialSSH_KeyAuthPreservesUser(t *testing.T) {
+	service := &fakeSSHService{}
+	p := &VayDNSProbe{
+		cfg: dns.VayDNSConfig{
+			Domain:         "tunnel.example.com",
+			ProxyPort:      2222,
+			AuthMethod:     dns.AuthKey,
+			Username:       "alice",
+			PrivateKey:     "private-key",
+			KnownHostsFile: "/tmp/known_hosts",
+		},
+		sshService: service,
+		timeout:    7 * time.Second,
+	}
+
+	tunnel, peer := net.Pipe()
+	defer func() { _ = tunnel.Close() }()
+	defer func() { _ = peer.Close() }()
+
+	if _, err := p.dialSSH(context.Background(), tunnel); err == nil {
+		t.Fatal("expected the fake SSH service error")
+	}
+
+	if !service.called {
+		t.Fatal("SSH service was not called")
+	}
+
+	if got := service.gotConfig.User; got != "alice" {
+		t.Errorf("User = %q, want %q", got, "alice")
+	}
+
+	if got := service.gotConfig.PrivateKey; got != "private-key" {
+		t.Errorf("PrivateKey = %q, want %q", got, "private-key")
+	}
+
+	if got := service.gotConfig.KnownHostsFile; got != "/tmp/known_hosts" {
+		t.Errorf("KnownHostsFile = %q, want %q", got, "/tmp/known_hosts")
+	}
 }

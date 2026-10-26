@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -166,8 +169,14 @@ func NewHTTPRequestFromConfig(cfg config.HTTPConfig) (*HTTPRequest, error) {
 		return nil, err
 	}
 
+	parsedURL, err := url.Parse(scheme + urlHost)
+	if err != nil {
+		return nil, fmt.Errorf("parse URL: %w", err)
+	}
+	parsedURL.Host = net.JoinHostPort(host, strconv.Itoa(int(port)))
+
 	return &HTTPRequest{
-		URL:           fmt.Sprintf("%s%s:%d", scheme, urlHost, port),
+		URL:           parsedURL.String(),
 		Host:          host,
 		SNI:           sni,
 		Version:       resolveHTTPVersion(cfg.Version),

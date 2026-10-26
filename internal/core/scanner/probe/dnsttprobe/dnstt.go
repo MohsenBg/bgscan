@@ -209,7 +209,12 @@ func (d *DNSTTProbe) dialSSH(ctx context.Context, tunnel net.Conn) (func(context
 	}
 
 	if d.cfg.AuthMethod == dns.AuthKey {
-		auth = ssh.SSHConfig{PrivateKey: d.cfg.PrivateKey, KnownHostsFile: d.cfg.KnownHostsFile}
+		auth = ssh.SSHConfig{
+			User:             d.cfg.Username,
+			PrivateKey:       d.cfg.PrivateKey,
+			KnownHostsFile:   d.cfg.KnownHostsFile,
+			HandshakeTimeout: d.timeout,
+		}
 	}
 
 	type sshResult struct {

@@ -41,10 +41,17 @@ func mergeResults(
 		return strings.Compare(a.Key(), b.Key())
 	})
 
-	// Keep only the highest-scored record per key.
-	results = slices.CompactFunc(results, func(a, b Result) bool {
-		return a.Key() == b.Key()
-	})
+	// Keep only the highest-scored record per key. remove duplicates
+	seen := make(map[string]struct{}, len(results))
+	deduped := results[:0]
+	for _, r := range results {
+		if _, ok := seen[r.Key()]; ok {
+			continue
+		}
+		seen[r.Key()] = struct{}{}
+		deduped = append(deduped, r)
+	}
+	results = deduped
 
 	tmpPath := resultPath + ".tmp"
 	if err := os.MkdirAll(filepath.Dir(tmpPath), 0o755); err != nil {
@@ -104,7 +111,6 @@ func mergeWithExisting(
 	delta []Result,
 	cw *csv.Writer,
 ) error {
-	// Build an index of delta positions sorted by key for O(log N) lookups.
 	keyOrder := make([]int, len(delta))
 	for i := range keyOrder {
 		keyOrder[i] = i
@@ -136,7 +142,6 @@ func mergeWithExisting(
 	}
 
 	_, err := ReadCSV(log, resultPath, schema, func(existing Result) error {
-		// Emit any delta records that score strictly higher than the current existing record.
 		for cursor < len(delta) && delta[cursor].Score() > existing.Score() {
 			if err := emitDelta(cursor); err != nil {
 				return err
@@ -144,9 +149,11 @@ func mergeWithExisting(
 			cursor++
 		}
 
-		// If the existing record is superseded by a delta record, emit the delta version.
 		if idx, found := holds(existing.Key()); found {
-			return emitDelta(idx)
+			if delta[idx].Score() > existing.Score() {
+				return emitDelta(idx)
+			}
+			emitted[idx] = true
 		}
 
 		// Otherwise, keep the existing record.

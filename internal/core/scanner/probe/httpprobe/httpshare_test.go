@@ -454,6 +454,76 @@ func TestNewHTTPRequestFromConfig_CustomServerName(t *testing.T) {
 	}
 }
 
+// TestNewHTTPRequestFromConfig_PortInAuthority verifies that the configured
+// port is placed in the URL authority, before any path or query suffix, and
+// that IPv6 hosts are re-bracketed correctly. It also checks that the scheme
+// and explicit SNI behavior are unchanged for these inputs.
+func TestNewHTTPRequestFromConfig_PortInAuthority(t *testing.T) {
+	tests := []struct {
+		name     string
+		host     string
+		port     int
+		sni      string
+		wantURL  string
+		wantHost string
+	}{
+		{
+			name:     "host with path",
+			host:     "example.com/api",
+			port:     8080,
+			wantURL:  "http://example.com:8080/api",
+			wantHost: "example.com",
+		},
+		{
+			name:     "host with query",
+			host:     "example.com?q=1",
+			port:     8080,
+			sni:      "sni.example.com",
+			wantURL:  "http://example.com:8080?q=1",
+			wantHost: "example.com",
+		},
+		{
+			name:     "ipv6 host with path",
+			host:     "[2001:db8::1]/api",
+			port:     8443,
+			wantURL:  "http://[2001:db8::1]:8443/api",
+			wantHost: "2001:db8::1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.HTTPConfig{
+				Host:          tt.host,
+				Port:          tt.port,
+				Protocol:      "http",
+				ServerName:    tt.sni,
+				MinTLSVersion: "tls1.2",
+				MaxTLSVersion: "tls1.3",
+				Timeout:       config.NewDurationMS(4 * time.Second),
+			}
+
+			req, err := NewHTTPRequestFromConfig(cfg)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if req.URL != tt.wantURL {
+				t.Errorf("URL = %q, want %q", req.URL, tt.wantURL)
+			}
+			if req.UseTLS {
+				t.Error("UseTLS = true, want false for http scheme")
+			}
+			if req.Host != tt.wantHost {
+				t.Errorf("Host = %q, want %q", req.Host, tt.wantHost)
+			}
+			if tt.sni != "" && req.SNI != tt.sni {
+				t.Errorf("SNI = %q, want %q", req.SNI, tt.sni)
+			}
+		})
+	}
+}
+
 // TestNewHTTPRequestFromConfig_SkipVerify confirms that disabling TLSValidation
 // correctly sets SkipTLSVerify to true.
 func TestNewHTTPRequestFromConfig_SkipVerify(t *testing.T) {

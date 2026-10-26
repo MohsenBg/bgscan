@@ -5,55 +5,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
+	"time"
 )
-
-func TestContextReader_NormalRead(t *testing.T) {
-	data := "hello world"
-	src := strings.NewReader(data)
-
-	cr := &contextReader{
-		ctx: context.Background(),
-		r:   src,
-	}
-
-	buf := make([]byte, 20)
-
-	n, err := cr.Read(buf)
-	if err != nil {
-		t.Fatalf("Read() error = %v", err)
-	}
-
-	if n != len(data) {
-		t.Fatalf("Read() bytes = %d, want %d", n, len(data))
-	}
-
-	if got := string(buf[:n]); got != data {
-		t.Fatalf("Read() data = %q, want %q", got, data)
-	}
-}
-
-func TestContextReader_CancelledContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	cr := &contextReader{
-		ctx: ctx,
-		r:   strings.NewReader("some data that won't be read"),
-	}
-
-	buf := make([]byte, 20)
-
-	n, err := cr.Read(buf)
-	if err != context.Canceled {
-		t.Fatalf("Read() error = %v, want %v", err, context.Canceled)
-	}
-
-	if n != 0 {
-		t.Fatalf("Read() bytes = %d, want 0", n)
-	}
-}
 
 func TestNewHTTPClient_SOCKS5(t *testing.T) {
 	client, err := newHTTPClient(httpClientConfig{
@@ -173,6 +127,60 @@ func TestNewHTTPClient_DialContextTakesPrecedence(t *testing.T) {
 	}
 }
 
+func TestNewHTTPClient_RequiresDialContextOrProxyPort(t *testing.T) {
+	if _, err := newHTTPClient(httpClientConfig{}); err == nil {
+		t.Fatal("expected an error when both DialContext and ProxyPort are unset")
+	}
+}
+
+func TestNewHTTPClient_DialContextGetsConnectTimeout(t *testing.T) {
+	var deadline time.Time
+	var hasDeadline bool
+
+	dialer := func(
+		ctx context.Context,
+		network string,
+		address string,
+	) (net.Conn, error) {
+		deadline, hasDeadline = ctx.Deadline()
+		return nil, nil
+	}
+
+	client, err := newHTTPClient(httpClientConfig{DialContext: dialer})
+	if err != nil {
+		t.Fatalf("newHTTPClient() error = %v", err)
+	}
+
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf(
+			"client.Transport type = %T, want *http.Transport",
+			client.Transport,
+		)
+	}
+
+	if _, err := transport.DialContext(
+		context.Background(),
+		"tcp",
+		"example.com:443",
+	); err != nil {
+		t.Fatalf("DialContext() error = %v", err)
+	}
+
+	if !hasDeadline {
+		t.Fatal("DialContext context has no deadline")
+	}
+
+	remaining := time.Until(deadline)
+	if remaining <= 0 || remaining > connectTimeout {
+		t.Fatalf(
+			"DialContext deadline is %v away, want within (0, %v]",
+			remaining,
+			connectTimeout,
+		)
+	}
+}
+
 func assertHTTPTransportConfig(t *testing.T, transport *http.Transport) {
 	t.Helper()
 
@@ -184,8 +192,32 @@ func assertHTTPTransportConfig(t *testing.T, transport *http.Transport) {
 		)
 	}
 
-	if transport.ForceAttemptHTTP2 {
-		t.Error("ForceAttemptHTTP2 = true, want false")
+	if !transport.ForceAttemptHTTP2 {
+		t.Error("ForceAttemptHTTP2 = false, want true")
+	}
+
+	if transport.ResponseHeaderTimeout != connectTimeout {
+		t.Errorf(
+			"ResponseHeaderTimeout = %v, want %v",
+			transport.ResponseHeaderTimeout,
+			connectTimeout,
+		)
+	}
+
+	if transport.IdleConnTimeout != 90*time.Second {
+		t.Errorf(
+			"IdleConnTimeout = %v, want %v",
+			transport.IdleConnTimeout,
+			90*time.Second,
+		)
+	}
+
+	if transport.ExpectContinueTimeout != time.Second {
+		t.Errorf(
+			"ExpectContinueTimeout = %v, want %v",
+			transport.ExpectContinueTimeout,
+			time.Second,
+		)
 	}
 
 	if transport.MaxIdleConns != 10 {

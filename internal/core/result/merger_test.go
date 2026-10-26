@@ -84,6 +84,59 @@ func TestMergeResults_DedupWithinBatch(t *testing.T) {
 	}
 }
 
+// TestMergeResults_DedupInterleavedWithinBatch is the regression test for
+// batches where duplicates are separated in score order (a:9, b:5, a:3).
+// Deduplication must happen independently of score sorting and keep the
+// highest-scored record for each key.
+func TestMergeResults_DedupInterleavedWithinBatch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "out.csv")
+	results := []Result{
+		newMockResult("a", 9, "a", "9"),
+		newMockResult("b", 5, "b", "5"),
+		newMockResult("a", 3, "a", "3"),
+	}
+	if err := mergeResults(nil, path, validSchema(t), results); err != nil {
+		t.Fatal(err)
+	}
+
+	rows := readCSVRows(t, path)
+	want := [][]string{{"a", "9"}, {"b", "5"}}
+	if len(rows) != len(want) {
+		t.Fatalf("want %v, got %v", want, rows)
+	}
+	for i, w := range want {
+		if rows[i][0] != w[0] || rows[i][1] != w[1] {
+			t.Fatalf("row %d: want %v got %v", i, w, rows[i])
+		}
+	}
+}
+
+// TestMergeResults_DedupInterleavedWithExistingFile exercises the merge lookup
+// with an interleaved duplicate batch. The lookup must see unique keys and
+// keep the highest-scored record for each key.
+func TestMergeResults_DedupInterleavedWithExistingFile(t *testing.T) {
+	path := writeTempCSV(t, "b,7\n")
+	results := []Result{
+		newMockResult("a", 9, "a", "9"),
+		newMockResult("b", 5, "b", "5"),
+		newMockResult("a", 3, "a", "3"),
+	}
+	if err := mergeResults(nil, path, validSchema(t), results); err != nil {
+		t.Fatal(err)
+	}
+
+	rows := readCSVRows(t, path)
+	want := [][]string{{"a", "9"}, {"b", "7"}}
+	if len(rows) != len(want) {
+		t.Fatalf("want %v, got %v", want, rows)
+	}
+	for i, w := range want {
+		if rows[i][0] != w[0] || rows[i][1] != w[1] {
+			t.Fatalf("row %d: want %v got %v", i, w, rows[i])
+		}
+	}
+}
+
 func TestMergeResults_ReplaceExistingWithHigherScore(t *testing.T) {
 	path := writeTempCSV(t, "a,5\n")
 	results := []Result{newMockResult("a", 9, "a", "9")}
@@ -96,14 +149,79 @@ func TestMergeResults_ReplaceExistingWithHigherScore(t *testing.T) {
 	}
 }
 
-func TestMergeResults_ReplaceExistingWithLowerScore(t *testing.T) {
+// TestMergeResults_HigherIncomingScoreWins: existing A:70, incoming A:90 must
+// yield exactly one A:90 row, with the file kept sorted by descending score.
+func TestMergeResults_HigherIncomingScoreWins(t *testing.T) {
+	path := writeTempCSV(t, "b,95\na,70\n")
+	delta := []Result{newMockResult("a", 90, "a", "90")}
+	if err := mergeResults(nil, path, validSchema(t), delta); err != nil {
+		t.Fatal(err)
+	}
+
+	rows := readCSVRows(t, path)
+	want := [][]string{{"b", "95"}, {"a", "90"}}
+	if len(rows) != len(want) {
+		t.Fatalf("want %v, got %v", want, rows)
+	}
+	for i, w := range want {
+		if rows[i][0] != w[0] || rows[i][1] != w[1] {
+			t.Fatalf("row %d: want %v got %v", i, w, rows[i])
+		}
+	}
+}
+
+// TestMergeResults_HigherExistingScoreWins: existing A:90, incoming A:70 must
+// keep A:90 exactly once instead of regressing to the lower score.
+func TestMergeResults_HigherExistingScoreWins(t *testing.T) {
+	path := writeTempCSV(t, "b,95\na,90\n")
+	delta := []Result{newMockResult("a", 70, "a", "70")}
+	if err := mergeResults(nil, path, validSchema(t), delta); err != nil {
+		t.Fatal(err)
+	}
+
+	rows := readCSVRows(t, path)
+	want := [][]string{{"b", "95"}, {"a", "90"}}
+	if len(rows) != len(want) {
+		t.Fatalf("want %v, got %v", want, rows)
+	}
+	for i, w := range want {
+		if rows[i][0] != w[0] || rows[i][1] != w[1] {
+			t.Fatalf("row %d: want %v got %v", i, w, rows[i])
+		}
+	}
+}
+
+// TestMergeResults_EqualScoreKeepsExisting: existing A:80, incoming A:80 must
+// preserve the existing record exactly once, without duplicates.
+func TestMergeResults_EqualScoreKeepsExisting(t *testing.T) {
+	path := writeTempCSV(t, "b,95\na,80\n")
+	delta := []Result{newMockResult("a", 80, "a", "80")}
+	if err := mergeResults(nil, path, validSchema(t), delta); err != nil {
+		t.Fatal(err)
+	}
+
+	rows := readCSVRows(t, path)
+	want := [][]string{{"b", "95"}, {"a", "80"}}
+	if len(rows) != len(want) {
+		t.Fatalf("want %v, got %v", want, rows)
+	}
+	for i, w := range want {
+		if rows[i][0] != w[0] || rows[i][1] != w[1] {
+			t.Fatalf("row %d: want %v got %v", i, w, rows[i])
+		}
+	}
+}
+
+// TestMergeResults_KeepExistingWhenIncomingLower verifies that an incoming
+// record with a lower score never replaces the higher-scoring existing record.
+func TestMergeResults_KeepExistingWhenIncomingLower(t *testing.T) {
 	path := writeTempCSV(t, "a,5\nb,1\n")
 	results := []Result{newMockResult("a", 3, "a", "3")}
 	if err := mergeResults(nil, path, validSchema(t), results); err != nil {
 		t.Fatal(err)
 	}
 	rows := readCSVRows(t, path)
-	want := [][]string{{"a", "3"}, {"b", "1"}}
+	want := [][]string{{"a", "5"}, {"b", "1"}}
 	if len(rows) != len(want) {
 		t.Fatalf("want %v, got %v", want, rows)
 	}
@@ -117,7 +235,7 @@ func TestMergeResults_ReplaceExistingWithLowerScore(t *testing.T) {
 func TestMergeResults_LookupOutsideScorePrefix(t *testing.T) {
 	// The matching batch record sits between two other records in score
 	// order, so the positional boundary check of the old implementation
-	// could never see it.
+	// could never see it. The existing record keeps the higher score.
 	path := writeTempCSV(t, "a,5\n")
 	results := []Result{
 		newMockResult("b", 9, "b", "9"),
@@ -127,7 +245,7 @@ func TestMergeResults_LookupOutsideScorePrefix(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows := readCSVRows(t, path)
-	want := [][]string{{"b", "9"}, {"a", "3"}}
+	want := [][]string{{"b", "9"}, {"a", "5"}}
 	if len(rows) != len(want) {
 		t.Fatalf("want %v, got %v", want, rows)
 	}

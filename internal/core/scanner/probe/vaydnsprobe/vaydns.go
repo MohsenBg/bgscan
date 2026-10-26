@@ -201,12 +201,18 @@ func (v *VayDNSProbe) dialSSH(ctx context.Context, tunnel net.Conn) (func(contex
 	addr := net.JoinHostPort(v.cfg.Domain, strconv.Itoa(int(port)))
 
 	auth := ssh.SSHConfig{
-		Password:       v.cfg.Password,
-		User:           v.cfg.Username,
-		KnownHostsFile: v.cfg.KnownHostsFile,
+		Password:         v.cfg.Password,
+		User:             v.cfg.Username,
+		KnownHostsFile:   v.cfg.KnownHostsFile,
+		HandshakeTimeout: v.timeout,
 	}
 	if v.cfg.AuthMethod == dns.AuthKey {
-		auth = ssh.SSHConfig{PrivateKey: v.cfg.PrivateKey, KnownHostsFile: v.cfg.KnownHostsFile}
+		auth = ssh.SSHConfig{
+			User:             v.cfg.Username,
+			PrivateKey:       v.cfg.PrivateKey,
+			KnownHostsFile:   v.cfg.KnownHostsFile,
+			HandshakeTimeout: v.timeout,
+		}
 	}
 
 	type sshResult struct {

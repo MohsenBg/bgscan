@@ -143,6 +143,6 @@ func (m *Model) saveOutboundFromLinkCmd(link, filename string) tea.Cmd {
 			return nil
 		}
 		m.session.Env().Log.Info("Saved outbound link template: %s at path: %s", meta.Name, meta.Path)
-		return nil
+		return crud.RefreshMsg{}
 	}
 }

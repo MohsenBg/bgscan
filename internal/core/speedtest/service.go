@@ -157,7 +157,8 @@ func (s *service) MeasureDownloadSpeed(
 		}
 		return SpeedResult{}, fmt.Errorf("download probe failed: %w", err)
 	}
-	defer resp.Body.Close()
+
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return SpeedResult{}, fmt.Errorf("download probe unexpected status: %s", resp.Status)

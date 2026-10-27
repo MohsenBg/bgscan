@@ -17,11 +17,6 @@ type stageProgressMsg struct {
 	p  engine.Progress
 }
 
-type stageErrorMsg struct {
-	id  int
-	err error
-}
-
 type stageEndMsg struct{ id int }
 
 type pulseMsg struct{}

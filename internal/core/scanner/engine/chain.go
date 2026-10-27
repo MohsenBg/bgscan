@@ -15,97 +15,142 @@ const (
 )
 
 // RunScanWithChain executes a scan pipeline based on the configured chain mode.
-func RunScanWithChain(ctx context.Context, input string, cfg ChainConfig) {
+func RunScanWithChain(ctx context.Context, input string, cfg ChainConfig) error {
 	if len(cfg.Stages) == 0 {
-		return
+		return errNoStages
 	}
+
 	// scan-level stop reaching MaxSuccessfulIPs cancels this context,
 	ctx, stop := context.WithCancelCause(ctx)
 	defer stop(nil)
 
 	p := &pipeline{
-		ctx:  ctx,
-		cfg:  cfg,
-		stop: func() { stop(ErrResultLimitReached) },
+		ctx:    ctx,
+		cfg:    cfg,
+		cancel: stop,
 	}
 
+	var err error
 	switch cfg.Mode {
 	case ModeSequential:
-		p.runSequential(input)
+		err = p.runSequential(input)
 	case ModeStreaming:
-		p.runStreaming(input)
+		err = p.runStreaming(input)
 	case ModeBatch:
-		p.runBatch(input)
+		err = p.runBatch(input)
 	default:
 		cfg.Log.Error("unknown chain mode: %v", cfg.Mode)
 	}
 
 	if errors.Is(context.Cause(p.ctx), ErrResultLimitReached) {
 		cfg.Log.Info("scan finished early: result limit of %d reached", cfg.MaxSuccessfulIPs)
+		return nil
 	}
+
+	if err != nil {
+		return err
+	}
+
+	return p.stopCause()
 }
 
 // pipeline carries the shared state of a single chain run so stage helpers
 // don't need long parameter lists.
 type pipeline struct {
-	ctx  context.Context
-	cfg  ChainConfig
-	stop func()
+	ctx    context.Context
+	cfg    ChainConfig
+	cancel context.CancelCauseFunc
 }
 
 // stageErr converts executor errors into pipeline control flow. Reaching the
 // result limit means the scan is done: stop the whole pipeline.
 func (p *pipeline) stageErr(err error) error {
-	if errors.Is(err, ErrResultLimitReached) {
-		p.stop()
+	switch {
+	case errors.Is(err, ErrResultLimitReached):
+		p.cancel(nil)
+		return nil
+	case errors.Is(err, ErrWriterFatal):
+		p.cancel(ErrWriterFatal)
+		return err
+	default:
+		return err
+	}
+}
+
+// stopCause returns the pipeline's cancellation cause, treating an ordinary
+// user cancellation as a clean stop rather than an error.
+func (p *pipeline) stopCause() error {
+	cause := context.Cause(p.ctx)
+	if cause == nil || errors.Is(cause, context.Canceled) {
 		return nil
 	}
-	return err
+	return cause
 }
 
 // runSequential runs stages one after another using file-based outputs.
-func (p *pipeline) runSequential(input string) {
+func (p *pipeline) runSequential(input string) error {
 	current := input
 
 	for i, stage := range p.cfg.Stages {
 		if current == "" {
 			p.cfg.Log.Info("stage %d skipped (no input)", i+1)
-			return
+			return nil
 		}
 		if ctxDone(p.ctx) {
-			return
+			return p.stopCause()
 		}
 
 		p.cfg.Log.Info("stage %d/%d starting", i+1, len(p.cfg.Stages))
 
 		exec, err := newStageExecutor(p.ctx, stage, p.cfg, p.countInput(current), p.resultLimitFor(i))
 		if err != nil {
-			p.failStage(stage, err)
-			return
+			return err
 		}
 
-		p.streamStageFromFile(current, exec, nil, nil)
-		exec.close()
+		runErr := p.streamStageFromFile(current, exec, nil, nil)
+		runErr = errors.Join(runErr, exec.close())
+
+		if runErr != nil {
+			return runErr
+		}
 
 		current = stage.Writer.GetResultPath()
 		p.cfg.Log.Info("stage %d/%d completed", i+1, len(p.cfg.Stages))
 	}
+
+	return nil
 }
 
 // runStreaming runs all stages concurrently as a streaming pipeline.
-func (p *pipeline) runStreaming(input string) {
+func (p *pipeline) runStreaming(input string) (err error) {
 	total := p.countInput(input)
 	p.cfg.Log.Info("stream pipeline started: stages=%d ips=%d", len(p.cfg.Stages), total)
 
 	execs, err := p.buildExecutors(total)
 	if err != nil {
-		return
+		return err
 	}
-	defer closeExecutors(execs)
+	defer func() { err = errors.Join(err, closeExecutors(execs)) }()
 
 	channels := p.createStageChannels()
 
-	var wg sync.WaitGroup
+	var (
+		wg       sync.WaitGroup
+		errMu    sync.Mutex
+		firstErr error
+	)
+
+	record := func(err error) {
+		if err == nil {
+			return
+		}
+		errMu.Lock()
+		if firstErr == nil {
+			firstErr = err
+		}
+		errMu.Unlock()
+	}
+
 	for i := range p.cfg.Stages {
 		wg.Add(1)
 
@@ -117,34 +162,43 @@ func (p *pipeline) runStreaming(input string) {
 			defer closeOutputChannel(out)
 
 			if in == nil {
-				p.streamStageFromFile(input, execs[i], nextExec(execs, i), out)
+				record(p.streamStageFromFile(input, execs[i], nextExec(execs, i), out))
 			} else {
-				p.streamStage(execs[i], nextExec(execs, i), in, out)
+				record(p.streamStage(execs[i], nextExec(execs, i), in, out))
 			}
 		}()
 	}
 
 	wg.Wait()
+
+	if firstErr != nil {
+		return firstErr
+	}
+	return p.stopCause()
 }
 
 // runBatch runs the batch-based pipeline chain.
-func (p *pipeline) runBatch(input string) {
+func (p *pipeline) runBatch(input string) (err error) {
 	total := p.countInput(input)
 	batchSize := p.batchSize()
 	p.cfg.Log.Info("batch pipeline started: batch=%d ips=%d", batchSize, total)
 
 	execs, err := p.buildExecutors(total)
 	if err != nil {
-		return
+		return err
 	}
-	defer closeExecutors(execs)
+	defer func() { err = errors.Join(err, closeExecutors(execs)) }()
 
 	for batch := range p.streamBatches(input, batchSize) {
 		if ctxDone(p.ctx) {
-			return
+			return p.stopCause()
 		}
-		p.processBatch(batch, execs)
+		if err := p.processBatch(batch, execs); err != nil {
+			return err
+		}
 	}
+
+	return p.stopCause()
 }
 
 // resultLimitFor returns the success cap for stage i. Only the final stage
@@ -158,7 +212,6 @@ func (p *pipeline) resultLimitFor(i int) uint64 {
 
 // buildExecutors creates executors for all stages. Only the first stage gets
 // the initial IP count later stages accumulate totals as IPs are forwarded.
-// On failure, hooks fire and already-created executors are closed.
 func (p *pipeline) buildExecutors(firstTotal uint64) ([]*stageExecutor, error) {
 	execs := make([]*stageExecutor, 0, len(p.cfg.Stages))
 
@@ -170,20 +223,12 @@ func (p *pipeline) buildExecutors(firstTotal uint64) ([]*stageExecutor, error) {
 
 		exec, err := newStageExecutor(p.ctx, stage, p.cfg, total, p.resultLimitFor(i))
 		if err != nil {
-			p.failStage(stage, err)
-			closeExecutors(execs)
-			return nil, err
+			return nil, errors.Join(err, closeExecutors(execs))
 		}
 		execs = append(execs, exec)
 	}
 
 	return execs, nil
-}
-
-// failStage reports a stage setup failure through its hooks.
-func (p *pipeline) failStage(stage StageConfig, err error) {
-	stage.Hooks.callOnError(err)
-	stage.Hooks.callOnScanEnd()
 }
 
 // countInput returns the number of active IPs, logging (not propagating) failures.
@@ -298,25 +343,31 @@ func (p *pipeline) streamBatches(input string, batchSize int) <-chan []netip.Add
 }
 
 // processBatch runs a single batch through all stages.
-func (p *pipeline) processBatch(batch []netip.Addr, execs []*stageExecutor) {
+func (p *pipeline) processBatch(batch []netip.Addr, execs []*stageExecutor) error {
 	current := batch
 
 	for i, exec := range execs {
 		if len(current) == 0 || ctxDone(p.ctx) {
-			return
+			return p.stopCause()
 		}
 
-		current = p.runStageBatch(current, exec)
+		var err error
+		current, err = p.runStageBatch(current, exec)
+		if err != nil {
+			return err
+		}
 
 		if next := nextExec(execs, i); next != nil {
 			next.total.Add(uint64(len(current)))
 		}
 	}
+
+	return nil
 }
 
 // runStageBatch processes one batch through a single stage's worker pool and
 // returns the IPs that passed.
-func (p *pipeline) runStageBatch(batch []netip.Addr, exec *stageExecutor) []netip.Addr {
+func (p *pipeline) runStageBatch(batch []netip.Addr, exec *stageExecutor) ([]netip.Addr, error) {
 	input := make(chan netip.Addr, exec.workerCount()*2)
 	go func() {
 		defer close(input)
@@ -334,22 +385,25 @@ func (p *pipeline) runStageBatch(batch []netip.Addr, exec *stageExecutor) []neti
 		out = make([]netip.Addr, 0, len(batch))
 	)
 
-	exec.runPool(p.ctx, input, func(ip netip.Addr) error {
+	err := exec.runPool(p.ctx, p.cancel, input, func(ip netip.Addr) error {
 		if err := exec.processIP(p.ctx, ip); err != nil {
-			return p.stageErr(err)
+			return err // no classifier here
 		}
 		mu.Lock()
 		out = append(out, ip)
 		mu.Unlock()
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	return out
+	return out, nil
 }
 
 // streamStageFromFile runs a single stage reading IPs from a file. If out is
 // non-nil, passing IPs are forwarded to the next stage.
-func (p *pipeline) streamStageFromFile(input string, exec, next *stageExecutor, out chan netip.Addr) {
+func (p *pipeline) streamStageFromFile(input string, exec, next *stageExecutor, out chan netip.Addr) error {
 	in := make(chan netip.Addr, exec.workerCount()*2)
 	done := make(chan error, 1)
 
@@ -358,17 +412,24 @@ func (p *pipeline) streamStageFromFile(input string, exec, next *stageExecutor, 
 		done <- iplist.StreamActiveIPs(p.cfg.Log, p.ctx, input, p.cfg.MaxIPsToTest, p.cfg.Shuffled, in)
 	}()
 
-	p.streamStage(exec, next, in, out)
+	runErr := p.streamStage(exec, next, in, out)
 
-	if err := <-done; err != nil && !errors.Is(err, context.Canceled) {
-		p.cfg.Log.Error("stream error: %v", err)
-		exec.stage.Hooks.callOnError(err)
+	// A read failure stops the stage; a cancellation caused by an earlier
+	// pipeline stop is not an error of its own.
+	readErr := <-done
+	if errors.Is(readErr, context.Canceled) {
+		readErr = nil
 	}
+	if readErr != nil {
+		p.cfg.Log.Error("stream error: %v", readErr)
+	}
+
+	return errors.Join(runErr, readErr)
 }
 
 // streamStage runs a single stage over an input channel of IPs.
-func (p *pipeline) streamStage(exec, next *stageExecutor, in, out chan netip.Addr) {
-	exec.runPool(p.ctx, in, func(ip netip.Addr) error {
+func (p *pipeline) streamStage(exec, next *stageExecutor, in, out chan netip.Addr) error {
+	return exec.runPool(p.ctx, p.cancel, in, func(ip netip.Addr) error {
 		if err := exec.processIP(p.ctx, ip); err != nil {
 			return p.stageErr(err)
 		}
@@ -399,10 +460,12 @@ func nextExec(execs []*stageExecutor, i int) *stageExecutor {
 	return nil
 }
 
-func closeExecutors(execs []*stageExecutor) {
+func closeExecutors(execs []*stageExecutor) error {
+	errs := make([]error, 0, len(execs))
 	for _, e := range execs {
-		e.close()
+		errs = append(errs, e.close())
 	}
+	return errors.Join(errs...)
 }
 
 // ctxDone reports whether the context has been cancelled.

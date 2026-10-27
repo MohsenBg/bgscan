@@ -50,12 +50,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		return m, pulseCmd()
 
 	case scanErrorMsg:
-		return m, m.handleCriticalError(msg.err)
-
-	case stageErrorMsg:
-		if st := m.getStage(msg.id); st != nil && !st.finished() {
-			st.status = StatusError
-		}
+		m.err = msg.err
 		return m, m.handleCriticalError(msg.err)
 
 	case stageProgressMsg:
@@ -72,9 +67,7 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		if stage == nil {
 			return m, m.handleCriticalError(errors.New("stage not found"))
 		}
-		if stage.status != StatusError {
-			stage.status = StatusEnded
-		}
+		stage.status = StatusEnded
 		stage.mergeBatch()
 		return m, stage.updateProgressBar()
 	}

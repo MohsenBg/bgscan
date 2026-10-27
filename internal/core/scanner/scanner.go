@@ -73,13 +73,13 @@ type WriterFactory func(context.Context, result.WriterOptions) (result.Writer, e
 
 // scanRunner abstracts engine execution for testing.
 type scanRunner interface {
-	RunChain(context.Context, string, engine.ChainConfig)
+	RunChain(context.Context, string, engine.ChainConfig) error
 }
 
 type engineRunner struct{}
 
-func (engineRunner) RunChain(ctx context.Context, input string, cfg engine.ChainConfig) {
-	engine.RunScanWithChain(ctx, input, cfg)
+func (engineRunner) RunChain(ctx context.Context, input string, cfg engine.ChainConfig) error {
+	return engine.RunScanWithChain(ctx, input, cfg)
 }
 
 type scanner struct {
@@ -394,12 +394,11 @@ func (s *scanner) Run() error {
 	defer s.wg.Done()
 	defer s.pause.Stop()
 
-	s.runPipeline(stages)
-	return nil
+	return s.runPipeline(stages)
 }
 
 // runPipeline executes the scan stages, handling both single and multi-stage chains uniformly.
-func (s *scanner) runPipeline(stages []StageConfig) {
+func (s *scanner) runPipeline(stages []StageConfig) error {
 	general := s.config.General
 
 	engineStages := make([]engine.StageConfig, len(stages))
@@ -418,7 +417,7 @@ func (s *scanner) runPipeline(stages []StageConfig) {
 		mode = engine.ParsePipelineMode(general.PipelineMode)
 	}
 
-	s.runner.RunChain(s.ctx, s.input, engine.ChainConfig{
+	return s.runner.RunChain(s.ctx, s.input, engine.ChainConfig{
 		MaxIPsToTest:     uint64(max(general.MaxIPsToTest, 0)),
 		MaxSuccessfulIPs: uint64(max(general.MaxSuccessfulIPs, 0)),
 		Mode:             mode,

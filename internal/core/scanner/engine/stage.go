@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"sync/atomic"
 	"time"
@@ -15,6 +16,8 @@ import (
 
 // ErrResultLimitReached signals that the target success goal has been met.
 var ErrResultLimitReached = errors.New("result limit reached")
+var ErrWriterFatal = errors.New("writer fatal")
+var errNoStages = errors.New("scan chain has no stages")
 
 type stageExecutor struct {
 	log              *logger.Logger
@@ -49,8 +52,9 @@ func newStageExecutor(ctx context.Context, stage StageConfig, cfg ChainConfig, t
 		return nil, err
 	}
 	if err := exec.stage.Probe.Init(ctx); err != nil {
-		if stopErr := exec.stage.Writer.Stop(); stopErr != nil {
+		if stopErr := exec.stage.Writer.Close(); stopErr != nil {
 			exec.log.Error("stopping writer after probe init failure: %v", stopErr)
+			return nil, err
 		}
 		return nil, err
 	}
@@ -86,7 +90,10 @@ func (e *stageExecutor) startProgressReporter(ctx context.Context, interval time
 	}()
 }
 
-func (e *stageExecutor) close() {
+// close shuts the stage down and reports an error that may have left the
+// persisted results incomplete. Probe cleanup failures are logged only; the
+// scan is already over at that point.
+func (e *stageExecutor) close() error {
 	if e.stopProgress != nil {
 		select {
 		case <-e.stopProgress:
@@ -95,17 +102,21 @@ func (e *stageExecutor) close() {
 		}
 	}
 
-	if err := e.stage.Writer.Stop(); err != nil {
-		e.stage.Hooks.callOnError(err)
+	var closeErr error
+	if err := e.stage.Writer.Close(); err != nil {
+		e.log.Error("failed to close writer: %v", err)
+		closeErr = err
 	}
 
 	e.emitProgress()
 
 	if err := e.stage.Probe.Close(); err != nil {
-		e.stage.Hooks.callOnError(err)
+		e.log.Error("failed to close probe: %v", err)
 	}
 
 	e.stage.Hooks.callOnScanEnd()
+
+	return closeErr
 }
 
 func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) error {
@@ -139,7 +150,16 @@ func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) error {
 	}
 
 	e.stage.Hooks.callOnSuccess(res)
-	e.stage.Writer.Write(res)
+
+	if err := e.stage.Writer.Write(res); err != nil {
+		// A write error while the scan context is still alive means the
+		// writer died (for example a failed flush); that is fatal for the
+		// whole scan, not just this IP.
+		if ctx.Err() != nil {
+			return err
+		}
+		return fmt.Errorf("%w: %w", ErrWriterFatal, err)
+	}
 
 	if e.resultLimit > 0 && n >= e.resultLimit {
 		return ErrResultLimitReached

@@ -70,41 +70,75 @@ func (e *stageExecutor) workerCount() int {
 	return getWorkerCount(e.stage.Workers)
 }
 
-func (e *stageExecutor) runPool(ctx context.Context, input <-chan netip.Addr, process ipProcessor) {
-	workers := e.workerCount()
-
+func (e *stageExecutor) runPool(
+	ctx context.Context,
+	cancel context.CancelCauseFunc,
+	input <-chan netip.Addr,
+	process ipProcessor,
+) error {
 	var wg sync.WaitGroup
-	wg.Add(workers)
+	errCh := make(chan error, 1)
 
-	for range workers {
+	done := make(chan struct{})
+	go func() {
+		select {
+		case err := <-errCh:
+			cancel(err)
+		case <-ctx.Done():
+		case <-done:
+		}
+	}()
+
+	wg.Add(e.workerCount())
+	for range e.workerCount() {
 		go func() {
 			defer wg.Done()
-			e.runWorker(ctx, input, process)
+			if err := e.runWorker(ctx, input, process); err != nil {
+				select {
+				case errCh <- err:
+				default: // another worker reported first
+				}
+			}
 		}()
 	}
 
 	wg.Wait()
+	close(done)
+
+	if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, context.Canceled) {
+		return cause
+	}
+	return nil
 }
 
-func (e *stageExecutor) runWorker(ctx context.Context, input <-chan netip.Addr, process ipProcessor) {
+func (e *stageExecutor) runWorker(ctx context.Context, input <-chan netip.Addr, process ipProcessor) error {
 	for {
 		if e.pause != nil && !e.pause.Wait(ctx) {
-			return
+			return nil
 		}
 
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 
 		case ip, ok := <-input:
 			if !ok {
-				return
+				return nil
 			}
 			if err := process(ip); err != nil {
+				if terminating(err) {
+					return err
+				}
 				e.logIPError(ip, err)
 			}
 		}
 	}
+}
+
+// terminating reports whether err ends the whole scan (vs. a single IP failing).
+func terminating(err error) bool {
+	return errors.Is(err, ErrResultLimitReached) ||
+		errors.Is(err, ErrWriterFatal)
 }
 
 func getWorkerCount(workers int) int {

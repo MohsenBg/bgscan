@@ -24,7 +24,6 @@ const (
 	StatusWaiting StageStatus = iota + 1
 	StatusScanning
 	StatusEnded
-	StatusError
 )
 
 // String returns a human-readable representation of the stage status.
@@ -36,8 +35,6 @@ func (s StageStatus) String() string {
 		return "Scanning"
 	case StatusEnded:
 		return "Ended"
-	case StatusError:
-		return "Error"
 	default:
 		return "Unknown"
 	}
@@ -107,7 +104,6 @@ func (s *scanStage) progressModel() *progress.Model {
 // hooks returns the engine callbacks that feed this stage's state.
 func (s *scanStage) hooks() engine.ScanHooks {
 	return engine.ScanHooks{
-		OnError:    s.onEngineError,
 		OnProgress: s.onEngineProgress,
 		OnSuccess:  s.onEngineSuccess,
 		OnScanEnd:  s.onEngineScanEnd,
@@ -125,11 +121,6 @@ func (s *scanStage) onEngineSuccess(r result.Result) {
 // onEngineProgress forwards progress to the UI goroutine.
 func (s *scanStage) onEngineProgress(p engine.Progress) {
 	s.program.Send(stageProgressMsg{s.id, p})
-}
-
-// onEngineError forwards the error to the UI goroutine.
-func (s *scanStage) onEngineError(err error) {
-	s.program.Send(stageErrorMsg{s.id, err})
 }
 
 // onEngineScanEnd notifies the UI goroutine that the stage completed.
@@ -266,8 +257,4 @@ func (s *scanStage) resize(w, h int) {
 	if pb := s.progressModel(); pb != nil {
 		pb.SetWidth(w)
 	}
-}
-
-func (s *scanStage) finished() bool {
-	return s.status == StatusEnded || s.status == StatusError
 }

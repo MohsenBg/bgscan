@@ -28,7 +28,7 @@ func newWriterForTest(t *testing.T, ctx context.Context, cfg config.WriterConfig
 
 func TestNewWriter_NilContextUsesBackground(t *testing.T) {
 	w := newWriterForTest(t, nil, defaultTestWriterConfig(t))
-	if err := w.Stop(); err != nil {
+	if err := w.Close(); err != nil {
 		t.Fatalf("Stop() error: %v", err)
 	}
 }
@@ -63,10 +63,10 @@ func TestWriter_StartAndStopAreIdempotent(t *testing.T) {
 	if err := w.Start(); err != nil {
 		t.Fatalf("second Start() error: %v", err)
 	}
-	if err := w.Stop(); err != nil {
+	if err := w.Close(); err != nil {
 		t.Fatalf("first Stop() error: %v", err)
 	}
-	if err := w.Stop(); err != nil {
+	if err := w.Close(); err != nil {
 		t.Fatalf("second Stop() error: %v", err)
 	}
 }
@@ -74,7 +74,7 @@ func TestWriter_StartAndStopAreIdempotent(t *testing.T) {
 func TestWriter_StopWithoutStart(t *testing.T) {
 	w := newWriterForTest(t, context.Background(), defaultTestWriterConfig(t))
 
-	if err := w.Stop(); err != nil {
+	if err := w.Close(); err != nil {
 		t.Fatalf("Stop() error: %v", err)
 	}
 }
@@ -85,9 +85,9 @@ func TestWriter_WriteFlushesOnStop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	w.Write(newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9"))
-	w.Write(newMockResult("5.6.7.8", 0.5, "5.6.7.8", "0.5"))
-	if err := w.Stop(); err != nil {
+	_ = w.Write(newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9"))
+	_ = w.Write(newMockResult("5.6.7.8", 0.5, "5.6.7.8", "0.5"))
+	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -111,10 +111,10 @@ func TestWriter_SortsResultsByScore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	w.Write(newMockResult("c", 0.1, "c", "0.1"))
-	w.Write(newMockResult("a", 0.9, "a", "0.9"))
-	w.Write(newMockResult("b", 0.5, "b", "0.5"))
-	if err := w.Stop(); err != nil {
+	_ = w.Write(newMockResult("c", 0.1, "c", "0.1"))
+	_ = w.Write(newMockResult("a", 0.9, "a", "0.9"))
+	_ = w.Write(newMockResult("b", 0.5, "b", "0.5"))
+	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -140,11 +140,13 @@ func TestWriter_WriteAfterStopIsDropped(t *testing.T) {
 	if err := w.Start(); err != nil {
 		t.Fatal(err)
 	}
-	if err := w.Stop(); err != nil {
+	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
 
-	w.Write(newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9"))
+	if err := w.Write(newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9")); err == nil {
+		t.Error("Write() error = nil, want an error after Close")
+	}
 	if path := w.GetResultPath(); path != "" {
 		t.Errorf("GetResultPath() = %q, want empty path", path)
 	}
@@ -157,18 +159,16 @@ func TestWriter_ConcurrentWrites(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < 50; i++ {
-				w.Write(newMockResult("10.0.0.1", 0.5, "10.0.0.1", "0.5"))
+	for range 10 {
+		wg.Go(func() {
+			for range 50 {
+				_ = w.Write(newMockResult("10.0.0.1", 0.5, "10.0.0.1", "0.5"))
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
-	if err := w.Stop(); err != nil {
+	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if path := w.GetResultPath(); path == "" {
@@ -183,10 +183,10 @@ func TestWriter_ContextCancelFlushesQueuedResults(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	w.Write(newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9"))
+	_ = w.Write(newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9"))
 	cancel()
 
-	if err := w.Stop(); err != nil {
+	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
 

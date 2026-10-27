@@ -101,6 +101,7 @@ func (p *filteringProbe) Run(_ context.Context, ip netip.Addr) (result.Result, e
 type mockWriter struct {
 	startErr error
 	stopErr  error
+	writeErr error
 
 	mu      sync.Mutex
 	written []result.Result
@@ -111,14 +112,21 @@ type mockWriter struct {
 	resultPath string
 }
 
-func (w *mockWriter) Start() error          { w.startCalled.Add(1); return w.startErr }
-func (w *mockWriter) Stop() error           { w.stopCalled.Add(1); return w.stopErr }
-func (w *mockWriter) GetResultPath() string { return w.resultPath }
-func (w *mockWriter) Write(r result.Result) {
+func (w *mockWriter) Start() error { w.startCalled.Add(1); return w.startErr }
+func (w *mockWriter) Close() error { w.stopCalled.Add(1); return w.stopErr }
+func (w *mockWriter) GetResultPath() string {
+	return w.resultPath
+}
+func (w *mockWriter) Write(r result.Result) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	if w.writeErr != nil {
+		return w.writeErr
+	}
 	w.written = append(w.written, r)
+	return nil
 }
+func (w *mockWriter) Stats() result.WriterStats { return result.WriterStats{} }
 
 func (w *mockWriter) results() []result.Result {
 	w.mu.Lock()

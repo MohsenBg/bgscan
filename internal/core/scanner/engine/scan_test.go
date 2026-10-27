@@ -19,7 +19,7 @@ func TestRunScan_EmptyInput(t *testing.T) {
 	w := &mockWriter{}
 	endCh := make(chan struct{}, 1)
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	_ = RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -54,7 +54,7 @@ func TestRunScan_ScansAllIPs(t *testing.T) {
 	var successCount atomic.Int32
 	endCh := make(chan struct{}, 1)
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	_ = RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -87,10 +87,7 @@ func TestRunScan_ProbeInitError(t *testing.T) {
 	prb := &mockProbe{initErr: errors.New("init failed")}
 	w := &mockWriter{}
 
-	var gotErr error
-	endCh := make(chan struct{}, 1)
-
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	gotErr := RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -98,20 +95,14 @@ func TestRunScan_ProbeInitError(t *testing.T) {
 				Workers: 1,
 				Probe:   prb,
 				Writer:  w,
-				Hooks: ScanHooks{
-					OnError:   func(e error) { gotErr = e },
-					OnScanEnd: func() { endCh <- struct{}{} },
-				},
 			},
 		},
 		Shuffled: false,
 		Pause:    NewPauseController(),
 	})
 
-	<-endCh
-
 	if gotErr == nil {
-		t.Fatal("expected OnError to be called when probe init fails")
+		t.Fatal("expected probe init error")
 	}
 	if prb.runCalled.Load() != 0 {
 		t.Fatal("probe Run should not be called when Init fails")
@@ -126,7 +117,7 @@ func TestRunScan_ProbeRunError(t *testing.T) {
 	var successCount atomic.Int32
 	endCh := make(chan struct{}, 1)
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	_ = RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -154,15 +145,43 @@ func TestRunScan_ProbeRunError(t *testing.T) {
 	}
 }
 
+func TestRunScan_WriterWriteErrorIsFatal(t *testing.T) {
+	ips := make([]string, 200)
+	for i := range ips {
+		ips[i] = fmt.Sprintf("10.0.%d.%d", i/256, i%256)
+	}
+	path := ipFile(t, ips...)
+	prb := &mockProbe{}
+	w := &mockWriter{writeErr: errors.New("disk full")}
+
+	err := RunScanWithChain(context.Background(), path, ChainConfig{
+		MaxIPsToTest: 0,
+		Mode:         ModeSequential,
+		Stages: []StageConfig{
+			{
+				Workers: 4,
+				Probe:   prb,
+				Writer:  w,
+			},
+		},
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
+
+	if !errors.Is(err, ErrWriterFatal) {
+		t.Fatalf("expected ErrWriterFatal, got %v", err)
+	}
+	if got := len(w.results()); got != 0 {
+		t.Fatalf("expected no persisted results, got %d", got)
+	}
+}
+
 func TestRunScan_WriterStartError(t *testing.T) {
 	path := ipFile(t, "1.2.3.4")
 	prb := &mockProbe{}
 	w := &mockWriter{startErr: errors.New("disk full")}
 
-	var gotErr error
-	endCh := make(chan struct{}, 1)
-
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	gotErr := RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -170,20 +189,14 @@ func TestRunScan_WriterStartError(t *testing.T) {
 				Workers: 1,
 				Probe:   prb,
 				Writer:  w,
-				Hooks: ScanHooks{
-					OnError:   func(e error) { gotErr = e },
-					OnScanEnd: func() { endCh <- struct{}{} },
-				},
 			},
 		},
 		Shuffled: false,
 		Pause:    NewPauseController(),
 	})
 
-	<-endCh
-
 	if gotErr == nil {
-		t.Fatal("expected OnError when writer Start fails")
+		t.Fatal("expected writer Start error")
 	}
 }
 
@@ -205,7 +218,7 @@ func TestRunScan_ContextCancellation(t *testing.T) {
 		cancel()
 	}()
 
-	RunScanWithChain(ctx, path, ChainConfig{
+	_ = RunScanWithChain(ctx, path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -240,7 +253,7 @@ func TestRunScan_MaxIPLimit(t *testing.T) {
 	const maxIPs uint64 = 2
 	endCh := make(chan struct{}, 1)
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	_ = RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: maxIPs,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -281,7 +294,7 @@ func TestRunScan_PauseAndResumeDuringRun(t *testing.T) {
 		pc.Resume()
 	}()
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	_ = RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -319,7 +332,7 @@ func TestRunScan_OnProgressCallback(t *testing.T) {
 	var progressCalls atomic.Int32
 	endCh := make(chan struct{}, 1)
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	_ = RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -386,7 +399,7 @@ func TestWorkerPool_ConcurrencyRespected(t *testing.T) {
 	w := &mockWriter{}
 	endCh := make(chan struct{}, 1)
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	_ = RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -420,7 +433,7 @@ func TestWorkerPool_ZeroWorkersDefaultsToOne(t *testing.T) {
 	w := &mockWriter{}
 	endCh := make(chan struct{}, 1)
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	_ = RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{
@@ -461,7 +474,7 @@ func TestProgress_FieldsViaScan(t *testing.T) {
 	)
 	endCh := make(chan struct{}, 1)
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	_ = RunScanWithChain(context.Background(), path, ChainConfig{
 		MaxIPsToTest: 0,
 		Mode:         ModeSequential,
 		Stages: []StageConfig{

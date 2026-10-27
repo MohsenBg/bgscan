@@ -61,15 +61,6 @@ type ScanHooks struct {
 
 	// OnScanEnd is invoked when the stage completes.
 	OnScanEnd func()
-
-	// OnError is invoked when a fatal error occurs.
-	OnError func(error)
-}
-
-func (h ScanHooks) callOnError(err error) {
-	if h.OnError != nil {
-		h.OnError(err)
-	}
 }
 
 func (h ScanHooks) callOnSuccess(r result.Result) {

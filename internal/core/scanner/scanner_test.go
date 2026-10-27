@@ -768,10 +768,11 @@ type fakeWriter struct {
 	path    string
 }
 
-func (w *fakeWriter) Start() error          { w.started.Add(1); return nil }
-func (w *fakeWriter) Stop() error           { w.stopped.Add(1); return nil }
-func (w *fakeWriter) Write(r result.Result) { w.writes.Add(1) }
-func (w *fakeWriter) GetResultPath() string { return w.path }
+func (w *fakeWriter) Start() error                { w.started.Add(1); return nil }
+func (w *fakeWriter) Close() error                { w.stopped.Add(1); return nil }
+func (w *fakeWriter) Write(r result.Result) error { w.writes.Add(1); return nil }
+func (w *fakeWriter) GetResultPath() string       { return w.path }
+func (w *fakeWriter) Stats() result.WriterStats   { return result.WriterStats{} }
 
 type fakeRunner struct {
 	mu sync.Mutex
@@ -782,15 +783,17 @@ type fakeRunner struct {
 
 	started chan struct{}
 	wait    bool
+	runErr  error
 }
 
-func (r *fakeRunner) RunChain(ctx context.Context, input string, cfg engine.ChainConfig) {
+func (r *fakeRunner) RunChain(ctx context.Context, input string, cfg engine.ChainConfig) error {
 	r.mu.Lock()
 	r.chainCalls++
 	r.chainInput = input
 	r.chainCfg = cfg
 	started := r.started
 	wait := r.wait
+	err := r.runErr
 	r.mu.Unlock()
 
 	if started != nil {
@@ -799,6 +802,7 @@ func (r *fakeRunner) RunChain(ctx context.Context, input string, cfg engine.Chai
 	if wait {
 		<-ctx.Done()
 	}
+	return err
 }
 
 func TestRun_OneStageUsesSingleRunner(t *testing.T) {

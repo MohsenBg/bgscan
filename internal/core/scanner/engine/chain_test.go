@@ -9,7 +9,10 @@ import (
 )
 
 func TestRunScanWithChain_EmptyStages(t *testing.T) {
-	RunScanWithChain(context.Background(), "", ChainConfig{})
+	err := RunScanWithChain(context.Background(), "", ChainConfig{})
+	if err == nil {
+		t.Error("expected err empty stage")
+	}
 }
 
 func TestRunScanWithChain_Sequential_TwoStages(t *testing.T) {
@@ -28,7 +31,7 @@ func TestRunScanWithChain_Sequential_TwoStages(t *testing.T) {
 	pc := NewPauseController()
 	defer pc.Stop()
 
-	RunScanWithChain(context.Background(), stage1Path, ChainConfig{
+	_ = RunScanWithChain(context.Background(), stage1Path, ChainConfig{
 		Mode:  ModeSequential,
 		Pause: pc,
 		Stages: []StageConfig{
@@ -61,7 +64,7 @@ func TestRunScanWithChain_Sequential_SkipsOnEmptyIntermediate(t *testing.T) {
 	prb2 := &mockProbe{}
 	endCh1 := make(chan struct{}, 1)
 
-	RunScanWithChain(context.Background(), stage1Input, ChainConfig{
+	_ = RunScanWithChain(context.Background(), stage1Input, ChainConfig{
 		Mode:  ModeSequential,
 		Pause: NewPauseController(),
 		Stages: []StageConfig{
@@ -92,7 +95,7 @@ func TestRunScanWithChain_Streaming_TwoStages(t *testing.T) {
 	pc := NewPauseController()
 	defer pc.Stop()
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	if err := RunScanWithChain(context.Background(), path, ChainConfig{
 		Mode:      ModeStreaming,
 		MaxBuffer: 100,
 		Pause:     pc,
@@ -100,7 +103,9 @@ func TestRunScanWithChain_Streaming_TwoStages(t *testing.T) {
 			{Workers: 2, Probe: prb1, Writer: &mockWriter{}, Hooks: ScanHooks{OnScanEnd: func() { end1.Add(1) }}},
 			{Workers: 2, Probe: prb2, Writer: &mockWriter{}, Hooks: ScanHooks{OnScanEnd: func() { end2.Add(1) }}},
 		},
-	})
+	}); err != nil {
+		t.Fatalf("RunScanWithChain() error = %v", err)
+	}
 
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
@@ -142,7 +147,7 @@ func TestRunScanWithChain_Streaming_ContextCancellation(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		RunScanWithChain(ctx, path, ChainConfig{
+		_ = RunScanWithChain(ctx, path, ChainConfig{
 			Mode:  ModeStreaming,
 			Pause: NewPauseController(),
 			Stages: []StageConfig{
@@ -173,7 +178,7 @@ func TestRunScanWithChain_Batch_TwoStages(t *testing.T) {
 	pc := NewPauseController()
 	defer pc.Stop()
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	if err := RunScanWithChain(context.Background(), path, ChainConfig{
 		Mode:      ModeBatch,
 		BatchSize: 5,
 		Pause:     pc,
@@ -181,7 +186,9 @@ func TestRunScanWithChain_Batch_TwoStages(t *testing.T) {
 			{Workers: 2, Probe: prb1, Writer: &mockWriter{}, Hooks: ScanHooks{OnScanEnd: func() { end1.Add(1) }}},
 			{Workers: 2, Probe: prb2, Writer: &mockWriter{}, Hooks: ScanHooks{OnScanEnd: func() { end2.Add(1) }}},
 		},
-	})
+	}); err != nil {
+		t.Fatalf("RunScanWithChain() error = %v", err)
+	}
 
 	if end1.Load() == 0 {
 		t.Fatal("batch stage 1 OnScanEnd not called")
@@ -203,7 +210,7 @@ func TestRunScanWithChain_Batch_FiltersProperly(t *testing.T) {
 
 	prb2 := &mockProbe{}
 
-	RunScanWithChain(context.Background(), path, ChainConfig{
+	if err := RunScanWithChain(context.Background(), path, ChainConfig{
 		Mode:      ModeBatch,
 		BatchSize: 10,
 		Pause:     NewPauseController(),
@@ -215,7 +222,9 @@ func TestRunScanWithChain_Batch_FiltersProperly(t *testing.T) {
 			},
 			{Workers: 1, Probe: prb2, Writer: &mockWriter{}},
 		},
-	})
+	}); err != nil {
+		t.Fatalf("RunScanWithChain() error = %v", err)
+	}
 
 	if got := prb2.runCalled.Load(); got != 2 {
 		t.Fatalf("expected stage 2 to be called 2 times, got %d", got)

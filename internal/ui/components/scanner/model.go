@@ -46,6 +46,7 @@ type Model struct {
 
 	closing bool
 	width   int
+	err     error
 }
 
 // New builds the scanner model and wires stage hooks for progress/result updates.
@@ -95,10 +96,6 @@ func (m *Model) Init() tea.Cmd {
 		return nil
 	}
 	return tea.Batch(tea.Cmd(runCmd), pulseCmd(), m.tabs.Init())
-}
-
-func (m *Model) SetLayoutSize(w, h int) {
-
 }
 
 // current returns the active stage for the current tab.

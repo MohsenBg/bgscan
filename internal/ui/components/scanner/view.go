@@ -93,11 +93,14 @@ func (m *Model) renderStatusTitle(th *theme.Theme) string {
 	if m.scanner.IsPaused() {
 		return statusPaused.render(th, m.pulse)
 	}
+
+	if m.err != nil {
+		return statusError.render(th, m.pulse)
+	}
+
 	switch m.current().status {
 	case StatusScanning:
 		return statusScanning.render(th, m.pulse)
-	case StatusError:
-		return statusError.render(th, m.pulse)
 	case StatusWaiting:
 		return statusWaiting.render(th, m.pulse)
 	case StatusEnded:

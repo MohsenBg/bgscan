@@ -26,8 +26,10 @@ const (
 // dial, and the live-view subscribers. All children created via With share
 // the same sink.
 type sink struct {
-	file  io.Writer // *lumberjack.Logger, or nil for discarded loggers
-	path  string    // file path (for tailing); "" for discarded loggers
+	file   io.Writer // *lumberjack.Logger, or nil for discarded loggers
+	fileMu sync.Mutex
+
+	path  string // file path (for tailing); "" for discarded loggers
 	level *slog.LevelVar
 
 	subClosed bool
@@ -38,9 +40,6 @@ type sink struct {
 // broadcast fans one formatted line out to every live subscriber without
 // blocking (full buffers drop the line, matching the previous behavior).
 func (s *sink) broadcast(line string) {
-	if s.file == nil {
-		return
-	}
 	s.subsMu.RLock()
 	defer s.subsMu.RUnlock()
 	for _, ch := range s.subs {
@@ -53,10 +52,12 @@ func (s *sink) broadcast(line string) {
 
 // raw writes content verbatim (no formatting) and fans it out.
 func (s *sink) raw(content string) {
-	if s.file == nil {
-		return
+	s.fileMu.Lock()
+	if f := s.file; f != nil {
+		_, _ = io.WriteString(f, content)
 	}
-	_, _ = io.WriteString(s.file, content)
+	s.fileMu.Unlock()
+
 	s.broadcast(content)
 }
 
@@ -253,7 +254,16 @@ func (l *Logger) Slog() *slog.Logger {
 func (l *Logger) Subscribe(buffer, tailLast int) chan string {
 	ch := make(chan string, buffer)
 
-	if l == nil || l.sink == nil || l.sink.file == nil {
+	if l == nil || l.sink == nil {
+		close(ch)
+		return ch
+	}
+
+	l.sink.fileMu.Lock()
+	active := l.sink.file != nil
+	l.sink.fileMu.Unlock()
+
+	if !active {
 		close(ch)
 		return ch
 	}
@@ -318,10 +328,12 @@ func (l *Logger) Close() {
 	}
 	l.sink.subsMu.Unlock()
 
+	l.sink.fileMu.Lock()
 	if file, ok := l.sink.file.(*lumberjack.Logger); ok {
 		_ = file.Close()
 	}
 	l.sink.file = nil // further writes are discarded
+	l.sink.fileMu.Unlock()
 }
 
 // format renders the printf-style call into a plain string.

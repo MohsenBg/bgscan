@@ -17,7 +17,6 @@ type handler struct {
 	sink   *sink
 	attrs  []slog.Attr // accumulated via With
 	groups []string    // accumulated via WithGroup
-	// Enabled is answered from the shared level dial.
 }
 
 var _ slog.Handler = (*handler)(nil)
@@ -27,7 +26,7 @@ func (h *handler) Enabled(_ context.Context, level slog.Level) bool {
 }
 
 func (h *handler) Handle(_ context.Context, r slog.Record) error {
-	if h.sink == nil || h.sink.file == nil {
+	if h.sink == nil {
 		return nil
 	}
 
@@ -48,7 +47,12 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 
 	line := b.String()
 
-	_, _ = io.WriteString(h.sink.file, line+"\n")
+	h.sink.fileMu.Lock()
+	if f := h.sink.file; f != nil {
+		_, _ = io.WriteString(f, line+"\n")
+	}
+	h.sink.fileMu.Unlock()
+
 	h.sink.broadcast(line)
 
 	return nil

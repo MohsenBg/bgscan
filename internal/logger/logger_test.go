@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -293,6 +294,69 @@ func TestSetLevelAppliesToEveryLogger(t *testing.T) {
 	}
 
 	s.Close()
+}
+
+func TestConcurrentCloseAndLog(t *testing.T) {
+	l, err := New("race.log", WithDir(t.TempDir()), WithLevel(slog.LevelDebug))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	ch := l.Subscribe(32, 0)
+	drained := make(chan struct{})
+	go func() {
+		defer close(drained)
+		for range ch { // ends when Close closes the channel
+		}
+	}()
+
+	const workers = 8
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+	started := make(chan struct{}, workers)
+
+	for i := range workers {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			child := l.With("worker", id)
+			started <- struct{}{}
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				l.Info("concurrent info %d", id)
+				l.Debug("concurrent debug %d", id)
+				l.Warn("concurrent warn %d", id)
+				child.Error("concurrent child error %d", id)
+				l.Dump("payload", map[string]int{"worker": id})
+				l.Slog().Info("via slog", "worker", id)
+				l.SetLevel(slog.LevelDebug)
+			}
+		}(i)
+	}
+
+	for range workers {
+		<-started
+	}
+
+	l.Close()
+	close(stop)
+	wg.Wait()
+
+	select {
+	case <-drained:
+	case <-time.After(2 * time.Second):
+		t.Fatal("subscriber channel was not closed by Close()")
+	}
+
+	l.Info("after close")
+	l.Dump("after", map[string]bool{"closed": true})
+	l.Slog().Info("after close via slog")
+	l.With("late", true).Info("child after close")
+	l.Close()
 }
 
 func readFileString(path string) (string, error) {

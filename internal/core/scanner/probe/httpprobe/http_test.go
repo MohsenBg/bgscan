@@ -16,8 +16,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
-// --- helpers ---
-
 // newTestProbe constructs an HTTPProbe that routes requests to the provided
 // test server, bypassing the actual target IP resolution.
 func newTestProbe(ts *httptest.Server, req HTTPRequest, acceptedCodes []int) *HTTPProbe {
@@ -46,8 +44,6 @@ func newTestProbe(ts *httptest.Server, req HTTPRequest, acceptedCodes []int) *HT
 func mustParseAddr(s string) netip.Addr {
 	return netip.MustParseAddr(s)
 }
-
-// --- NewHTTPProbe ---
 
 func TestNewHTTPProbe_ReturnsProbe(t *testing.T) {
 	req := HTTPRequest{
@@ -89,8 +85,6 @@ func TestNewHTTPProbe_EmptyCodesAcceptsAll(t *testing.T) {
 	}
 }
 
-// --- Init / Close ---
-
 func TestHTTPProbe_Init(t *testing.T) {
 	p := &HTTPProbe{}
 	if err := p.Init(context.Background()); err != nil {
@@ -104,8 +98,6 @@ func TestHTTPProbe_Close(t *testing.T) {
 		t.Errorf("Close() = %v, want nil", err)
 	}
 }
-
-// --- Schema ---
 
 func TestHTTPProbe_Schema(t *testing.T) {
 	p := &HTTPProbe{}
@@ -121,8 +113,6 @@ func TestHTTPProbe_Schema(t *testing.T) {
 		t.Errorf("Schema().Columns len = %d, want 5", len(s.Columns))
 	}
 }
-
-// --- Run: success cases ---
 
 func TestRun_Success_200(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -224,8 +214,6 @@ func TestRun_UsesHEADMethod(t *testing.T) {
 	}
 }
 
-// --- Run: failure cases ---
-
 func TestRun_StatusNotAccepted(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -324,8 +312,6 @@ func TestRun_ServerTimeout(t *testing.T) {
 	}
 }
 
-// --- Run: TLS ---
-
 func TestRun_TLS_Success(t *testing.T) {
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -353,8 +339,6 @@ func TestRun_TLS_Success(t *testing.T) {
 	}
 }
 
-// --- tlsNextProto ---
-
 func TestTLSNextProto_H1(t *testing.T) {
 	m := tlsNextProto(HTTPVersionH1)
 	if m == nil {
@@ -378,8 +362,6 @@ func TestTLSNextProto_H1H2(t *testing.T) {
 		t.Errorf("expected nil for H1H2, got %v", m)
 	}
 }
-
-// --- newStdClient ---
 
 func TestBuildClient_TransportConfig(t *testing.T) {
 	tlsCfg := &tls.Config{ServerName: "example.com"}
@@ -446,9 +428,6 @@ func TestBuildClient_H2_ForcesHTTP2(t *testing.T) {
 	}
 }
 
-// TestBuildClient_H1H2NegotiatesHTTP2 is the regression test for F6. The
-// default h1,h2 mode has both a custom TLS config and a custom dialer, so Go
-// only attempts HTTP/2 when ForceAttemptHTTP2 is set.
 func TestBuildClient_H1H2NegotiatesHTTP2(t *testing.T) {
 	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -539,8 +518,6 @@ func TestBuildClient_DialRedirectsToIP(t *testing.T) {
 	}
 }
 
-// --- Run: result implements probe interface ---
-
 func TestRun_ResultImplementsInterface(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -562,8 +539,6 @@ func TestRun_ResultImplementsInterface(t *testing.T) {
 		t.Errorf("KeyType() = %v, want KeyIP", res.KeyType())
 	}
 }
-
-// --- Run: multiple sequential calls ---
 
 func TestRun_MultipleCalls(t *testing.T) {
 	callCount := 0

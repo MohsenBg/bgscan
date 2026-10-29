@@ -14,11 +14,10 @@ type Program interface {
 }
 
 type Session struct {
-	env     *Env
-	Config  *config.ScannerConfig
-	Store   *config.Store
-	Program Program
-	core    logger.Logger
+	env    *Env
+	Config *config.ScannerConfig
+	Store  *config.Store
+	core   logger.Logger
 }
 
 // Env bundles what leaf components need to render and log.
@@ -28,6 +27,7 @@ type Env struct {
 	Keys     *keys.Keys
 	Log      logger.Logger
 	Settings UISettings
+	Program  Program
 }
 
 func NewSession(settings UISettings, ui logger.Logger, core logger.Logger) *Session {
@@ -77,4 +77,8 @@ func (s *Session) SetTheme(name string) (tea.Cmd, error) {
 		return nil, err
 	}
 	return theme.ThemeChangedCmd(), nil
+}
+
+func (s *Session) SetProgram(program Program) {
+	s.Env().Program = program
 }

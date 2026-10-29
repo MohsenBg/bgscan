@@ -310,6 +310,17 @@ func (l *Logger) Unsubscribe(ch chan string) {
 	}
 }
 
+// SubscriberCount reports how many live-view subscribers are currently
+// attached. Used by the UI to make sure views unsubscribe on close.
+func (l *Logger) SubscriberCount() int {
+	if l == nil || l.sink == nil {
+		return 0
+	}
+	l.sink.subsMu.RLock()
+	defer l.sink.subsMu.RUnlock()
+	return len(l.sink.subs)
+}
+
 // Close writes a session-end marker and closes subscriber channels.
 // Safe to call more than once.
 func (l *Logger) Close() {

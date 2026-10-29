@@ -11,6 +11,11 @@ import (
 
 var logPattern = regexp.MustCompile(`^(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)$`)
 
+type logEntry struct {
+	raw  string
+	rows []string
+}
+
 type logParts struct {
 	Timestamp string
 	Level     string
@@ -68,19 +73,12 @@ func formatLogLine(th *theme.Theme, line string) string {
 	return ts + " " + lvl + " " + msg
 }
 
-// formatLogLines colorizes multiple log lines with spacing between them.
-func formatLogLines(th *theme.Theme, lines []string) string {
-	if len(lines) == 0 {
-		return ""
+// renderRows styles one log line and wraps it to width.
+func renderRows(th *theme.Theme, line string, width int) []string {
+	styled := formatLogLine(th, line)
+	if width <= 0 {
+		return []string{styled}
 	}
 
-	var b strings.Builder
-	for i, line := range lines {
-		if i > 0 {
-			b.WriteString("\n")
-		}
-		b.WriteString(formatLogLine(th, line))
-	}
-
-	return b.String()
+	return strings.Split(lipgloss.Wrap(styled, width, ""), "\n")
 }

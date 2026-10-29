@@ -28,11 +28,11 @@ func (s *source) Name() string {
 
 func (s *source) Columns() []table.Column {
 	return []table.Column{
-		{Title: "Name", Width: 40},
-		{Title: "Protocol", Width: 15},
-		{Title: "Network", Width: 15},
-		{Title: "Security", Width: 10},
-		{Title: "Created", Width: 20},
+		{Title: "Name", Width: 30},
+		{Title: "Protocol", Width: 14},
+		{Title: "Network", Width: 14},
+		{Title: "Security", Width: 14},
+		{Title: "Created", Width: 28},
 	}
 }
 

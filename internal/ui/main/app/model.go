@@ -60,7 +60,7 @@ func New(uiLogger, coreLogger logger.Logger) Application {
 
 // SetProgram stores the program for commands that need it.
 func (m *model) SetProgram(program ui.Program) {
-	m.session.Program = program
+	m.session.SetProgram(program)
 }
 
 // Init starts the splash screen.

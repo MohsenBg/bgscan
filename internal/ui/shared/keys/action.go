@@ -76,6 +76,12 @@ const (
 	ActionScanCancel Action = "scan.cancel"
 )
 
+// Log view
+const (
+	ActionLogViewHalfPageUp   Action = "logview.half_page_up"
+	ActionLogViewHalfPageDown Action = "logview.half_page_down"
+)
+
 // Inspector
 const (
 	ActionInspectorEdit        Action = "inspector.edit"

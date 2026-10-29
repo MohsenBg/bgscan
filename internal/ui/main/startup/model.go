@@ -287,8 +287,9 @@ func (m *model) runConfigCheck(abort *atomic.Bool) bool {
 		return false
 	}
 
-	if m.session.Program != nil {
-		m.session.Program.Send(configLoadedMsg{cfg: cfg, store: store})
+	env := m.session.Env()
+	if env.Program != nil {
+		env.Program.Send(configLoadedMsg{cfg: cfg, store: store})
 	}
 
 	m.logCh <- categoryEndMsg{categoryID: "config", status: r.status}

@@ -14,6 +14,7 @@ type Keys struct {
 	Menu    MenuKeys
 	Form    FormKeys
 	Scan    ScanKeys
+	LogView LogViewKeys
 
 	Inspector InspectorKeys
 
@@ -62,6 +63,13 @@ type MenuKeys struct {
 
 type ScanKeys struct {
 	TogglePause, ToggleLogs, Cancel Binding
+}
+
+type LogViewKeys struct {
+	Up, Down                 Binding
+	PageUp, PageDown         Binding
+	HalfPageUp, HalfPageDown Binding
+	Top, Bottom              Binding
 }
 
 type InspectorKeys struct {

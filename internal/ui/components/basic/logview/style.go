@@ -38,12 +38,6 @@ func (m *Model) helpStyle(width int) lipgloss.Style {
 		Padding(1)
 }
 
-func (m *Model) helpKeyStyle() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(m.env.Theme.Secondary).
-		Bold(true)
-}
-
 // scrollBarStyle returns the style for the scroll bar track.
 func (m *Model) scrollBarStyle() lipgloss.Style {
 	return lipgloss.NewStyle().Align(lipgloss.Center, lipgloss.Center).

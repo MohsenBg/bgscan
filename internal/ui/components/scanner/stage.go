@@ -65,7 +65,7 @@ type scanStage struct {
 }
 
 // newScanStage initializes a new scan stage with safe capacity limits.
-func newScanStage(env *ui.Env, program ui.Program, idx int, cfg scanner.StageConfig) *scanStage {
+func newScanStage(env *ui.Env, idx int, cfg scanner.StageConfig) *scanStage {
 	maxIPs := int(env.Settings.MaxRow)
 	if maxIPs < 0 {
 		maxIPs = ui.DefaultMaxRow
@@ -82,7 +82,7 @@ func newScanStage(env *ui.Env, program ui.Program, idx int, cfg scanner.StageCon
 		status:           StatusWaiting,
 		sparkline:        sparkline.New(env),
 		lastSparkUpdated: time.Now().Add(-1 * time.Second),
-		program:          program,
+		program:          env.Program,
 	}
 }
 

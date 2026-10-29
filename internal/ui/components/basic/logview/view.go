@@ -37,7 +37,7 @@ func (m *Model) View() string {
 	)
 
 	help := container.Render(
-		m.helpStyle(m.viewport.Width()).Render(m.helpView()),
+		m.helpStyle(m.viewport.Width()).Render(m.help.View()),
 	)
 
 	return lipgloss.JoinVertical(
@@ -50,7 +50,7 @@ func (m *Model) View() string {
 
 // renderContentView renders the viewport or loading state.
 func (m *Model) renderContentView() string {
-	if len(m.messages) == 0 {
+	if m.messageCount() == 0 {
 		return "Loading Content...!"
 	}
 
@@ -77,29 +77,20 @@ func (m *Model) renderScrollBar() string {
 	trackSpace := height - thumbHeight
 	thumbPos := int(scrollPercent * float64(trackSpace))
 
+	thumb := m.scrollBarThumbStyle().Render("█")
+	track := m.scrollBarStyle().Render("│")
+
 	var b strings.Builder
+	b.Grow(height * (lipgloss.Width(thumb) + 1))
 	for i := range height {
 		if i >= thumbPos && i < thumbPos+thumbHeight {
-			b.WriteString(m.scrollBarThumbStyle().Render("█"))
+			b.WriteString(thumb)
 		} else {
-			b.WriteString(m.scrollBarStyle().Render("│"))
+			b.WriteString(track)
 		}
 		if i < height-1 {
 			b.WriteString("\n")
 		}
 	}
 	return b.String()
-}
-
-// helpView renders the keyboard help bar.
-func (m *Model) helpView() string {
-	return lipgloss.JoinHorizontal(
-		lipgloss.Top,
-
-		m.helpKeyStyle().Render("↑ ↓"),
-		" move  ",
-
-		m.helpKeyStyle().Render("b/esc"),
-		" close",
-	)
 }

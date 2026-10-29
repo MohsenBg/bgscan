@@ -64,7 +64,7 @@ func New(session *ui.Session, scanner scanner.Scanner) *Model {
 
 	tabsList := make([]tabs.Tab[int], n)
 	for i, stage := range stages {
-		s := newScanStage(session.Env(), session.Program, i, stage)
+		s := newScanStage(session.Env(), i, stage)
 		tabsList[i] = tabs.NewTab(stage.Probe.Schema().Name, i)
 		m.stages[i] = s
 	}

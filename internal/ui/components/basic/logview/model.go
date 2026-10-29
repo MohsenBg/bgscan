@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/logger"
+	"github.com/MohsenBg/bgscan/internal/ui/components/basic/help"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	"charm.land/bubbles/v2/viewport"
@@ -29,14 +30,25 @@ type Model struct {
 	showBorder        bool
 
 	viewport viewport.Model
+	help     *help.Model
 
 	logger     *logger.Logger
-	loggerChan chan string
 	maxMessage int
 
-	mu         sync.Mutex
-	messages   []string
-	needUpdate bool
+	subOnce sync.Once
+	subMu   sync.Mutex
+
+	loggerChan chan string
+	closed     bool
+
+	mu sync.Mutex
+
+	entries     []logEntry
+	lines       []string
+	renderWidth int
+	trimmedRows int
+	appliedTrim int
+	needUpdate  bool
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -54,6 +66,7 @@ func New(env *ui.Env, log *logger.Logger, title string) *Model {
 		maxMessage: 200,
 
 		viewport: viewport.New(),
+		help:     help.New(env, title, helpSet(env.Keys)),
 
 		padding:           5,
 		containerMaxWidth: env.Layout.Body().Width - 10,
@@ -63,8 +76,9 @@ func New(env *ui.Env, log *logger.Logger, title string) *Model {
 		cancel: cancel,
 	}
 
+	m.viewport.KeyMap = viewportKeyMap(env.Keys.LogView)
 	m.setSize()
-
+	m.viewport.GotoBottom()
 	return m
 }
 
@@ -82,35 +96,38 @@ func (m *Model) SetShowBorder(border bool) {
 
 // Init starts the log subscription and background reader.
 func (m *Model) Init() tea.Cmd {
-	go m.readLogs()
+	m.subOnce.Do(func() {
+		ch := m.logger.Subscribe(200, m.maxMessage)
+
+		m.subMu.Lock()
+		if m.closed {
+			m.subMu.Unlock()
+			m.logger.Unsubscribe(ch)
+			return
+		}
+		m.loggerChan = ch
+		m.subMu.Unlock()
+
+		go m.readLogs(ch)
+	})
 	return m.tick()
 }
 
 // readLogs listens for new log messages from the logger.
-func (m *Model) readLogs() {
-	m.loggerChan = m.logger.Subscribe(200, m.maxMessage)
-
+func (m *Model) readLogs(ch chan string) {
 	for {
 		select {
 
 		case <-m.ctx.Done():
 			return
 
-		case logMsg, ok := <-m.loggerChan:
+		case logMsg, ok := <-ch:
 			if !ok {
 				return
 			}
 
 			m.mu.Lock()
-
-			m.messages = append(m.messages, logMsg)
-
-			if len(m.messages) > m.maxMessage {
-				m.messages = m.messages[len(m.messages)-m.maxMessage:]
-			}
-
-			m.needUpdate = true
-
+			m.appendLocked(logMsg)
 			m.mu.Unlock()
 		}
 	}
@@ -142,8 +159,9 @@ func (m *Model) setSize() {
 	width := min(maxViewportWidth, m.containerWidth-2)
 
 	m.viewport.SetWidth(width)
+	m.help.SetShortWidth(max(1, m.viewport.Width()-5))
 	helpHeight := lipgloss.Height(
-		m.helpStyle(m.viewport.Width()).Render(m.helpView()),
+		m.helpStyle(m.viewport.Width()).Render(m.help.View()),
 	)
 
 	height := m.env.Layout.Body().Height -
@@ -151,6 +169,90 @@ func (m *Model) setSize() {
 		lipgloss.Height(m.title) -
 		helpHeight
 	m.viewport.SetHeight(height)
+
+	m.pushContent()
+}
+
+// contentWidth is the text width a log line is wrapped to.
+func (m *Model) contentWidth() int {
+	return max(1, m.viewport.Width()-5)
+}
+
+// appendLocked buffers one raw log line. It runs on the reader goroutine, so
+// it only stores the text; rendering stays on the UI goroutine.
+func (m *Model) appendLocked(raw string) {
+	m.entries = append(m.entries, logEntry{raw: raw})
+
+	for len(m.entries) > m.maxMessage {
+		if rows := m.entries[0].rows; len(rows) > 0 {
+			m.trimmedRows += len(rows)
+		} else {
+			m.trimmedRows++
+		}
+		m.entries = m.entries[1:]
+	}
+
+	m.needUpdate = true
+}
+
+// refreshLocked renders entries that have no rows yet and rebuilds the flat
+// row list. It returns the rows for the viewport and how many rows were
+// dropped from the front since the previous refresh.
+func (m *Model) refreshLocked() (lines []string, drop int) {
+	rebuild := false
+
+	if w := m.contentWidth(); w != m.renderWidth {
+		m.renderWidth = w
+		rebuild = true
+	}
+
+	dirty := rebuild
+	for i := range m.entries {
+		if m.entries[i].rows == nil {
+			m.entries[i].rows = renderRows(&m.env.Theme, m.entries[i].raw, m.renderWidth)
+			dirty = true
+		}
+	}
+
+	if !dirty {
+		return m.lines, 0
+	}
+
+	m.lines = m.lines[:0]
+	for i := range m.entries {
+		m.lines = append(m.lines, m.entries[i].rows...)
+	}
+
+	if rebuild {
+		m.appliedTrim = m.trimmedRows
+		return m.lines, 0
+	}
+
+	drop = m.trimmedRows - m.appliedTrim
+	m.appliedTrim = m.trimmedRows
+
+	return m.lines, drop
+}
+
+// pushContent hands the cached rows to the viewport, re-rendering the buffer
+// first when the width changed. The scroll position is kept unless the view
+// was pinned to the bottom.
+func (m *Model) pushContent() {
+	atBottom := m.viewport.AtBottom()
+	offset := m.viewport.YOffset()
+
+	m.mu.Lock()
+	lines, _ := m.refreshLocked()
+	m.mu.Unlock()
+
+	m.viewport.SetContentLines(lines)
+
+	if atBottom {
+		m.viewport.GotoBottom()
+		return
+	}
+
+	m.viewport.SetYOffset(offset)
 }
 
 func (m *Model) ID() ui.ComponentID {
@@ -170,9 +272,22 @@ func (m *Model) Mode() ui.KeyMode {
 func (m *Model) OnClose() tea.Cmd {
 	m.cancel()
 
-	if m.loggerChan != nil {
-		m.logger.Unsubscribe(m.loggerChan)
+	m.subMu.Lock()
+	ch := m.loggerChan
+	m.loggerChan = nil
+	m.closed = true
+	m.subMu.Unlock()
+
+	if ch != nil {
+		m.logger.Unsubscribe(ch)
 	}
 
 	return nil
+}
+
+// messageCount reports how many messages are buffered.
+func (m *Model) messageCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.entries)
 }

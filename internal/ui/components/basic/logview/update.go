@@ -2,40 +2,32 @@ package logview
 
 import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 // Update resizes the viewport, refreshes content on LogUpdateTickMsg, and
 // forwards other messages to the viewport for scrolling.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
-	// No cached theme here: the view reads m.env.Theme live, so theme
-	// changes need no action and fall through to the viewport.
 	var cmds []tea.Cmd
 
 	switch msg.(type) {
-
-	case tea.WindowSizeMsg:
+	case tea.WindowSizeMsg, theme.ThemeChanged:
 		m.setSize()
-		m.viewport.SetContent(m.renderContent())
 
 	case LogUpdateTickMsg:
-		m.mu.Lock()
-
-		if m.needUpdate {
-			isEmpty := m.viewport.TotalLineCount() == 0
-			shouldGoToBottom := isEmpty || m.viewport.AtBottom()
-			m.viewport.SetContent(m.renderContent())
-			if shouldGoToBottom {
-				m.viewport.GotoBottom()
-			}
-			m.needUpdate = false
-		}
-
-		m.mu.Unlock()
-
+		cmds = append(cmds, m.refreshView())
 		cmds = append(cmds, m.tick())
+	}
+
+	if k, ok := msg.(tea.KeyMsg); ok {
+		switch {
+		case m.env.Keys.LogView.Top.Matches(k):
+			m.viewport.GotoTop()
+		case m.env.Keys.LogView.Bottom.Matches(k):
+			m.viewport.GotoBottom()
+		}
 	}
 
 	var cmd tea.Cmd
@@ -45,20 +37,33 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
+	_, cmd = m.help.Update(msg)
+	cmds = append(cmds, cmd)
+
 	return m, tea.Batch(cmds...)
 }
 
-// renderContent builds the viewport content string from buffered messages.
-func (m *Model) renderContent() string {
-	if len(m.messages) == 0 {
-		return ""
+// refreshView moves newly rendered rows into the viewport.
+func (m *Model) refreshView() tea.Cmd {
+	m.mu.Lock()
+	if !m.needUpdate {
+		m.mu.Unlock()
+		return nil
+	}
+	m.needUpdate = false
+	lines, drop := m.refreshLocked()
+	m.mu.Unlock()
+
+	atBottom := m.viewport.AtBottom()
+
+	m.viewport.SetContentLines(lines)
+
+	switch {
+	case atBottom:
+		m.viewport.GotoBottom()
+	case drop > 0:
+		m.viewport.SetYOffset(m.viewport.YOffset() - drop)
 	}
 
-	width := max(0, m.viewport.Width()-5)
-
-	content := formatLogLines(&m.env.Theme, m.messages)
-
-	return lipgloss.NewStyle().
-		Width(width).
-		Render(content)
+	return nil
 }

@@ -624,6 +624,28 @@ func Default() Keys {
 		},
 	}
 
+	logView := LogViewKeys{
+		Up:       nav.Up,
+		Down:     nav.Down,
+		PageUp:   nav.PageUp,
+		PageDown: nav.PageDown,
+		Top:      nav.Top,
+		Bottom:   nav.Bottom,
+
+		HalfPageUp: Binding{
+			Action:   ActionLogViewHalfPageUp,
+			Keys:     []string{"u"},
+			HelpText: "½ page up",
+			Hidden:   true,
+		},
+		HalfPageDown: Binding{
+			Action:   ActionLogViewHalfPageDown,
+			Keys:     []string{"d"},
+			HelpText: "½ page down",
+			Hidden:   true,
+		},
+	}
+
 	tab := TabKeys{
 		Next: nav.NextTab,
 		Prev: nav.PrevTab,
@@ -767,6 +789,7 @@ func Default() Keys {
 		MultiSelectInput: multiSelectInput,
 		ToggleInput:      toggleInput,
 		Picker:           picker,
+		LogView:          logView,
 	}
 }
 

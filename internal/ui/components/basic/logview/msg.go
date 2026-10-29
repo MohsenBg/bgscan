@@ -1,5 +1,6 @@
 package logview
 
-// LogUpdateTickMsg is emitted periodically to trigger
-// log viewport refreshes.
-type LogUpdateTickMsg struct{}
+// LogAppendMsg carries the log lines buffered since the previous message.
+type LogAppendMsg struct {
+	Lines []string
+}

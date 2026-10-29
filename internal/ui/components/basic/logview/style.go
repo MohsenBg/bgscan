@@ -50,30 +50,7 @@ func (m *Model) scrollBarThumbStyle() lipgloss.Style {
 		Foreground(m.env.Theme.Primary)
 }
 
-// TitleStyle keeps backward compatibility.
-func TitleStyle(width int) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Width(width).
-		Align(lipgloss.Center, lipgloss.Center).
-		Bold(true).
-		Border(lipgloss.NormalBorder(), false, false, true, false)
-}
-
-// BorderStyle keeps backward compatibility.
-func BorderStyle(width int) lipgloss.Style {
-	width = min(80, width)
-	return lipgloss.NewStyle().Padding(0, 1).
-		Width(width).
-		Align(lipgloss.Left).
-		Border(lipgloss.RoundedBorder(), true, true, true, true)
-}
-
-// ScrollBarStyle keeps backward compatibility.
-func ScrollBarStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Align(lipgloss.Center, lipgloss.Center)
-}
-
-// ScrollBarThumbStyle keeps backward compatibility.
-func ScrollBarThumbStyle() lipgloss.Style {
-	return lipgloss.NewStyle()
+// loadingStyle gives the placeholder the same height as a log page.
+func (m *Model) loadingStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Height(20)
 }

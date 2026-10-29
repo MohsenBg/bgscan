@@ -50,8 +50,8 @@ func (m *Model) View() string {
 
 // renderContentView renders the viewport or loading state.
 func (m *Model) renderContentView() string {
-	if m.messageCount() == 0 {
-		return "Loading Content...!"
+	if len(m.entries) == 0 {
+		return m.loadingStyle().Render("Loading Content...!")
 	}
 
 	content := m.viewport.View()

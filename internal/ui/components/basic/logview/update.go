@@ -7,18 +7,18 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Update resizes the viewport, refreshes content on LogUpdateTickMsg, and
-// forwards other messages to the viewport for scrolling.
+// Update resizes the viewport, appends incoming log batches, and forwards
+// other messages to the viewport for scrolling.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case tea.WindowSizeMsg, theme.ThemeChanged:
 		m.setSize()
 
-	case LogUpdateTickMsg:
-		cmds = append(cmds, m.refreshView())
-		cmds = append(cmds, m.tick())
+	case LogAppendMsg:
+		m.appendLines(msg.Lines)
+		m.pushRows()
 	}
 
 	if k, ok := msg.(tea.KeyMsg); ok {
@@ -37,33 +37,9 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
+	// The help bar handles "?" (full help) and resize/theme changes.
 	_, cmd = m.help.Update(msg)
 	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
-}
-
-// refreshView moves newly rendered rows into the viewport.
-func (m *Model) refreshView() tea.Cmd {
-	m.mu.Lock()
-	if !m.needUpdate {
-		m.mu.Unlock()
-		return nil
-	}
-	m.needUpdate = false
-	lines, drop := m.refreshLocked()
-	m.mu.Unlock()
-
-	atBottom := m.viewport.AtBottom()
-
-	m.viewport.SetContentLines(lines)
-
-	switch {
-	case atBottom:
-		m.viewport.GotoBottom()
-	case drop > 0:
-		m.viewport.SetYOffset(m.viewport.YOffset() - drop)
-	}
-
-	return nil
 }

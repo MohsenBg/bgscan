@@ -11,11 +11,6 @@ import (
 
 var logPattern = regexp.MustCompile(`^(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)$`)
 
-type logEntry struct {
-	raw  string
-	rows []string
-}
-
 type logParts struct {
 	Timestamp string
 	Level     string

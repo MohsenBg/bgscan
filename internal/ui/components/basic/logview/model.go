@@ -14,9 +14,24 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// Model is a scrollable log viewer. It subscribes to the application logger
-// and streams messages into a viewport, buffering them and refreshing
-// periodically to avoid excessive UI updates.
+const (
+	// max reading line
+	maxLine = 2000
+
+	// maxBuffer is how many log lines the view keeps.
+	maxBuffer = 10000
+
+	// flushInterval is how long the reader collects lines before handing them to the UI.
+	flushInterval = 500 * time.Millisecond
+)
+
+// logEntry is one buffered log line with the rows it renders to.
+type logEntry struct {
+	raw  string
+	rows []string
+}
+
+// Model is a scrollable log viewer. It subscribes to the application logger,
 type Model struct {
 	id    ui.ComponentID
 	name  string
@@ -32,8 +47,7 @@ type Model struct {
 	viewport viewport.Model
 	help     *help.Model
 
-	logger     *logger.Logger
-	maxMessage int
+	logger *logger.Logger
 
 	subOnce sync.Once
 	subMu   sync.Mutex
@@ -41,14 +55,12 @@ type Model struct {
 	loggerChan chan string
 	closed     bool
 
-	mu sync.Mutex
+	entries []logEntry
+	lines   []string
 
-	entries     []logEntry
-	lines       []string
 	renderWidth int
-	trimmedRows int
-	appliedTrim int
-	needUpdate  bool
+	droppedRows int
+	appliedRows int
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -58,17 +70,16 @@ func New(env *ui.Env, log *logger.Logger, title string) *Model {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	m := &Model{
-		id:         ui.NewComponentID(),
-		name:       title,
-		title:      title,
-		env:        env,
-		logger:     log,
-		maxMessage: 200,
+		id:     ui.NewComponentID(),
+		name:   title,
+		title:  title,
+		env:    env,
+		logger: log,
 
 		viewport: viewport.New(),
 		help:     help.New(env, title, helpSet(env.Keys)),
 
-		padding:           5,
+		padding:           10,
 		containerMaxWidth: env.Layout.Body().Width - 10,
 		showBorder:        true,
 
@@ -79,6 +90,7 @@ func New(env *ui.Env, log *logger.Logger, title string) *Model {
 	m.viewport.KeyMap = viewportKeyMap(env.Keys.LogView)
 	m.setSize()
 	m.viewport.GotoBottom()
+
 	return m
 }
 
@@ -94,83 +106,105 @@ func (m *Model) SetShowBorder(border bool) {
 	m.setSize()
 }
 
-// Init starts the log subscription and background reader.
+// Init starts the log subscription and the background reader.
 func (m *Model) Init() tea.Cmd {
-	m.subOnce.Do(func() {
-		ch := m.logger.Subscribe(200, m.maxMessage)
+	return func() tea.Msg {
+		m.subOnce.Do(func() {
+			ch := m.logger.Subscribe(maxBuffer, maxLine)
 
-		m.subMu.Lock()
-		if m.closed {
+			m.subMu.Lock()
+			if m.closed {
+				m.subMu.Unlock()
+				m.logger.Unsubscribe(ch)
+				return
+			}
+			m.loggerChan = ch
 			m.subMu.Unlock()
-			m.logger.Unsubscribe(ch)
-			return
-		}
-		m.loggerChan = ch
-		m.subMu.Unlock()
 
-		go m.readLogs(ch)
-	})
-	return m.tick()
+			go m.readLogs(ch)
+		})
+		return nil
+	}
 }
 
-// readLogs listens for new log messages from the logger.
-func (m *Model) readLogs(ch chan string) {
+// readLogs collects log lines and hands them to the UI as one message per flush interval.
+func (m *Model) readLogs(ch <-chan string) {
+	pending := make([]string, 0, maxBuffer)
+
+	timer := time.NewTimer(flushInterval)
+	if !timer.Stop() {
+		<-timer.C
+	}
+	defer timer.Stop()
+
+	var armed <-chan time.Time
+
+	send := func() {
+		batch := pending
+		pending = make([]string, 0, maxBuffer)
+
+		if m.env.Program != nil {
+			m.env.Program.Send(LogAppendMsg{Lines: batch})
+		}
+	}
+
 	for {
 		select {
 
 		case <-m.ctx.Done():
 			return
 
-		case logMsg, ok := <-ch:
+		case <-armed:
+			armed = nil
+			if len(pending) > 0 {
+				send()
+			}
+
+		case line, ok := <-ch:
 			if !ok {
+				if len(pending) > 0 {
+					send()
+				}
 				return
 			}
 
-			m.mu.Lock()
-			m.appendLocked(logMsg)
-			m.mu.Unlock()
+			pending = append(pending, line)
+			if len(pending) > maxBuffer {
+				pending = pending[len(pending)-maxBuffer:]
+			}
+
+			if armed == nil {
+				timer.Reset(flushInterval)
+				armed = timer.C
+			}
 		}
 	}
 }
 
-// tickInterval is the cadence of viewport refreshes draining the
-// background log buffer into the UI.
-const tickInterval = time.Second
-
-// tick schedules periodic UI refreshes.
-func (m *Model) tick() tea.Cmd {
-	return tea.Tick(
-		tickInterval,
-		func(time.Time) tea.Msg {
-			return LogUpdateTickMsg{}
-		},
-	)
-}
-
-// setSize recalculates the viewport and container dimensions.
+// setSize recalculates the viewport, the help bar and the container size.
 func (m *Model) setSize() {
-	maxViewportWidth := 80
+	const maxViewportWidth = 80
 
 	m.containerWidth = min(
 		m.containerMaxWidth,
 		m.env.Layout.Body().Width-10,
 	)
 
-	width := min(maxViewportWidth, m.containerWidth-2)
-
-	m.viewport.SetWidth(width)
+	m.viewport.SetWidth(min(maxViewportWidth, m.containerWidth-2))
 	m.help.SetShortWidth(max(1, m.viewport.Width()-5))
+
 	helpHeight := lipgloss.Height(
 		m.helpStyle(m.viewport.Width()).Render(m.help.View()),
 	)
 
-	height := m.env.Layout.Body().Height -
+	vHeght := m.env.Layout.Body().Height -
 		m.padding -
 		lipgloss.Height(m.title) -
 		helpHeight
-	m.viewport.SetHeight(height)
 
-	m.pushContent()
+	m.viewport.SetHeight(max(vHeght, 20))
+
+	m.pushRows()
 }
 
 // contentWidth is the text width a log line is wrapped to.
@@ -178,44 +212,29 @@ func (m *Model) contentWidth() int {
 	return max(1, m.viewport.Width()-5)
 }
 
-// appendLocked buffers one raw log line. It runs on the reader goroutine, so
-// it only stores the text; rendering stays on the UI goroutine.
-func (m *Model) appendLocked(raw string) {
-	m.entries = append(m.entries, logEntry{raw: raw})
-
-	for len(m.entries) > m.maxMessage {
-		if rows := m.entries[0].rows; len(rows) > 0 {
-			m.trimmedRows += len(rows)
-		} else {
-			m.trimmedRows++
-		}
-		m.entries = m.entries[1:]
+// appendLines adds a batch of raw lines to the buffer. Rendering waits until
+// pushRows, so a batch costs one pass instead of one per line.
+func (m *Model) appendLines(lines []string) {
+	for _, raw := range lines {
+		m.entries = append(m.entries, logEntry{raw: raw})
 	}
-
-	m.needUpdate = true
 }
 
-// refreshLocked renders entries that have no rows yet and rebuilds the flat
-// row list. It returns the rows for the viewport and how many rows were
-// dropped from the front since the previous refresh.
-func (m *Model) refreshLocked() (lines []string, drop int) {
-	rebuild := false
+// rebuildRows renders the lines that have no rows yet, drops the oldest
+func (m *Model) rebuildRows() (lines []string, dropped int) {
+	width := m.contentWidth()
+	rewrap := width != m.renderWidth
+	m.renderWidth = width
 
-	if w := m.contentWidth(); w != m.renderWidth {
-		m.renderWidth = w
-		rebuild = true
-	}
-
-	dirty := rebuild
 	for i := range m.entries {
-		if m.entries[i].rows == nil {
-			m.entries[i].rows = renderRows(&m.env.Theme, m.entries[i].raw, m.renderWidth)
-			dirty = true
+		if rewrap || m.entries[i].rows == nil {
+			m.entries[i].rows = renderRows(&m.env.Theme, m.entries[i].raw, width)
 		}
 	}
 
-	if !dirty {
-		return m.lines, 0
+	for len(m.entries) > maxBuffer {
+		m.droppedRows += len(m.entries[0].rows)
+		m.entries = m.entries[1:]
 	}
 
 	m.lines = m.lines[:0]
@@ -223,36 +242,30 @@ func (m *Model) refreshLocked() (lines []string, drop int) {
 		m.lines = append(m.lines, m.entries[i].rows...)
 	}
 
-	if rebuild {
-		m.appliedTrim = m.trimmedRows
-		return m.lines, 0
+	dropped = m.droppedRows - m.appliedRows
+	m.appliedRows = m.droppedRows
+
+	if rewrap {
+		dropped = 0
 	}
 
-	drop = m.trimmedRows - m.appliedTrim
-	m.appliedTrim = m.trimmedRows
-
-	return m.lines, drop
+	return m.lines, dropped
 }
 
-// pushContent hands the cached rows to the viewport, re-rendering the buffer
-// first when the width changed. The scroll position is kept unless the view
-// was pinned to the bottom.
-func (m *Model) pushContent() {
+// pushRows rebuilds the rows and hands them to the viewport. The scroll
+// position is kept unless the view was pinned to the bottom.
+func (m *Model) pushRows() {
+	lines, dropped := m.rebuildRows()
+
 	atBottom := m.viewport.AtBottom()
-	offset := m.viewport.YOffset()
-
-	m.mu.Lock()
-	lines, _ := m.refreshLocked()
-	m.mu.Unlock()
-
 	m.viewport.SetContentLines(lines)
 
-	if atBottom {
+	switch {
+	case atBottom:
 		m.viewport.GotoBottom()
-		return
+	case dropped > 0:
+		m.viewport.SetYOffset(m.viewport.YOffset() - dropped)
 	}
-
-	m.viewport.SetYOffset(offset)
 }
 
 func (m *Model) ID() ui.ComponentID {
@@ -283,11 +296,4 @@ func (m *Model) OnClose() tea.Cmd {
 	}
 
 	return nil
-}
-
-// messageCount reports how many messages are buffered.
-func (m *Model) messageCount() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return len(m.entries)
 }

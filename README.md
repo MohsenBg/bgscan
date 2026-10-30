@@ -6,7 +6,7 @@
   <img src="./images/logo-light.svg" alt="BGSCAN" width="520" style="max-width:100%;">
 </picture>
 
-multi-protocol IP scanner with modular chain architecture
+multi-protocol IP scanner with chainable scan stages
 
 [English](./README.md) | [فارسی](./README.fa.md)
 
@@ -24,11 +24,9 @@ multi-protocol IP scanner with modular chain architecture
 
 ## Overview
 
-**bgscan** is a terminal-based, multi-protocol network scanner written in Go. It probes IP addresses across ICMP, TCP, HTTP, DNS, Xray, and DNS tunneling (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed), and chains scan stages into pipelines, all through a keyboard-driven TUI.
+**bgscan** is a network scanner for the terminal, written in Go. It probes IPs over ICMP, TCP, HTTP, DNS, Xray, and DNS tunnels (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed). Those probes run on their own or as chained stages, all from a keyboard-driven TUI.
 
-Use it for host discovery, web service testing, DNS resolver analysis, tunneling detection, and Xray proxy validation. Results land on disk and can feed the next scan, so you can run a broad ICMP sweep, then drill into survivors with TCP or HTTP.
-
-It is built for developers and researchers who want speed and a modern terminal experience without leaving the keyboard.
+Chaining is the part worth trying first. Run a broad ICMP sweep, then send only the hosts that answered into TCP or HTTP. Results go to disk in a form the next scan can read, so each pass narrows the list.
 
 <div align="center">
   <video
@@ -57,32 +55,36 @@ It is built for developers and researchers who want speed and a modern terminal 
 
 **Terminal UI**
 
-- BubbleTea TUI, fully keyboard-driven; scan, monitor, and manage results without a browser
+- A BubbleTea TUI driven entirely by the keyboard, down to results management
 - Live scan dashboard with tabbed progress bars and per-stage result tables
-- In-app settings inspector that edits every config field interactively and saves to disk immediately
-- Theme support: dark, light, and auto palettes built on Catppuccin
+- An in-app inspector for every config field, saved to disk as soon as you change it
+- Dark, light, and auto themes built on Catppuccin
 
 **Data and I/O**
 
-- Results written to CSV and reusable as input for new scans
+- Results go to CSV files you can feed back in as a scan source
 - Bundled IP lists for Cloudflare (IPv4 and IPv6), AWS, Azure, Google, Akamai, Fastly, Bunny, G-Core, Iran, and public DNS servers
 - Xray outbound manager: add outbounds from share links or JSON files, then validate and speed-test them
 
 **Reliability**
 
-- Crash-safe result writer with atomic merge, `fsync`, temp-file rename, and constant memory
+- The result writer is crash-safe: atomic merge, `fsync`, temp-file rename, constant memory
 - Log rotation across three streams (core, UI, debug) with 50 MB rotation, 3 backups, and 7-day retention
-- Startup health checks validate config and locate optional binaries, warning instead of crashing when something is missing
+- Startup health checks validate the config and look for optional binaries. If something is missing, you get a warning instead of a crash
 
 ---
 
 ## Why bgscan?
 
-- Most scanners do one protocol well. bgscan chains them: ping a range, connect to survivors, HTTP-probe the open ports, in a single run.
-- The engine is pipeline-agnostic. It feeds IPs, collects results, and flushes to disk. Adding a new scan type means implementing a four-method `Probe` interface (Init, Run, Schema, Close) and registering a stage builder.
-- No runtime clutter. ICMP, TCP, HTTP, and DNS probes use the Go standard library. Slipstream is the only external binary, validated at startup; when it is missing a warning is logged and only that scan type is disabled. Xray and the DNS tunnels (DNSTT, VayDNS, MasterDNS, StormDNS, TheFeed) run in-process through vendored libraries.
-- All settings live in plain TOML. The in-app inspector reads and writes the same files, so what you see in the TUI is what is on disk.
-- Built for the terminal: keyboard navigation, overlay dialogs, live progress, streaming logs. No browser, no Electron, no web server.
+Most scanners are good at one protocol. bgscan chains them: ping a range, connect to whatever answered, HTTP-probe the ports that opened, all in one run.
+
+The engine doesn't care what the stages do. It moves IPs through, collects results, and writes them to disk. Adding a scan type means implementing a four-method `Probe` interface (Init, Run, Schema, Close) and registering a stage builder.
+
+There isn't much outside the binary. ICMP, TCP, HTTP, and DNS use the Go standard library. Slipstream is the only external binary, and it's checked at startup: when it's missing you get a warning and only that scan type is disabled. Xray and the DNS tunnels (DNSTT, VayDNS, MasterDNS, StormDNS, TheFeed) run in-process from vendored libraries.
+
+Settings are plain TOML. The in-app inspector reads and writes the same files, so the TUI shows what's actually on disk.
+
+Everything happens in the terminal: keyboard navigation, overlay dialogs, live progress, streaming logs. There's no browser and no web server behind it.
 
 ---
 
@@ -108,7 +110,7 @@ It is built for developers and researchers who want speed and a modern terminal 
 
 ### Quick install
 
-Linux / macOS / Termux:
+Linux / macOS :
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
@@ -126,7 +128,7 @@ Android (Termux):
 { command -v curl >/dev/null 2>&1 || pkg install -y curl; } && curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scripts/install.sh | sh
 ```
 
-The installer downloads the `bgscan-installer` tool (a small standalone Rust binary from the separate [bgscan-installer](https://github.com/MohsenBg/bgscan-installer) project), which resolves the latest release asset for your platform, verifies its SHA-256 checksum, and installs bgscan into `bgscan/`. On re-run it detects an existing install and offers to update in place (keeps your `ips`, `assets`, and `settings`, replaces the binary and adds missing files), do a clean install, or back up the old installation to a timestamped `bgscan_<timestamp>` directory.
+The installer downloads the `bgscan-installer` tool (a small standalone Rust binary from the separate [bgscan-installer](https://github.com/MohsenBg/bgscan-installer) project). That tool picks the latest release asset for your platform, verifies its SHA-256 checksum, and installs bgscan into `bgscan/`. Run it again later and it detects the existing install, then offers three choices: update in place (keeps your `ips`, `assets`, and `settings`, replaces the binary, adds missing files), do a clean install, or back up the old installation to a timestamped `bgscan_<timestamp>` directory.
 
 To install a specific version instead of the latest:
 
@@ -146,7 +148,7 @@ The first run creates a `settings/` directory with default TOML config and an `i
 
 ### Build from source
 
-bgscan uses a companion build tool (`bgscan-builder`) to fetch the platform-specific Slipstream sidecar binary and bundled IP lists, and to build the project. `bgscan-builder` is build-only; installing and updating releases is handled by the separate [`bgscan-installer`](https://github.com/MohsenBg/bgscan-installer) tool described above. Xray needs no binary: it runs in-process through a vendored library.
+bgscan uses a companion build tool, `bgscan-builder`, to fetch the platform-specific Slipstream sidecar binary and bundled IP lists, and to build the project. It only handles builds; installing and updating releases is the job of the separate [`bgscan-installer`](https://github.com/MohsenBg/bgscan-installer) tool described above. Xray needs no binary: it runs in-process through a vendored library.
 
 ```bash
 git clone https://github.com/MohsenBg/bgscan.git
@@ -201,19 +203,19 @@ For release builds targeting a specific platform (see `bgscan-builder release -h
 
 ## Documentation
 
-Full documentation is available at:
+Full documentation lives at:
 
 - Homepage: <https://mohsenbg.github.io/bgscan>
 - Full docs: <https://mohsenbg.github.io/bgscan/docs>
 
 The documentation covers:
 
-- Quick Start: installation, launch, and first scan
-- Scanner: scan types, scan sources, IP lists, result files, scan pipeline, Xray outbounds
-- DNS Tunneling: per-protocol configuration guides (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed), scan flow, and platform defaults
-- Settings: every TOML config file explained (general, writer, ICMP, TCP, HTTP, DNS, Xray) and the in-app inspector
-- Logs: three log streams, the log viewer, and rotation policy
-- Developer: architecture, core (engine, probes, config, results), UI (component model, layout, theming), contributing guide, and build instructions
+- Quick Start: installation, launch, and your first scan
+- Scanner: scan types and sources, IP lists, result files, pipelines, Xray outbounds
+- DNS Tunneling: setup for each protocol (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed), scan flow, and platform defaults
+- Settings: every TOML file explained (general, writer, ICMP, TCP, HTTP, DNS, Xray) and the in-app inspector
+- Logs: the three streams, the log viewer, and the rotation policy
+- Developer: architecture, core packages (engine, probes, config, results), UI (components, layout, themes), contributing guide, and build instructions
 
 ---
 
@@ -231,21 +233,21 @@ All configuration lives in plain TOML files in the `settings/` directory next to
 | `dns_settings.toml` | DNS resolver tuning and DNS tunnel scan orchestration |
 | `xray_settings.toml` | Xray connectivity test type, speed test timeout, concurrent dial limits, pre-scan |
 
-Edit files manually or use the in-app inspector. Both write to the same files, and the inspector saves changes immediately without restarting. See the [Settings documentation](https://mohsenbg.github.io/bgscan/docs/settings/) for every field.
+You can edit the files by hand or use the in-app inspector. Both write to the same files, and the inspector saves as you go, no restart needed. The [Settings documentation](https://mohsenbg.github.io/bgscan/docs/settings/) explains every field.
 
 ---
 
 ## Example Usage
 
-Scan a bundled IP list: after launching, select **Run Scan → IP List → cloudflare_IPv4** (or `cloudflare_IPv6` for an IPv6 sweep), then choose a scan type such as `t` for TCP. bgscan scans the list with the configured workers and writes results to `result/tcp/` (or a custom `result_directory` if you set one).
+**Scan a bundled IP list.** Launch bgscan, pick **Run Scan → IP List → cloudflare_IPv4** (or `cloudflare_IPv6` for an IPv6 sweep), then choose a scan type such as `t` for TCP. bgscan scans the list with the configured workers and writes results to `result/tcp/`, or wherever `result_directory` points.
 
-Chain ICMP → TCP → HTTP: in `general_settings.toml`, set `pipeline_mode = "streaming"`. If multiple scan types are enabled, their stages chain automatically, and only IPs that pass each stage's success criteria proceed to the next.
+**Chain ICMP → TCP → HTTP.** Set `pipeline_mode = "streaming"` in `general_settings.toml`. With more than one scan type enabled, the stages chain automatically, and only IPs that pass one stage's success criteria move on to the next.
 
-Re-scan a previous result: select **Run Scan → Result List** and pick a saved result file. bgscan re-scans only the IPs in that file, useful for deeper analysis on hosts that already passed an earlier stage.
+**Re-scan an earlier result.** Choose **Run Scan → Result List** and pick a saved file. bgscan scans only the IPs in that file, which is handy when you want a closer look at hosts that already passed an earlier stage.
 
-Xray outbound validation: from the main menu, open **Xray Outbounds**, press `a` to add a template from a share link (`vless://`, `vmess://`, `trojan://`, `ss://`, `hysteria2://`, `wireguard://`) or a JSON file. Then run an Xray scan to test connectivity and bandwidth.
+**Validate Xray outbounds.** From the main menu, open **Xray Outbounds** and press `a` to add a template from a share link (`vless://`, `vmess://`, `trojan://`, `ss://`, `hysteria2://`, `wireguard://`) or a JSON file. An Xray scan then tests connectivity and bandwidth.
 
-DNS tunneling: from the main menu, open **DNS Tunneling** to create DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, or TheFeed configurations, then run the DNS Tunneling scan type to test which resolvers can carry the tunnel.
+**Test DNS tunnels.** Open **DNS Tunneling** from the main menu and create a configuration for DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, or TheFeed. Run the DNS Tunneling scan type to see which resolvers can carry the tunnel.
 
 ---
 
@@ -304,7 +306,7 @@ Contributions are welcome, whether bug fixes, documentation improvements, or new
 - Branch from `main` and use a descriptive branch name (`feature/`, `fix/`, `docs/`, `refactor/`).
 - Follow existing conventions: keep code simple and readable, and prefer small focused commits.
 - Use commit prefixes: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`.
-- Before opening a PR, ensure the project builds and existing tests pass, and update documentation for new features.
+- Before opening a PR, make sure the project builds and the existing tests pass, and update the docs for anything new.
 - For large changes, open an Issue first to discuss the approach.
 
 See the full [Contributing Guide](https://mohsenbg.github.io/bgscan/docs/developer/contributing/) in the documentation.
@@ -315,7 +317,7 @@ By submitting a contribution to bgscan, you grant permission for your contributi
 
 ## License
 
-[GPL-3.0](LICENSE) — Copyright (c) 2026 Mohsen Bagheri
+[GPL-3.0](LICENSE) — Copyright (c) 2026 MohsenBg
 
 ---
 

@@ -13,10 +13,17 @@ import (
 const ellipsis = "…"
 
 func (m *Model) View() string {
+	if m.dirty {
+		m.cache = m.render()
+		m.dirty = false
+	}
+	return m.cache
+}
+
+func (m *Model) render() string {
 	if m.mode == LongHelp {
 		return m.longHelpStyle().Render(m.vp.View())
 	}
-
 	return strings.Join(m.centerShortLines(m.shortLines()), "\n")
 }
 

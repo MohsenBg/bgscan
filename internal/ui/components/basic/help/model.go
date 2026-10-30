@@ -51,14 +51,15 @@ type Model struct {
 
 	vp  viewport.Model
 	env *ui.Env
+
+	dirty bool
+	cache string
 }
 
 type Option func(*Model)
 
 // New creates a help component.
 func New(env *ui.Env, title string, set HelpSet, opts ...Option) *Model {
-	// The layout always carries dimensions (falling back to 80x35), so
-	// the initial width is usable before the first resize.
 	width := max(1, env.Layout.Body().Width)
 
 	m := &Model{
@@ -72,6 +73,7 @@ func New(env *ui.Env, title string, set HelpSet, opts ...Option) *Model {
 		shortWidthAuto:  true,
 		longHelpWidth:   defaultLongHelpWidth,
 		longHelpHeight:  defaultLongHelpHeight,
+		dirty:           true,
 	}
 
 	for _, opt := range opts {
@@ -125,12 +127,19 @@ func (m *Model) rebuild() {
 	if m.mode == LongHelp {
 		m.initViewport()
 	}
+	m.dirty = true
 }
 
 // SetShortWidth sets the short-help width manually.
 func (m *Model) SetShortWidth(w int) {
-	m.shortHelpWidth = max(1, w)
+	w = max(1, w)
 	m.shortWidthAuto = false
+
+	if m.shortHelpWidth == w {
+		return
+	}
+	m.shortHelpWidth = w
+	m.dirty = true
 }
 
 func (m *Model) longViewportWidth() int {
@@ -200,6 +209,7 @@ func (m *Model) updateViewportSize() {
 	m.vp.SetWidth(layout.width)
 	m.vp.SetHeight(layout.height)
 	m.vp.SetContent(layout.content)
+	m.dirty = true
 }
 
 func (m *Model) openDialogFullHelp() tea.Msg {

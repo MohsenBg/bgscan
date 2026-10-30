@@ -11,6 +11,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/main/startup"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -21,8 +22,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.session.Env().Layout.Update(msg.Width, msg.Height)
+		m.invalidateBase()
+
+	case theme.ThemeChanged:
+		m.invalidateBase()
+
+	case perfTickMsg:
+		m.stats.report(&m.session.Env().Log, time.Now())
+		cmds = append(cmds, perfTick())
+		return m, tea.Batch(cmds...)
 
 	case tea.KeyPressMsg:
+		m.stats.recordKey()
+
 		if m.session.Env().Keys.Global.ForceQuit.Matches(msg) {
 			return m, tea.Quit
 		}
@@ -63,13 +75,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case dialogFrameMsg:
 		now := time.Now()
 
-		// Closing layers are removed here rather than by whoever asked for
-		// the close, so they stay on the stack long enough to be drawn
-		// while they collapse away.
+		// Closing layers stay on the stack until their exit animation finishes.
 		cmds = append(cmds, m.expire(now)...)
 
-		// Only reappear while something is still on screen. An idle
-		// stack schedules no timers at all.
+		// Reappear only while something is visible idle stacks need no timers.
 		if m.animating(now) {
 			cmds = append(cmds, tickDialogFrames())
 		}
@@ -77,6 +86,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Sequence(cmds...)
 
 	case ui.CloseComponentMsg:
+		m.invalidateBase()
 		cmds = append(cmds, m.beginCloseByID(msg.ID))
 	}
 

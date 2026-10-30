@@ -22,20 +22,23 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			if m.env.Keys.Global.Help.Matches(msg) {
 				return m, m.openDialogFullHelp
 			}
-
 			return m, nil
 		}
 
-		if m.mode == LongHelp {
-			if m.env.Keys.Global.Help.Matches(msg) {
-				return m, m.closeDialogFullHelp
-			}
+		if m.env.Keys.Global.Help.Matches(msg) {
+			return m, m.closeDialogFullHelp
 		}
 	}
 
 	if m.mode == LongHelp {
+		before := m.vp.YOffset()
+
 		var cmd tea.Cmd
 		m.vp, cmd = m.vp.Update(msg)
+
+		if m.vp.YOffset() != before {
+			m.dirty = true
+		}
 		return m, cmd
 	}
 
@@ -44,11 +47,17 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 func (m *Model) handleResize() {
 	if m.mode == LongHelp {
-		m.updateViewportSize()
+		m.updateViewportSize() // marks dirty
 		return
 	}
 
-	if m.shortWidthAuto {
-		m.shortHelpWidth = max(1, m.env.Layout.Body().Width)
+	if !m.shortWidthAuto {
+		return
+	}
+
+	w := max(1, m.env.Layout.Body().Width)
+	if w != m.shortHelpWidth {
+		m.shortHelpWidth = w
+		m.dirty = true
 	}
 }

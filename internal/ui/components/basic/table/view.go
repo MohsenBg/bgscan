@@ -5,34 +5,52 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	"github.com/MohsenBg/bgscan/internal/ui/shared/perf"
 )
 
 func (m *Model) View() string {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	width := m.tableWidthLocked()
+	m.refreshCacheLocked()
 
-	tableView := m.tableViewStyle().Render(m.renderTableBody())
+	stopHelp := perf.Begin("tbl.help")
 	helpView := m.helpStyle().Render(m.help.View())
-	statusView := m.renderStatus()
+	stopHelp()
 
 	blocks := make([]string, 0, 5)
 
-	if t := m.renderTitle(); t != "" {
-		blocks = append(blocks, t)
+	if m.cacheTitle != "" {
+		blocks = append(blocks, m.cacheTitle)
 	}
 
 	if f := m.renderFilter(); f != "" {
 		blocks = append(blocks, f)
 	}
 
-	blocks = append(blocks, tableView, statusView, helpView)
+	blocks = append(blocks, m.cacheTable, m.cacheStatus, helpView)
+
+	defer perf.Begin("tbl.wrap")()
 
 	return lipgloss.NewStyle().
-		Width(width).
+		Width(m.tableWidthLocked()).
 		Align(lipgloss.Center).
 		Render(lipgloss.JoinVertical(lipgloss.Center, blocks...))
+}
+
+// refreshCacheLocked re-renders the cached blocks when something changed.
+func (m *Model) refreshCacheLocked() {
+	if !m.dirty {
+		return
+	}
+
+	defer perf.Begin("tbl.body")()
+
+	m.cacheTitle = m.renderTitle()
+	m.cacheTable = m.tableViewStyle().Render(m.renderTableBody())
+	m.cacheStatus = m.renderStatus()
+	m.dirty = false
 }
 
 // renderTableBody renders the table body. When there are no rows, it keeps
@@ -53,10 +71,9 @@ func (m *Model) renderTableBody() string {
 	}
 
 	bodyLines := len(lines) - headerEnd
-	contentWidth := m.contentWidthLocked()
 
 	base := lipgloss.NewStyle().
-		Width(contentWidth).
+		Width(m.contentWidthLocked()).
 		Align(lipgloss.Center)
 
 	var msgLines []string
@@ -91,14 +108,14 @@ func (m *Model) renderTableBody() string {
 	}
 
 	start := max(headerEnd, headerEnd+(bodyLines-len(msgLines))/2)
-	msgLen := len(msgLines)
 
 	for i := headerEnd; i < len(lines); i++ {
 		idx := i - start
 
-		if idx >= 0 && idx < msgLen {
+		switch {
+		case idx >= 0 && idx < len(msgLines):
 			lines[i] = msgLines[idx]
-		} else if m.loading {
+		case m.loading:
 			lines[i] = ""
 		}
 	}

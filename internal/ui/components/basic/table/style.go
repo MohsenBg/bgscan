@@ -110,6 +110,8 @@ func (m *Model) applyStylesLocked() {
 		Background(m.env.Theme.Selected).
 		Bold(true).
 		Render(markerGlyph)
+
+	m.dirty = true
 }
 
 // markSelected draws the bar over the left padding of the selected row.

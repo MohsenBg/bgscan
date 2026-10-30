@@ -84,6 +84,11 @@ type Model struct {
 	spinner        spinner.Model
 	loading        bool
 	loadingMessage string
+
+	dirty       bool
+	cacheTitle  string
+	cacheTable  string
+	cacheStatus string
 }
 
 type Option func(*Model)
@@ -214,6 +219,10 @@ func (m *Model) Init() tea.Cmd {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	if !m.loading {
+		return nil
+	}
+
 	return m.spinner.Tick
 }
 
@@ -244,7 +253,11 @@ func (m *Model) SetTitle(title string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	if m.title == title {
+		return
+	}
 	m.title = title
+	m.dirty = true
 }
 
 // SelectedRow returns a copy of the selected visible row.
@@ -302,6 +315,7 @@ func (m *Model) GotoTop() {
 	defer m.mu.Unlock()
 
 	m.bubble.GotoTop()
+	m.dirty = true
 }
 
 // GotoBottom moves the cursor to the last visible row.
@@ -310,6 +324,7 @@ func (m *Model) GotoBottom() {
 	defer m.mu.Unlock()
 
 	m.bubble.GotoBottom()
+	m.dirty = true
 }
 
 // Loading reports whether the table is currently in a loading state.
@@ -320,18 +335,17 @@ func (m *Model) Loading() bool {
 	return m.loading
 }
 
-func (m *Model) EnableLoading()  { m.SetLoading(true) }
-func (m *Model) DisableLoading() { m.SetLoading(false) }
-
 // SetLoading sets the loading state explicitly.
 func (m *Model) SetLoading(loading bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.loading != loading {
-		m.loading = loading
-		m.updateTableSizeLocked()
+	if m.loading == loading {
+		return
 	}
+
+	m.loading = loading
+	m.updateTableSizeLocked()
 }
 
 // SetWidth sets an explicit width. Zero means use layout.
@@ -714,7 +728,12 @@ func (m *Model) scaledColumns() []Column {
 	return out
 }
 
+// updateTableSizeLocked recomputes columns and dimensions, and marks the
+// render cache dirty. Marking happens first so the early return for a table
+// with no columns still invalidates (status line and width still change).
 func (m *Model) updateTableSizeLocked() {
+	m.dirty = true
+
 	if len(m.originalCols) == 0 {
 		return
 	}
@@ -745,14 +764,11 @@ func (m *Model) updateTableSizeLocked() {
 		total = min(total, m.maxHeight)
 	}
 
-	height := max(1, total-chromeHeight-m.frameV())
-	m.bubble.SetHeight(height)
-
-	width := m.tableWidthLocked()
+	m.bubble.SetHeight(max(1, total-chromeHeight-m.frameV()))
 	m.bubble.SetWidth(m.contentWidthLocked())
 
 	if h, ok := m.help.(*help.Model); ok {
-		h.SetShortWidth(width)
+		h.SetShortWidth(m.tableWidthLocked())
 	}
 }
 

@@ -37,12 +37,14 @@ func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
 	case RefreshMsg:
 		m.table.SetLoading(true)
-		return m, m.refreshCmd
+		// The table only ticks its spinner while loading
+		return m, tea.Batch(m.refreshCmd, m.table.Init())
 
 	case loadedMsg[T]:
 		m.table.SetLoading(false)
 		m.replaceItems(msg.items)
 		return m, nil
+
 	case errorMsg:
 		m.table.SetLoading(false)
 		return m, m.showNotice("Error", msg.err.Error(), notice.NOTICE_ERROR)

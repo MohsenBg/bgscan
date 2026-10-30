@@ -2,6 +2,7 @@ package table
 
 import (
 	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
@@ -12,16 +13,27 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// The table caches lipgloss styles, so rebuild them. The message then
-	// falls through to the help child, which rebuilds its own viewport.
-	if _, ok := msg.(theme.ThemeChanged); ok {
-		m.applyStylesLocked()
-	}
+	before := captureBubble(m.bubble)
+	defer func() {
+		if captureBubble(m.bubble) != before {
+			m.dirty = true
+		}
+	}()
+
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case theme.ThemeChanged:
+		m.applyStylesLocked()
+
 	case spinner.TickMsg:
+		if !m.loading {
+			return m, nil
+		}
+
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
+		m.dirty = true
 		return m, cmd
 
 	case tea.KeyMsg:
@@ -36,9 +48,17 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.updateTableSizeLocked()
 		m.bubble.SetStyles(m.tableStyles())
+
+	default:
+		// Non-key messages (cursor blink) belong to the filter input
+		// while it is active.
+		if m.filtering {
+			var cmd tea.Cmd
+			m.filter, cmd = m.filter.Update(msg)
+			cmds = append(cmds, cmd)
+		}
 	}
 
-	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
 	m.bubble, cmd = m.bubble.Update(msg)
@@ -118,4 +138,20 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	}
 
 	return nil, true
+}
+
+type bubbleState struct {
+	cursor  int
+	focused bool
+	width   int
+	height  int
+}
+
+func captureBubble(t table.Model) bubbleState {
+	return bubbleState{
+		cursor:  t.Cursor(),
+		focused: t.Focused(),
+		width:   t.Width(),
+		height:  t.Height(),
+	}
 }

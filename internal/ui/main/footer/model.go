@@ -39,6 +39,7 @@ func New(env *ui.Env) *Model {
 		env:        env,
 		appVersion: config.AppVersion,
 		status:     "Main Menu",
+		diry:       true,
 	}
 }
 

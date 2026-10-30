@@ -30,7 +30,18 @@
 
 اسکنر bgscan برای توسعه‌دهنده‌ها و پژوهشگرهایی ساخته شده که می‌خواهند سریع کار کنند و برای اسکن‌کردن مجبور نباشند از ترمینال بیرون بروند.
 
-<img width="1258" height="690" alt="bgscan" src="https://github.com/user-attachments/assets/998c2c7c-f960-4a71-a022-72d86b13c6fb" />
+<div align="center">
+  <video
+    src="https://github.com/user-attachments/assets/4a4c216e-0179-427c-8fe1-89a8fa197730"
+    autoplay
+    muted
+    loop
+    playsinline
+    controls
+    width="100%"
+    style="max-width: 900px; border-radius: 12px; border: 1px solid #30363d;"
+  ></video>
+</div>
 
 ---
 

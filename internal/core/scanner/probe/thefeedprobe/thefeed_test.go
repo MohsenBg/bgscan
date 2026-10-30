@@ -19,6 +19,10 @@ type mockTheFeedService struct {
 	runCalls int
 }
 
+func (m *mockTheFeedService) Version() string {
+	return "0.0.0"
+}
+
 func (m *mockTheFeedService) SaveConfig(dns.TheFeedConfig, string) error { return nil }
 func (m *mockTheFeedService) EditConfig(dns.TheFeedConfig, string) error { return nil }
 func (m *mockTheFeedService) LoadConfig(string) (dns.TheFeedConfig, error) {

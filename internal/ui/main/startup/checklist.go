@@ -115,8 +115,11 @@ func checkStormDNSHealth(r *reporter) {
 }
 
 func checkTheFeedHealth(r *reporter) {
+	thefeed := dns.NewTheFeedService()
+	version := thefeed.Version()
+	r.successf("TheFeed library verified (version %s)", version)
 	checkDNSClientHealth(r, "TheFeed", func() ([]dns.ConfigValidationResult, error) {
-		return dns.NewTheFeedService().ValidateAllConfigs()
+		return thefeed.ValidateAllConfigs()
 	})
 }
 

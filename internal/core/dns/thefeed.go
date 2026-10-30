@@ -69,6 +69,7 @@ type TheFeedService interface {
 	ValidateAllConfigs() ([]ConfigValidationResult, error)
 	RenameConfig(oldName, newName string) error
 	RunTunnel(ctx context.Context, config TheFeedConfig, resolverAddr netip.Addr, timeout time.Duration) error
+	Version() string
 }
 
 type thefeedService struct {
@@ -196,4 +197,8 @@ func (s *thefeedService) RunTunnel(
 	}
 
 	return nil
+}
+
+func (s *thefeedService) Version() string {
+	return protocol.Version()
 }

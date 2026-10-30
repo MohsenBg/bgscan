@@ -38,12 +38,39 @@ type errKind struct {
 	color color.Color
 }
 
-// renderPanels renders the Scan and Errors summary panels side by side.
-func (m *Model) renderPanels(th *theme.Theme) string {
-	p := m.current().progress
+// panelsView caches the rendered Scan and Errors panels for one stage.
+type panelsView struct {
+	cache string
+	width int
+	dirty bool
+}
 
-	scanWidth := m.width * scanPanelRatio / 100
-	errWidth := m.width - scanWidth - panelGap
+func newPanelsView() *panelsView { return &panelsView{dirty: true} }
+
+// invalidate marks the cache stale (new progress or theme change).
+func (v *panelsView) invalidate() { v.dirty = true }
+
+// setWidth updates the outer width, invalidating only when it changed.
+func (v *panelsView) setWidth(w int) {
+	if v.width != w {
+		v.width = w
+		v.dirty = true
+	}
+}
+
+// view returns the cached panels, re-rendering first if stale.
+func (v *panelsView) view(p engine.Progress, th *theme.Theme) string {
+	if v.dirty {
+		v.cache = renderPanels(p, th, v.width)
+		v.dirty = false
+	}
+	return v.cache
+}
+
+// renderPanels renders the Scan and Errors summary panels side by side.
+func renderPanels(p engine.Progress, th *theme.Theme, width int) string {
+	scanWidth := width * scanPanelRatio / 100
+	errWidth := width - scanWidth - panelGap
 
 	scanBody := scanPanelBody(p, th, contentWidth(scanWidth))
 	errBody := errorsPanelBody(p, th, contentWidth(errWidth))
@@ -51,12 +78,12 @@ func (m *Model) renderPanels(th *theme.Theme) string {
 	// Pad both bodies to the same height so the borders line up.
 	scanBody, errBody = equalizeHeight(scanBody, errBody)
 
-	scan := m.renderFrame(scanBody, th, frameSpec{
+	scan := renderFrame(scanBody, th, frameSpec{
 		left:  stylePanelTitle(th).Render(" Scan "),
 		width: scanWidth,
 		padH:  panelPadH,
 	})
-	errs := m.renderFrame(errBody, th, frameSpec{
+	errs := renderFrame(errBody, th, frameSpec{
 		left:  stylePanelTitle(th).Render(" Errors "),
 		right: styleErrorTotal(th).Render(" " + formatCount(p.Errors.Total()) + " failed "),
 		width: errWidth,
@@ -71,8 +98,7 @@ func contentWidth(outer int) int {
 	return outer - frameBorderW - 2*panelPadH
 }
 
-// equalizeHeight pads the shorter body with blank rows so both render to the
-// same height.
+// equalizeHeight pads the shorter body with blank rows so both render to the same height.
 func equalizeHeight(a, b string) (string, string) {
 	aLines := strings.Split(a, "\n")
 	bLines := strings.Split(b, "\n")
@@ -101,16 +127,21 @@ func scanPanelBody(p engine.Progress, th *theme.Theme, width int) string {
 		{"elapsed", formatDuration(p.Elapsed), styleElapsed(th)},
 	}
 
-	lines := make([]string, 0, len(rows)+1)
+	lines := make([]string, 0, len(rows)+3)
 	for _, r := range rows {
 		lines = append(lines, statRow(r.name, r.value, width, r.style))
 	}
-	lines = append(lines, "")
+
+	rate := hitRate(p)
+	rateText := formatHitRate(p)
+	rateStyle := hitRateBarStyle(th, rate)
+
 	lines = append(lines,
-		stylePanelLabel(th).Render(padRight("hit rate", width-lipgloss.Width(formatHitRate(p))))+
-			hitRateBarStyle(th, hitRate(p)).Render(formatHitRate(p)),
+		"",
+		stylePanelLabel(th).Render(padRight("hit rate", width-lipgloss.Width(rateText)))+
+			rateStyle.Render(rateText),
+		renderBar(rate, width, rateStyle, styleMuted(th)),
 	)
-	lines = append(lines, renderBar(hitRate(p), width, hitRateBarStyle(th, hitRate(p)), styleMuted(th)))
 
 	return strings.Join(lines, "\n")
 }

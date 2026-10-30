@@ -1,9 +1,9 @@
 package workspace
 
 import (
-	"charm.land/lipgloss/v2"
+	"strings"
 
-	"github.com/MohsenBg/bgscan/internal/ui/shared/perf"
+	"charm.land/lipgloss/v2"
 )
 
 // View renders the workspace layout.
@@ -12,21 +12,13 @@ func (m *model) View() string {
 	term := env.Layout.Terminal()
 	content := env.Layout.Content()
 
-	defer perf.Begin("ws")()
-	stopBody := perf.Begin("ws.body")
 	bodyView := m.body.View()
-	stopBody()
-
-	stopFooter := perf.Begin("ws.footer")
 	footerView := m.footer.View()
-	stopFooter()
 
 	parts := []string{bodyView, footerView}
 
-	stopStyle := perf.Begin("ws.style")
-	joined := lipgloss.JoinVertical(lipgloss.Left, parts...)
+	joined := strings.Join(parts, "\n")
 	main := m.contentStyle(content.Width, content.Height).Render(joined)
-	stopStyle()
 
 	// The framed content already fills the terminal exactly, so centering it
 	// inside another full-screen box would be a no-op that costs a whole

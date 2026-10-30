@@ -11,7 +11,9 @@ import (
 const (
 	// lead is the number of border cells drawn before the left title.
 	lead = 2
+
 	// minFill is the smallest number of border cells kept between the left
+	// and right titles.
 	minFill = 1
 )
 
@@ -24,8 +26,8 @@ type frameSpec struct {
 	padH  int
 }
 
-// renderFrame wraps content in a rounded border with a title left and right
-func (m *Model) renderFrame(content string, th *theme.Theme, spec frameSpec) string {
+// renderFrame wraps content in a rounded border with a title left and right.
+func renderFrame(content string, th *theme.Theme, spec frameSpec) string {
 	body := lipgloss.NewStyle().Padding(spec.padV, spec.padH).Render(content)
 
 	inner := lipgloss.Width(body)
@@ -49,7 +51,7 @@ func (m *Model) renderFrame(content string, th *theme.Theme, spec frameSpec) str
 	return strings.Join(lines, "\n")
 }
 
-// topEdge renders the top border with a title on each end
+// topEdge renders the top border with a title on each end.
 func topEdge(border lipgloss.Style, left, right string, inner int) string {
 	leadLen := min(lead, inner)
 
@@ -71,10 +73,7 @@ func topEdge(border lipgloss.Style, left, right string, inner int) string {
 		leftWidth = lipgloss.Width(left)
 	}
 
-	fill := inner - leadLen - leftWidth - rightWidth
-	if fill < 0 {
-		fill = 0
-	}
+	fill := max(0, inner-leadLen-leftWidth-rightWidth)
 
 	return border.Render("╭"+strings.Repeat("─", leadLen)) +
 		left +

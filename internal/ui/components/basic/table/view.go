@@ -5,8 +5,6 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-
-	"github.com/MohsenBg/bgscan/internal/ui/shared/perf"
 )
 
 func (m *Model) View() string {
@@ -15,9 +13,7 @@ func (m *Model) View() string {
 
 	m.refreshCacheLocked()
 
-	stopHelp := perf.Begin("tbl.help")
 	helpView := m.helpStyle().Render(m.help.View())
-	stopHelp()
 
 	blocks := make([]string, 0, 5)
 
@@ -31,8 +27,6 @@ func (m *Model) View() string {
 
 	blocks = append(blocks, m.cacheTable, m.cacheStatus, helpView)
 
-	defer perf.Begin("tbl.wrap")()
-
 	return lipgloss.NewStyle().
 		Width(m.tableWidthLocked()).
 		Align(lipgloss.Center).
@@ -44,8 +38,6 @@ func (m *Model) refreshCacheLocked() {
 	if !m.dirty {
 		return
 	}
-
-	defer perf.Begin("tbl.body")()
 
 	m.cacheTitle = m.renderTitle()
 	m.cacheTable = m.tableViewStyle().Render(m.renderTableBody())

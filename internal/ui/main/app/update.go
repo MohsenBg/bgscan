@@ -27,14 +27,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case theme.ThemeChanged:
 		m.invalidateBase()
 
-	case perfTickMsg:
-		m.stats.report(&m.session.Env().Log, time.Now())
-		cmds = append(cmds, perfTick())
-		return m, tea.Batch(cmds...)
-
 	case tea.KeyPressMsg:
-		m.stats.recordKey()
-
 		if m.session.Env().Keys.Global.ForceQuit.Matches(msg) {
 			return m, tea.Quit
 		}

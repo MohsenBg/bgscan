@@ -41,8 +41,6 @@ type model struct {
 	base   string
 	baseAt time.Time
 	baseOK bool
-
-	stats frameStats
 }
 
 // New creates the root application model.
@@ -63,7 +61,6 @@ func New(uiLogger, coreLogger logger.Logger) Application {
 		workspace:   workspace.New(session),
 		stage:       StageSplash,
 		dialogStack: newDialogStack(),
-		stats:       frameStats{since: time.Now()},
 	}
 }
 
@@ -74,5 +71,5 @@ func (m *model) SetProgram(program ui.Program) {
 
 // Init starts the splash screen.
 func (m *model) Init() tea.Cmd {
-	return tea.Sequence(tea.ClearScreen, m.splash.Init(), perfTick())
+	return tea.Sequence(tea.ClearScreen, m.splash.Init())
 }

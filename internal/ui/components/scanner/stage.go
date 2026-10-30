@@ -48,6 +48,9 @@ type scanStage struct {
 	table       ui.Component
 	progressBar ui.Component
 
+	// panels caches the rendered Scan and Errors panels.
+	panels *panelsView
+
 	// results is owned by the UI goroutine only.
 	results []result.Result
 
@@ -77,6 +80,7 @@ func newScanStage(env *ui.Env, idx int, cfg scanner.StageConfig) *scanStage {
 		maxIPs:           maxIPs,
 		table:            createIPViewer(env, cfg.Probe.Schema()),
 		progressBar:      progress.New(env),
+		panels:           newPanelsView(),
 		results:          make([]result.Result, 0, maxIPs),
 		batch:            make([]result.Result, 0, 128),
 		status:           StatusWaiting,
@@ -143,8 +147,7 @@ func cmpResult(a, b result.Result) int {
 }
 
 // takeBatch swaps the pending batch for a fresh slice and returns the old
-// one. The lock is held only for the swap. The new slice has its own backing
-// array, so the returned slice is safe to modify without the lock.
+// one. The lock is held only for the swap.
 func (s *scanStage) takeBatch() []result.Result {
 	s.batchMu.Lock()
 	out := s.batch
@@ -239,6 +242,7 @@ func (s *scanStage) update(msg tea.Msg) tea.Cmd {
 	return tea.Batch(tCmd, pCmd)
 }
 
+// setProgress stores new progress and invalidates the cached panels.
 func (s *scanStage) setProgress(p engine.Progress) {
 	if s.status == StatusWaiting {
 		s.status = StatusScanning
@@ -246,9 +250,10 @@ func (s *scanStage) setProgress(p engine.Progress) {
 	s.lastSparkUpdated = time.Now()
 	s.sparkline.Push(p.RatePerSec)
 	s.progress = p
+	s.panels.invalidate()
 }
 
-// resize pushes width/height to the stage's table.
+// resize pushes width/height to the stage's table, progress bar and panels.
 func (s *scanStage) resize(w, h int) {
 	if viewer := s.ipViewer(); viewer != nil {
 		viewer.SetWidth(w)
@@ -257,4 +262,5 @@ func (s *scanStage) resize(w, h int) {
 	if pb := s.progressModel(); pb != nil {
 		pb.SetWidth(w)
 	}
+	s.panels.setWidth(w)
 }

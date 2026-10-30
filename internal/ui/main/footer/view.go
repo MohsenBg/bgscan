@@ -9,6 +9,10 @@ import (
 )
 
 func (m *Model) View() string {
+	if !m.diry {
+		return m.cache
+	}
+
 	term := m.env.Layout.Footer()
 	th := m.env.Theme
 
@@ -39,7 +43,9 @@ func (m *Model) View() string {
 	footerContent := lipgloss.JoinHorizontal(lipgloss.Left, leftSection, centerSection, rightSection)
 	separator := separatorStyle(&th, term.Width).Render(strings.Repeat("─", term.Width))
 
-	return containerStyle(&th, term.Width, term.Height).Render(
+	m.diry = false
+	m.cache = containerStyle(&th, term.Width, term.Height).Render(
 		lipgloss.JoinVertical(lipgloss.Left, separator, footerContent),
 	)
+	return m.cache
 }

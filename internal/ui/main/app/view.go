@@ -8,15 +8,11 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/keys"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/perf"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
 func (m *model) View() tea.View {
-	start := time.Now()
-	defer func() { m.stats.recordFrame(time.Since(start)) }()
-
 	env := m.session.Env()
 	th := env.Theme
 
@@ -64,24 +60,18 @@ func (m *model) renderLimitSize(env *ui.Env, th *theme.Theme, termWidth, termHei
 }
 
 // baseInterval caps how often the workspace behind an open dialog is rebuilt.
-// The dialog covers part of it, so a copy this old is invisible, while
-// rebuilding it on every animation frame and every key press is what made the
-// event loop fall behind the keyboard.
-const baseInterval = 150 * time.Millisecond
+// The dialog covers part of it, so a copy this old is invisible
+const baseInterval = 200 * time.Millisecond
 
 // workspaceView renders the workspace, reusing the last render for a short
-// while when a dialog is open. Anything that changes the shape of the screen
-// drops the copy through invalidateBase.
+// while when a dialog is open.
 func (m *model) workspaceView() string {
-	defer perf.Begin("wscache")()
-
 	if len(m.layers) == 0 {
 		m.invalidateBase()
 		return m.workspace.View()
 	}
 
 	if m.baseOK && time.Since(m.baseAt) < baseInterval {
-		perf.Record("wscache.hit", 0)
 		return m.base
 	}
 
@@ -121,15 +111,9 @@ func (m *model) renderDialogs(env *ui.Env, th *theme.Theme, base string) string 
 			animation = dialog.AnimNone
 		}
 
-		stopComponent := perf.Begin("dlg.component")
 		inner := l.component.View()
-		stopComponent()
-
-		stopFrame := perf.Begin("dlg.frame")
 		boxed := m.frameView(th, width, inner, opts, hints)
-		stopFrame()
 
-		stopComposite := perf.Begin("dlg.composite")
 		view = dialog.Composite(
 			boxed,
 			view,
@@ -138,7 +122,6 @@ func (m *model) renderDialogs(env *ui.Env, th *theme.Theme, base string) string 
 			animation,
 			l.progress(now),
 		)
-		stopComposite()
 	}
 	return view
 }

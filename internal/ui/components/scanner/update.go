@@ -7,6 +7,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/dialog"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
+	"github.com/MohsenBg/bgscan/internal/ui/theme"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -29,14 +30,18 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 			return m, m.handleScanCloseError(msg.err)
 		}
 		return m, func() tea.Msg { return ui.ResetComponentStacksMsg{} }
-
 	}
 
 	switch msg := msg.(type) {
-	// window size change
 	case tea.WindowSizeMsg:
 		m.updateLayout()
 		return m, nil
+
+	case theme.ThemeChanged:
+		for _, s := range m.stages {
+			s.panels.invalidate()
+		}
+		return m, m.updateAllStage(msg)
 
 	case pulseMsg:
 		m.pulse += m.pulseDir
@@ -77,7 +82,6 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 
 // handleKey processes global keybindings.
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Cmd, bool) {
-
 	k := m.session.Env().Keys.Scan
 	if k.Cancel.Matches(msg) {
 		return confirm.ConfirmCmd(m.session.Env(),
@@ -100,7 +104,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// updateComponents forwards the message to the active stage and the tab bar.
+// updateCurrentStage forwards the message to the active stage and the tab bar.
 func (m *Model) updateCurrentStage(msg tea.Msg) tea.Cmd {
 	var tabCmd tea.Cmd
 	m.tabs, tabCmd = m.tabs.Update(msg)

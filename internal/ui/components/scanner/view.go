@@ -21,10 +21,11 @@ func (m *Model) View() string {
 	}
 
 	th := m.session.Env().Theme
+	stage := m.current()
 
 	tab := m.renderTab(&th)
 	progressbar := m.renderProgressBar(&th)
-	panels := m.renderPanels(&th)
+	panels := stage.panels.view(stage.progress, &th)
 
 	return lipgloss.NewStyle().
 		Align(lipgloss.Center).Render(
@@ -35,13 +36,13 @@ func (m *Model) View() string {
 			progressbar,
 			"",
 			panels,
-			m.current().table.View(),
+			stage.table.View(),
 		))
 }
 
 func (m *Model) renderProgressBar(th *theme.Theme) string {
 	stage := m.current()
-	p := m.current().progress
+	p := stage.progress
 	width := m.width
 
 	container := lipgloss.NewStyle().

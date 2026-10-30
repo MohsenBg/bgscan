@@ -1,10 +1,11 @@
 package footer
 
 import (
-	"github.com/MohsenBg/bgscan/internal/core/config"
-	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 	"runtime"
 	"time"
+
+	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -18,6 +19,9 @@ type Model struct {
 	memoryBytes uint64
 	sys         uint64
 	env         *ui.Env
+
+	diry  bool
+	cache string
 }
 
 type RuntimeStats struct {

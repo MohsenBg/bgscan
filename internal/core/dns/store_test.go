@@ -290,3 +290,45 @@ func TestTunnelConfigDir(t *testing.T) {
 		t.Fatalf("tunnelConfigDir() = %q, want suffix %q", got, wantSuffix)
 	}
 }
+
+func TestConfigStoreWritesSecretFileWith0600(t *testing.T) {
+	store := newFakeStore(t)
+	cfg := fakeStoreConfig{Valid: true, Domain: "example.com"}
+
+	path := filepath.Join(store.dir, "secret.toml")
+
+	// Simulate a file left world-readable by an older version.
+	if err := os.WriteFile(path, []byte("valid = true\n"), 0o644); err != nil {
+		t.Fatalf("seed file: %v", err)
+	}
+	if err := os.Chmod(path, 0o644); err != nil {
+		t.Fatalf("seed chmod: %v", err)
+	}
+
+	if err := store.EditConfig(cfg, "secret"); err != nil {
+		t.Fatalf("EditConfig() error = %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("config file mode = %o, want 600", perm)
+	}
+
+	// A freshly created file must also be 0600.
+	if err := store.SaveConfig(cfg, "fresh"); err != nil {
+		t.Fatalf("SaveConfig() error = %v", err)
+	}
+
+	freshInfo, err := os.Stat(filepath.Join(store.dir, "fresh.toml"))
+	if err != nil {
+		t.Fatalf("Stat(fresh) error = %v", err)
+	}
+
+	if perm := freshInfo.Mode().Perm(); perm != 0o600 {
+		t.Errorf("fresh config file mode = %o, want 600", perm)
+	}
+}

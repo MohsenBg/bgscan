@@ -296,7 +296,7 @@ func saveOutboundTemplate(log *logger.Logger, name string, outbound *Outbound) (
 		return nil, err
 	}
 
-	if err := os.WriteFile(dst, data, 0o644); err != nil {
+	if err := os.WriteFile(dst, data, 0o600); err != nil {
 		return nil, fmt.Errorf("save outbound template: %w", err)
 	}
 

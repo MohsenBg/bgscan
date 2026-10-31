@@ -29,6 +29,33 @@ func WriteTOMLFile(path string, value any) error {
 	return nil
 }
 
+// WriteSecretTOMLFile encodes value as TOML into path, creating it with mode
+// 0600 and restricting any pre-existing file to 0600 as well.
+//
+// Use it for any configuration that carries credentials (private keys,
+// passwords). It is deliberately separate from WriteTOMLFile, which writes
+// 0644 and must not be used for secrets.
+//
+// The Chmod is not redundant with the OpenFile mode: that mode applies only
+// when the file is created, so it heals 0644 files written by older versions
+// rather than leaving their permissions untouched.
+func WriteSecretTOMLFile(path string, value any) error {
+	if err := EnsureFileDir(path); err != nil {
+		return err
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return fmt.Errorf("create TOML file %q: %w", path, err)
+	}
+	defer file.Close()
+
+	if err := file.Chmod(0o600); err != nil {
+		return err
+	}
+
+	return toml.NewEncoder(file).Encode(value)
+}
+
 // WriteTOMLFileIfNotExist writes value only when path does not exist.
 func WriteTOMLFileIfNotExist(path string, value any) error {
 	if CheckFileExists(path) {

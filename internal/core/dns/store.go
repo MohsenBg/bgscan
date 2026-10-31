@@ -80,7 +80,7 @@ func (s *configStore[C]) SaveConfig(config C, name string) error {
 		return fmt.Errorf("invalid %s config: %v", s.kind, errs)
 	}
 
-	if err := fileutil.WriteTOMLFile(path, config); err != nil {
+	if err := fileutil.WriteSecretTOMLFile(path, config); err != nil {
 		return fmt.Errorf("save %s config %q: %w", s.kind, name, err)
 	}
 
@@ -102,7 +102,7 @@ func (s *configStore[C]) EditConfig(config C, originalName string) error {
 		return fmt.Errorf("invalid %s config: %v", s.kind, errs)
 	}
 
-	if err := fileutil.WriteTOMLFile(path, config); err != nil {
+	if err := fileutil.WriteSecretTOMLFile(path, config); err != nil {
 		return fmt.Errorf("edit %s config %q: %w", s.kind, originalName, err)
 	}
 

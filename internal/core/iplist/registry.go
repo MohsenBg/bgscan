@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
@@ -74,6 +75,20 @@ func ListIPFiles() ([]IPFileInfo, error) {
 	return out, nil
 }
 
+// validateListName rejects names that would escape the IP list directory or
+// that cannot name a file on their own. It must be called on the bare name,
+// before any extension is appended, otherwise its empty and dot cases can
+// never match.
+func validateListName(name string) error {
+	if strings.TrimSpace(name) == "" || name == "." || name == ".." ||
+		name != filepath.Base(name) ||
+		strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("invalid IP list name %q", name)
+	}
+
+	return nil
+}
+
 // GetIPFileInfo returns metadata for an IP list file.
 //
 // Accepted inputs:
@@ -92,6 +107,10 @@ func GetIPFileInfo(nameOrPath string) (IPFileInfo, error) {
 		}
 
 		name := nameOrPath
+		if err := validateListName(name); err != nil {
+			return IPFileInfo{}, err
+		}
+
 		if !fileutil.HasExt(name, ".csv") {
 			name += ".csv"
 		}
@@ -123,6 +142,10 @@ func GetIPFileInfo(nameOrPath string) (IPFileInfo, error) {
 func GetIPFilePath(name string) (string, error) {
 	dir, err := getBaseDir()
 	if err != nil {
+		return "", err
+	}
+
+	if err := validateListName(name); err != nil {
 		return "", err
 	}
 

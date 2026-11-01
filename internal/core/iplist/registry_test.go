@@ -3,6 +3,7 @@ package iplist
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -256,4 +257,70 @@ func setBaseDir(t *testing.T) string {
 	})
 
 	return filepath.Join(dir, IPListDir)
+}
+
+func TestGetIPFilePathRejectsInvalidNames(t *testing.T) {
+	setBaseDir(t)
+
+	invalid := []string{"", "   ", ".", "..", "../x", "../../etc/passwd", "a/b", `a\b`}
+
+	for _, name := range invalid {
+		path, err := GetIPFilePath(name)
+		if err == nil {
+			t.Errorf("GetIPFilePath(%q) = %q, want error", name, path)
+			continue
+		}
+
+		if !strings.Contains(err.Error(), "invalid IP list name") {
+			t.Errorf("GetIPFilePath(%q) error = %v, want invalid IP list name", name, err)
+		}
+
+		if _, err := GetIPFileInfo(name); err == nil {
+			t.Errorf("GetIPFileInfo(%q) should fail", name)
+		}
+	}
+}
+
+func TestGetIPFilePathAcceptsValidNames(t *testing.T) {
+	dir := setBaseDir(t)
+
+	valid := map[string]string{
+		"mylist":     "mylist.csv",
+		"mylist.csv": "mylist.csv",
+		"MY.CSV":     "MY.CSV",
+	}
+
+	for name, file := range valid {
+		path, err := GetIPFilePath(name)
+		if err != nil {
+			t.Fatalf("GetIPFilePath(%q) error = %v", name, err)
+		}
+
+		want := filepath.Join(dir, file)
+		if path != want {
+			t.Errorf("GetIPFilePath(%q) = %q, want %q", name, path, want)
+		}
+	}
+}
+
+func TestGetIPFileInfoAcceptsAbsolutePath(t *testing.T) {
+	dir := setBaseDir(t)
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir ips: %v", err)
+	}
+
+	abs := filepath.Join(dir, "absolute.csv")
+	if err := os.WriteFile(abs, []byte("10.0.0.0/8,1\n"), 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	info, err := GetIPFileInfo(abs)
+	if err != nil {
+		t.Fatalf("GetIPFileInfo(%q) error = %v", abs, err)
+	}
+
+	if info.Path != abs {
+		t.Errorf("Path = %q, want %q", info.Path, abs)
+	}
 }

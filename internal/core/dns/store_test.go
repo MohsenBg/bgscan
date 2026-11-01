@@ -291,6 +291,47 @@ func TestTunnelConfigDir(t *testing.T) {
 	}
 }
 
+func TestConfigStoreRejectsTraversalNames(t *testing.T) {
+	store := newFakeStore(t)
+	valid := fakeStoreConfig{Valid: true, Domain: "example.com"}
+
+	bad := []string{"../evil", "../../evil", "a/b", `a\b`, "..", "."}
+
+	for _, name := range bad {
+		if err := store.SaveConfig(valid, name); err == nil {
+			t.Errorf("SaveConfig(%q) should fail", name)
+		}
+
+		if _, err := store.LoadConfig(name); err == nil {
+			t.Errorf("LoadConfig(%q) should fail", name)
+		}
+	}
+
+	if err := store.SaveConfig(valid, "base"); err != nil {
+		t.Fatalf("SaveConfig() error = %v", err)
+	}
+
+	// The traversal check must fire before the existence check, so this is
+	// rejected for the name and not merely because "base" is missing.
+	if err := store.RenameConfig("base", "../evil"); err == nil {
+		t.Error("RenameConfig() to traversal name should fail")
+	} else if !strings.Contains(err.Error(), "invalid config name") {
+		t.Errorf("RenameConfig() error = %v, want invalid config name", err)
+	}
+
+	// Nothing may have been written outside the store directory.
+	entries, err := os.ReadDir(filepath.Dir(store.dir))
+	if err != nil {
+		t.Fatalf("ReadDir(parent) error = %v", err)
+	}
+
+	for _, e := range entries {
+		if strings.Contains(e.Name(), "evil") {
+			t.Errorf("traversal write created %q outside the config dir", e.Name())
+		}
+	}
+}
+
 func TestConfigStoreWritesSecretFileWith0600(t *testing.T) {
 	store := newFakeStore(t)
 	cfg := fakeStoreConfig{Valid: true, Domain: "example.com"}

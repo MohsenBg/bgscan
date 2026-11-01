@@ -117,7 +117,11 @@ func TestConfigPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := service.configs.configPath(tt.name); got != tt.want {
+			got, err := service.configs.configPath(tt.name)
+			if err != nil {
+				t.Fatalf("configPath(%q) error = %v", tt.name, err)
+			}
+			if got != tt.want {
 				t.Fatalf(
 					"configPath(%q) = %q, want %q",
 					tt.name,

@@ -61,8 +61,13 @@ func newConfigStore[C tunnelConfig](dir, kind string) configStore[C] {
 	return configStore[C]{dir: dir, kind: kind}
 }
 
-func (s *configStore[C]) configPath(name string) string {
-	return filepath.Join(s.dir, normalizeConfigName(name)+".toml")
+func (s *configStore[C]) configPath(name string) (string, error) {
+	if name == "" || name == "." || name == ".." ||
+		name != filepath.Base(name) ||
+		strings.ContainsAny(name, `/\`) {
+		return "", fmt.Errorf("invalid config name %q", name)
+	}
+	return filepath.Join(s.dir, normalizeConfigName(name)+".toml"), nil
 }
 
 func (s *configStore[C]) SaveConfig(config C, name string) error {
@@ -70,7 +75,10 @@ func (s *configStore[C]) SaveConfig(config C, name string) error {
 		return fmt.Errorf("config name is required")
 	}
 
-	path := s.configPath(name)
+	path, err := s.configPath(name)
+	if err != nil {
+		return err
+	}
 
 	if fileutil.CheckFileExists(path) {
 		return fmt.Errorf("config %q already exists", name)
@@ -92,7 +100,10 @@ func (s *configStore[C]) EditConfig(config C, originalName string) error {
 		return fmt.Errorf("original config name is required")
 	}
 
-	path := s.configPath(originalName)
+	path, err := s.configPath(originalName)
+	if err != nil {
+		return err
+	}
 
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("config %q does not exist", originalName)
@@ -110,7 +121,13 @@ func (s *configStore[C]) EditConfig(config C, originalName string) error {
 }
 
 func (s *configStore[C]) LoadConfig(name string) (C, error) {
-	config, err := fileutil.ReadTOMLFile[C](s.configPath(name))
+	path, err := s.configPath(name)
+	if err != nil {
+		var zero C
+		return zero, err
+	}
+
+	config, err := fileutil.ReadTOMLFile[C](path)
 	if err != nil {
 		var zero C
 		return zero, fmt.Errorf("load %s config %q: %w", s.kind, name, err)
@@ -191,8 +208,15 @@ func (s *configStore[C]) ValidateAllConfigs() ([]ConfigValidationResult, error) 
 }
 
 func (s *configStore[C]) RenameConfig(oldName, newName string) error {
-	oldPath := s.configPath(oldName)
-	newPath := s.configPath(newName)
+	oldPath, err := s.configPath(oldName)
+	if err != nil {
+		return err
+	}
+
+	newPath, err := s.configPath(newName)
+	if err != nil {
+		return err
+	}
 
 	if _, err := os.Stat(oldPath); err != nil {
 		if os.IsNotExist(err) {

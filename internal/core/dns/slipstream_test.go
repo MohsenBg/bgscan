@@ -826,7 +826,10 @@ func TestConfigPathNormalizesExtension(t *testing.T) {
 		configs: newConfigStore[SlipstreamConfig]("/cfg", "Slipstream"),
 	}
 
-	got := service.configs.configPath("test.toml")
+	got, err := service.configs.configPath("test.toml")
+	if err != nil {
+		t.Fatalf("configPath() error = %v", err)
+	}
 	want := filepath.Join("/cfg", "test.toml")
 
 	if got != want {
@@ -843,7 +846,10 @@ func TestConfigPathAddsExtension(t *testing.T) {
 		configs: newConfigStore[SlipstreamConfig]("/cfg", "Slipstream"),
 	}
 
-	got := service.configs.configPath("test")
+	got, err := service.configs.configPath("test")
+	if err != nil {
+		t.Fatalf("configPath() error = %v", err)
+	}
 	want := filepath.Join("/cfg", "test.toml")
 
 	if got != want {

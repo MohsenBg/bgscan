@@ -1,37 +1,24 @@
 package result
 
 import (
-	"os"
-	"runtime"
+	"time"
 )
 
 // replaceFile atomically replaces the destination file with the source file.
-//
-// On Unix-like systems os.Rename provides atomic replacement.
-// On Windows, Rename fails if the destination already exists,
-// so we fall back to removing the destination first.
 func replaceFile(src, dst string) error {
-	if err := os.Rename(src, dst); err == nil {
-		return nil
+	const (
+		maxWait   = 1 * time.Second
+		firstWait = 25 * time.Millisecond
+		maxStep   = 200 * time.Millisecond
+	)
+	deadline := time.Now().Add(maxWait)
+	wait := firstWait
+	for {
+		err := moveReplace(src, dst)
+		if err == nil || !isTransientLock(err) || time.Now().Add(wait).After(deadline) {
+			return err
+		}
+		time.Sleep(wait)
+		wait = min(wait*2, maxStep)
 	}
-
-	// Windows fallback: remove destination then retry rename
-	_ = os.Remove(dst)
-	return os.Rename(src, dst)
-}
-
-// syncDir flushes directory metadata to disk.
-//
-// This ensures file creations/renames are persisted after a crash.
-// On some platforms (notably Windows) this may effectively be a no‑op.
-func syncDir(dir string) error {
-	if runtime.GOOS == "windows" {
-		return nil
-	}
-	df, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = df.Close() }()
-	return df.Sync()
 }

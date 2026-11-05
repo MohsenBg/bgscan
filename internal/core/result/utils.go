@@ -24,14 +24,13 @@ func replaceFile(src, dst string) error {
 // This ensures file creations/renames are persisted after a crash.
 // On some platforms (notably Windows) this may effectively be a no‑op.
 func syncDir(dir string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
 	df, err := os.Open(dir)
 	if err != nil {
 		return err
 	}
-
-	defer func() {
-		_ = df.Close()
-	}()
-
+	defer func() { _ = df.Close() }()
 	return df.Sync()
 }

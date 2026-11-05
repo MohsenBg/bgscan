@@ -1,4 +1,3 @@
-// replace_windows.go
 //go:build windows
 
 package result

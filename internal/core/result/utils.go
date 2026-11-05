@@ -2,6 +2,7 @@ package result
 
 import (
 	"os"
+	"runtime"
 )
 
 // replaceFile atomically replaces the destination file with the source file.

@@ -25,6 +25,19 @@ func TestWriterConfig(t *testing.T) {
 			checkFixed:    func(t *testing.T, c *config.WriterConfig) {},
 		},
 		{
+			name: "IgnoreErr is valid and preserved",
+			mutateCfg: func(c *config.WriterConfig) {
+				c.IgnoreErr = true
+			},
+			wantErrKeys:   nil,
+			wantWarnCount: 0,
+			checkFixed: func(t *testing.T, c *config.WriterConfig) {
+				if !c.IgnoreErr {
+					t.Error("IgnoreErr = false, want true")
+				}
+			},
+		},
+		{
 			name: "MergeFlushInterval too low",
 			mutateCfg: func(c *config.WriterConfig) {
 				c.MergeFlushInterval = config.NewDurationMS(

@@ -102,7 +102,12 @@ func (p *pipeline) runSequential(input string) error {
 
 		p.cfg.Log.Info("stage %d/%d starting", i+1, len(p.cfg.Stages))
 
-		exec, err := newStageExecutor(p.ctx, stage, p.cfg, p.countInput(current), p.resultLimitFor(i))
+		exec, err := newStageExecutor(
+			p.ctx,
+			stage, p.cfg,
+			p.countInput(current),
+			p.resultLimitFor(i),
+		)
 		if err != nil {
 			return err
 		}
@@ -221,7 +226,13 @@ func (p *pipeline) buildExecutors(firstTotal uint64) ([]*stageExecutor, error) {
 			total = firstTotal
 		}
 
-		exec, err := newStageExecutor(p.ctx, stage, p.cfg, total, p.resultLimitFor(i))
+		exec, err := newStageExecutor(
+			p.ctx,
+			stage,
+			p.cfg,
+			total,
+			p.resultLimitFor(i),
+		)
 		if err != nil {
 			return nil, errors.Join(err, closeExecutors(execs))
 		}

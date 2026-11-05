@@ -105,6 +105,60 @@ func TestWriter_WriteFlushesOnStop(t *testing.T) {
 	}
 }
 
+func TestWriter_FlushErrorFailsByDefault(t *testing.T) {
+	cfg := defaultTestWriterConfig(t)
+	w := newWriterForTest(t, context.Background(), cfg)
+	impl := w.(*writer)
+
+	if err := os.MkdirAll(impl.path+".tmp", 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	impl.batch = []Result{newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9")}
+	if fatal := impl.flush(); !fatal {
+		t.Fatal("flush() = false, want fatal when IgnoreErr is disabled")
+	}
+	if impl.firstErr == nil {
+		t.Fatal("expected flush error to be recorded")
+	}
+}
+
+func TestWriter_IgnoreErrContinuesAfterFlushError(t *testing.T) {
+	cfg := defaultTestWriterConfig(t)
+	cfg.IgnoreErr = true
+	w := newWriterForTest(t, context.Background(), cfg)
+	impl := w.(*writer)
+
+	if err := os.MkdirAll(impl.path+".tmp", 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	impl.batch = []Result{newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9")}
+	if fatal := impl.flush(); fatal {
+		t.Fatal("flush() = true, want non-fatal when IgnoreErr is enabled")
+	}
+	if impl.firstErr != nil {
+		t.Fatalf("firstErr = %v, want nil when IgnoreErr is enabled", impl.firstErr)
+	}
+
+	if err := os.Remove(impl.path + ".tmp"); err != nil {
+		t.Fatal(err)
+	}
+
+	impl.batch = []Result{newMockResult("5.6.7.8", 0.5, "5.6.7.8", "0.5")}
+	if fatal := impl.flush(); fatal {
+		t.Fatal("second flush() = true, want non-fatal")
+	}
+
+	data, err := os.ReadFile(impl.path)
+	if err != nil {
+		t.Fatalf("read result file: %v", err)
+	}
+	if !strings.Contains(string(data), "5.6.7.8") {
+		t.Fatalf("result file is missing the result written after the ignored error: %q", data)
+	}
+}
+
 func TestWriter_SortsResultsByScore(t *testing.T) {
 	w := newWriterForTest(t, context.Background(), defaultTestWriterConfig(t))
 	if err := w.Start(); err != nil {

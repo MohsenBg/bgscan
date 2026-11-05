@@ -28,17 +28,18 @@ const (
 
 // ChainConfig configures a multi-stage scan pipeline.
 type ChainConfig struct {
-	Mode             PipelineMode
-	MaxBuffer        int
-	BatchSize        int
-	MaxIPsToTest     uint64
-	Stages           []StageConfig
-	MinProbeDuration time.Duration
-	Pause            PauseController
-	Shuffled         bool
-	RateLimiter      *rate.Limiter
-	MaxSuccessfulIPs uint64
-	Log              *logger.Logger
+	Mode              PipelineMode
+	MaxBuffer         int
+	BatchSize         int
+	MaxIPsToTest      uint64
+	Stages            []StageConfig
+	MinProbeDuration  time.Duration
+	Pause             PauseController
+	Shuffled          bool
+	RateLimiter       *rate.Limiter
+	MaxSuccessfulIPs  uint64
+	Log               *logger.Logger
+	IgnoreWriterError bool
 }
 
 // StageConfig defines the execution parameters for a single scan stage.

@@ -176,6 +176,72 @@ func TestRunScan_WriterWriteErrorIsFatal(t *testing.T) {
 	}
 }
 
+func TestRunScan_WriterWriteErrorIsIgnored(t *testing.T) {
+	ips := make([]string, 200)
+	for i := range ips {
+		ips[i] = fmt.Sprintf("10.0.%d.%d", i/256, i%256)
+	}
+	path := ipFile(t, ips...)
+	prb := &mockProbe{}
+	w := &mockWriter{writeErr: errors.New("disk full")}
+
+	var successCount atomic.Int32
+
+	err := RunScanWithChain(context.Background(), path, ChainConfig{
+		MaxIPsToTest:      0,
+		Mode:              ModeSequential,
+		IgnoreWriterError: true,
+		Stages: []StageConfig{
+			{
+				Workers: 4,
+				Probe:   prb,
+				Writer:  w,
+				Hooks: ScanHooks{
+					OnSuccess: func(result.Result) { successCount.Add(1) },
+				},
+			},
+		},
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
+	if err != nil {
+		t.Fatalf("expected ignored writer error, got %v", err)
+	}
+	if got := successCount.Load(); got != int32(len(ips)) {
+		t.Fatalf("expected %d successes, got %d", len(ips), got)
+	}
+	if got := prb.runCalled.Load(); got != int32(len(ips)) {
+		t.Fatalf("expected %d processed IPs, got %d", len(ips), got)
+	}
+	if got := len(w.results()); got != 0 {
+		t.Fatalf("expected no persisted results, got %d", got)
+	}
+}
+
+func TestRunScan_WriterCloseErrorIsIgnored(t *testing.T) {
+	path := ipFile(t, "1.2.3.4")
+	prb := &mockProbe{}
+	w := &mockWriter{stopErr: errors.New("close failed")}
+
+	err := RunScanWithChain(context.Background(), path, ChainConfig{
+		MaxIPsToTest:      0,
+		Mode:              ModeSequential,
+		IgnoreWriterError: true,
+		Stages: []StageConfig{
+			{
+				Workers: 1,
+				Probe:   prb,
+				Writer:  w,
+			},
+		},
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
+	if err != nil {
+		t.Fatalf("expected ignored writer close error, got %v", err)
+	}
+}
+
 func TestRunScan_WriterStartError(t *testing.T) {
 	path := ipFile(t, "1.2.3.4")
 	prb := &mockProbe{}
@@ -197,6 +263,36 @@ func TestRunScan_WriterStartError(t *testing.T) {
 
 	if gotErr == nil {
 		t.Fatal("expected writer Start error")
+	}
+}
+
+func TestRunScan_WriterStartErrorIsIgnored(t *testing.T) {
+	path := ipFile(t, "1.2.3.4")
+	prb := &mockProbe{}
+	w := &mockWriter{startErr: errors.New("disk full")}
+
+	err := RunScanWithChain(context.Background(), path, ChainConfig{
+		MaxIPsToTest:      0,
+		Mode:              ModeSequential,
+		IgnoreWriterError: true,
+		Stages: []StageConfig{
+			{
+				Workers: 1,
+				Probe:   prb,
+				Writer:  w,
+			},
+		},
+		Shuffled: false,
+		Pause:    NewPauseController(),
+	})
+	if err != nil {
+		t.Fatalf("expected ignored writer Start error, got %v", err)
+	}
+	if got := prb.runCalled.Load(); got != 1 {
+		t.Fatalf("expected scan to continue after writer Start error, processed %d IPs", got)
+	}
+	if got := len(w.results()); got != 0 {
+		t.Fatalf("expected no writes when the writer failed to start, got %d", got)
 	}
 }
 

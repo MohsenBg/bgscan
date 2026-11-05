@@ -12,6 +12,7 @@ type WriterConfig struct {
 	ChanSize           int        `toml:"chan_size" comment:"Result channel buffer size. Range: 1-1000000. Higher = fewer worker blocks during disk I/O."`
 	BatchSize          int        `toml:"batch_size" comment:"Results per write batch. Range: 1-1000000. Higher = fewer disk writes but more RAM."`
 	ResultBaseDir      string     `toml:"result_directory" comment:"Directory name for scan results. Created next to the binary."`
+	IgnoreErr          bool       `toml:"ignore_err" comment:"Ignore writer errors and continue processing results."`
 }
 
 func DefaultWriterConfig(log *logger.Logger) WriterConfig {

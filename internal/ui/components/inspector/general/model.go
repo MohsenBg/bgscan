@@ -46,6 +46,7 @@ const (
 	descChanSize           = "The capacity of the internal channel used by scanner workers to send IP scan results to the writer goroutine."
 	descWriterBatchSize    = "The initial capacity of the in-memory batch used to accumulate IP scan results before flushing to disk."
 	descResultDirectory    = "The directory name used to store scan results. The directory is created inside the project root (for example, 'result' stores results in './result')."
+	descIgnoreErr          = "Continue processing results when the writer encounters an error instead of stopping the scan."
 )
 
 type Model struct {
@@ -313,6 +314,16 @@ func New(session *ui.Session, name string) *Model {
 		}),
 	)
 
+	ignoreErr := toggleinput.New(session.Env(), "Ignore Writer Errors",
+		toggleinput.WithValue(cfg.Writer.IgnoreErr),
+		toggleinput.WithFocus(),
+		toggleinput.WithLabels("Enabled", "Disabled"),
+		toggleinput.WithOnSubmit(func(v bool) tea.Cmd {
+			cfg.Writer.IgnoreErr = v
+			return saveWriterCmd()
+		}),
+	)
+
 	fields := []inspector.Field{
 		{Name: "Status Interval", Description: descStatusInterval, Group: groupGeneral, Input: inspector.Adapt(statusInterval), Visible: alwaysVisible, Format: inspector.FormatDurationMS},
 		{Name: "Max Successful IPs", Description: descMaxSuccessfulIPs, Group: groupGeneral, Input: inspector.Adapt(maxSuccessfulIPs), Visible: alwaysVisible, Format: inspector.FormatIntOrUnlimited},
@@ -329,6 +340,7 @@ func New(session *ui.Session, name string) *Model {
 		{Name: "Merge Flush Interval", Description: descMergeFlushInterval, Group: groupWriter, Input: inspector.Adapt(mergeFlushInterval), Visible: alwaysVisible, Format: inspector.FormatDurationMS},
 		{Name: "Channel Size", Description: descChanSize, Group: groupWriter, Input: inspector.Adapt(chanSize), Visible: alwaysVisible, Format: inspector.FormatInt},
 		{Name: "Batch Size", Description: descWriterBatchSize, Group: groupWriter, Input: inspector.Adapt(writerBatchSize), Visible: alwaysVisible, Format: inspector.FormatInt},
+		{Name: "Ignore Writer Errors", Description: descIgnoreErr, Group: groupWriter, Input: inspector.Adapt(ignoreErr), Visible: alwaysVisible, Format: inspector.FormatBool},
 	}
 
 	return &Model{

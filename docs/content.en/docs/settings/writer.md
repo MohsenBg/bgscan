@@ -23,6 +23,7 @@ Each scan stage has its own Writer. The workers send results to the Writer throu
 | `chan_size` | Depends on the platform | The capacity of the channel between the workers and the Writer |
 | `batch_size` | Depends on the platform | The number of results collected in memory before a flush |
 | `result_directory` | `"result"` | The main directory for result files |
+| `ignore_err` | `false` | Log writer errors and keep scanning instead of stopping |
 
 ## Time between flushes
 
@@ -84,6 +85,16 @@ Sets the main directory for result files. The path of this directory is relative
 These directories are created automatically when needed.
 
 **Note:** The `result_directory` value must be only a directory name, not a full path.
+
+## Ignore writer errors
+
+```toml id="2n6b8s"
+ignore_err = false
+```
+
+When enabled, the Writer logs its errors and the scan keeps running instead of stopping. This covers startup, write, and flush errors.
+
+The batch that failed to flush is discarded, so some results may be missing from the output file. Keep this disabled if every successful result must be persisted.
 
 ## Related files
 

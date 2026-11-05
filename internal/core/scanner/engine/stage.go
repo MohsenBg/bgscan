@@ -15,9 +15,11 @@ import (
 )
 
 // ErrResultLimitReached signals that the target success goal has been met.
-var ErrResultLimitReached = errors.New("result limit reached")
-var ErrWriterFatal = errors.New("writer fatal")
-var errNoStages = errors.New("scan chain has no stages")
+var (
+	ErrResultLimitReached = errors.New("result limit reached")
+	ErrWriterFatal        = errors.New("writer fatal")
+	errNoStages           = errors.New("scan chain has no stages")
+)
 
 type stageExecutor struct {
 	log              *logger.Logger
@@ -33,7 +35,9 @@ type stageExecutor struct {
 	succeeded    atomic.Uint64
 	stopProgress chan struct{}
 
-	errs errStats
+	ignoreWriterErr bool
+	writerDisabled  bool
+	errs            errStats
 }
 
 func newStageExecutor(ctx context.Context, stage StageConfig, cfg ChainConfig, total, resultLimit uint64) (*stageExecutor, error) {
@@ -45,11 +49,16 @@ func newStageExecutor(ctx context.Context, stage StageConfig, cfg ChainConfig, t
 		minProbeDuration: cfg.MinProbeDuration,
 		resultLimit:      resultLimit,
 		start:            time.Now(),
+		ignoreWriterErr:  cfg.IgnoreWriterError,
 	}
 	exec.total.Store(total)
 
 	if err := exec.stage.Writer.Start(); err != nil {
-		return nil, err
+		if !exec.ignoreWriterErr {
+			return nil, err
+		}
+		exec.log.Error("ignoring writer start error: %v", err)
+		exec.writerDisabled = true
 	}
 	if err := exec.stage.Probe.Init(ctx); err != nil {
 		if stopErr := exec.stage.Writer.Close(); stopErr != nil {
@@ -105,7 +114,9 @@ func (e *stageExecutor) close() error {
 	var closeErr error
 	if err := e.stage.Writer.Close(); err != nil {
 		e.log.Error("failed to close writer: %v", err)
-		closeErr = err
+		if !e.ignoreWriterErr {
+			closeErr = err
+		}
 	}
 
 	e.emitProgress()
@@ -151,14 +162,19 @@ func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) error {
 
 	e.stage.Hooks.callOnSuccess(res)
 
-	if err := e.stage.Writer.Write(res); err != nil {
-		// A write error while the scan context is still alive means the
-		// writer died (for example a failed flush); that is fatal for the
-		// whole scan, not just this IP.
-		if ctx.Err() != nil {
-			return err
+	if !e.writerDisabled {
+		if err := e.stage.Writer.Write(res); err != nil {
+			if e.ignoreWriterErr {
+				if ctx.Err() == nil {
+					e.log.Warn("ignoring writer error: %v", err)
+				}
+			} else {
+				if ctx.Err() != nil {
+					return err
+				}
+				return fmt.Errorf("%w: %w", ErrWriterFatal, err)
+			}
 		}
-		return fmt.Errorf("%w: %w", ErrWriterFatal, err)
 	}
 
 	if e.resultLimit > 0 && n >= e.resultLimit {

@@ -291,6 +291,9 @@ func (w *writer) flush() (fatal bool) {
 
 	if err := mergeResults(w.log, w.path, w.schema, tmp); err != nil {
 		w.log.Error("flush results: %v", err)
+		if w.config.IgnoreErr {
+			return false
+		}
 		w.recordErr(err)
 		return true
 	}

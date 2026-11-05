@@ -418,17 +418,18 @@ func (s *scanner) runPipeline(stages []StageConfig) error {
 	}
 
 	return s.runner.RunChain(s.ctx, s.input, engine.ChainConfig{
-		MaxIPsToTest:     uint64(max(general.MaxIPsToTest, 0)),
-		MaxSuccessfulIPs: uint64(max(general.MaxSuccessfulIPs, 0)),
-		Mode:             mode,
-		Stages:           engineStages,
-		Pause:            s.pause,
-		Shuffled:         general.Shuffled,
-		MaxBuffer:        general.MaxIPsPerStage,
-		BatchSize:        general.BatchSize,
-		MinProbeDuration: general.MinProbeDuration.Duration(),
-		RateLimiter:      s.newRateLimiter(),
-		Log:              s.log,
+		MaxIPsToTest:      uint64(max(general.MaxIPsToTest, 0)),
+		MaxSuccessfulIPs:  uint64(max(general.MaxSuccessfulIPs, 0)),
+		Mode:              mode,
+		Stages:            engineStages,
+		Pause:             s.pause,
+		Shuffled:          general.Shuffled,
+		MaxBuffer:         general.MaxIPsPerStage,
+		BatchSize:         general.BatchSize,
+		MinProbeDuration:  general.MinProbeDuration.Duration(),
+		RateLimiter:       s.newRateLimiter(),
+		Log:               s.log,
+		IgnoreWriterError: s.config.Writer.IgnoreErr,
 	})
 }
 

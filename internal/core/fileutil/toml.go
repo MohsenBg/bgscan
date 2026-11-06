@@ -47,7 +47,10 @@ func WriteSecretTOMLFile(path string, value any) error {
 	if err != nil {
 		return fmt.Errorf("create TOML file %q: %w", path, err)
 	}
-	defer file.Close()
+
+	defer func() {
+		_ = file.Close()
+	}()
 
 	if err := file.Chmod(0o600); err != nil {
 		return err

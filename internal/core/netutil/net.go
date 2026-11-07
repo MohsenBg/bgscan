@@ -33,7 +33,7 @@ func HasScheme(v string) bool {
 //	"[2001:db8::01]:443/api" -> "[2001:db8::1]/api"
 //	"EXAMPLE.com" -> "example.com"
 func NormalizeHostWithSuffix(input string) (string, error) {
-	host, suffix, err := extractHostAndSuffix(input)
+	host, suffix, err := ExtractHostAndSuffix(input)
 	if err != nil {
 		return "", err
 	}
@@ -53,7 +53,7 @@ func NormalizeHostWithSuffix(input string) (string, error) {
 // ExtractTLSServerName returns the normalized hostname for TLS SNI, without
 // IPv6 brackets.
 func ExtractTLSServerName(input string) (string, error) {
-	host, _, err := extractHostAndSuffix(input)
+	host, _, err := ExtractHostAndSuffix(input)
 	if err != nil {
 		return "", err
 	}
@@ -83,9 +83,9 @@ func ParsePortOrDefault(port int, defaultPort uint16) uint16 {
 	return uint16(port)
 }
 
-// extractHostAndSuffix separates a hostname from any trailing path or query
+// ExtractHostAndSuffix separates a hostname from any trailing path or query
 // string, handling schemes, ports, and IPv6 brackets.
-func extractHostAndSuffix(input string) (host string, suffix string, err error) {
+func ExtractHostAndSuffix(input string) (host string, suffix string, err error) {
 	input = strings.TrimSpace(input)
 
 	if idx := strings.Index(input, "://"); idx != -1 {

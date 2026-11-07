@@ -1,10 +1,10 @@
-package iplist
+package target
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"math/big"
-	"math/rand"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -128,23 +128,6 @@ func TestAddBigOffset(t *testing.T) {
 	}
 }
 
-func TestRandBigIntBelow(t *testing.T) {
-	t.Parallel()
-
-	rng := rand.New(rand.NewSource(123))
-	max := big.NewInt(10)
-
-	for i := 0; i < 1000; i++ {
-		n := randBigIntBelow(rng, max)
-		if n.Sign() < 0 {
-			t.Fatalf("randBigIntBelow returned negative: %v", n)
-		}
-		if n.Cmp(max) >= 0 {
-			t.Fatalf("randBigIntBelow returned %v, want < %v", n, max)
-		}
-	}
-}
-
 func TestGetIPFromCIDRBlocks(t *testing.T) {
 	t.Parallel()
 
@@ -207,7 +190,8 @@ func TestReadIPAtCSVOffset(t *testing.T) {
 	}()
 
 	offset := int64(len("1.1.1.1,1\n"))
-	got, err := readIPAtCSVOffset(f, offset)
+	reader := bufio.NewReader(f)
+	got, err := readIPAtCSVOffset(f, reader, offset)
 	if err != nil {
 		t.Fatalf("readIPAtCSVOffset: %v", err)
 	}
@@ -232,7 +216,8 @@ func TestReadIPAtCSVOffset_InvalidIP(t *testing.T) {
 		_ = f.Close()
 	}()
 
-	_, err = readIPAtCSVOffset(f, 0)
+	reader := bufio.NewReader(f)
+	_, err = readIPAtCSVOffset(f, reader, 0)
 	if err == nil {
 		t.Fatal("expected parse error, got nil")
 	}
@@ -324,7 +309,7 @@ func TestNewMasterIndexer_CIDRsAndSingles(t *testing.T) {
 	}
 }
 
-func TestStreamActiveIPsShuffled_Empty(t *testing.T) {
+func TestStreamActiveShuffled_Empty(t *testing.T) {
 	t.Parallel()
 
 	path := mustWriteShuffleFile(t, "empty.csv", "")
@@ -333,21 +318,21 @@ func TestStreamActiveIPsShuffled_Empty(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- streamActiveIPsShuffled(nil, context.Background(), path, 0, out)
+		errCh <- streamActiveShuffled(nil, context.Background(), path, 0, out)
 		close(out)
 	}()
 
 	got := collectFromChan(out)
 	err := <-errCh
 	if err != nil {
-		t.Fatalf("streamActiveIPsShuffled: %v", err)
+		t.Fatalf("streamActiveShuffled: %v", err)
 	}
 	if len(got) != 0 {
 		t.Fatalf("len(got) = %d, want 0", len(got))
 	}
 }
 
-func TestStreamActiveIPsShuffled_SingleIPs_NoDuplicates(t *testing.T) {
+func TestStreamActiveShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 	t.Parallel()
 
 	content := "" +
@@ -361,14 +346,14 @@ func TestStreamActiveIPsShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- streamActiveIPsShuffled(nil, context.Background(), path, 0, out)
+		errCh <- streamActiveShuffled(nil, context.Background(), path, 0, out)
 		close(out)
 	}()
 
 	got := collectFromChan(out)
 	err := <-errCh
 	if err != nil {
-		t.Fatalf("streamActiveIPsShuffled: %v", err)
+		t.Fatalf("streamActiveShuffled: %v", err)
 	}
 
 	if len(got) != 3 {
@@ -392,7 +377,7 @@ func TestStreamActiveIPsShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 	}
 }
 
-func TestStreamActiveIPsShuffled_MixedDataset(t *testing.T) {
+func TestStreamActiveShuffled_MixedDataset(t *testing.T) {
 	t.Parallel()
 
 	content := "" +
@@ -407,14 +392,14 @@ func TestStreamActiveIPsShuffled_MixedDataset(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- streamActiveIPsShuffled(nil, context.Background(), path, 0, out)
+		errCh <- streamActiveShuffled(nil, context.Background(), path, 0, out)
 		close(out)
 	}()
 
 	got := collectFromChan(out)
 	err := <-errCh
 	if err != nil {
-		t.Fatalf("streamActiveIPsShuffled: %v", err)
+		t.Fatalf("streamActiveShuffled: %v", err)
 	}
 
 	gotStr := addrStrings(got)
@@ -436,7 +421,7 @@ func TestStreamActiveIPsShuffled_MixedDataset(t *testing.T) {
 	}
 }
 
-func TestStreamActiveIPsShuffled_Limit(t *testing.T) {
+func TestStreamActiveShuffled_Limit(t *testing.T) {
 	t.Parallel()
 
 	content := "" +
@@ -451,14 +436,14 @@ func TestStreamActiveIPsShuffled_Limit(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- streamActiveIPsShuffled(nil, context.Background(), path, 2, out)
+		errCh <- streamActiveShuffled(nil, context.Background(), path, 2, out)
 		close(out)
 	}()
 
 	got := collectFromChan(out)
 	err := <-errCh
 	if err != nil {
-		t.Fatalf("streamActiveIPsShuffled: %v", err)
+		t.Fatalf("streamActiveShuffled: %v", err)
 	}
 
 	if len(got) != 2 {
@@ -466,7 +451,7 @@ func TestStreamActiveIPsShuffled_Limit(t *testing.T) {
 	}
 }
 
-func TestStreamActiveIPsShuffled_ContextCanceled(t *testing.T) {
+func TestStreamActiveShuffled_ContextCanceled(t *testing.T) {
 	t.Parallel()
 
 	content := "10.0.0.0/24,1\n"
@@ -477,7 +462,7 @@ func TestStreamActiveIPsShuffled_ContextCanceled(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- streamActiveIPsShuffled(nil, ctx, path, 0, out)
+		errCh <- streamActiveShuffled(nil, ctx, path, 0, out)
 		close(out)
 	}()
 

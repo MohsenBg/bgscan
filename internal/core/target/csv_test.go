@@ -1,8 +1,9 @@
-package iplist
+package target
 
 import (
 	"net/netip"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -12,13 +13,16 @@ func TestCSV_RoundTrip(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "test.csv")
 
-	input := []IPList{
+	input := []Entry{
 		{IP: netip.MustParsePrefix("1.1.1.1/32"), Enable: true},
 		{IP: netip.MustParsePrefix("2.2.2.2/32"), Enable: false},
 		{IP: netip.MustParsePrefix("10.0.0.0/24"), Enable: true},
+		{IP: netip.MustParsePrefix("8.8.8.8/32"), Port: 8080, Enable: true},
+		{IP: netip.MustParsePrefix("1.2.3.4/32"), Port: 443, Path: "/login", Enable: false},
+		{Kind: KindDomain, Domain: "example.com", Port: 443, Path: "/dns-query", Enable: true},
 	}
 
-	err := WriteCSV(path, func(write func(IPList) error) error {
+	err := WriteCSV(path, func(write func(Entry) error) error {
 		for _, item := range input {
 			if err := write(item); err != nil {
 				return err
@@ -31,11 +35,11 @@ func TestCSV_RoundTrip(t *testing.T) {
 	}
 
 	var (
-		output  []IPList
+		output  []Entry
 		offsets []int64
 	)
 
-	err = ReadCSV(path, func(entry IPList, offset int64) error {
+	err = ReadCSV(path, func(entry Entry, offset int64) error {
 		output = append(output, entry)
 		offsets = append(offsets, offset)
 		return nil
@@ -48,13 +52,8 @@ func TestCSV_RoundTrip(t *testing.T) {
 		t.Fatalf("record count mismatch: got %d, want %d", got, want)
 	}
 
-	for i := range input {
-		if output[i].IP != input[i].IP {
-			t.Errorf("record %d IP mismatch: got %s, want %s", i, output[i].IP, input[i].IP)
-		}
-		if output[i].Enable != input[i].Enable {
-			t.Errorf("record %d Enable mismatch: got %v, want %v", i, output[i].Enable, input[i].Enable)
-		}
+	if !reflect.DeepEqual(output, input) {
+		t.Fatalf("round-trip mismatch\ngot:  %#v\nwant: %#v", output, input)
 	}
 
 	for i := range offsets {
@@ -74,20 +73,20 @@ func TestCSV_Read_NormalizesMaskedPrefix(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "canonical.csv")
 
-	input := IPList{
+	input := Entry{
 		IP:     netip.MustParsePrefix("10.0.0.123/24"),
 		Enable: true,
 	}
 
-	err := WriteCSV(path, func(write func(IPList) error) error {
+	err := WriteCSV(path, func(write func(Entry) error) error {
 		return write(input)
 	})
 	if err != nil {
 		t.Fatalf("WriteCSV() error = %v", err)
 	}
 
-	var got []IPList
-	err = ReadCSV(path, func(entry IPList, offset int64) error {
+	var got []Entry
+	err = ReadCSV(path, func(entry Entry, offset int64) error {
 		got = append(got, entry)
 		return nil
 	})

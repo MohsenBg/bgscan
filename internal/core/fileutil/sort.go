@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
 const (
@@ -20,7 +18,7 @@ const (
 
 // SortFile sorts inputFile and writes the result to outputFile.
 // It selects an in-memory or external merge sort based on the input size.
-func SortFile(log *logger.Logger, ctx context.Context, inputFile, outputFile string) error {
+func SortFile(ctx context.Context, inputFile, outputFile string) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("context cancelled before start: %w", err)
 	}
@@ -35,11 +33,9 @@ func SortFile(log *logger.Logger, ctx context.Context, inputFile, outputFile str
 	}
 
 	if info.Size() <= inMemoryThreshold {
-		log.Info("SortFile: using in-memory sort (%d bytes)", info.Size())
 		return sortInMemory(ctx, inputFile, outputFile)
 	}
 
-	log.Info("SortFile: using external merge sort (%d bytes)", info.Size())
 	return sortExternal(ctx, inputFile, outputFile)
 }
 

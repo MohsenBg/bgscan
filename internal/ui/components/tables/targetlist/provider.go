@@ -1,10 +1,10 @@
-package iplist
+package targetlist
 
 import (
 	"os"
 	"slices"
 
-	"github.com/MohsenBg/bgscan/internal/core/iplist"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
@@ -19,7 +19,7 @@ type source struct {
 	session *ui.Session
 }
 
-func newSource(session *ui.Session, title string) crud.Source[iplist.IPFileInfo] {
+func newSource(session *ui.Session, title string) crud.Source[target.FileInfo] {
 	return &source{
 		title:   title,
 		session: session,
@@ -29,60 +29,62 @@ func newSource(session *ui.Session, title string) crud.Source[iplist.IPFileInfo]
 func (s *source) Title() string { return s.title }
 
 func (s *source) Name() string {
-	return "ip file"
+	return "target file"
 }
 
 func (s *source) Columns() []table.Column {
 	return []table.Column{
-		{Title: "Name", Width: 40},
-		{Title: "Created Time", Width: 40},
-		{Title: "Size", Width: 20},
+		{Title: "Name", Width: 36},
+		{Title: "Type", Width: 10},
+		{Title: "Created Time", Width: 36},
+		{Title: "Size", Width: 18},
 	}
 }
 
-func (s *source) Load() ([]iplist.IPFileInfo, error) {
-	files, err := iplist.ListIPFiles()
+func (s *source) Load() ([]target.FileInfo, error) {
+	files, err := target.ListFiles()
 	if err != nil {
-		s.session.Env().Log.Error("Failed to load IP files: %v", err)
+		s.session.Env().Log.Error("Failed to load target files: %v", err)
 		return nil, err
 	}
-	s.session.Env().Log.Info("Loaded %d IP files", len(files))
+	s.session.Env().Log.Info("Loaded %d target files", len(files))
 
-	slices.SortFunc(files, func(i, j iplist.IPFileInfo) int {
+	slices.SortFunc(files, func(i, j target.FileInfo) int {
 		return j.CreatedAt.Compare(i.CreatedAt)
 	})
 	return files, nil
 }
 
-func (s *source) RenderRow(item iplist.IPFileInfo) table.Row {
+func (s *source) RenderRow(item target.FileInfo) table.Row {
 	return table.Row{
 		item.Name,
+		item.Kind.String(),
 		item.CreatedAt.Format("2006-01-02 15:04:05"),
 		humanize.Bytes(uint64(item.Size)),
 	}
 }
 
-func (s *source) Identity(item iplist.IPFileInfo) string {
-	return item.Name
+func (s *source) Identity(item target.FileInfo) string {
+	return item.Kind.String() + ":" + item.Name
 }
 
 // newHooks wires the mutation behaviors. OnAdd only registers the "add"
 // keybinding: the real file-picker workflow is intercepted in Update via
 // crud.MsgActionTrigger, so its body never runs.
-func newHooks(session *ui.Session, onSelect func(*iplist.IPFileInfo) tea.Cmd, add func() tea.Cmd) crud.Hooks[iplist.IPFileInfo] {
-	hooks := crud.Hooks[iplist.IPFileInfo]{
-		OnDelete: func(item iplist.IPFileInfo) tea.Cmd {
+func newHooks(session *ui.Session, onSelect func(*target.FileInfo) tea.Cmd, add func() tea.Cmd) crud.Hooks[target.FileInfo] {
+	hooks := crud.Hooks[target.FileInfo]{
+		OnDelete: func(item target.FileInfo) tea.Cmd {
 			return func() tea.Msg {
 				if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
-					session.Env().Log.Error("Failed to delete IP file: %v", err)
+					session.Env().Log.Error("Failed to delete target file: %v", err)
 					return notice.NewNoticeCmd(session.Env(), "Delete Failed", err.Error(), notice.NOTICE_ERROR)()
 				}
 				return nil
 			}
 		},
-		OnRename: func(item iplist.IPFileInfo, newName string) tea.Cmd {
+		OnRename: func(item target.FileInfo, newName string) tea.Cmd {
 			return func() tea.Msg {
-				dstPath, err := iplist.GetIPFilePath(newName)
+				dstPath, err := target.ResolveTargetFilePath(newName, item.Kind)
 				if err != nil {
 					session.Env().Log.Error("Failed to resolve destination path: %v", err)
 					return notice.NewNoticeCmd(session.Env(), "Rename Failed", err.Error(), notice.NOTICE_ERROR)()
@@ -99,7 +101,7 @@ func newHooks(session *ui.Session, onSelect func(*iplist.IPFileInfo) tea.Cmd, ad
 	}
 
 	if onSelect != nil {
-		hooks.OnSelect = func(item iplist.IPFileInfo) tea.Cmd {
+		hooks.OnSelect = func(item target.FileInfo) tea.Cmd {
 			return onSelect(&item)
 		}
 	}

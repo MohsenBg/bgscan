@@ -8,6 +8,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config/validate"
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/ffi/slipstream"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/core/xray"
 	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
@@ -158,6 +159,27 @@ func checkSlipstreamHealth(r *reporter) {
 	}
 
 	printConfigValidationResults(r, "Slipstream", results)
+	r.success("Health check completed successfully")
+}
+
+func checkTargetsHealth(r *reporter) {
+	r.info("Checking target lists...")
+
+	copied, err := target.MigrateLegacyIPLists()
+	if err != nil {
+		r.errMsg("Failed to prepare target lists", err)
+		return
+	}
+
+	if copied > 0 {
+		r.infof(
+			"Migrated %d legacy IP list(s) from %s/ to %s/",
+			copied, target.LegacyIPListDir, target.IPListDir,
+		)
+	} else {
+		r.success("Target lists ready")
+	}
+
 	r.success("Health check completed successfully")
 }
 

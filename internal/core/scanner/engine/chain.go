@@ -6,7 +6,7 @@ import (
 	"net/netip"
 	"sync"
 
-	"github.com/MohsenBg/bgscan/internal/core/iplist"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 const (
@@ -244,7 +244,7 @@ func (p *pipeline) buildExecutors(firstTotal uint64) ([]*stageExecutor, error) {
 
 // countInput returns the number of active IPs, logging (not propagating) failures.
 func (p *pipeline) countInput(input string) uint64 {
-	total, err := iplist.CountActiveIPs(input)
+	total, err := target.CountActive(input)
 	if err != nil {
 		p.cfg.Log.Error("failed to count IPs: %v", err)
 	}
@@ -320,7 +320,7 @@ func (p *pipeline) streamBatches(input string, batchSize int) <-chan []netip.Add
 
 		go func() {
 			defer close(ipCh)
-			done <- iplist.StreamActiveIPs(p.cfg.Log, p.ctx, input, p.cfg.MaxIPsToTest, p.cfg.Shuffled, ipCh)
+			done <- target.StreamActive(p.cfg.Log, p.ctx, input, p.cfg.MaxIPsToTest, p.cfg.Shuffled, ipCh)
 		}()
 
 		batch := make([]netip.Addr, 0, batchSize)
@@ -420,7 +420,7 @@ func (p *pipeline) streamStageFromFile(input string, exec, next *stageExecutor, 
 
 	go func() {
 		defer close(in)
-		done <- iplist.StreamActiveIPs(p.cfg.Log, p.ctx, input, p.cfg.MaxIPsToTest, p.cfg.Shuffled, in)
+		done <- target.StreamActive(p.cfg.Log, p.ctx, input, p.cfg.MaxIPsToTest, p.cfg.Shuffled, in)
 	}()
 
 	runErr := p.streamStage(exec, next, in, out)

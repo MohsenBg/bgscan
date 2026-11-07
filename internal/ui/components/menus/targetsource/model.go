@@ -2,12 +2,12 @@
 package targetsource
 
 import (
-	"github.com/MohsenBg/bgscan/internal/core/iplist"
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/menu"
 	"github.com/MohsenBg/bgscan/internal/ui/components/menus/scantype"
-	iplistTable "github.com/MohsenBg/bgscan/internal/ui/components/tables/iplist"
 	resultlistTable "github.com/MohsenBg/bgscan/internal/ui/components/tables/resultlist"
+	targetlistTable "github.com/MohsenBg/bgscan/internal/ui/components/tables/targetlist"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -29,11 +29,11 @@ func New(session *ui.Session) *Model {
 		name:    "Target Source",
 	}
 	items := []menu.MenuItem{
-		menu.NewMenuItem("▣", "IP List", "i", func() tea.Msg {
-			return m.OpenIPList(func(i *iplist.IPFileInfo) tea.Cmd {
+		menu.NewMenuItem("▣", "Target List", "i", func() tea.Msg {
+			return m.OpenIPList(func(i *target.FileInfo) tea.Cmd {
 				return ui.OpenComponentCmd(scantype.New(session, i.Path))
 			})
-		}).WithDescription("Pick a list of IP ranges to scan"),
+		}).WithDescription("Pick a list of IPs or domains to scan"),
 		menu.NewMenuItem("▤", "Result List", "r", func() tea.Msg {
 			return m.OpenResultIPList(func(r *result.ResultFile) tea.Cmd {
 				return ui.OpenComponentCmd(scantype.New(session, r.Path))
@@ -45,10 +45,10 @@ func New(session *ui.Session) *Model {
 	return m
 }
 
-// OpenIPList opens the IP file picker overlay.
+// OpenIPList opens the target file picker overlay.
 // onSelect is called by the iplist component once the user picks a file.
-func (m *Model) OpenIPList(onSelect func(*iplist.IPFileInfo) tea.Cmd) tea.Msg {
-	return ui.OpenComponentMsg{Component: iplistTable.New(m.session, "Select IP File", onSelect)}
+func (m *Model) OpenIPList(onSelect func(*target.FileInfo) tea.Cmd) tea.Msg {
+	return ui.OpenComponentMsg{Component: targetlistTable.New(m.session, "Select Target File", onSelect)}
 }
 
 // OpenResultIPList opens the ResultIP file picker overlay.

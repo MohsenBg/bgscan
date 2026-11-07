@@ -1,11 +1,11 @@
-package iplist
+package targetlist
 
 import (
 	"context"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/MohsenBg/bgscan/internal/core/iplist"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/input/textinput"
@@ -20,18 +20,16 @@ type Model struct {
 	id        ui.ComponentID
 	name      string
 	session   *ui.Session
-	crudTable *crud.Model[iplist.IPFileInfo]
+	crudTable *crud.Model[target.FileInfo]
 }
 
-func New(session *ui.Session, title string, onSelect func(*iplist.IPFileInfo) tea.Cmd) *Model {
+func New(session *ui.Session, title string, onSelect func(*target.FileInfo) tea.Cmd) *Model {
 	m := &Model{
 		id:      ui.NewComponentID(),
-		name:    "IP Files",
+		name:    "Target Lists",
 		session: session,
 	}
-
 	m.crudTable = crud.New(session.Env(), newSource(session, title), newHooks(session, onSelect, m.openFilePicker), 90)
-
 	return m
 }
 
@@ -63,7 +61,7 @@ func (m *Model) handleFileSelect(path string) tea.Cmd {
 	}
 
 	inp := textinput.New(m.session.Env(),
-		"What do you want to call this IP file?",
+		"What do you want to call this target list?",
 		textinput.WithPlaceholder("filename"),
 		textinput.WithValue(""),
 		textinput.WithValidation(validation.ValidateFilename),
@@ -72,7 +70,7 @@ func (m *Model) handleFileSelect(path string) tea.Cmd {
 	inp.OnSubmit(
 		func(filename string) tea.Cmd {
 			return tea.Sequence(
-				m.saveIPFileCmd(path, filename),
+				m.saveTargetFileCmd(path, filename),
 				func() tea.Msg { return crud.RefreshMsg{} },
 			)
 		},
@@ -81,23 +79,20 @@ func (m *Model) handleFileSelect(path string) tea.Cmd {
 	return input.OpenInputDialog(inp)
 }
 
-// saveIPFileCmd copies the picked file into the IP list directory off the
-// UI thread so large imports don't block rendering.
-func (m *Model) saveIPFileCmd(srcPath, filename string) tea.Cmd {
+// saveTargetFileCmd imports the picked file off the UI thread so large lists
+// don't block rendering.
+func (m *Model) saveTargetFileCmd(srcPath, filename string) tea.Cmd {
 	return func() tea.Msg {
-		dstPath, err := iplist.GetIPFilePath(filename)
+		result, err := target.Import(context.Background(), srcPath, filename, target.DefaultImportOption())
 		if err != nil {
-			m.session.Env().Log.Error("Failed to resolve destination path: %v", err)
-			return notice.NewNoticeCmd(m.session.Env(), "Copy Failed", err.Error(), notice.NOTICE_ERROR)()
+			m.session.Env().Log.Error("Failed to import target file: %v", err)
+			return notice.NewNoticeCmd(m.session.Env(), "Import Failed", err.Error(), notice.NOTICE_ERROR)()
 		}
 
-		coreLog := m.session.CoreLog()
-		if err := iplist.ImportIPList(&coreLog, context.Background(), srcPath, dstPath, iplist.DefaultImportOption()); err != nil {
-			m.session.Env().Log.Error("Failed to copy IP file: %v", err)
-			return notice.NewNoticeCmd(m.session.Env(), "Copy Failed", err.Error(), notice.NOTICE_ERROR)()
-		}
-
-		m.session.Env().Log.Info("Successfully saved IP file: %s", filename)
+		m.session.Env().Log.Info(
+			"Imported target list %q: %d IPs, %d domains",
+			filename, result.IPs, result.Domains,
+		)
 		return nil
 	}
 }
@@ -105,10 +100,9 @@ func (m *Model) saveIPFileCmd(srcPath, filename string) tea.Cmd {
 func (m *Model) openFilePicker() tea.Cmd {
 	return picker.OpenFilePickerCmd(
 		m.session.Env(),
-		"Select IP File (.txt)",
+		"Select Target File (.txt)",
 		"",
 		[]string{".txt"},
 		m.handleFileSelect,
 	)
-
 }

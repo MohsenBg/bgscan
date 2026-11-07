@@ -1,4 +1,4 @@
-package iplist
+package target
 
 import (
 	"net/netip"
@@ -11,37 +11,37 @@ func TestNew(t *testing.T) {
 		name   string
 		ip     netip.Prefix
 		enable int
-		want   IPList
+		want   Entry
 	}{
 		{
 			name:   "EnabledIPv4Single",
 			ip:     mustPrefix(t, "1.1.1.1"),
 			enable: 1,
-			want:   IPList{IP: mustPrefix(t, "1.1.1.1"), Enable: true},
+			want:   Entry{IP: mustPrefix(t, "1.1.1.1"), Enable: true},
 		},
 		{
 			name:   "DisabledIPv4Single",
 			ip:     mustPrefix(t, "1.1.1.1"),
 			enable: 0,
-			want:   IPList{IP: mustPrefix(t, "1.1.1.1"), Enable: false},
+			want:   Entry{IP: mustPrefix(t, "1.1.1.1"), Enable: false},
 		},
 		{
 			name:   "InvalidEnableValue",
 			ip:     mustPrefix(t, "1.1.1.1"),
 			enable: 2,
-			want:   IPList{IP: mustPrefix(t, "1.1.1.1"), Enable: false},
+			want:   Entry{IP: mustPrefix(t, "1.1.1.1"), Enable: false},
 		},
 		{
 			name:   "EnabledCIDR",
 			ip:     mustPrefix(t, "10.0.0.0/24"),
 			enable: 1,
-			want:   IPList{IP: mustPrefix(t, "10.0.0.0/24"), Enable: true},
+			want:   Entry{IP: mustPrefix(t, "10.0.0.0/24"), Enable: true},
 		},
 		{
 			name:   "EnabledIPv6Single",
 			ip:     mustPrefix(t, "2001:db8::1"),
 			enable: 1,
-			want:   IPList{IP: mustPrefix(t, "2001:db8::1"), Enable: true},
+			want:   Entry{IP: mustPrefix(t, "2001:db8::1"), Enable: true},
 		},
 	}
 
@@ -59,31 +59,31 @@ func TestNewEnabledAndNewDisabled(t *testing.T) {
 	tests := []struct {
 		name string
 		ip   netip.Prefix
-		want IPList
-		fn   func(netip.Prefix) IPList
+		want Entry
+		fn   func(netip.Prefix) Entry
 	}{
 		{
 			name: "NewEnabledIPv4",
 			ip:   mustPrefix(t, "1.1.1.1"),
-			want: IPList{IP: mustPrefix(t, "1.1.1.1"), Enable: true},
+			want: Entry{IP: mustPrefix(t, "1.1.1.1"), Enable: true},
 			fn:   NewEnabled,
 		},
 		{
 			name: "NewDisabledIPv4",
 			ip:   mustPrefix(t, "1.1.1.1"),
-			want: IPList{IP: mustPrefix(t, "1.1.1.1"), Enable: false},
+			want: Entry{IP: mustPrefix(t, "1.1.1.1"), Enable: false},
 			fn:   NewDisabled,
 		},
 		{
 			name: "NewEnabledCIDR",
 			ip:   mustPrefix(t, "10.0.0.0/24"),
-			want: IPList{IP: mustPrefix(t, "10.0.0.0/24"), Enable: true},
+			want: Entry{IP: mustPrefix(t, "10.0.0.0/24"), Enable: true},
 			fn:   NewEnabled,
 		},
 		{
 			name: "NewDisabledIPv6",
 			ip:   mustPrefix(t, "2001:db8::1"),
-			want: IPList{IP: mustPrefix(t, "2001:db8::1"), Enable: false},
+			want: Entry{IP: mustPrefix(t, "2001:db8::1"), Enable: false},
 			fn:   NewDisabled,
 		},
 	}
@@ -98,7 +98,7 @@ func TestNewEnabledAndNewDisabled(t *testing.T) {
 	}
 }
 
-func TestIPList_IsSingle(t *testing.T) {
+func TestEntry_IsSingle(t *testing.T) {
 	tests := []struct {
 		name string
 		ip   netip.Prefix
@@ -143,39 +143,73 @@ func TestIPList_IsSingle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := IPList{IP: tt.ip}
+			i := Entry{IP: tt.ip}
 			if got := i.IsSingle(); got != tt.want {
-				t.Errorf("IPList.IsSingle(%s) = %v, want %v", tt.ip, got, tt.want)
+				t.Errorf("Entry.IsSingle(%s) = %v, want %v", tt.ip, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestIPList_EncodeCSV(t *testing.T) {
+func TestEntry_IsSingleDomain(t *testing.T) {
+	t.Parallel()
+
+	if NewDomain("example.com", 1).IsSingle() {
+		t.Fatal("domain entry must not be reported as a single IP")
+	}
+}
+
+func TestEntry_EncodeCSV(t *testing.T) {
 	tests := []struct {
 		name string
-		in   IPList
+		in   Entry
 		want []string
 	}{
 		{
 			name: "EnabledSingleIPv4",
-			in:   IPList{IP: mustPrefix(t, "1.2.3.4"), Enable: true},
-			want: []string{"1.2.3.4/32", "1"},
+			in:   Entry{IP: mustPrefix(t, "1.2.3.4"), Enable: true},
+			want: []string{"1.2.3.4/32", "0", "", "1"},
 		},
 		{
 			name: "DisabledSingleIPv4",
-			in:   IPList{IP: mustPrefix(t, "1.2.3.4"), Enable: false},
-			want: []string{"1.2.3.4/32", "0"},
+			in:   Entry{IP: mustPrefix(t, "1.2.3.4"), Enable: false},
+			want: []string{"1.2.3.4/32", "0", "", "0"},
 		},
 		{
 			name: "EnabledCIDR",
-			in:   IPList{IP: mustPrefix(t, "10.0.0.0/24"), Enable: true},
-			want: []string{"10.0.0.0/24", "1"},
+			in:   Entry{IP: mustPrefix(t, "10.0.0.0/24"), Enable: true},
+			want: []string{"10.0.0.0/24", "0", "", "1"},
 		},
 		{
 			name: "EnabledSingleIPv6",
-			in:   IPList{IP: mustPrefix(t, "2001:db8::1"), Enable: true},
-			want: []string{"2001:db8::1/128", "1"},
+			in:   Entry{IP: mustPrefix(t, "2001:db8::1"), Enable: true},
+			want: []string{"2001:db8::1/128", "0", "", "1"},
+		},
+		{
+			name: "WithPort",
+			in:   Entry{IP: mustPrefix(t, "1.2.3.4"), Port: 8080, Enable: true},
+			want: []string{"1.2.3.4/32", "8080", "", "1"},
+		},
+		{
+			name: "WithPortAndPath",
+			in:   Entry{IP: mustPrefix(t, "1.2.3.4"), Port: 443, Path: "/login", Enable: true},
+			want: []string{"1.2.3.4/32", "443", "/login", "1"},
+		},
+		{
+			name: "Domain",
+			in:   NewDomain("example.com", 1),
+			want: []string{"example.com", "0", "", "1"},
+		},
+		{
+			name: "DomainWithPortAndPath",
+			in: Entry{
+				Kind:   KindDomain,
+				Domain: "example.com",
+				Port:   443,
+				Path:   "/dns-query",
+				Enable: true,
+			},
+			want: []string{"example.com", "443", "/dns-query", "1"},
 		},
 	}
 

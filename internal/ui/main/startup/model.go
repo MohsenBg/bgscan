@@ -104,6 +104,7 @@ func New(session *ui.Session) ui.Component {
 		categories: []category{
 			{id: "logger", label: "Logger"},
 			{id: "config", label: "Config"},
+			{id: "targets", label: "Targets"},
 			{id: "xray", label: "Xray"},
 			{id: "dnstt", label: "DNSTT"},
 			{id: "slipstream", label: "Slipstream"},
@@ -220,6 +221,10 @@ func (m *model) runChecks() {
 	}
 
 	if !m.runConfigCheck(&abort) {
+		return
+	}
+
+	if !m.runCheck("targets", &abort, checkTargetsHealth) {
 		return
 	}
 

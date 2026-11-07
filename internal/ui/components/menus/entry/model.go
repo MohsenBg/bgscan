@@ -7,9 +7,9 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/components/menus/settings"
 	"github.com/MohsenBg/bgscan/internal/ui/components/menus/targetsource"
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/dnstun"
-	"github.com/MohsenBg/bgscan/internal/ui/components/tables/iplist"
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/outbounds"
 	"github.com/MohsenBg/bgscan/internal/ui/components/tables/resultlist"
+	"github.com/MohsenBg/bgscan/internal/ui/components/tables/targetlist"
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 
 	tea "charm.land/bubbletea/v2"
@@ -70,11 +70,11 @@ func newMainMenu(sesstion *ui.Session) *menu.Model {
 		).WithDescription("Start a new scan from an IP list or a saved result"),
 		menu.NewMenuItem(
 			"▣",
-			"IP Files",
+			"Targets Files",
 			"i",
 			func() tea.Msg {
 				return ui.OpenComponentMsg{
-					Component: iplist.New(sesstion, "IP Files", nil),
+					Component: targetlist.New(sesstion, "Targets Files", nil),
 				}
 			},
 		).WithDescription("Manage the IP ranges loaded for scanning"),

@@ -71,9 +71,13 @@ assets/dns-tunneling/*/*
 # Allow only .example files
 !assets/dns-tunneling/*/*.example
 
-# Ignore local user settings and generated IP lists (keeps .default files tracked)
+# Ignore local user settings and generated target lists (keeps .default files tracked)
 settings/
-ips/*.csv
+targets/ips/*.csv
+targets/domains/*.csv
+
+# Transient bgscan-builder workspace (templates are staged from targets/ips)
+/ips/
 
 # Ignore local builder output
 bgscan-builder*

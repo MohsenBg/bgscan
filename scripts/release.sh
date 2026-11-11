@@ -206,6 +206,31 @@ setup_android_ndk() {
 }
 
 # ==============================================================================
+# TARGET LIST TEMPLATES
+# ==============================================================================
+
+stage_target_templates() {
+  log "Staging target list templates for bgscan-builder"
+
+  local src_dir="$PROJECT_DIR/targets/ips"
+  local dst_dir="$PROJECT_DIR/ips"
+
+  shopt -s nullglob
+  local templates=("$src_dir"/*.default)
+  shopt -u nullglob
+
+  if [ ${#templates[@]} -eq 0 ]; then
+    info "No .default templates found in ${src_dir}"
+    return
+  fi
+
+  mkdir -p "$dst_dir"
+  cp -f "${templates[@]}" "$dst_dir/"
+
+  success "Staged ${#templates[@]} template(s) in ${dst_dir}"
+}
+
+# ==============================================================================
 # RELEASE EXECUTION
 # ==============================================================================
 
@@ -264,6 +289,7 @@ main() {
 
   validate_project
   ensure_builder
+  stage_target_templates
   run_release
   package_artifacts
 

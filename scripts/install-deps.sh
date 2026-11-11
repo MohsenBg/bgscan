@@ -135,6 +135,30 @@ ensure_builder() {
 }
 
 # ==============================================================================
+# TARGET LIST TEMPLATES
+# ==============================================================================
+stage_target_templates() {
+  log "Staging target list templates for bgscan-builder"
+
+  local src_dir="$PROJECT_ROOT/targets/ips"
+  local dst_dir="$PROJECT_ROOT/ips"
+
+  shopt -s nullglob
+  local templates=("$src_dir"/*.default)
+  shopt -u nullglob
+
+  if [ ${#templates[@]} -eq 0 ]; then
+    info "No .default templates found in ${src_dir}"
+    return
+  fi
+
+  mkdir -p "$dst_dir"
+  cp -f "${templates[@]}" "$dst_dir/"
+
+  success "Staged ${#templates[@]} template(s) in ${dst_dir}"
+}
+
+# ==============================================================================
 # DEPENDENCY SETUP
 # ==============================================================================
 setup_dependencies() {
@@ -160,6 +184,7 @@ main() {
 
   validate_project
   ensure_builder
+  stage_target_templates
   setup_dependencies
 
   local end_time elapsed

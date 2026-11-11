@@ -134,6 +134,30 @@ function Ensure-Builder {
 }
 
 # ==============================================================================
+# TARGET LIST TEMPLATES
+# ==============================================================================
+
+function Stage-TargetTemplates {
+    Write-Step "Staging target list templates for bgscan-builder"
+
+    $srcDir = Join-Path $ProjectRoot "targets\ips"
+    $dstDir = Join-Path $ProjectRoot "ips"
+
+    $templates = @(Get-ChildItem -Path $srcDir -Filter "*.default" -File -ErrorAction SilentlyContinue)
+    if ($templates.Count -eq 0) {
+        Write-Info "No .default templates found in $srcDir"
+        return
+    }
+
+    New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
+    foreach ($template in $templates) {
+        Copy-Item -Path $template.FullName -Destination (Join-Path $dstDir $template.Name) -Force
+    }
+
+    Write-Success "Staged $($templates.Count) template(s) in $dstDir"
+}
+
+# ==============================================================================
 # DEPENDENCY SETUP
 # ==============================================================================
 
@@ -160,6 +184,7 @@ function Main {
 
     Validate-Project
     Ensure-Builder
+    Stage-TargetTemplates
     Setup-Dependencies
 
     $elapsed = [math]::Round(((Get-Date) - $StartTime).TotalSeconds, 1)

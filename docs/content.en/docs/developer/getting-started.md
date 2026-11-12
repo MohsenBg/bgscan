@@ -63,6 +63,12 @@ The script does two things:
 1. It downloads `bgscan-builder` into the project root.
 2. It runs `bgscan-builder setup-dev --project-dir <project-root>` so the Slipstream client library for your operating system and architecture is downloaded and placed in the right directory.
 
+> **Builder compatibility:** `bgscan-builder` v1.4.0 still reads templates from `ips/*.default` and writes generated lists to `ips/*.csv`. The install and release scripts copy the tracked templates from `targets/ips/` into `ips/` first, and bgscan migrates the generated CSVs into `targets/ips/` on startup. If you invoke `bgscan-builder` directly, stage the templates first:
+>
+> ```bash
+> mkdir -p ips && cp targets/ips/*.default ips/
+> ```
+
 ## 4. Build and run the project
 
 Once the dependencies are installed, run these commands:

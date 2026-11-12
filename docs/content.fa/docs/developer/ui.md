@@ -343,7 +343,7 @@ Widget عمومی `basic/inspector` مسئول نمایش فیلدها، قال�
 
 | جدول | منبع داده | Provider |
 |---|---|---|
-| `iplist` | پوشهٔ `ips/` | `iplist.Registry` |
+| `iplist` | پوشه‌های `targets/ips/` و `targets/domains/` | `target.ListFiles` |
 | `resultlist` | پوشهٔ `result/` | `result.GetResultFiles` |
 | `outbounds` | تنظیمات Outbound در Xray | پکیج `xray` |
 | `dnstun` | تنظیمات تونل DNS | `dns.GetAllDNSTunsFile` |

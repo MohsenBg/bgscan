@@ -142,7 +142,7 @@ curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scr
    - لینوکس، macOS و Termux: `./bgscan`
    - ویندوز: `bgscan.exe`
 
-در اولین اجرا، پوشهٔ `settings/` با فایل‌های پیش‌فرض TOML و پوشهٔ `ips/` با فهرست‌های آمادهٔ IP ساخته می‌شن.
+در اولین اجرا، پوشهٔ `settings/` با فایل‌های پیش‌فرض TOML، پوشهٔ `targets/ips/` با فهرست‌های آمادهٔ IP و پوشهٔ `targets/domains/` برای فهرست‌های دامنه ساخته می‌شن.
 
 ### ساخت از سورس
 
@@ -298,7 +298,7 @@ bgscan/
 │   │   │   ├── portmgr/     # اجارهٔ پورت محلی برای پروب‌های تونل و Xray
 │   │   │   └── probe/       # رابط Probe و پیاده‌سازی پروتکل‌ها
 │   │   ├── result/          # رابط نتیجه، Schema، نویسنده و بارگذاری CSV
-│   │   ├── iplist/          # بارگذاری، تجزیه، ثبت و Shuffle فهرست‌های IP
+│   │   ├── target/          # بارگذاری، تجزیه، ثبت و Shuffle فهرست‌های IP
 │   │   ├── netutil/         # ابزارهای netip و محاسبات CIDR برای IPv4/IPv6
 │   │   ├── dns/             # ابزار DNS و سرویس‌های Config تونل‌ها، SOCKS5 و SSH
 │   │   ├── speedtest/       # تست پهنای باند، تأخیر و Transport در Xray
@@ -308,7 +308,9 @@ bgscan/
 │   ├── logger/              # لاگ‌گیری سطح‌بندی‌شده با چرخش lumberjack
 │   └── ui/                  # رابط TUI مبتنی بر BubbleTea
 ├── assets/                  # باینری Slipstream، Configها و داده‌های Xray و تونل DNS
-├── ips/                     # فهرست‌های آماده و واردشدهٔ IP در قالب CSV
+├── targets/                 # فهرست‌های هدف
+│   ├── ips/                 # فهرست‌های آماده و واردشدهٔ IP در قالب CSV
+│   └── domains/             # فهرست‌های دامنهٔ واردشده در قالب CSV
 ├── settings/                # فایل‌های پیش‌فرض تنظیمات TOML
 ├── result/                  # خروجی اسکن، تفکیک‌شده بر اساس نوع اسکن
 ├── logs/                    # فایل‌های core.log، ui.log و debug.log

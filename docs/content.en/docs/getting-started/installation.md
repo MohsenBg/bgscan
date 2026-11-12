@@ -53,7 +53,7 @@ curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scr
    - **Linux/macOS/Termux:** Open a terminal, go into the program directory, and run `./bgscan`.
    - **Windows:** Double click `bgscan.exe` or run `.\bgscan.exe` in PowerShell.
 
-On the first run, a `settings/` directory is created with the default settings files, along with an `ips/` directory holding the bundled IP lists.
+On the first run, a `settings/` directory is created with the default settings files, along with a `targets/ips/` directory holding the bundled IP lists and a `targets/domains/` directory for domain lists.
 
 ## Build from source
 
@@ -100,12 +100,12 @@ go run ./cmd/bgscan/
 
 To update bgscan, simply run the [quick install](#quick-install) script again. The installer finds the earlier installation and gives you the options to update, do a clean install, take a backup, or cancel.
 
-In update mode the `settings`, `ips`, and `assets` directories are kept.
+In update mode the `settings`, `targets`, and `assets` directories are kept.
 
 If you choose a clean install, it is better to back up what you need from the earlier version first:
 
 - Move the `settings/*.toml` files you changed to the new installation.
-- Take your custom IP lists from the `ips/` directory.
+- Take your custom target lists from the `targets/ips/` and `targets/domains/` directories.
 - Close bgscan before replacing the program files.
 
 ## System requirements

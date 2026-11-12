@@ -38,7 +38,7 @@ Once Startup finishes successfully, the app enters the Workspace. From there you
 │   │   ├── dns
 │   │   ├── ffi
 │   │   ├── fileutil
-│   │   ├── iplist
+│   │   ├── target
 │   │   ├── netutil
 │   │   ├── process
 │   │   ├── result
@@ -106,7 +106,7 @@ Once Startup finishes successfully, the app enters the Workspace. From there you
 │  │ portmgr  │ └────────┘ └───────────────┘  │
 │  └──────────┘                                │
 │  ┌────────┐ ┌─────┐ ┌──────┐ ┌───────────┐  │
-│  │ iplist │ │ dns │ │ xray │ │ speedtest │  │
+│  │ target │ │ dns │ │ xray │ │ speedtest │  │
 │  └────────┘ └─────┘ └──────┘ └───────────┘  │
 │  ┌─────────┐ ┌──────────┐ ┌─────────────┐   │
 │  │ netutil │ │ process  │ │  fileutil   │   │
@@ -114,7 +114,7 @@ Once Startup finishes successfully, the app enters the Workspace. From there you
 ├─────────────────────────────────────────────┤
 │              internal/logger                 │
 ├─────────────────────────────────────────────┤
-│          assets/  ips/  settings/           │
+│        assets/  targets/  settings/          │
 └─────────────────────────────────────────────┘
 ```
 
@@ -131,7 +131,7 @@ Once Startup finishes successfully, the app enters the Workspace. From there you
 | `internal/core/scanner/probe` | The `Probe` interface and one subpackage for each probe type. |
 | `internal/core/scanner/portmgr` | Manages leases on local ports for the tunnel and Xray probes. |
 | `internal/core/result` | The `Result` interface, schemas, registry, asynchronous writer, CSV merge, and loader. |
-| `internal/core/iplist` | Reads and parses IP lists, plus the registry, shuffle, and streaming processing of input. |
+| `internal/core/target` | Reads and parses IP lists, plus the registry, shuffle, and streaming processing of input. |
 | `internal/core/netutil` | Host normalization, TLS version parsing, and SNI extraction for the HTTP probes. |
 | `internal/core/dns` | DNS queries, transports, the tunnel settings services (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, and TheFeed), and tunnel management. |
 | `internal/core/socks` | SOCKS5 client for tunnel validation. |
@@ -154,7 +154,7 @@ Once Startup finishes successfully, the app enters the Workspace. From there you
 | `assets/xray` | Xray routing data and outbounds. The Xray binary or any generated settings directory is not placed here. Xray runs with the internal core inside the same process. |
 | `assets/slipstream-client` | The Slipstream client library, loaded with purego. It does not run as a separate process. |
 | `assets/dns-tunneling` | DNS tunnel settings files for DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, and TheFeed. |
-| `ips` | Provider IP lists in CSV format. |
+| `targets` | Target lists: `ips/` for IP ranges and `domains/` for domain names, in CSV format. |
 | `settings` | The `.toml` settings files that the application uses. |
 | `scripts` | Helper scripts for installation, building, and releasing versions. |
 

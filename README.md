@@ -144,7 +144,7 @@ curl -fsSL https://raw.githubusercontent.com/MohsenBg/bgscan/refs/heads/main/scr
    - Linux / macOS / Termux: `./bgscan`
    - Windows: `bgscan.exe`
 
-The first run creates a `settings/` directory with default TOML config and an `ips/` directory with bundled IP lists.
+The first run creates a `settings/` directory with default TOML config, a `targets/ips/` directory with bundled IP lists, and a `targets/domains/` directory for domain lists.
 
 ### Build from source
 
@@ -278,7 +278,7 @@ bgscan/
 │   │   │   ├── portmgr/     # Local port leasing for tunnel and Xray probes
 │   │   │   └── probe/        # Probe interface and per-protocol implementations
 │   │   ├── result/          # Result interface, schema, async writer, CSV merge, loader
-│   │   ├── iplist/           # IP list loader, parser, registry, shuffle
+│   │   ├── target/           # target list loader, parser, registry, shuffle
 │   │   ├── netutil/          # netip.Addr helpers and CIDR utilities (IPv4/IPv6)
 │   │   ├── dns/              # DNS queries, tunnel config services (DNSTT, VayDNS, Slipstream, MasterDNS, StormDNS, TheFeed), SOCKS5, SSH
 │   │   ├── speedtest/        # Xray bandwidth, latency, and transport tests
@@ -288,7 +288,9 @@ bgscan/
 │   ├── logger/              # Leveled logging with lumberjack rotation
 │   └── ui/                  # BubbleTea TUI (splash, startup, workspace, components, theme)
 ├── assets/                  # Slipstream sidecar binary, Xray configs and data, DNS tunnel configs + outbound templates
-├── ips/                     # Bundled and imported IP lists (CSV)
+├── targets/                 # Target lists
+│   ├── ips/                 # Bundled and imported IP lists (CSV)
+│   └── domains/             # Imported domain lists (CSV)
 ├── settings/                # Default TOML configuration files
 ├── result/                  # Scan output (CSV, per scan type)
 ├── logs/                    # core.log, ui.log, debug.log

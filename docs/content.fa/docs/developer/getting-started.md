@@ -63,6 +63,12 @@ git checkout -b feature/my-change
 1. `bgscan-builder` رو در ریشهٔ پروژه دانلود می‌کنه.
 2. دستور `bgscan-builder setup-dev --project-dir <project-root>` رو اجرا می‌کنه تا کتابخانهٔ کلاینت Slipstream متناسب با سیستم‌عامل و معماری شما دانلود و در مسیر درست قرار بگیره.
 
+> **سازگاری با Builder:** نسخهٔ `bgscan-builder` v1.4.0 هنوز قالب‌ها رو از `ips/*.default` می‌خونه و فهرست‌های ساخته‌شده رو در `ips/*.csv` می‌نویسه. اسکریپت‌های نصب و انتشار ابتدا قالب‌های موجود در `targets/ips/` رو به `ips/` کپی می‌کنن و bgscan هنگام شروع، فایل‌های CSV تولیدشده رو به `targets/ips/` منتقل می‌کنه. اگر `bgscan-builder` رو مستقیم اجرا می‌کنید، اول قالب‌ها رو آماده کنید:
+>
+> ```bash
+> mkdir -p ips && cp targets/ips/*.default ips/
+> ```
+
 ## ۴. ساخت و اجرای پروژه
 
 بعد از نصب وابستگی‌ها، دستورهای زیر رو اجرا کنید:

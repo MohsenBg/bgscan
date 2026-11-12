@@ -38,7 +38,7 @@ BGScan ساختار لایه‌ای داره. نقطه ورود برنامه، `
 │   │   ├── dns
 │   │   ├── ffi
 │   │   ├── fileutil
-│   │   ├── iplist
+│   │   ├── target
 │   │   ├── netutil
 │   │   ├── process
 │   │   ├── result
@@ -106,7 +106,7 @@ BGScan ساختار لایه‌ای داره. نقطه ورود برنامه، `
 │  │ portmgr  │ └────────┘ └───────────────┘  │
 │  └──────────┘                                │
 │  ┌────────┐ ┌─────┐ ┌──────┐ ┌───────────┐  │
-│  │ iplist │ │ dns │ │ xray │ │ speedtest │  │
+│  │ target │ │ dns │ │ xray │ │ speedtest │  │
 │  └────────┘ └─────┘ └──────┘ └───────────┘  │
 │  ┌─────────┐ ┌──────────┐ ┌─────────────┐   │
 │  │ netutil │ │ process  │ │  fileutil   │   │
@@ -114,7 +114,7 @@ BGScan ساختار لایه‌ای داره. نقطه ورود برنامه، `
 ├─────────────────────────────────────────────┤
 │              internal/logger                 │
 ├─────────────────────────────────────────────┤
-│          assets/  ips/  settings/           │
+│        assets/  targets/  settings/          │
 └─────────────────────────────────────────────┘
 ```
 
@@ -131,7 +131,7 @@ BGScan ساختار لایه‌ای داره. نقطه ورود برنامه، `
 | `internal/core/scanner/probe` | اینترفیس `Probe` و یک زیربسته برای هر نوع Probe. |
 | `internal/core/scanner/portmgr` | مدیریت اجاره پورت محلی برای Probeهای تونل و Xray. |
 | `internal/core/result` | اینترفیس `Result`، Schemaها، Registry، Writer غیرهم‌زمان، ادغام فایل‌های CSV و Loader. |
-| `internal/core/iplist` | خواندن و Parse فهرست IPها، Registry، Shuffle و پردازش جریانی ورودی‌ها. |
+| `internal/core/target` | خواندن و Parse فهرست IPها، Registry، Shuffle و پردازش جریانی ورودی‌ها. |
 | `internal/core/netutil` | نرمال‌سازی Host، Parse نسخه TLS و استخراج SNI برای Probeهای HTTP. |
 | `internal/core/dns` | کوئری‌های DNS، ترنسپورت‌ها، سرویس تنظیمات تونل‌های DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed، همراه با مدیریت تونل‌ها. |
 | `internal/core/socks` | کلاینت SOCKS5 برای اعتبارسنجی تونل. |
@@ -154,7 +154,7 @@ BGScan ساختار لایه‌ای داره. نقطه ورود برنامه، `
 | `assets/xray` | داده‌های مسیریابی Xray و Outboundها. باینری Xray یا پوشه تنظیمات تولیدشده در این مسیر قرار نداره، Xray با هسته داخلی و در همان پروسه اجرا می‌شه. |
 | `assets/slipstream-client` | کتابخانه کلاینت Slipstream که با purego بارگذاری می‌شه، پروسه جداگانه‌ای اجرا نمی‌کنه. |
 | `assets/dns-tunneling` | فایل‌های تنظیمات تونل DNS برای DNSTT، VayDNS، Slipstream، MasterDNS، StormDNS و TheFeed. |
-| `ips` | فهرست‌های IP ارائه‌دهنده‌ها در قالب CSV. |
+| `targets` | فهرست‌های هدف: `ips/` برای رنج‌های IP و `domains/` برای نام دامنه، در قالب CSV. |
 | `settings` | فایل‌های تنظیمات `.toml` که برنامه ازشون استفاده می‌کنه. |
 | `scripts` | اسکریپت‌های کمکی برای نصب، Build و انتشار نسخه‌ها. |
 

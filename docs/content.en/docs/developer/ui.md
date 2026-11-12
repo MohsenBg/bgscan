@@ -343,7 +343,7 @@ These forms are used both to create a new config and to edit an existing one. Wh
 
 | Table | Data source | Provider |
 |---|---|---|
-| `iplist` | The `ips/` directory | `iplist.Registry` |
+| `iplist` | The `targets/ips/` and `targets/domains/` directories | `target.ListFiles` |
 | `resultlist` | The `result/` directory | `result.GetResultFiles` |
 | `outbounds` | The outbound settings in Xray | The `xray` package |
 | `dnstun` | The DNS tunnel settings | `dns.GetAllDNSTunsFile` |

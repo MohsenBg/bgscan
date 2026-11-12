@@ -18,7 +18,7 @@ Before the scan starts, you must define which addresses bgscan should check. For
 
 ## IP List
 
-Choosing **IP List** opens the IP file list. Pick the file you want from the `ips/` directory so bgscan uses the addresses inside it for the scan.
+Choosing **Target List** opens the target file list. Pick the file you want from the `targets/ips/` or `targets/domains/` directory so bgscan uses the addresses or domains inside it for the scan.
 
 This option is for when you want to check a new set of IPs. For example, ranges from a CDN, addresses from a country, or a list you prepared yourself.
 

@@ -44,7 +44,7 @@ The input file must be a plain `.txt` file with **one entry per line**. Both IPv
 
 ## Built-in lists
 
-bgscan also has several ready IP lists in the `ips/` directory. These lists load automatically and need no extra settings.
+bgscan also has several ready IP lists in the `targets/ips/` directory. These lists load automatically and need no extra settings.
 
 | Name | Description |
 |---|---|

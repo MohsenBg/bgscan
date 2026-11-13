@@ -1,10 +1,10 @@
 package outbounds
 
 import (
-	"os"
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 	"github.com/MohsenBg/bgscan/internal/core/xray"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
@@ -69,7 +69,7 @@ func newHooks(session *ui.Session, onSelect func(*xray.OutboundFile) tea.Cmd, ad
 	hooks := crud.Hooks[xray.OutboundFile]{
 		OnDelete: func(item xray.OutboundFile) tea.Cmd {
 			return func() tea.Msg {
-				if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
+				if err := fileutil.RemoveFile(item.Path); err != nil {
 					session.Env().Log.Error("Failed to delete outbound: %v", err)
 					cmd := notice.NewNoticeCmd(session.Env(), "Delete Failed", err.Error(), notice.NOTICE_ERROR)
 					if cmd != nil {

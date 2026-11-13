@@ -157,7 +157,7 @@ func TestReadJSONFileOrDefault_ReturnsDefaultForMissingFile(t *testing.T) {
 		t.Fatalf("expected default value, got %q", got["value"])
 	}
 
-	if CheckFileExists(path) {
+	if FileExists(path) {
 		t.Fatal("default value should not be written to disk")
 	}
 }

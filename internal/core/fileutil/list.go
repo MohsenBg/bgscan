@@ -5,15 +5,18 @@ import (
 	"path/filepath"
 )
 
-// FileEntry represents a discovered file in a directory listing.
+// FileEntry is one file found while listing a directory.
 type FileEntry struct {
-	Name string
-	Path string
-	Info os.FileInfo
+	Name string      // base name, no directory part
+	Path string      // absolute path
+	Info os.FileInfo // size and modification time
 }
 
-// ListFiles returns the non-directory entries in dir.
-// When non-nil, filter determines which entries are included.
+// ListFiles returns the regular files in dir.
+//
+// Directories are skipped, and so are entries whose metadata cannot be read.
+// filter, when set, decides which names to keep. Every Path comes back
+// absolute, which is what callers store and pass around later.
 func ListFiles(
 	dir string,
 	filter func(name string, info os.FileInfo) bool,

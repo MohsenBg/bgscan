@@ -205,7 +205,7 @@ func TestStreamWriteCSV_WritesUsingCallback(t *testing.T) {
 	}
 }
 
-func TestStreamCSVIndexed_ReturnsCorrectOffsets(t *testing.T) {
+func TestStreamCSVWithOffset_ReturnsCorrectOffsets(t *testing.T) {
 	path := createTempCSV(
 		t,
 		"first,row\nsecond,row\nthird,row\n",
@@ -218,7 +218,7 @@ func TestStreamCSVIndexed_ReturnsCorrectOffsets(t *testing.T) {
 
 	var results []result
 
-	err := StreamCSVIndexed(
+	err := StreamCSVWithOffset(
 		path,
 		CSVConfig{},
 		func(row []string, offset int64) error {
@@ -230,7 +230,7 @@ func TestStreamCSVIndexed_ReturnsCorrectOffsets(t *testing.T) {
 		},
 	)
 	if err != nil {
-		t.Fatalf("StreamCSVIndexed failed: %v", err)
+		t.Fatalf("StreamCSVWithOffset failed: %v", err)
 	}
 
 	if len(results) != 3 {
@@ -250,7 +250,7 @@ func TestStreamCSVIndexed_ReturnsCorrectOffsets(t *testing.T) {
 	}
 }
 
-func TestStreamCSVIndexed_SkipsCommentsAndBlankLines(t *testing.T) {
+func TestStreamCSVWithOffset_SkipsCommentsAndBlankLines(t *testing.T) {
 	path := createTempCSV(
 		t,
 		"# comment\n\none,two\n",
@@ -258,7 +258,7 @@ func TestStreamCSVIndexed_SkipsCommentsAndBlankLines(t *testing.T) {
 
 	var rows [][]string
 
-	err := StreamCSVIndexed(
+	err := StreamCSVWithOffset(
 		path,
 		CSVConfig{},
 		func(row []string, _ int64) error {

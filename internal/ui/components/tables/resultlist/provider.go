@@ -1,10 +1,10 @@
 package resultlist
 
 import (
-	"os"
 	"path/filepath"
 	"slices"
 
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
@@ -77,7 +77,7 @@ func (s *source) Identity(item result.ResultFile) string {
 func newHooks(session *ui.Session, onSelect func(*result.ResultFile) tea.Cmd) crud.Hooks[result.ResultFile] {
 	hooks := crud.Hooks[result.ResultFile]{
 		OnDelete: func(item result.ResultFile) tea.Cmd {
-			if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
+			if err := fileutil.RemoveFile(item.Path); err != nil {
 				session.Env().Log.Error("Failed to delete result log file: %v", err)
 				return notice.NewNoticeCmd(session.Env(), "Delete Failed", err.Error(), notice.NOTICE_ERROR)
 			}
@@ -86,7 +86,7 @@ func newHooks(session *ui.Session, onSelect func(*result.ResultFile) tea.Cmd) cr
 		OnRename: func(item result.ResultFile, newName string) tea.Cmd {
 			newName = result.NormalizeResultFileName(newName)
 			dstPath := filepath.Join(filepath.Dir(item.Path), newName)
-			if err := os.Rename(item.Path, dstPath); err != nil {
+			if err := fileutil.ReplaceFile(item.Path, dstPath); err != nil {
 				session.Env().Log.Error("Failed to rename file on disk: %v", err)
 				return notice.NewNoticeCmd(session.Env(), "Rename Failed", err.Error(), notice.NOTICE_ERROR)
 			}

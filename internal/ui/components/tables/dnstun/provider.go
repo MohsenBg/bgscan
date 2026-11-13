@@ -1,10 +1,10 @@
 package dnstun
 
 import (
-	"os"
 	"slices"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/table"
@@ -75,7 +75,7 @@ func (s *source) Identity(item dns.DNSTunConfigFile) string {
 func newHooks(session *ui.Session, onSelect func(*dns.DNSTunConfigFile) tea.Cmd, add func() tea.Cmd) crud.Hooks[dns.DNSTunConfigFile] {
 	hooks := crud.Hooks[dns.DNSTunConfigFile]{
 		OnDelete: func(item dns.DNSTunConfigFile) tea.Cmd {
-			if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
+			if err := fileutil.RemoveFile(item.Path); err != nil {
 				session.Env().Log.Error("Failed to delete DNS tunnel config: %s", err)
 
 				return notice.NewNoticeCmd(session.Env(),

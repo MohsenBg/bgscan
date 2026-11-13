@@ -1,9 +1,9 @@
 package targetlist
 
 import (
-	"os"
 	"slices"
 
+	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/crud"
 	"github.com/MohsenBg/bgscan/internal/ui/components/basic/notice"
@@ -75,7 +75,7 @@ func newHooks(session *ui.Session, onSelect func(*target.FileInfo) tea.Cmd, add 
 	hooks := crud.Hooks[target.FileInfo]{
 		OnDelete: func(item target.FileInfo) tea.Cmd {
 			return func() tea.Msg {
-				if err := os.Remove(item.Path); err != nil && !os.IsNotExist(err) {
+				if err := fileutil.RemoveFile(item.Path); err != nil {
 					session.Env().Log.Error("Failed to delete target file: %v", err)
 					return notice.NewNoticeCmd(session.Env(), "Delete Failed", err.Error(), notice.NOTICE_ERROR)()
 				}
@@ -90,7 +90,7 @@ func newHooks(session *ui.Session, onSelect func(*target.FileInfo) tea.Cmd, add 
 					return notice.NewNoticeCmd(session.Env(), "Rename Failed", err.Error(), notice.NOTICE_ERROR)()
 				}
 
-				if err := os.Rename(item.Path, dstPath); err != nil {
+				if err := fileutil.ReplaceFile(item.Path, dstPath); err != nil {
 					session.Env().Log.Error("Rename failed: %v", err)
 					return notice.NewNoticeCmd(session.Env(), "Rename Failed", err.Error(), notice.NOTICE_ERROR)()
 				}

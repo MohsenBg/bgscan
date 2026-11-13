@@ -110,7 +110,7 @@ func TestWriter_FlushErrorFailsByDefault(t *testing.T) {
 	w := newWriterForTest(t, context.Background(), cfg)
 	impl := w.(*writer)
 
-	if err := os.MkdirAll(impl.path+".tmp", 0o755); err != nil {
+	if err := os.MkdirAll(impl.path, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -129,7 +129,7 @@ func TestWriter_IgnoreErrContinuesAfterFlushError(t *testing.T) {
 	w := newWriterForTest(t, context.Background(), cfg)
 	impl := w.(*writer)
 
-	if err := os.MkdirAll(impl.path+".tmp", 0o755); err != nil {
+	if err := os.MkdirAll(impl.path, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -141,7 +141,7 @@ func TestWriter_IgnoreErrContinuesAfterFlushError(t *testing.T) {
 		t.Fatalf("firstErr = %v, want nil when IgnoreErr is enabled", impl.firstErr)
 	}
 
-	if err := os.Remove(impl.path + ".tmp"); err != nil {
+	if err := os.RemoveAll(impl.path); err != nil {
 		t.Fatal(err)
 	}
 

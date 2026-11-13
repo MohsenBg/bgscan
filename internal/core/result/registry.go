@@ -123,31 +123,19 @@ func FindResultFiles(cfg config.WriterConfig, schemas ...ResultSchema) ([]Result
 	for _, schema := range schemas {
 		dir := getSchemaDir(cfg.ResultBaseDir, schema.Directory)
 
-		entries, err := os.ReadDir(dir)
+		files, err := fileutil.ListFiles(dir, func(name string, _ os.FileInfo) bool {
+			return fileutil.HasExt(name, csvExtension)
+		})
 		if err != nil {
 			continue
 		}
 
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-
-			name := entry.Name()
-			if !strings.EqualFold(filepath.Ext(name), csvExtension) {
-				continue
-			}
-
-			info, err := entry.Info()
-			if err != nil {
-				continue
-			}
-
+		for _, f := range files {
 			results = append(results, ResultFile{
-				Name:        fileutil.StripExt(name),
-				SizeBytes:   info.Size(),
-				CreatedTime: info.ModTime(),
-				Path:        filepath.Join(dir, name),
+				Name:        fileutil.StripExt(f.Name),
+				SizeBytes:   f.Info.Size(),
+				CreatedTime: f.Info.ModTime(),
+				Path:        f.Path,
 				Schema:      schema,
 				RecordCount: 0,
 			})
@@ -205,7 +193,7 @@ func prepareResultFilePath(cfg config.WriterConfig, schema ResultSchema, prefix 
 
 	dir := getSchemaDir(cfg.ResultBaseDir, schema.Directory)
 
-	if err := os.MkdirAll(dir, resultDirPerm); err != nil {
+	if err := fileutil.EnsureDir(dir); err != nil {
 		return "", fmt.Errorf("create result directory %q: %w", dir, err)
 	}
 

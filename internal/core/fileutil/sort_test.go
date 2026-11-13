@@ -224,3 +224,24 @@ func TestSortFile_PreservesAllLines(t *testing.T) {
 		}
 	}
 }
+
+func TestSortFile_EmptyInputStaysEmpty(t *testing.T) {
+	input := tmpPath(t, "input.txt")
+	output := tmpPath(t, "output.txt")
+
+	if err := os.WriteFile(input, nil, 0o644); err != nil {
+		t.Fatalf("write empty input: %v", err)
+	}
+
+	if err := SortFile(context.Background(), input, output); err != nil {
+		t.Fatalf("SortFile: %v", err)
+	}
+
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if len(data) != 0 {
+		t.Fatalf("output should be empty, got %q", data)
+	}
+}

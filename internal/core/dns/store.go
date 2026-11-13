@@ -80,7 +80,7 @@ func (s *configStore[C]) SaveConfig(config C, name string) error {
 		return err
 	}
 
-	if fileutil.CheckFileExists(path) {
+	if fileutil.FileExists(path) {
 		return fmt.Errorf("config %q already exists", name)
 	}
 
@@ -232,5 +232,5 @@ func (s *configStore[C]) RenameConfig(oldName, newName string) error {
 		return fmt.Errorf("check destination config: %w", err)
 	}
 
-	return fileutil.RenameFile(oldPath, newPath)
+	return fileutil.ReplaceFile(oldPath, newPath)
 }

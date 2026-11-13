@@ -16,8 +16,11 @@ const (
 	defaultChunkLines = 100_000
 )
 
-// SortFile sorts inputFile and writes the result to outputFile.
-// It selects an in-memory or external merge sort based on the input size.
+// SortFile sorts inputFile line by line and writes the result to outputFile.
+//
+// Files up to 100MB are sorted in memory. Bigger ones are cut into chunks,
+// sorted separately, and merged back, so memory stays flat no matter how large
+// the input gets.
 func SortFile(ctx context.Context, inputFile, outputFile string) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("context cancelled before start: %w", err)
@@ -39,6 +42,8 @@ func SortFile(ctx context.Context, inputFile, outputFile string) error {
 	return sortExternal(ctx, inputFile, outputFile)
 }
 
+// sortInMemory reads the whole file, sorts it, and writes it back out. Used
+// when the file is small enough that holding every line is cheap.
 func sortInMemory(ctx context.Context, inputFile, outputFile string) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("context cancelled: %w", err)
@@ -49,7 +54,12 @@ func sortInMemory(ctx context.Context, inputFile, outputFile string) error {
 		return fmt.Errorf("read file: %w", err)
 	}
 
-	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	text := strings.TrimRight(string(data), "\n")
+
+	var lines []string
+	if text != "" {
+		lines = strings.Split(text, "\n")
+	}
 	sort.Strings(lines)
 
 	if err := ctx.Err(); err != nil {
@@ -73,6 +83,8 @@ func sortInMemory(ctx context.Context, inputFile, outputFile string) error {
 	return w.Flush()
 }
 
+// sortExternal spills sorted chunks into the system temp directory and merges
+// them. The chunks are scratch, so they do not need to sit next to the output.
 func sortExternal(ctx context.Context, inputFile, outputFile string) error {
 	tmpDir, err := os.MkdirTemp("", "bgscan-chunks-*")
 	if err != nil {
@@ -90,6 +102,7 @@ func sortExternal(ctx context.Context, inputFile, outputFile string) error {
 	return mergeChunks(ctx, chunkFiles, outputFile)
 }
 
+// splitAndSort cuts the input into chunks small enough to sort in memory.
 func splitAndSort(ctx context.Context, inputFile, tmpDir string) ([]string, error) {
 	f, err := os.Open(inputFile)
 	if err != nil {
@@ -136,6 +149,7 @@ func splitAndSort(ctx context.Context, inputFile, tmpDir string) ([]string, erro
 	return chunkFiles, nil
 }
 
+// writeSortedChunk sorts one chunk and writes it to dir.
 func writeSortedChunk(lines []string, dir string, n int) (string, error) {
 	sort.Strings(lines)
 	name := filepath.Join(dir, fmt.Sprintf("chunk_%d.tmp", n))
@@ -160,6 +174,7 @@ func writeSortedChunk(lines []string, dir string, n int) (string, error) {
 	return name, nil
 }
 
+// item is the next line from one chunk, plus the chunk it came from.
 type item struct {
 	line    string
 	fileIdx int
@@ -173,6 +188,8 @@ func (h minHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 func (h *minHeap) Push(x any)        { *h = append(*h, x.(item)) }
 func (h *minHeap) Pop() any          { old := *h; n := len(old); x := old[n-1]; *h = old[:n-1]; return x }
 
+// mergeChunks merges the sorted chunks into one stream with a min-heap. Only
+// one line per chunk is held at a time.
 func mergeChunks(ctx context.Context, chunkFiles []string, outputFile string) error {
 	files := make([]*os.File, len(chunkFiles))
 	readers := make([]*bufio.Scanner, len(chunkFiles))

@@ -24,7 +24,7 @@ func TestGetCurrentPath_ReturnsAbsolutePath(t *testing.T) {
 	}
 }
 
-func TestCheckFileExists_ReturnsTrueForFile(t *testing.T) {
+func TestFileExists_ReturnsTrueForFile(t *testing.T) {
 	path := filepath.Join(
 		t.TempDir(),
 		"test.txt",
@@ -39,30 +39,30 @@ func TestCheckFileExists_ReturnsTrueForFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !CheckFileExists(path) {
+	if !FileExists(path) {
 		t.Fatal(
 			"expected file to exist",
 		)
 	}
 }
 
-func TestCheckFileExists_ReturnsFalseForMissingFile(t *testing.T) {
+func TestFileExists_ReturnsFalseForMissingFile(t *testing.T) {
 	path := filepath.Join(
 		t.TempDir(),
 		"missing.txt",
 	)
 
-	if CheckFileExists(path) {
+	if FileExists(path) {
 		t.Fatal(
 			"expected missing file to return false",
 		)
 	}
 }
 
-func TestCheckFileExists_ReturnsFalseForDirectory(t *testing.T) {
+func TestFileExists_ReturnsFalseForDirectory(t *testing.T) {
 	dir := t.TempDir()
 
-	if CheckFileExists(dir) {
+	if FileExists(dir) {
 		t.Fatal(
 			"directory should not count as file",
 		)
@@ -159,7 +159,7 @@ func TestHasExt_CaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestEnsureDir_CreatesParentDirectories(t *testing.T) {
+func TestEnsureParentDir_CreatesMissingParents(t *testing.T) {
 	path := filepath.Join(
 		t.TempDir(),
 		"a",
@@ -167,7 +167,7 @@ func TestEnsureDir_CreatesParentDirectories(t *testing.T) {
 		"file.txt",
 	)
 
-	err := EnsureFileDir(path)
+	err := EnsureParentDir(path)
 	if err != nil {
 		t.Fatalf(
 			"EnsureDir failed: %v",
@@ -189,8 +189,8 @@ func TestEnsureDir_CreatesParentDirectories(t *testing.T) {
 	}
 }
 
-func TestEnsureDir_NoParentDoesNothing(t *testing.T) {
-	err := EnsureFileDir("file.txt")
+func TestEnsureParentDir_BareNameIsNoOp(t *testing.T) {
+	err := EnsureParentDir("file.txt")
 	if err != nil {
 		t.Fatalf(
 			"unexpected error: %v",
@@ -305,5 +305,13 @@ func TestGetOrCreateBaseDir_ConvertsRelativePath(t *testing.T) {
 		t.Fatal(
 			"expected absolute path",
 		)
+	}
+}
+
+func TestRemoveFile_MissingIsSuccess(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing.csv")
+
+	if err := RemoveFile(path); err != nil {
+		t.Fatalf("RemoveFile on missing path: %v", err)
 	}
 }

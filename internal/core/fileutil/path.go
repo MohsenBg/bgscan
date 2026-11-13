@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// GetCurrentPath returns the absolute path of the current working directory.
+// GetCurrentPath returns the working directory as an absolute path.
 func GetCurrentPath() (string, error) {
 	path, err := os.Getwd()
 	if err != nil {
@@ -16,8 +16,9 @@ func GetCurrentPath() (string, error) {
 	return path, nil
 }
 
-// CheckFileExists checks if a regular file exists at the given path.
-func CheckFileExists(path string) bool {
+// FileExists reports whether path names a regular file. A directory returns
+// false even when it exists.
+func FileExists(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
 		return false
@@ -25,18 +26,19 @@ func CheckFileExists(path string) bool {
 	return !info.IsDir()
 }
 
-// StripExt removes the extension from a file name or path.
+// StripExt drops the last extension from a name or path.
 func StripExt(name string) string {
 	return strings.TrimSuffix(name, filepath.Ext(name))
 }
 
-// HasExt checks case-insensitively if a path has the specified extension (e.g., ".json").
+// HasExt compares the last extension, ignoring case.
 func HasExt(name, ext string) bool {
 	return strings.EqualFold(filepath.Ext(name), ext)
 }
 
-// EnsureFileDir creates the parent directory of path if it does not exist.
-func EnsureFileDir(path string) error {
+// EnsureParentDir creates the directory that holds path. A bare name like
+// "file.txt" has no directory part, so there is nothing to do.
+func EnsureParentDir(path string) error {
 	dir := filepath.Dir(path)
 	if dir == "." || dir == "" {
 		return nil
@@ -49,7 +51,7 @@ func EnsureFileDir(path string) error {
 	return nil
 }
 
-// EnsureDir creates path as a directory if it does not exist.
+// EnsureDir creates path and any missing parents. An empty path is a no-op.
 func EnsureDir(path string) error {
 	if path == "" {
 		return nil
@@ -62,7 +64,17 @@ func EnsureDir(path string) error {
 	return nil
 }
 
-// GetOrCreateBaseDir returns an absolute directory path, creating it when absent.
+// RemoveFile removes path. A file that is already gone is not an error, since
+// callers usually want "make sure this is gone" rather than "was it there".
+func RemoveFile(path string) error {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove file %q: %w", path, err)
+	}
+	return nil
+}
+
+// GetOrCreateBaseDir resolves path to an absolute directory and creates it
+// when missing. An existing non-directory is an error.
 func GetOrCreateBaseDir(path string) (string, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
@@ -88,14 +100,9 @@ func GetOrCreateBaseDir(path string) (string, error) {
 	return absPath, nil
 }
 
-func RenameFile(oldPath, newPath string) error {
-	if err := os.Rename(oldPath, newPath); err != nil {
-		return fmt.Errorf("rename file %q to %q: %w", oldPath, newPath, err)
-	}
-
-	return nil
-}
-
+// BasePath returns the directory holding the running binary. Under go run the
+// binary sits in a throwaway build directory, so the working directory is used
+// instead.
 func BasePath() (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
@@ -117,7 +124,8 @@ func basePathFor(exe string) (string, error) {
 	return filepath.Dir(exe), nil
 }
 
-// isGoRunTempBinary stays exactly as you have it.
+// isGoRunTempBinary spots the throwaway binary path go run builds under
+// /tmp/go-build.../exe/.
 func isGoRunTempBinary(path string) bool {
 	dir := filepath.Dir(path)
 	base := filepath.Base(dir)

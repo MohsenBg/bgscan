@@ -3,10 +3,10 @@ package fileutil
 import (
 	"bufio"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -16,7 +16,8 @@ const (
 	maxBufferSize     = 4 * 1024 * 1024
 )
 
-// CSVConfig controls CSV reader and writer behavior.
+// CSVConfig changes how a CSV file is read or written. The zero value is the
+// usual comma-separated format with no header.
 type CSVConfig struct {
 	HasHeader        bool
 	LazyQuotes       bool
@@ -45,15 +46,8 @@ func applyWriterConfig(w *csv.Writer, cfg CSVConfig) {
 	}
 }
 
-func ensureDir(path string) error {
-	dir := filepath.Dir(path)
-	if dir == "." {
-		return nil
-	}
-	return os.MkdirAll(dir, 0o755)
-}
-
-// StreamCSV calls handler for each record in path without retaining all records in memory.
+// StreamCSV reads path one record at a time. Nothing is kept in memory after
+// the handler returns, so the file can be as large as the disk allows.
 func StreamCSV(path string, cfg CSVConfig, handler func([]string) error) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -88,8 +82,12 @@ func StreamCSV(path string, cfg CSVConfig, handler func([]string) error) error {
 	}
 }
 
-// StreamCSVIndexed calls handler with each record and its starting byte offset.
-func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, offset int64) error) error {
+// StreamCSVWithOffset is StreamCSV plus the byte offset where each record
+// starts.
+//
+// The offsets come from the raw file, so a caller can seek straight back to a
+// record later.
+func StreamCSVWithOffset(path string, cfg CSVConfig, handler func(record []string, offset int64) error) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("open csv file: %w", err)
@@ -101,6 +99,18 @@ func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, 
 
 	br := bufio.NewReader(f)
 	var currentByteOffset int64 = 0
+
+	if cfg.HasHeader {
+		header, err := br.ReadBytes('\n')
+		currentByteOffset += int64(len(header))
+
+		if err != nil && err != io.EOF {
+			return fmt.Errorf("read csv header: %w", err)
+		}
+		if err == io.EOF {
+			return nil
+		}
+	}
 
 	for {
 		lineOffset := currentByteOffset
@@ -146,7 +156,57 @@ func StreamCSVIndexed(path string, cfg CSVConfig, handler func(record []string, 
 	return nil
 }
 
-// StreamCSVToChan sends each CSV record to out.
+// StreamCSVStrict reads every record and stops at the first malformed one.
+//
+// StreamCSVWithOffset drops a bad line and keeps going, which is fine when a
+// list only needs the rows it can read.
+func StreamCSVStrict(path string, cfg CSVConfig, handler func(record []string, line int64) error) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open csv file: %w", err)
+	}
+
+	defer func() {
+		_ = f.Close()
+	}()
+
+	r := csv.NewReader(bufio.NewReaderSize(f, clampBufferSize(cfg.BufferSize)))
+	applyReaderConfig(r, cfg)
+
+	if cfg.HasHeader {
+		if _, err := r.Read(); err != nil && err != io.EOF {
+			return fmt.Errorf("read csv header: %w", err)
+		}
+	}
+
+	var line int64
+
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			if parseErr, ok := errors.AsType[*csv.ParseError](err); ok {
+				return fmt.Errorf(
+					"csv parse error at line %d, column %d: %w",
+					parseErr.Line,
+					parseErr.Column,
+					parseErr.Err,
+				)
+			}
+			return fmt.Errorf("csv read error: %w", err)
+		}
+
+		line++
+		if err := handler(rec, line); err != nil {
+			return err
+		}
+	}
+}
+
+// StreamCSVToChan pushes each record into out. The caller owns the channel and
+// has to keep reading from it.
 func StreamCSVToChan(path string, cfg CSVConfig, out chan<- []string) error {
 	return StreamCSV(path, cfg, func(rec []string) error {
 		out <- rec
@@ -154,10 +214,10 @@ func StreamCSVToChan(path string, cfg CSVConfig, out chan<- []string) error {
 	})
 }
 
-// WriteCSVFile overwrites path with records.
+// WriteCSVFile replaces path with records.
 func WriteCSVFile(path string, cfg CSVConfig, records [][]string) error {
-	if err := ensureDir(path); err != nil {
-		return fmt.Errorf("ensure directory: %w", err)
+	if err := EnsureParentDir(path); err != nil {
+		return err
 	}
 
 	f, err := os.Create(path)
@@ -173,7 +233,7 @@ func WriteCSVFile(path string, cfg CSVConfig, records [][]string) error {
 	w := csv.NewWriter(bw)
 	applyWriterConfig(w, cfg)
 
-	// WriteAll flushes the csv writer and returns its error.
+	// WriteAll flushes the CSV writer, so a buffered write error shows up here.
 	if err := w.WriteAll(records); err != nil {
 		return fmt.Errorf("write csv records: %w", err)
 	}
@@ -181,10 +241,12 @@ func WriteCSVFile(path string, cfg CSVConfig, records [][]string) error {
 	return bw.Flush()
 }
 
-// StreamWriteCSV provides fn with a callback that writes CSV records to path.
+// StreamWriteCSV gives fn a write callback and turns whatever it produces into
+// a CSV file. Rows are written as they come, so the caller never builds the
+// whole file in memory.
 func StreamWriteCSV(path string, cfg CSVConfig, fn func(write func([]string) error) error) error {
-	if err := ensureDir(path); err != nil {
-		return fmt.Errorf("ensure directory: %w", err)
+	if err := EnsureParentDir(path); err != nil {
+		return err
 	}
 
 	f, err := os.Create(path)
@@ -216,15 +278,15 @@ func StreamWriteCSV(path string, cfg CSVConfig, fn func(write func([]string) err
 	return bw.Flush()
 }
 
-// AppendCSVRow appends row to path.
+// AppendCSVRow adds one row to path.
 func AppendCSVRow(path string, cfg CSVConfig, row []string) error {
 	return AppendCSVRows(path, cfg, [][]string{row})
 }
 
-// AppendCSVRows appends rows to path.
+// AppendCSVRows adds rows to path and creates the file when it is missing.
 func AppendCSVRows(path string, cfg CSVConfig, rows [][]string) error {
-	if err := ensureDir(path); err != nil {
-		return fmt.Errorf("ensure directory: %w", err)
+	if err := EnsureParentDir(path); err != nil {
+		return err
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
@@ -261,6 +323,15 @@ func clampBufferSize(n int) int {
 	return min(maxBufferSize, max(minBufferSize, n))
 }
 
-func NewBufferedWriter(w io.Writer, size int) *bufio.Writer {
-	return bufio.NewWriterSize(w, clampBufferSize(size))
+// NewBufferedWriter wraps w in a 64KB buffer. That is enough that writing one
+// CSV row at a time does not turn into one syscall per row.
+func NewBufferedWriter(w io.Writer) *bufio.Writer {
+	return bufio.NewWriterSize(w, defaultBufferSize)
+}
+
+// NewCSVWriter wraps w in a CSV writer using cfg.
+func NewCSVWriter(w io.Writer, cfg CSVConfig) *csv.Writer {
+	cw := csv.NewWriter(w)
+	applyWriterConfig(cw, cfg)
+	return cw
 }

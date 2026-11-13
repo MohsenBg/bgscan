@@ -14,7 +14,7 @@ func WriteCSV(path string, fn func(func(Entry) error) error) error {
 
 // ReadCSV streams rows along with their raw disk byte offset position.
 func ReadCSV(path string, fn func(Entry, int64) error) error {
-	return fileutil.StreamCSVIndexed(path, DefaultCSVConfig, func(rec []string, offset int64) error {
+	return fileutil.StreamCSVWithOffset(path, DefaultCSVConfig, func(rec []string, offset int64) error {
 		entry, ok := ParseRecord(rec)
 		if !ok {
 			return nil

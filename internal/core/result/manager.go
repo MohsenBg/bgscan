@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"os"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -142,13 +141,11 @@ func (w *writer) Start() error {
 }
 
 func (w *writer) doStart() error {
-	if err := fileutil.EnsureFileDir(w.path); err != nil {
+	if err := fileutil.EnsureParentDir(w.path); err != nil {
 		return fmt.Errorf("ensure result dir: %w", err)
 	}
-	if fileutil.CheckFileExists(w.path) {
-		if err := os.Remove(w.path); err != nil {
-			return fmt.Errorf("remove stale result file: %w", err)
-		}
+	if err := fileutil.RemoveFile(w.path); err != nil {
+		return fmt.Errorf("remove stale result file: %w", err)
 	}
 	go w.loop()
 	return nil
@@ -317,7 +314,7 @@ func (w *writer) GetResultPath() string {
 	if !w.started.Load() {
 		return ""
 	}
-	if fileutil.CheckFileExists(w.path) {
+	if fileutil.FileExists(w.path) {
 		return w.path
 	}
 	return ""

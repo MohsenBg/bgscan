@@ -7,10 +7,10 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// WriteTOMLFile encodes value as TOML and writes it to path.
-// It creates the parent directory when needed.
+// WriteTOMLFile writes value as TOML, creating the parent directory if it is
+// missing.
 func WriteTOMLFile(path string, value any) error {
-	if err := EnsureFileDir(path); err != nil {
+	if err := EnsureParentDir(path); err != nil {
 		return err
 	}
 
@@ -29,18 +29,13 @@ func WriteTOMLFile(path string, value any) error {
 	return nil
 }
 
-// WriteSecretTOMLFile encodes value as TOML into path, creating it with mode
-// 0600 and restricting any pre-existing file to 0600 as well.
+// WriteSecretTOMLFile writes TOML that nobody else should be able to read.
+// The file ends up with mode 0600 whether it is new or already existed.
 //
-// Use it for any configuration that carries credentials (private keys,
-// passwords). It is deliberately separate from WriteTOMLFile, which writes
-// 0644 and must not be used for secrets.
-//
-// The Chmod is not redundant with the OpenFile mode: that mode applies only
-// when the file is created, so it heals 0644 files written by older versions
-// rather than leaving their permissions untouched.
+// Use it for anything carrying credentials: private keys, passwords, tokens.
+// WriteTOMLFile writes 0644 on purpose, so keep the two apart.
 func WriteSecretTOMLFile(path string, value any) error {
-	if err := EnsureFileDir(path); err != nil {
+	if err := EnsureParentDir(path); err != nil {
 		return err
 	}
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
@@ -59,16 +54,17 @@ func WriteSecretTOMLFile(path string, value any) error {
 	return toml.NewEncoder(file).Encode(value)
 }
 
-// WriteTOMLFileIfNotExist writes value only when path does not exist.
+// WriteTOMLFileIfNotExist creates path only when it is missing. An existing
+// file is left alone.
 func WriteTOMLFileIfNotExist(path string, value any) error {
-	if CheckFileExists(path) {
+	if FileExists(path) {
 		return nil
 	}
 
 	return WriteTOMLFile(path, value)
 }
 
-// ReadTOMLFile decodes the TOML file at path into a new value of type T.
+// ReadTOMLFile decodes path into a fresh T.
 func ReadTOMLFile[T any](path string) (T, error) {
 	var value T
 
@@ -87,8 +83,8 @@ func ReadTOMLFile[T any](path string) (T, error) {
 	return value, nil
 }
 
-// ReadTOMLFileOrDefault returns the value in path, or defaultValue if it cannot
-// be read or decoded. It does not write defaultValue to disk.
+// ReadTOMLFileOrDefault returns the decoded value, or defaultValue when the
+// file is missing or broken. The default is not written back to disk.
 func ReadTOMLFileOrDefault[T any](path string, defaultValue T) T {
 	value, err := ReadTOMLFile[T](path)
 	if err != nil {
@@ -98,8 +94,8 @@ func ReadTOMLFileOrDefault[T any](path string, defaultValue T) T {
 	return value
 }
 
-// UpdateTOMLFile reads a TOML value, passes it to update, then saves the
-// returned value.
+// UpdateTOMLFile reads the file, hands the value to update, and writes the
+// result back. A failed update leaves the file untouched.
 func UpdateTOMLFile[T any](path string, update func(T) (T, error)) error {
 	value, err := ReadTOMLFile[T](path)
 	if err != nil {

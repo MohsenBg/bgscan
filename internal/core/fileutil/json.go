@@ -6,10 +6,10 @@ import (
 	"os"
 )
 
-// WriteJSONFile encodes value as JSON and writes it to path.
-// It creates the parent directory when needed.
+// WriteJSONFile writes value as indented JSON, creating the parent directory
+// if it is missing.
 func WriteJSONFile(path string, value any) error {
-	if err := EnsureFileDir(path); err != nil {
+	if err := EnsureParentDir(path); err != nil {
 		return err
 	}
 
@@ -31,16 +31,17 @@ func WriteJSONFile(path string, value any) error {
 	return nil
 }
 
-// WriteJSONFileIfNotExist writes value only when path does not exist.
+// WriteJSONFileIfNotExist creates path only when it is missing. An existing
+// file is left alone, even if it holds something else.
 func WriteJSONFileIfNotExist(path string, value any) error {
-	if CheckFileExists(path) {
+	if FileExists(path) {
 		return nil
 	}
 
 	return WriteJSONFile(path, value)
 }
 
-// ReadJSONFile decodes the JSON file at path into a new value of type T.
+// ReadJSONFile decodes path into a fresh T.
 func ReadJSONFile[T any](path string) (T, error) {
 	var value T
 
@@ -56,8 +57,8 @@ func ReadJSONFile[T any](path string) (T, error) {
 	return value, nil
 }
 
-// ReadJSONFileOrDefault returns the value in path, or defaultValue if it cannot
-// be read or decoded. It does not write defaultValue to disk.
+// ReadJSONFileOrDefault returns the decoded value, or defaultValue when the
+// file is missing or broken. The default is not written back to disk.
 func ReadJSONFileOrDefault[T any](path string, defaultValue T) T {
 	value, err := ReadJSONFile[T](path)
 	if err != nil {
@@ -67,8 +68,8 @@ func ReadJSONFileOrDefault[T any](path string, defaultValue T) T {
 	return value
 }
 
-// UpdateJSONFile reads a JSON value, passes it to update, then saves the
-// returned value.
+// UpdateJSONFile reads the file, hands the value to update, and writes the
+// result back. A failed update leaves the file untouched.
 func UpdateJSONFile[T any](path string, update func(T) (T, error)) error {
 	value, err := ReadJSONFile[T](path)
 	if err != nil {

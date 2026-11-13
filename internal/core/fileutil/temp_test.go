@@ -9,11 +9,11 @@ import (
 	"testing"
 )
 
-func TestCreateTmpFile_CreatesFile(t *testing.T) {
-	f, path, err := CreateTmpFile("test-*")
+func TestCreateSystemTempFile_CreatesFile(t *testing.T) {
+	f, path, err := CreateSystemTempFile("test-*")
 	if err != nil {
 		t.Fatalf(
-			"CreateTmpFile failed: %v",
+			"CreateSystemTempFile failed: %v",
 			err,
 		)
 	}
@@ -53,8 +53,8 @@ func TestCreateTmpFile_CreatesFile(t *testing.T) {
 	}
 }
 
-func TestCreateTmpFile_UsesPattern(t *testing.T) {
-	f, path, err := CreateTmpFile("bgscan-test-*")
+func TestCreateSystemTempFile_UsesPattern(t *testing.T) {
+	f, path, err := CreateSystemTempFile("bgscan-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,8 +77,8 @@ func TestCreateTmpFile_UsesPattern(t *testing.T) {
 	}
 }
 
-func TestCreateTmpFile_ReturnsWritableFile(t *testing.T) {
-	f, path, err := CreateTmpFile("write-*")
+func TestCreateSystemTempFile_ReturnsWritableFile(t *testing.T) {
+	f, path, err := CreateSystemTempFile("write-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,19 +99,19 @@ func TestCreateTmpFile_ReturnsWritableFile(t *testing.T) {
 	}
 }
 
-func TestCreateTmpJSONFile_WritesJSON(t *testing.T) {
+func TestCreateSystemTempJSONFile_WritesJSON(t *testing.T) {
 	data := map[string]any{
 		"name":    "bgscan",
 		"version": 1,
 	}
 
-	path, err := CreateTmpJSONFile(
+	path, err := CreateSystemTempJSONFile(
 		"json-*",
 		data,
 	)
 	if err != nil {
 		t.Fatalf(
-			"CreateTmpJSONFile failed: %v",
+			"CreateSystemTempJSONFile failed: %v",
 			err,
 		)
 	}
@@ -145,8 +145,8 @@ func TestCreateTmpJSONFile_WritesJSON(t *testing.T) {
 	}
 }
 
-func TestCreateTmpJSONFile_ReturnsAbsolutePath(t *testing.T) {
-	path, err := CreateTmpJSONFile(
+func TestCreateSystemTempJSONFile_ReturnsAbsolutePath(t *testing.T) {
+	path, err := CreateSystemTempJSONFile(
 		"absolute-*",
 		map[string]string{
 			"a": "b",
@@ -168,8 +168,8 @@ func TestCreateTmpJSONFile_ReturnsAbsolutePath(t *testing.T) {
 	}
 }
 
-func TestCreateTmpJSONFile_CreatesReadableClosedFile(t *testing.T) {
-	path, err := CreateTmpJSONFile(
+func TestCreateSystemTempJSONFile_CreatesReadableClosedFile(t *testing.T) {
+	path, err := CreateSystemTempJSONFile(
 		"closed-*",
 		[]string{
 			"a",
@@ -199,11 +199,11 @@ func TestCreateTmpJSONFile_CreatesReadableClosedFile(t *testing.T) {
 	}
 }
 
-func TestCreateTmpJSONFile_InvalidJSONValue(t *testing.T) {
+func TestCreateSystemTempJSONFile_InvalidJSONValue(t *testing.T) {
 	// channels cannot be JSON encoded
 	invalid := make(chan int)
 
-	path, err := CreateTmpJSONFile(
+	path, err := CreateSystemTempJSONFile(
 		"invalid-*",
 		invalid,
 	)
@@ -231,5 +231,26 @@ func TestCreateTmpJSONFile_InvalidJSONValue(t *testing.T) {
 				"temporary file should be removed after encoding failure",
 			)
 		}
+	}
+}
+
+func TestCreateTempIn_UsesDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "sub")
+
+	f, path, err := CreateTempIn(dir, "bgscan-test-*")
+	if err != nil {
+		t.Fatalf("CreateTempIn: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = f.Close()
+		_ = os.Remove(path)
+	})
+
+	if got := filepath.Dir(path); got != dir {
+		t.Fatalf("temp dir = %q, want %q", got, dir)
+	}
+	if !filepath.IsAbs(path) {
+		t.Fatalf("temp path should be absolute: %q", path)
 	}
 }

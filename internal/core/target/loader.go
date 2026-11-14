@@ -64,17 +64,17 @@ func Import(ctx context.Context, srcPath, name string, option ImportOption) (Imp
 		return result, fmt.Errorf("target list %q already exists", name)
 	}
 
-	ipTmp, err := createTempFile("bgscan-import-ip-")
+	ipTmp, err := createTempFile(filepath.Dir(ipDst), ".bgscan-split-ip-*")
 	if err != nil {
 		return result, err
 	}
-	defer func() { _ = os.Remove(ipTmp) }()
+	defer func() { _ = fileutil.RemoveFile(ipTmp) }()
 
-	domainTmp, err := createTempFile("bgscan-import-domain-")
+	domainTmp, err := createTempFile(filepath.Dir(domainDst), ".bgscan-split-domain-*")
 	if err != nil {
 		return result, err
 	}
-	defer func() { _ = os.Remove(domainTmp) }()
+	defer func() { _ = fileutil.RemoveFile(domainTmp) }()
 
 	// Split the source in one pass. The writer callbacks keep both temp files
 	// open, and the parser has already normalized every entry.
@@ -119,7 +119,7 @@ func Import(ctx context.Context, srcPath, name string, option ImportOption) (Imp
 
 	cleanup := func() {
 		for _, p := range pending {
-			_ = os.Remove(p.tmp)
+			_ = fileutil.RemoveFile(p.tmp)
 		}
 	}
 
@@ -146,23 +146,32 @@ func Import(ctx context.Context, srcPath, name string, option ImportOption) (Imp
 		pending = append(pending, pendingImport{tmp: tmp, dst: domainDst})
 	}
 
+	publishedDirs := make(map[string]struct{}, len(pending))
+
 	for _, p := range pending {
-		if err := os.Rename(p.tmp, p.dst); err != nil {
+		if err := fileutil.ReplaceFile(p.tmp, p.dst); err != nil {
 			cleanup()
 			return result, fmt.Errorf("publish %q: %w", p.dst, err)
+		}
+		publishedDirs[filepath.Dir(p.dst)] = struct{}{}
+	}
+
+	for dir := range publishedDirs {
+		if err := fileutil.SyncDir(dir); err != nil {
+			return result, err
 		}
 	}
 
 	return result, nil
 }
 
-func createTempFile(pattern string) (string, error) {
-	f, path, err := fileutil.CreateTmpFile(pattern)
+func createTempFile(dir, pattern string) (string, error) {
+	f, path, err := fileutil.CreateTempIn(dir, pattern)
 	if err != nil {
 		return "", err
 	}
 	if err := f.Close(); err != nil {
-		_ = os.Remove(path)
+		_ = fileutil.RemoveFile(path)
 		return "", fmt.Errorf("close temp file: %w", err)
 	}
 	return path, nil
@@ -172,28 +181,23 @@ func createTempFile(pattern string) (string, error) {
 // inside dstPath's directory and returns that path and the entry count. The
 // caller renames it into place once every kind has been written successfully.
 func dedupeToTemp(ctx context.Context, srcPath, dstPath string, option ImportOption) (string, uint64, error) {
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
-		return "", 0, fmt.Errorf("create target directory: %w", err)
-	}
-
-	f, err := os.CreateTemp(filepath.Dir(dstPath), ".bgscan-import-*")
+	f, tmpPath, err := fileutil.CreateTempIn(filepath.Dir(dstPath), ".bgscan-import-*")
 	if err != nil {
-		return "", 0, fmt.Errorf("create temp file: %w", err)
+		return "", 0, err
 	}
-	tmpPath := f.Name()
 	if err := f.Close(); err != nil {
-		_ = os.Remove(tmpPath)
+		_ = fileutil.RemoveFile(tmpPath)
 		return "", 0, fmt.Errorf("close temp file: %w", err)
 	}
 
 	count, err := importFile(ctx, srcPath, tmpPath, option)
 	if err != nil {
-		_ = os.Remove(tmpPath)
+		_ = fileutil.RemoveFile(tmpPath)
 		return "", 0, err
 	}
 
-	if err := os.Chmod(tmpPath, 0o644); err != nil {
-		_ = os.Remove(tmpPath)
+	if err := os.Chmod(tmpPath, fileutil.DefaultFileMode); err != nil {
+		_ = fileutil.RemoveFile(tmpPath)
 		return "", 0, fmt.Errorf("chmod temp file: %w", err)
 	}
 
@@ -244,15 +248,15 @@ func importMap(ctx context.Context, srcPath, dstPath string, option ImportOption
 // importDisk sorts the file on disk, then streams it once to drop adjacent
 // duplicates. Flat memory regardless of file size.
 func importDisk(ctx context.Context, srcPath, dstPath string) (uint64, error) {
-	tmpFile, tmpPath, err := fileutil.CreateTmpFile("bgscan-sort-")
+	tmpFile, tmpPath, err := fileutil.CreateSystemTempFile("bgscan-sort-")
 	if err != nil {
 		return 0, fmt.Errorf("create temp file: %w", err)
 	}
 	if err := tmpFile.Close(); err != nil {
-		_ = os.Remove(tmpPath)
+		_ = fileutil.RemoveFile(tmpPath)
 		return 0, fmt.Errorf("close temp file: %w", err)
 	}
-	defer func() { _ = os.Remove(tmpPath) }()
+	defer func() { _ = fileutil.RemoveFile(tmpPath) }()
 
 	if err := fileutil.SortFile(ctx, srcPath, tmpPath); err != nil {
 		return 0, fmt.Errorf("sort file: %w", err)

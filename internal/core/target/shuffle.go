@@ -177,7 +177,12 @@ func streamActiveShuffled(log *logger.Logger, ctx context.Context, path string, 
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Error("failed to close file: %v", err)
+		}
+	}()
 
 	// Knuth/Newlib constants: full period over any power-of-two modulus.
 	const lcgA = uint64(6364136223846793005)

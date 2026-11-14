@@ -296,12 +296,12 @@ func saveOutboundTemplate(log *logger.Logger, name string, outbound *Outbound) (
 		return nil, err
 	}
 
-	if err := os.WriteFile(dst, data, 0o600); err != nil {
+	if err := fileutil.WriteFileAtomic(dst, data, 0o600); err != nil {
 		return nil, fmt.Errorf("save outbound template: %w", err)
 	}
 
 	if err := ValidateOutbound(name); err != nil {
-		if removeErr := os.Remove(dst); removeErr != nil && log != nil {
+		if removeErr := fileutil.RemoveFile(dst); removeErr != nil && log != nil {
 			log.Error("failed to remove invalid outbound template: %v", removeErr)
 		}
 		return nil, fmt.Errorf("outbound validation failed: %w", err)
@@ -351,7 +351,7 @@ func RenameOutboundTemplate(oldName, newName string) (*OutboundFile, error) {
 		return nil, fmt.Errorf("cannot rename: destination template %q already exists", newName)
 	}
 
-	if err := os.Rename(oldFile.Path, dst); err != nil {
+	if err := fileutil.ReplaceFile(oldFile.Path, dst); err != nil {
 		return nil, fmt.Errorf("rename outbound template: %w", err)
 	}
 

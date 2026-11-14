@@ -3,9 +3,7 @@ package result
 import (
 	"bufio"
 	"encoding/csv"
-	"fmt"
-	"os"
-	"path/filepath"
+	"io"
 	"slices"
 	"strings"
 
@@ -53,53 +51,22 @@ func mergeResults(
 	}
 	results = deduped
 
-	tmpPath := resultPath + ".tmp"
-	if err := os.MkdirAll(filepath.Dir(tmpPath), 0o755); err != nil {
-		return fmt.Errorf("create result dir: %w", err)
-	}
+	return fileutil.WriteFileAtomicFunc(resultPath, fileutil.DefaultFileMode, func(w io.Writer) error {
+		bw := fileutil.NewBufferedWriter(w)
+		cw := fileutil.NewCSVWriter(bw, csvConfig)
 
-	out, err := os.Create(tmpPath)
-	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
-	}
-
-	// Ensure the temp file is cleaned up if the merge fails at any point.
-	success := false
-	defer func() {
-		if !success {
-			_ = out.Close()
-			_ = os.Remove(tmpPath)
+		if fileutil.FileExists(resultPath) {
+			if err := mergeWithExisting(log, resultPath, schema, results, cw); err != nil {
+				return err
+			}
+		} else {
+			if err := writeResults(results, cw); err != nil {
+				return err
+			}
 		}
-	}()
 
-	bw := fileutil.NewBufferedWriter(out, 0)
-	cw := csv.NewWriter(bw)
-
-	if fileutil.CheckFileExists(resultPath) {
-		if err := mergeWithExisting(log, resultPath, schema, results, cw); err != nil {
-			return err
-		}
-	} else {
-		if err := writeResults(results, cw); err != nil {
-			return err
-		}
-	}
-
-	if err := finalizeFile(cw, bw, out); err != nil {
-		return err
-	}
-
-	success = true
-	if err := out.Close(); err != nil {
-		return err
-	}
-
-	if err := replaceFile(tmpPath, resultPath); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-
-	return syncDir(filepath.Dir(resultPath))
+		return finalizeWriters(cw, bw)
+	})
 }
 
 // mergeWithExisting streams the existing CSV and merges it with the new batch.
@@ -182,13 +149,10 @@ func writeResults(results []Result, cw *csv.Writer) error {
 	return nil
 }
 
-func finalizeFile(cw *csv.Writer, bw *bufio.Writer, out *os.File) error {
+func finalizeWriters(cw *csv.Writer, bw *bufio.Writer) error {
 	cw.Flush()
 	if err := cw.Error(); err != nil {
 		return err
 	}
-	if err := bw.Flush(); err != nil {
-		return err
-	}
-	return out.Sync()
+	return bw.Flush()
 }

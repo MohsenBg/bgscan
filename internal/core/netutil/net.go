@@ -246,3 +246,28 @@ func ValidateDomain(domain string) error {
 
 	return nil
 }
+
+func NormalizePath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+
+	return "/" + strings.TrimLeft(path, "/")
+}
+
+func ValidatePath(path string) error {
+	if path == "" {
+		return nil
+	}
+
+	if strings.ContainsAny(path, "?#") {
+		return fmt.Errorf("path must not contain query or fragment: %q", path)
+	}
+
+	if strings.ContainsAny(path, " \t\r\n") {
+		return fmt.Errorf("path must not contain whitespace: %q", path)
+	}
+
+	return nil
+}

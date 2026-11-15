@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 )
 
@@ -49,21 +50,12 @@ func StreamCIDR(ctx context.Context, cidr string, limit uint64, out chan<- netip
 // It returns a netip.Prefix, which can represent both networks and single IPs (as /32 or /128).
 func ParseIPOrCIDR(raw string) (netip.Prefix, bool) {
 	raw = strings.TrimSpace(raw)
-
-	// 1. Try CIDR first
 	if prefix, err := netip.ParsePrefix(raw); err == nil {
-		return prefix, true
+		return prefix.Masked(), true
 	}
-
-	// 2. Try plain IP and convert it to a single-host prefix
 	if addr, err := netip.ParseAddr(raw); err == nil {
-		bits := 128
-		if addr.Is4() {
-			bits = 32
-		}
-		return netip.PrefixFrom(addr, bits), true
+		return netip.PrefixFrom(addr, addr.BitLen()), true
 	}
-
 	return netip.Prefix{}, false
 }
 
@@ -74,4 +66,17 @@ func Loopback(addr netip.Addr) netip.Addr {
 		return netip.IPv6Loopback()
 	}
 	return netip.AddrFrom4([4]byte{127, 0, 0, 1})
+}
+
+// parsePort treats an empty field as "use the scan settings" (0).
+func ParsePort(raw string) (uint16, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, true
+	}
+	port, err := strconv.ParseUint(raw, 10, 16)
+	if err != nil {
+		return 0, false
+	}
+	return uint16(port), true
 }

@@ -143,7 +143,7 @@ func ipFile(t *testing.T, ips ...string) string {
 		t.Fatal(err)
 	}
 	for _, ip := range ips {
-		_, _ = fmt.Fprintln(f, ip)
+		_, _ = fmt.Fprintf(f, "%s,0,,1\n", ip)
 	}
 	_ = f.Close()
 	return f.Name()

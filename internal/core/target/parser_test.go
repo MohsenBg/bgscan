@@ -25,132 +25,160 @@ func TestParseRecord(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name   string
-		input  []string
-		want   Entry
-		wantOk bool
+		name    string
+		input   []string
+		want    Entry
+		wantErr bool
 	}{
 		{
-			name:   "ValidIP",
-			input:  []string{"1.1.1.1"},
-			want:   Entry{IP: mustPrefix(t, "1.1.1.1/32"), Enable: true},
-			wantOk: true,
+			name:  "ValidIP",
+			input: []string{"1.1.1.1", "0", "", "1"},
+			want:  Entry{IP: mustPrefix(t, "1.1.1.1/32"), Enable: true},
 		},
 		{
-			name:   "ValidIPWithEnable",
-			input:  []string{"1.1.1.1", "0"},
-			want:   Entry{IP: mustPrefix(t, "1.1.1.1/32"), Enable: false},
-			wantOk: true,
+			name:  "ValidIPDisabled",
+			input: []string{"1.1.1.1", "0", "", "0"},
+			want:  Entry{IP: mustPrefix(t, "1.1.1.1/32")},
 		},
 		{
-			name:   "CIDR",
-			input:  []string{"10.0.0.0/24", "1"},
-			want:   Entry{IP: mustPrefix(t, "10.0.0.0/24"), Enable: true},
-			wantOk: true,
+			name:  "CIDR",
+			input: []string{"10.0.0.0/24", "0", "", "1"},
+			want:  Entry{IP: mustPrefix(t, "10.0.0.0/24"), Enable: true},
 		},
 		{
-			name:   "Spaces",
-			input:  []string{"  8.8.8.8  "},
-			want:   Entry{IP: mustPrefix(t, "8.8.8.8/32"), Enable: true},
-			wantOk: true,
+			name:  "CIDRMasked",
+			input: []string{"10.0.0.5/24", "0", "", "1"},
+			want:  Entry{IP: mustPrefix(t, "10.0.0.0/24"), Enable: true},
 		},
 		{
-			name:   "IPWithPort",
-			input:  []string{"8.8.8.8", "8080", "1"},
-			want:   Entry{IP: mustPrefix(t, "8.8.8.8/32"), Port: 8080, Enable: true},
-			wantOk: true,
+			name:  "Spaces",
+			input: []string{"  8.8.8.8  ", "0", "", "1"},
+			want:  Entry{IP: mustPrefix(t, "8.8.8.8/32"), Enable: true},
 		},
 		{
-			name:   "IPWithPortAndPath",
-			input:  []string{"8.8.8.8", "443", "/resolve", "1"},
-			want:   Entry{IP: mustPrefix(t, "8.8.8.8/32"), Port: 443, Path: "/resolve", Enable: true},
-			wantOk: true,
+			name:  "IPWithPort",
+			input: []string{"8.8.8.8", "8080", "", "1"},
+			want:  Entry{IP: mustPrefix(t, "8.8.8.8/32"), Port: 8080, Enable: true},
 		},
 		{
-			name:   "CanonicalEmptyPortAndPath",
-			input:  []string{"8.8.8.8", "0", "", "1"},
-			want:   Entry{IP: mustPrefix(t, "8.8.8.8/32"), Enable: true},
-			wantOk: true,
+			name:  "IPWithPortAndPath",
+			input: []string{"8.8.8.8", "443", "/resolve", "1"},
+			want:  Entry{IP: mustPrefix(t, "8.8.8.8/32"), Port: 443, Path: "/resolve", Enable: true},
 		},
 		{
-			name:   "Domain",
-			input:  []string{"example.com"},
-			want:   Entry{Kind: KindDomain, Domain: "example.com", Enable: true},
-			wantOk: true,
+			name:  "CanonicalEmptyPortAndPath",
+			input: []string{"8.8.8.8", "0", "", "1"},
+			want:  Entry{IP: mustPrefix(t, "8.8.8.8/32"), Enable: true},
 		},
 		{
-			name:   "DomainLowercased",
-			input:  []string{"EXAMPLE.com", "0"},
-			want:   Entry{Kind: KindDomain, Domain: "example.com", Enable: false},
-			wantOk: true,
+			name:  "Domain",
+			input: []string{"example.com", "0", "", "1"},
+			want:  Entry{Kind: KindDomain, Domain: "example.com", Enable: true},
 		},
 		{
-			name:   "DomainWithPort",
-			input:  []string{"example.com", "8443", "1"},
-			want:   Entry{Kind: KindDomain, Domain: "example.com", Port: 8443, Enable: true},
-			wantOk: true,
+			name:  "DomainLowercased",
+			input: []string{"EXAMPLE.com", "0", "", "0"},
+			want:  Entry{Kind: KindDomain, Domain: "example.com"},
 		},
 		{
-			name:   "DomainWithPortAndPath",
-			input:  []string{"example.com", "443", "/dns-query", "1"},
-			want:   Entry{Kind: KindDomain, Domain: "example.com", Port: 443, Path: "/dns-query", Enable: true},
-			wantOk: true,
+			name:  "DomainWithPort",
+			input: []string{"example.com", "8443", "", "1"},
+			want:  Entry{Kind: KindDomain, Domain: "example.com", Port: 8443, Enable: true},
 		},
 		{
-			name:   "DomainWithEmptyPort",
-			input:  []string{"example.com", "", "/path", "1"},
-			want:   Entry{Kind: KindDomain, Domain: "example.com", Path: "/path", Enable: true},
-			wantOk: true,
+			name:  "DomainWithPortAndPath",
+			input: []string{"example.com", "443", "/dns-query", "1"},
+			want:  Entry{Kind: KindDomain, Domain: "example.com", Port: 443, Path: "/dns-query", Enable: true},
 		},
 		{
-			name:   "InvalidIP",
-			input:  []string{"not-an-ip"},
-			wantOk: false,
+			name:  "DomainWithEmptyPort",
+			input: []string{"example.com", "", "/path", "1"},
+			want:  Entry{Kind: KindDomain, Domain: "example.com", Path: "/path", Enable: true},
 		},
 		{
-			name:   "EmptyRecord",
-			input:  []string{},
-			wantOk: false,
+			name:  "PathWithoutLeadingSlashIsNormalized",
+			input: []string{"example.com", "443", "dns-query", "1"},
+			want:  Entry{Kind: KindDomain, Domain: "example.com", Port: 443, Path: "/dns-query", Enable: true},
 		},
 		{
-			name:   "SchemeRejected",
-			input:  []string{"https://example.com"},
-			wantOk: false,
+			name:  "TrailingMeasurementsIgnored",
+			input: []string{"1.1.1.1", "443", "/x", "1", "extra", "more"},
+			want:  Entry{IP: mustPrefix(t, "1.1.1.1/32"), Port: 443, Path: "/x", Enable: true},
 		},
 		{
-			name:   "PathInValueRejected",
-			input:  []string{"example.com/path"},
-			wantOk: false,
+			name:    "ResultRowRejected",
+			input:   []string{"1.1.1.1", "12ms", "443", "1", "3"},
+			wantErr: true,
 		},
 		{
-			name:   "SingleLabelRejected",
-			input:  []string{"localhost"},
-			wantOk: false,
+			name:    "LegacyOneColumnRejected",
+			input:   []string{"1.1.1.1"},
+			wantErr: true,
 		},
 		{
-			name:   "InvalidPort",
-			input:  []string{"example.com", "70000", "", "1"},
-			wantOk: false,
+			name:    "LegacyTwoColumnRejected",
+			input:   []string{"1.1.1.1", "1"},
+			wantErr: true,
 		},
 		{
-			name:   "NonNumericPort",
-			input:  []string{"example.com", "abc", "", "1"},
-			wantOk: false,
+			name:    "LegacyThreeColumnRejected",
+			input:   []string{"1.1.1.1", "8080", "1"},
+			wantErr: true,
 		},
 		{
-			name:   "InvalidPath",
-			input:  []string{"example.com", "443", "no-leading-slash", "1"},
-			wantOk: false,
+			name:    "EmptyRecord",
+			input:   []string{},
+			wantErr: true,
 		},
 		{
-			name:   "InvalidEnable",
-			input:  []string{"example.com", "443", "", "yes"},
-			wantOk: false,
+			name:    "EmptyValue",
+			input:   []string{"", "0", "", "1"},
+			wantErr: true,
 		},
 		{
-			name:   "TooManyFields",
-			input:  []string{"example.com", "443", "/x", "1", "extra"},
-			wantOk: false,
+			name:    "InvalidIP",
+			input:   []string{"not-an-ip", "0", "", "1"},
+			wantErr: true,
+		},
+		{
+			name:    "SchemeRejected",
+			input:   []string{"https://example.com", "0", "", "1"},
+			wantErr: true,
+		},
+		{
+			name:    "PathInValueRejected",
+			input:   []string{"example.com/path", "0", "", "1"},
+			wantErr: true,
+		},
+		{
+			name:    "SingleLabelRejected",
+			input:   []string{"localhost", "0", "", "1"},
+			wantErr: true,
+		},
+		{
+			name:    "InvalidPort",
+			input:   []string{"example.com", "70000", "", "1"},
+			wantErr: true,
+		},
+		{
+			name:    "NonNumericPort",
+			input:   []string{"example.com", "abc", "", "1"},
+			wantErr: true,
+		},
+		{
+			name:    "PathQueryRejected",
+			input:   []string{"example.com", "443", "/x?y", "1"},
+			wantErr: true,
+		},
+		{
+			name:    "PathSpaceRejected",
+			input:   []string{"example.com", "443", "/x y", "1"},
+			wantErr: true,
+		},
+		{
+			name:    "InvalidEnable",
+			input:   []string{"example.com", "443", "", "yes"},
+			wantErr: true,
 		},
 	}
 
@@ -159,18 +187,81 @@ func TestParseRecord(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, ok := ParseRecord(tt.input)
-			if ok != tt.wantOk {
-				t.Fatalf("ParseRecord() ok = %v, want %v", ok, tt.wantOk)
-			}
-			if !ok {
+			got, err := ParseRecord(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("ParseRecord() error = nil, want error")
+				}
 				return
+			}
+			if err != nil {
+				t.Fatalf("ParseRecord() error = %v", err)
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("ParseRecord() = %#v, want %#v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestParseInputRecord(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input []string
+		want  Entry
+	}{
+		{
+			name:  "OneColumnDefaultsEnabled",
+			input: []string{"1.1.1.1"},
+			want:  Entry{IP: mustPrefix(t, "1.1.1.1/32"), Enable: true},
+		},
+		{
+			name:  "TwoColumnsEnable",
+			input: []string{"1.1.1.1", "0"},
+			want:  Entry{IP: mustPrefix(t, "1.1.1.1/32")},
+		},
+		{
+			name:  "ThreeColumnsPortEnable",
+			input: []string{"1.1.1.1", "8080", "1"},
+			want:  Entry{IP: mustPrefix(t, "1.1.1.1/32"), Port: 8080, Enable: true},
+		},
+		{
+			name:  "FourColumns",
+			input: []string{"example.com", "443", "/x", "1"},
+			want:  Entry{Kind: KindDomain, Domain: "example.com", Port: 443, Path: "/x", Enable: true},
+		},
+		{
+			name:  "DomainOneColumn",
+			input: []string{"example.com"},
+			want:  Entry{Kind: KindDomain, Domain: "example.com", Enable: true},
+		},
+		{
+			name:  "CIDROneColumn",
+			input: []string{"10.0.0.5/24"},
+			want:  Entry{IP: mustPrefix(t, "10.0.0.0/24"), Enable: true},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := ParseInputRecord(tt.input)
+			if err != nil {
+				t.Fatalf("ParseInputRecord() error = %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("ParseInputRecord() = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+
+	if _, err := ParseInputRecord([]string{"a", "b", "c", "d", "e"}); err == nil {
+		t.Fatal("ParseInputRecord() accepted five fields")
 	}
 }
 
@@ -181,9 +272,9 @@ func TestStreamActiveSequential(t *testing.T) {
 	path := filepath.Join(tmpDir, "stream_test.csv")
 
 	data := "" +
-		"1.1.1.1,1\n" +
-		"2.2.2.2,0\n" +
-		"3.3.3.3,1\n"
+		"1.1.1.1,0,,1\n" +
+		"2.2.2.2,0,,0\n" +
+		"3.3.3.3,0,,1\n"
 
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatal(err)

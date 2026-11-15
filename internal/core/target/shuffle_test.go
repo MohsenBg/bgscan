@@ -174,9 +174,9 @@ func TestReadIPAtCSVOffset(t *testing.T) {
 	t.Parallel()
 
 	content := "" +
-		"1.1.1.1,1\n" +
-		"2.2.2.2,0\n" +
-		"3.3.3.3,1\n"
+		"1.1.1.1,0,,1\n" +
+		"2.2.2.2,0,,0\n" +
+		"3.3.3.3,0,,1\n"
 
 	path := mustWriteShuffleFile(t, "ips.csv", content)
 
@@ -189,7 +189,7 @@ func TestReadIPAtCSVOffset(t *testing.T) {
 		_ = f.Close()
 	}()
 
-	offset := int64(len("1.1.1.1,1\n"))
+	offset := int64(len("1.1.1.1,0,,1\n"))
 	reader := bufio.NewReader(f)
 	got, err := readIPAtCSVOffset(f, reader, offset)
 	if err != nil {
@@ -204,7 +204,7 @@ func TestReadIPAtCSVOffset(t *testing.T) {
 func TestReadIPAtCSVOffset_InvalidIP(t *testing.T) {
 	t.Parallel()
 
-	content := "not-an-ip,1\n"
+	content := "not-an-ip,0,,1\n"
 	path := mustWriteShuffleFile(t, "ips.csv", content)
 
 	f, err := os.Open(path)
@@ -248,10 +248,10 @@ func TestNewMasterIndexer_SinglesOnly(t *testing.T) {
 	t.Parallel()
 
 	content := "" +
-		"1.1.1.1,1\n" +
-		"2.2.2.2,1\n" +
-		"3.3.3.3,0\n" +
-		"bad-ip,1\n"
+		"1.1.1.1,0,,1\n" +
+		"2.2.2.2,0,,1\n" +
+		"3.3.3.3,0,,0\n" +
+		"bad-ip,0,,1\n"
 
 	path := mustWriteShuffleFile(t, "single.csv", content)
 
@@ -279,10 +279,10 @@ func TestNewMasterIndexer_CIDRsAndSingles(t *testing.T) {
 	t.Parallel()
 
 	content := "" +
-		"10.0.0.1,1\n" +
-		"192.168.0.0/30,1\n" +
-		"192.168.1.0/31,1\n" +
-		"10.0.0.2,0\n"
+		"10.0.0.1,0,,1\n" +
+		"192.168.0.0/30,0,,1\n" +
+		"192.168.1.0/31,0,,1\n" +
+		"10.0.0.2,0,,0\n"
 
 	path := mustWriteShuffleFile(t, "mixed.csv", content)
 
@@ -336,9 +336,9 @@ func TestStreamActiveShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 	t.Parallel()
 
 	content := "" +
-		"1.1.1.1,1\n" +
-		"2.2.2.2,1\n" +
-		"3.3.3.3,1\n"
+		"1.1.1.1,0,,1\n" +
+		"2.2.2.2,0,,1\n" +
+		"3.3.3.3,0,,1\n"
 
 	path := mustWriteShuffleFile(t, "single.csv", content)
 
@@ -381,10 +381,10 @@ func TestStreamActiveShuffled_MixedDataset(t *testing.T) {
 	t.Parallel()
 
 	content := "" +
-		"10.0.0.1,1\n" +
-		"192.168.1.0/30,1\n" +
-		"10.0.0.2,0\n" +
-		"bad-row,1\n"
+		"10.0.0.1,0,,1\n" +
+		"192.168.1.0/30,0,,1\n" +
+		"10.0.0.2,0,,0\n" +
+		"bad-row,0,,1\n"
 
 	path := mustWriteShuffleFile(t, "mixed.csv", content)
 
@@ -425,10 +425,10 @@ func TestStreamActiveShuffled_Limit(t *testing.T) {
 	t.Parallel()
 
 	content := "" +
-		"1.1.1.1,1\n" +
-		"2.2.2.2,1\n" +
-		"3.3.3.3,1\n" +
-		"4.4.4.4,1\n"
+		"1.1.1.1,0,,1\n" +
+		"2.2.2.2,0,,1\n" +
+		"3.3.3.3,0,,1\n" +
+		"4.4.4.4,0,,1\n"
 
 	path := mustWriteShuffleFile(t, "limit.csv", content)
 
@@ -454,7 +454,7 @@ func TestStreamActiveShuffled_Limit(t *testing.T) {
 func TestStreamActiveShuffled_ContextCanceled(t *testing.T) {
 	t.Parallel()
 
-	content := "10.0.0.0/24,1\n"
+	content := "10.0.0.0/24,0,,1\n"
 	path := mustWriteShuffleFile(t, "cancel.csv", content)
 
 	ctx, cancel := context.WithCancel(context.Background())

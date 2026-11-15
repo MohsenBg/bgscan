@@ -72,12 +72,12 @@ func TestImport_MapPath_DedupesAndMasks(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "src.csv")
 
 	writeTestCSV(t, src, []string{
-		"10.0.0.1/24,1",
-		"10.0.0.0/24,1",
-		"1.1.1.1,1",
-		"1.1.1.1/32,1",
-		"2.2.2.2,0",
-		"invalid-ip,1",
+		"10.0.0.1/24,0,,1",
+		"10.0.0.0/24,0,,1",
+		"1.1.1.1,0,,1",
+		"1.1.1.1/32,0,,1",
+		"2.2.2.2,0,,0",
+		"invalid-ip,0,,1",
 	})
 
 	result, err := Import(context.Background(), src, "mylist", ImportOption{
@@ -114,12 +114,12 @@ func TestImport_DiskPath_DedupesAndSorts(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "src.csv")
 
 	writeTestCSV(t, src, []string{
-		"3.3.3.3,1",
-		"1.1.1.1,1",
-		"10.0.0.1/24,1",
-		"10.0.0.0/24,1",
-		"1.1.1.1/32,1",
-		"2.2.2.2,0",
+		"3.3.3.3,0,,1",
+		"1.1.1.1,0,,1",
+		"10.0.0.1/24,0,,1",
+		"10.0.0.0/24,0,,1",
+		"1.1.1.1/32,0,,1",
+		"2.2.2.2,0,,0",
 	})
 
 	result, err := Import(context.Background(), src, "mylist", ImportOption{
@@ -200,8 +200,8 @@ func TestImport_MapPath_RespectsMaxInMemoryEntries(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "src.csv")
 
 	writeTestCSV(t, src, []string{
-		"1.1.1.1,1",
-		"2.2.2.2,1",
+		"1.1.1.1,0,,1",
+		"2.2.2.2,0,,1",
 	})
 
 	_, err := Import(context.Background(), src, "mylist", ImportOption{
@@ -274,10 +274,10 @@ func TestImport_RejectsExistingTarget(t *testing.T) {
 			base := setBaseDir(t)
 
 			existing := filepath.Join(targetDir(base, existingKind), "existing.csv")
-			mustWriteFile(t, existing, "1.1.1.1,1\n")
+			mustWriteFile(t, existing, "1.1.1.1,0,,1\n")
 
 			src := filepath.Join(t.TempDir(), "src.csv")
-			writeTestCSV(t, src, []string{"1.1.1.1,1"})
+			writeTestCSV(t, src, []string{"1.1.1.1,0,,1"})
 
 			_, err := Import(context.Background(), src, "existing", DefaultImportOption())
 			if err == nil || !strings.Contains(err.Error(), "already exists") {
@@ -357,6 +357,42 @@ func TestCountAll_DomainCountsAsOne(t *testing.T) {
 	}
 }
 
+func TestImport_AcceptsFlexibleInput(t *testing.T) {
+	setBaseDir(t)
+
+	src := filepath.Join(t.TempDir(), "plain.txt")
+	writeTestCSV(t, src, []string{
+		"1.1.1.1",
+		"2.2.2.2,0",
+		"example.com",
+	})
+
+	result, err := Import(context.Background(), src, "mixed", DefaultImportOption())
+	if err != nil {
+		t.Fatalf("Import() error = %v", err)
+	}
+	if result.IPs != 2 || result.Domains != 1 {
+		t.Fatalf("Import() result = %+v, want 2 IPs and 1 domain", result)
+	}
+
+	gotIPs := readAllCSV(t, mustTargetPath(t, "mixed", KindIP))
+	wantIPs := []Entry{
+		{IP: mustPrefix(t, "1.1.1.1/32"), Enable: true},
+		{IP: mustPrefix(t, "2.2.2.2/32"), Enable: false},
+	}
+	if !reflect.DeepEqual(gotIPs, wantIPs) {
+		t.Fatalf("IP import mismatch\ngot:  %#v\nwant: %#v", gotIPs, wantIPs)
+	}
+
+	gotDomains := readAllCSV(t, mustTargetPath(t, "mixed", KindDomain))
+	wantDomains := []Entry{
+		{Kind: KindDomain, Domain: "example.com", Enable: true},
+	}
+	if !reflect.DeepEqual(gotDomains, wantDomains) {
+		t.Fatalf("domain import mismatch\ngot:  %#v\nwant: %#v", gotDomains, wantDomains)
+	}
+}
+
 func TestLoadAll(t *testing.T) {
 	t.Parallel()
 
@@ -364,10 +400,10 @@ func TestLoadAll(t *testing.T) {
 	path := filepath.Join(tmpDir, "input.csv")
 
 	writeTestCSV(t, path, []string{
-		"1.1.1.1,1",
-		"2.2.2.2,0",
-		"bad-value,1", // skipped
-		"10.0.0.0/31,1",
+		"1.1.1.1,0,,1",
+		"2.2.2.2,0,,0",
+		"bad-value,0,,1", // skipped
+		"10.0.0.0/31,0,,1",
 	})
 
 	got, err := LoadAll(path)
@@ -393,10 +429,10 @@ func TestCountAll(t *testing.T) {
 	path := filepath.Join(tmpDir, "count.csv")
 
 	writeTestCSV(t, path, []string{
-		"1.1.1.1,1",     // 1
-		"10.0.0.0/30,1", // 4
-		"2.2.2.2,0",     // 1
-		"bad-ip,1",      // skipped
+		"1.1.1.1,0,,1",     // 1
+		"10.0.0.0/30,0,,1", // 4
+		"2.2.2.2,0,,0",     // 1
+		"bad-ip,0,,1",      // skipped
 	})
 
 	got, err := CountAll(path)
@@ -417,11 +453,11 @@ func TestCountActive(t *testing.T) {
 	path := filepath.Join(tmpDir, "active.csv")
 
 	writeTestCSV(t, path, []string{
-		"1.1.1.1,1",     // 1
-		"2.2.2.2,0",     // 0
-		"10.0.0.0/30,1", // 4
-		"10.0.0.8/31,0", // 0
-		"bad-ip,1",      // skipped
+		"1.1.1.1,0,,1",     // 1
+		"2.2.2.2,0,,0",     // 0
+		"10.0.0.0/30,0,,1", // 4
+		"10.0.0.8/31,0,,0", // 0
+		"bad-ip,0,,1",      // skipped
 	})
 
 	got, err := CountActive(path)

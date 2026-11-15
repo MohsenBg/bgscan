@@ -46,95 +46,74 @@ func StreamCIDR(ctx context.Context, prefix netip.Prefix, limit uint64, count *u
 	return nil
 }
 
-// ParseRecord turns a raw CSV row into an Entry.
-//
-// Accepted layouts:
-//
-//	value,enable               legacy
-//	value,port,enable          transitional
-//	value,port,path,enable     canonical
-func ParseRecord(rec []string) (Entry, bool) {
-	if len(rec) < 1 || len(rec) > 4 {
-		return Entry{}, false
+func ParseRecord(rec []string) (Entry, error) {
+	if len(rec) < 4 {
+		return Entry{}, fmt.Errorf("invalid record length: expected at least 4 fields, got %d", len(rec))
 	}
+
 	raw := strings.TrimSpace(rec[0])
 	if raw == "" {
-		return Entry{}, false
+		return Entry{}, fmt.Errorf("empty target")
 	}
 
 	var entry Entry
-	if ip, ok := ParseIPOrCIDR(raw); ok {
+	if ip, ok := netutil.ParseIPOrCIDR(raw); ok {
 		entry = NewEnabled(ip)
 	} else {
-		if netutil.ValidateDomain(raw) != nil {
-			return Entry{}, false
+		if err := netutil.ValidateDomain(raw); err != nil {
+			return Entry{}, fmt.Errorf("invalid domain %q: %w", raw, err)
 		}
+
 		domain, err := netutil.NormalizeHostWithSuffix(raw)
 		if err != nil {
-			return Entry{}, false
+			return Entry{}, fmt.Errorf("normalize domain %q: %w", raw, err)
 		}
+
 		entry = NewDomain(strings.ToLower(domain), 1)
 	}
 
-	// Column positions depend on which layout the row uses.
-	portCol, pathCol, enableCol := -1, -1, -1
-	switch len(rec) {
-	case 2:
-		enableCol = 1
-	case 3:
-		portCol, enableCol = 1, 2
-	case 4:
-		portCol, pathCol, enableCol = 1, 2, 3
+	port, ok := netutil.ParsePort(strings.TrimSpace(rec[1]))
+	if !ok {
+		return Entry{}, fmt.Errorf("invalid port %q", rec[1])
+	}
+	entry.Port = port
+
+	entry.Path = netutil.NormalizePath(rec[2])
+	if err := netutil.ValidatePath(entry.Path); err != nil {
+		return Entry{}, fmt.Errorf("invalid path %q: %w", rec[2], err)
 	}
 
-	if portCol >= 0 {
-		port, ok := parsePort(rec[portCol])
-		if !ok {
-			return Entry{}, false
-		}
-		entry.Port = port
-	}
-	if pathCol >= 0 {
-		entry.Path = strings.TrimSpace(rec[pathCol])
-		if entry.Path != "" && !strings.HasPrefix(entry.Path, "/") {
-			return Entry{}, false
-		}
-	}
-	enable := 1
-	if enableCol >= 0 {
-		v, ok := parseEnable(rec[enableCol])
-		if !ok {
-			return Entry{}, false
-		}
-		enable = v
+	enable, ok := parseEnable(strings.TrimSpace(rec[3]))
+	if !ok {
+		return Entry{}, fmt.Errorf("invalid enable value %q", rec[3])
 	}
 	entry.Enable = enable == 1
-	return entry, true
+
+	return entry, nil
 }
 
-// ParseIPOrCIDR accepts a CIDR or a plain IP; plain IPs become /32 or /128.
-func ParseIPOrCIDR(raw string) (netip.Prefix, bool) {
-	raw = strings.TrimSpace(raw)
-	if prefix, err := netip.ParsePrefix(raw); err == nil {
-		return prefix.Masked(), true
+// ParseInputRecord parses a user-supplied row.
+//
+// Stored target lists use ParseRecord and always carry four columns. Import is
+// more forgiving because people paste plain IPs and older exports:
+//
+//	value               -> value,0,,1
+//	value,enable        -> value,0,,enable
+//	value,port,enable   -> value,port,,enable
+//	value,port,path,enable
+func ParseInputRecord(rec []string) (Entry, error) {
+	switch len(rec) {
+	case 1:
+		return ParseRecord([]string{rec[0], "", "", "1"})
+	case 2:
+		return ParseRecord([]string{rec[0], "", "", rec[1]})
+	case 3:
+		return ParseRecord([]string{rec[0], rec[1], "", rec[2]})
+	case 4:
+		return ParseRecord(rec)
+	default:
+		return Entry{}, fmt.Errorf("invalid record length: expected 1 to 4 fields, got %d", len(rec))
 	}
-	if addr, err := netip.ParseAddr(raw); err == nil {
-		return netip.PrefixFrom(addr, addr.BitLen()), true
-	}
-	return netip.Prefix{}, false
-}
-
-// parsePort treats an empty field as "use the scan settings" (0).
-func parsePort(raw string) (uint16, bool) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return 0, true
-	}
-	port, err := strconv.ParseUint(raw, 10, 16)
-	if err != nil {
-		return 0, false
-	}
-	return uint16(port), true
 }
 
 // parseEnable requires an integer; anything but 1 means disabled.

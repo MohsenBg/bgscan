@@ -84,7 +84,7 @@ func TestTargetFileExists(t *testing.T) {
 	base := setBaseDir(t)
 
 	ipPath := filepath.Join(base, IPListDir, "mylist.csv")
-	mustWriteFile(t, ipPath, "1.1.1.1,1\n")
+	mustWriteFile(t, ipPath, "1.1.1.1,0,,1\n")
 
 	if !TargetFileExists("mylist", KindIP) {
 		t.Fatalf("TargetFileExists(%q, IP) = false, want true", "mylist")
@@ -104,7 +104,7 @@ func TestGetTargetFileInfo_ByName(t *testing.T) {
 	base := setBaseDir(t)
 
 	p := filepath.Join(base, IPListDir, "alpha.csv")
-	mustWriteFile(t, p, "1.1.1.1,1\n")
+	mustWriteFile(t, p, "1.1.1.1,0,,1\n")
 
 	info, err := GetTargetFileInfo("alpha", KindIP)
 	if err != nil {
@@ -129,7 +129,7 @@ func TestGetTargetFileInfo_DomainByName(t *testing.T) {
 	base := setBaseDir(t)
 
 	p := filepath.Join(base, DomainListDir, "example.csv")
-	mustWriteFile(t, p, "example.com,1\n")
+	mustWriteFile(t, p, "example.com,0,,1\n")
 
 	info, err := GetTargetFileInfo("example", KindDomain)
 	if err != nil {
@@ -148,7 +148,7 @@ func TestGetTargetFileInfo_ByFilenameWithExt(t *testing.T) {
 	base := setBaseDir(t)
 
 	p := filepath.Join(base, IPListDir, "beta.csv")
-	mustWriteFile(t, p, "2.2.2.2,0\n")
+	mustWriteFile(t, p, "2.2.2.2,0,,0\n")
 
 	info, err := GetTargetFileInfo("beta.csv", KindIP)
 	if err != nil {
@@ -167,7 +167,7 @@ func TestGetTargetFileInfo_ByAbsolutePath(t *testing.T) {
 	base := setBaseDir(t)
 
 	p := filepath.Join(base, "abs.csv")
-	mustWriteFile(t, p, "3.3.3.3,1\n")
+	mustWriteFile(t, p, "3.3.3.3,0,,1\n")
 
 	info, err := GetTargetFileInfo(p, KindIP)
 	if err != nil {
@@ -217,9 +217,9 @@ func TestListFiles_SortsNewestFirstAndFiltersCSV(t *testing.T) {
 	domainNew := filepath.Join(base, DomainListDir, "new.csv")
 	ignore := filepath.Join(base, IPListDir, "ignore.txt")
 
-	mustWriteFile(t, ipOld, "1.1.1.1,1\n")
-	mustWriteFile(t, domainMid, "mid.example,1\n")
-	mustWriteFile(t, domainNew, "new.example,1\n")
+	mustWriteFile(t, ipOld, "1.1.1.1,0,,1\n")
+	mustWriteFile(t, domainMid, "mid.example,0,,1\n")
+	mustWriteFile(t, domainNew, "new.example,0,,1\n")
 	mustWriteFile(t, ignore, "x\n")
 
 	mustSetModTime(t, ipOld, oldTime)
@@ -318,7 +318,7 @@ func TestGetTargetFileInfoAcceptsAbsolutePath(t *testing.T) {
 	base := setBaseDir(t)
 
 	abs := filepath.Join(base, "absolute.csv")
-	if err := os.WriteFile(abs, []byte("10.0.0.0/8,1\n"), 0o644); err != nil {
+	if err := os.WriteFile(abs, []byte("10.0.0.0/8,0,,1\n"), 0o644); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 

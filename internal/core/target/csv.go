@@ -15,8 +15,20 @@ func WriteCSV(path string, fn func(func(Entry) error) error) error {
 // ReadCSV streams rows along with their raw disk byte offset position.
 func ReadCSV(path string, fn func(Entry, int64) error) error {
 	return fileutil.StreamCSVWithOffset(path, DefaultCSVConfig, func(rec []string, offset int64) error {
-		entry, ok := ParseRecord(rec)
-		if !ok {
+		entry, err := ParseRecord(rec)
+		if err != nil {
+			return nil
+		}
+		return fn(entry, offset)
+	})
+}
+
+// ReadInputCSV streams a user-supplied import list, accepting the older column
+// counts. Stored target lists are read with ReadCSV, which is strict.
+func ReadInputCSV(path string, fn func(Entry, int64) error) error {
+	return fileutil.StreamCSVWithOffset(path, DefaultCSVConfig, func(rec []string, offset int64) error {
+		entry, err := ParseInputRecord(rec)
+		if err != nil {
 			return nil
 		}
 		return fn(entry, offset)

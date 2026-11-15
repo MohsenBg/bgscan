@@ -82,7 +82,7 @@ func Import(ctx context.Context, srcPath, name string, option ImportOption) (Imp
 
 	err = WriteCSV(ipTmp, func(writeIP func(Entry) error) error {
 		return WriteCSV(domainTmp, func(writeDomain func(Entry) error) error {
-			return ReadCSV(srcPath, func(entry Entry, _ int64) error {
+			return ReadInputCSV(srcPath, func(entry Entry, _ int64) error {
 				if err := ctx.Err(); err != nil {
 					return fmt.Errorf("context cancelled: %w", err)
 				}

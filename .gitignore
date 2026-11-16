@@ -77,7 +77,8 @@ targets/ips/*.csv
 targets/domains/*.csv
 
 # Transient bgscan-builder workspace (templates are staged from targets/ips)
-/ips/
+/ips
+.format
 
 # Ignore local builder output
 bgscan-builder*

@@ -4,22 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
-	"net/netip"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 )
-
-func mustAddr(t *testing.T, s string) netip.Addr {
-	t.Helper()
-
-	a, err := netip.ParseAddr(s)
-	if err != nil {
-		t.Fatalf("parse addr %q: %v", s, err)
-	}
-	return a
-}
 
 func TestParseRecord(t *testing.T) {
 	t.Parallel()
@@ -283,7 +272,7 @@ func TestStreamActiveSequential(t *testing.T) {
 	t.Run("RespectsLimit", func(t *testing.T) {
 		t.Parallel()
 
-		out := make(chan netip.Addr, 10)
+		out := make(chan Entry, 10)
 		ctx := context.Background()
 
 		err := StreamActive(nil, ctx, path, 1, false, out)
@@ -294,28 +283,21 @@ func TestStreamActiveSequential(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		var results []netip.Addr
-		for ip := range out {
-			results = append(results, ip)
-		}
+		want := []Entry{NewEnabled(mustPrefix(t, "1.1.1.1/32"))}
 
-		want := []netip.Addr{
-			mustAddr(t, "1.1.1.1"),
-		}
-
-		if !reflect.DeepEqual(results, want) {
-			t.Fatalf("results = %v, want %v", results, want)
+		if got := collectFromChan(out); !reflect.DeepEqual(got, want) {
+			t.Fatalf("results = %v, want %v", got, want)
 		}
 	})
 
 	t.Run("ContextCancellation", func(t *testing.T) {
 		t.Parallel()
 
-		out := make(chan netip.Addr) // unbuffered to force select path
+		out := make(chan Entry) // unbuffered to force select path
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		err := streamActiveSequential(nil, ctx, path, 10, out)
+		err := streamActiveSequential(ctx, path, 10, out)
 		if err == nil {
 			t.Fatal("expected context error, got nil")
 		}
@@ -325,69 +307,71 @@ func TestStreamActiveSequential(t *testing.T) {
 	})
 }
 
-func TestStreamActiveSequential_Guards(t *testing.T) {
+func TestStreamActiveSequential_PortAndPathTravelWithTheEntry(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name    string
-		content string
-		wantErr bool
-		wantIPs []string
-	}{
-		{
-			name:    "PortIsIgnoredWithWarning",
-			content: "8.8.8.8,8080,,1\n",
-			wantIPs: []string{"8.8.8.8"},
-		},
-		{
-			name:    "PathRejected",
-			content: "8.8.8.8,443,/resolve,1\n",
-			wantErr: true,
-		},
-		{
-			name:    "DomainRejected",
-			content: "example.com,0,,1\n",
-			wantErr: true,
-		},
-		{
-			name:    "DisabledDomainSkipped",
-			content: "example.com,0,,0\n",
-			wantIPs: nil,
-		},
+	path := mustWriteShuffleFile(t, "portpath.csv", "8.8.8.8,8080,/resolve,1\n")
+
+	out := make(chan Entry, 10)
+	if err := streamActiveSequential(context.Background(), path, 0, out); err != nil {
+		t.Fatalf("streamActiveSequential: %v", err)
 	}
+	close(out)
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+	want := []Entry{{
+		Kind:   KindIP,
+		IP:     mustPrefix(t, "8.8.8.8/32"),
+		Port:   8080,
+		Path:   "/resolve",
+		Enable: true,
+	}}
+	if got := collectFromChan(out); !reflect.DeepEqual(got, want) {
+		t.Fatalf("streamed entries = %v, want %v", got, want)
+	}
+}
 
-			dir := t.TempDir()
-			path := filepath.Join(dir, "guard.csv")
-			if err := os.WriteFile(path, []byte(tt.content), 0o644); err != nil {
-				t.Fatal(err)
-			}
+func TestStreamActive_DomainIsOneTarget(t *testing.T) {
+	t.Parallel()
 
-			out := make(chan netip.Addr, 10)
-			err := streamActiveSequential(nil, context.Background(), path, 0, out)
-			close(out)
+	path := mustWriteShuffleFile(t, "domain.csv", "Example.COM,8443,/dns-query,1\n")
 
-			if tt.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+	want := []Entry{{
+		Kind:   KindDomain,
+		Domain: "example.com",
+		Port:   8443,
+		Path:   "/dns-query",
+		Enable: true,
+	}}
 
-			var got []string
-			for ip := range out {
-				got = append(got, ip.String())
-			}
-			if !reflect.DeepEqual(got, tt.wantIPs) {
-				t.Fatalf("streamed IPs = %v, want %v", got, tt.wantIPs)
-			}
-		})
+	for _, shuffled := range []bool{false, true} {
+		out := make(chan Entry, 10)
+		err := StreamActive(nil, context.Background(), path, 0, shuffled, out)
+		close(out)
+
+		if err != nil {
+			t.Fatalf("shuffled=%v: unexpected error: %v", shuffled, err)
+		}
+		if got := collectFromChan(out); !reflect.DeepEqual(got, want) {
+			t.Fatalf("shuffled=%v: streamed %v, want %v", shuffled, got, want)
+		}
+	}
+}
+
+func TestStreamActive_DisabledDomainSkipped(t *testing.T) {
+	t.Parallel()
+
+	path := mustWriteShuffleFile(t, "disabled-domain.csv", "example.com,0,,0\n")
+
+	for _, shuffled := range []bool{false, true} {
+		out := make(chan Entry, 10)
+		err := StreamActive(nil, context.Background(), path, 0, shuffled, out)
+		close(out)
+
+		if err != nil {
+			t.Fatalf("shuffled=%v: unexpected error: %v", shuffled, err)
+		}
+		if got := collectFromChan(out); len(got) != 0 {
+			t.Fatalf("shuffled=%v: disabled domain produced %v", shuffled, got)
+		}
 	}
 }

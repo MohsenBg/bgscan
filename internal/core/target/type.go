@@ -1,6 +1,7 @@
 package target
 
 import (
+	"net"
 	"net/netip"
 	"strconv"
 )
@@ -11,6 +12,7 @@ type Kind uint8
 const (
 	KindIP Kind = iota
 	KindDomain
+	KindHost
 )
 
 // String returns a short label for the entry kind.
@@ -20,8 +22,21 @@ func (k Kind) String() string {
 		return "IP"
 	case KindDomain:
 		return "Domain"
+	case KindHost:
+		return "Host"
 	default:
 		return "Unknown"
+	}
+}
+
+func (k Kind) Dir() string {
+	switch k {
+	case KindIP:
+		return "/ips"
+	case KindDomain:
+		return "/domains"
+	default:
+		return ""
 	}
 }
 
@@ -52,6 +67,10 @@ func NewDomain(domain string, enable int) Entry {
 }
 
 // Value is the host part: prefix string for IPs, name for domains.
+//
+// The path is a separate column, so it must not leak in here: Value is also
+// the first field EncodeCSV writes, and a value like "example.com/x" no
+// longer parses back as a domain.
 func (e Entry) Value() string {
 	switch e.Kind {
 	case KindDomain:
@@ -63,9 +82,30 @@ func (e Entry) Value() string {
 	}
 }
 
+// prefix length. Value is for CSV; Host is for dialing and URLs.
+// Host returns the dialable host, including an optional port and path.
+func (e Entry) Host() string {
+	var host string
+
+	switch e.Kind {
+	case KindDomain:
+		host = e.Domain
+	case KindIP:
+		host = e.IP.Addr().String()
+	default:
+		return ""
+	}
+
+	if e.Port != 0 {
+		host = net.JoinHostPort(host, strconv.Itoa(int(e.Port)))
+	}
+
+	return host + e.Path
+}
+
 // Key is the dedup identity: same host, port and path means same target.
 func (e Entry) Key() string {
-	return strconv.Itoa(int(e.Kind)) + ":" + e.Value() + ":" +
+	return e.Value() + ":" +
 		strconv.FormatUint(uint64(e.Port), 10) + ":" + e.Path
 }
 
@@ -89,10 +129,15 @@ func (e Entry) EncodeCSV() []string {
 }
 
 // CIDRBlock is one contiguous run of addresses in the shuffle index.
+//
+// Entry is the row the block came from. Port, path, and enable are the same
+// for every address the block expands into, so the block keeps one copy
+// instead of the index storing a full Entry per address.
 type CIDRBlock struct {
 	StartIP   netip.Addr
 	TotalIPs  uint64
 	GlobalIdx uint64 // index of StartIP in the global address space
+	Entry     Entry
 }
 
 // MasterIndexer is the shuffle index for a list. CIDR ranges stay ranges;

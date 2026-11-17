@@ -23,26 +23,32 @@ var DefaultCSVConfig = fileutil.CSVConfig{
 	TrimLeadingSpace: true,
 }
 
-// StreamCIDR expands a prefix into addresses, stopping at limit or ctx cancel.
+// StreamCIDR expands row's prefix into single-address entries, stopping at
+// limit or ctx cancel. Port, path, and enable are copied onto every address.
 // count is shared with the caller so several prefixes can share one limit.
-func StreamCIDR(ctx context.Context, prefix netip.Prefix, limit uint64, count *uint64, out chan<- netip.Addr) error {
-	prefix = prefix.Masked()
+func StreamCIDR(ctx context.Context, row Entry, limit uint64, count *uint64, out chan<- Entry) error {
+	prefix := row.IP.Masked()
 	curr := prefix.Addr()
+
 	for prefix.Contains(curr) {
 		if limit > 0 && *count >= limit {
 			return nil
 		}
+		row.IP = netip.PrefixFrom(curr, curr.BitLen())
+
 		select {
-		case out <- curr:
-			*count++
+		case out <- row:
+			(*count)++
 		case <-ctx.Done():
 			return ctx.Err()
 		}
+
 		curr = curr.Next()
 		if !curr.IsValid() {
 			break
 		}
 	}
+
 	return nil
 }
 
@@ -129,48 +135,34 @@ func parseEnable(raw string) (int, bool) {
 	return enable, true
 }
 
-// StreamActive sends every enabled address in the list to out.
-// limit 0 means unlimited. Domains are rejected: they need DNS first.
-func StreamActive(log *logger.Logger, ctx context.Context, path string, limit uint64, shuffled bool, out chan<- netip.Addr) error {
+// StreamActive sends one Entry per enabled target to out, keeping each row's
+// port and path. A domain and a single address are one target; a CIDR is
+// expanded into one target per address. Resolving a domain is the caller's
+// job: the stream only says what the user asked for. limit 0 means unlimited.
+func StreamActive(log *logger.Logger, ctx context.Context, path string, limit uint64, shuffled bool, out chan<- Entry) error {
 	if limit == 0 {
 		limit = math.MaxUint64
 	}
 	if shuffled {
 		return streamActiveShuffled(log, ctx, path, limit, out)
 	}
-	return streamActiveSequential(log, ctx, path, limit, out)
+	return streamActiveSequential(ctx, path, limit, out)
 }
 
-func streamActiveSequential(log *logger.Logger, ctx context.Context, path string, limit uint64, out chan<- netip.Addr) error {
+func streamActiveSequential(ctx context.Context, path string, limit uint64, out chan<- Entry) error {
 	var count uint64
-	warnedPort := false
 	return ReadCSV(path, func(row Entry, _ int64) error {
 		if !row.Enable {
 			return nil
 		}
-		if row.Kind != KindIP {
-			return fmt.Errorf("domain target %q requires DNS resolution, which is not implemented yet", row.Domain)
-		}
-		if row.Path != "" {
-			return fmt.Errorf("path %q is not supported by scans yet", row.Path)
-		}
-		if row.Port != 0 && !warnedPort {
-			warnedPort = true
-			if log != nil {
-				log.Warn(
-					"list %q sets per-target port %d; per-target ports are not used yet, scan settings are used",
-					path, row.Port,
-				)
-			}
-		}
 		if limit > 0 && count >= limit {
-			return io.EOF // tells ReadCSV to stop early
+			return io.EOF
 		}
-		if !row.IsSingle() {
-			return StreamCIDR(ctx, row.IP, limit, &count, out)
+		if row.Kind == KindIP && !row.IsSingle() {
+			return StreamCIDR(ctx, row, limit, &count, out)
 		}
 		select {
-		case out <- row.IP.Addr():
+		case out <- row:
 			count++
 			return nil
 		case <-ctx.Done():

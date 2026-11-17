@@ -4,11 +4,15 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
+	"math/rand"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -34,18 +38,18 @@ func mustWriteShuffleFile(t *testing.T, name, content string) string {
 	return path
 }
 
-func collectFromChan(ch <-chan netip.Addr) []netip.Addr {
-	var out []netip.Addr
-	for s := range ch {
-		out = append(out, s)
+func collectFromChan(ch <-chan Entry) []Entry {
+	var out []Entry
+	for e := range ch {
+		out = append(out, e)
 	}
 	return out
 }
 
-func addrStrings(addrs []netip.Addr) []string {
-	out := make([]string, 0, len(addrs))
-	for _, a := range addrs {
-		out = append(out, a.String())
+func entryAddrs(entries []Entry) []string {
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, e.IP.Addr().String())
 	}
 	return out
 }
@@ -128,7 +132,7 @@ func TestAddBigOffset(t *testing.T) {
 	}
 }
 
-func TestGetIPFromCIDRBlocks(t *testing.T) {
+func TestCIDRBlockAt(t *testing.T) {
 	t.Parallel()
 
 	mi := &MasterIndexer{
@@ -162,20 +166,20 @@ func TestGetIPFromCIDRBlocks(t *testing.T) {
 		t.Run(tt.want, func(t *testing.T) {
 			t.Parallel()
 
-			got := mi.getIPFromCIDRBlocks(tt.idx)
+			_, got := mi.cidrBlockAt(tt.idx)
 			if got.String() != tt.want {
-				t.Fatalf("getIPFromCIDRBlocks(%d) = %v, want %v", tt.idx, got, tt.want)
+				t.Fatalf("cidrBlockAt(%d) = %v, want %v", tt.idx, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestReadIPAtCSVOffset(t *testing.T) {
+func TestReadEntryAtCSVOffset(t *testing.T) {
 	t.Parallel()
 
 	content := "" +
 		"1.1.1.1,0,,1\n" +
-		"2.2.2.2,0,,0\n" +
+		"2.2.2.2,8080,/probe,0\n" +
 		"3.3.3.3,0,,1\n"
 
 	path := mustWriteShuffleFile(t, "ips.csv", content)
@@ -191,17 +195,24 @@ func TestReadIPAtCSVOffset(t *testing.T) {
 
 	offset := int64(len("1.1.1.1,0,,1\n"))
 	reader := bufio.NewReader(f)
-	got, err := readIPAtCSVOffset(f, reader, offset)
+	got, err := readEntryAtCSVOffset(f, reader, offset)
 	if err != nil {
-		t.Fatalf("readIPAtCSVOffset: %v", err)
+		t.Fatalf("readEntryAtCSVOffset: %v", err)
 	}
 
-	if got.String() != "2.2.2.2" {
-		t.Fatalf("readIPAtCSVOffset() = %v, want %v", got, "2.2.2.2")
+	want := Entry{
+		Kind:   KindIP,
+		IP:     mustPrefix(t, "2.2.2.2/32"),
+		Port:   8080,
+		Path:   "/probe",
+		Enable: false,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("readEntryAtCSVOffset() = %v, want %v", got, want)
 	}
 }
 
-func TestReadIPAtCSVOffset_InvalidIP(t *testing.T) {
+func TestReadEntryAtCSVOffset_InvalidIP(t *testing.T) {
 	t.Parallel()
 
 	content := "not-an-ip,0,,1\n"
@@ -217,7 +228,7 @@ func TestReadIPAtCSVOffset_InvalidIP(t *testing.T) {
 	}()
 
 	reader := bufio.NewReader(f)
-	_, err = readIPAtCSVOffset(f, reader, 0)
+	_, err = readEntryAtCSVOffset(f, reader, 0)
 	if err == nil {
 		t.Fatal("expected parse error, got nil")
 	}
@@ -309,12 +320,65 @@ func TestNewMasterIndexer_CIDRsAndSingles(t *testing.T) {
 	}
 }
 
+func TestPermuter_IsBijection(t *testing.T) {
+	t.Parallel()
+
+	for _, nbits := range []uint{1, 2, 5, 8, 16} {
+		nbits := nbits
+		t.Run(fmt.Sprintf("%d bits", nbits), func(t *testing.T) {
+			t.Parallel()
+
+			p := newPermuter(nbits, rand.New(rand.NewSource(1)))
+			limit := uint64(1) << nbits
+			seen := make([]bool, limit)
+
+			for i := uint64(0); i < limit; i++ {
+				v := p.at(i)
+				if v >= limit {
+					t.Fatalf("at(%d) = %d, outside [0,%d)", i, v, limit)
+				}
+				if seen[v] {
+					t.Fatalf("at(%d) = %d, value repeated", i, v)
+				}
+				seen[v] = true
+			}
+		})
+	}
+}
+
+func TestPermuter_MixesOrder(t *testing.T) {
+	t.Parallel()
+
+	p := newPermuter(10, rand.New(rand.NewSource(1)))
+
+	var fixed uint64
+	for i := uint64(0); i < 1<<10; i++ {
+		if p.at(i) == i {
+			fixed++
+		}
+	}
+	if fixed == 1<<10 {
+		t.Fatal("permutation maps every value to itself")
+	}
+}
+
+func TestPermuter_SingleTarget(t *testing.T) {
+	t.Parallel()
+
+	// GrandTotal == 1 leaves no room for a mask; this is why newPermuter
+	// tolerates nbits 0.
+	p := newPermuter(0, rand.New(rand.NewSource(1)))
+	if got := p.at(0); got != 0 {
+		t.Fatalf("at(0) = %d, want 0", got)
+	}
+}
+
 func TestStreamActiveShuffled_Empty(t *testing.T) {
 	t.Parallel()
 
 	path := mustWriteShuffleFile(t, "empty.csv", "")
 
-	out := make(chan netip.Addr, 10)
+	out := make(chan Entry, 10)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -342,7 +406,7 @@ func TestStreamActiveShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 
 	path := mustWriteShuffleFile(t, "single.csv", content)
 
-	out := make(chan netip.Addr, 10)
+	out := make(chan Entry, 10)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -360,7 +424,7 @@ func TestStreamActiveShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 		t.Fatalf("len(got) = %d, want 3", len(got))
 	}
 
-	gotStr := addrStrings(got)
+	gotStr := entryAddrs(got)
 	seen := make(map[string]struct{}, len(gotStr))
 	for _, ip := range gotStr {
 		seen[ip] = struct{}{}
@@ -388,7 +452,7 @@ func TestStreamActiveShuffled_MixedDataset(t *testing.T) {
 
 	path := mustWriteShuffleFile(t, "mixed.csv", content)
 
-	out := make(chan netip.Addr, 10)
+	out := make(chan Entry, 10)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -402,7 +466,7 @@ func TestStreamActiveShuffled_MixedDataset(t *testing.T) {
 		t.Fatalf("streamActiveShuffled: %v", err)
 	}
 
-	gotStr := addrStrings(got)
+	gotStr := entryAddrs(got)
 	if len(gotStr) != 5 {
 		t.Fatalf("len(got) = %d, want 5; got=%v", len(gotStr), gotStr)
 	}
@@ -421,6 +485,97 @@ func TestStreamActiveShuffled_MixedDataset(t *testing.T) {
 	}
 }
 
+func TestStreamActiveShuffled_DomainAndCIDRMixed(t *testing.T) {
+	t.Parallel()
+
+	content := "" +
+		"example.com,443,/dns-query,1\n" +
+		"10.0.0.0/30,0,,1\n" +
+		"10.0.0.9,0,,1\n"
+
+	path := mustWriteShuffleFile(t, "domain-mixed.csv", content)
+
+	out := make(chan Entry, 16)
+	errCh := make(chan error, 1)
+
+	go func() {
+		errCh <- streamActiveShuffled(nil, context.Background(), path, 0, out)
+		close(out)
+	}()
+
+	got := collectFromChan(out)
+	if err := <-errCh; err != nil {
+		t.Fatalf("streamActiveShuffled: %v", err)
+	}
+
+	// One domain + four addresses from the /30 + one single.
+	if len(got) != 6 {
+		t.Fatalf("len(got) = %d, want 6; got=%v", len(got), got)
+	}
+
+	var domains int
+	seen := make(map[string]struct{}, len(got))
+	for _, e := range got {
+		if _, dup := seen[e.Key()]; dup {
+			t.Fatalf("duplicate target %s", e.Key())
+		}
+		seen[e.Key()] = struct{}{}
+
+		if e.Kind != KindDomain {
+			continue
+		}
+		domains++
+		if e.Domain != "example.com" || e.Port != 443 || e.Path != "/dns-query" {
+			t.Fatalf("domain row lost its fields: %+v", e)
+		}
+	}
+	if domains != 1 {
+		t.Fatalf("streamed %d domains, want 1", domains)
+	}
+}
+
+func TestStreamActiveShuffled_KeepsPortAndPath(t *testing.T) {
+	t.Parallel()
+
+	content := "" +
+		"192.168.1.0/30,8443,/probe,1\n" +
+		"10.0.0.1,1080,/x,1\n"
+
+	path := mustWriteShuffleFile(t, "portpath.csv", content)
+
+	out := make(chan Entry, 10)
+	errCh := make(chan error, 1)
+
+	go func() {
+		errCh <- streamActiveShuffled(nil, context.Background(), path, 0, out)
+		close(out)
+	}()
+
+	got := collectFromChan(out)
+	if err := <-errCh; err != nil {
+		t.Fatalf("streamActiveShuffled: %v", err)
+	}
+	if len(got) != 5 {
+		t.Fatalf("len(got) = %d, want 5", len(got))
+	}
+
+	var single Entry
+	for _, e := range got {
+		addr := e.IP.Addr().String()
+		if strings.HasPrefix(addr, "192.168.1.") {
+			if e.Port != 8443 || e.Path != "/probe" {
+				t.Fatalf("%s lost its port/path: %+v", addr, e)
+			}
+			continue
+		}
+		single = e
+	}
+
+	if single.Port != 1080 || single.Path != "/x" {
+		t.Fatalf("single row lost its port/path: %+v", single)
+	}
+}
+
 func TestStreamActiveShuffled_Limit(t *testing.T) {
 	t.Parallel()
 
@@ -432,7 +587,7 @@ func TestStreamActiveShuffled_Limit(t *testing.T) {
 
 	path := mustWriteShuffleFile(t, "limit.csv", content)
 
-	out := make(chan netip.Addr, 10)
+	out := make(chan Entry, 10)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -458,7 +613,7 @@ func TestStreamActiveShuffled_ContextCanceled(t *testing.T) {
 	path := mustWriteShuffleFile(t, "cancel.csv", content)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	out := make(chan netip.Addr)
+	out := make(chan Entry)
 	errCh := make(chan error, 1)
 
 	go func() {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -12,9 +13,9 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 )
 
-const (
-	IPListDir     = "targets/ips"
-	DomainListDir = "targets/domains"
+var (
+	IPListDir     = path.Join("targets", KindIP.Dir())
+	DomainListDir = path.Join("targets", KindDomain.Dir())
 )
 
 // baseDirOverride points the base directory somewhere else in tests.

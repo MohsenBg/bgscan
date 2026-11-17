@@ -5,41 +5,16 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
-
-// KeyType identifies how a result is keyed.
-type KeyType uint8
-
-const (
-	// KeyIP identifies results keyed by IP address.
-	KeyIP KeyType = iota
-	// KeyDomain identifies results keyed by domain name.
-	KeyDomain
-)
-
-// String returns the string representation of the key type.
-func (k KeyType) String() string {
-	switch k {
-	case KeyIP:
-		return "ip"
-	case KeyDomain:
-		return "domain"
-	default:
-		return fmt.Sprintf("unknown(%d)", k)
-	}
-}
-
-// Valid reports whether the KeyType is a defined constant.
-func (k KeyType) Valid() bool {
-	return k <= KeyDomain
-}
 
 // Result is the interface that every scan result must implement.
 type Result interface {
 	// Key returns the unique identifier for this result (IP or domain).
 	Key() string
 	// KeyType returns the type of key used to identify this result.
-	KeyType() KeyType
+	KeyType() target.Kind
 	// ToRecord converts the result to storable strings, in ColumnDefs order.
 	ToRecord() []string
 	// Equal reports whether the other result is equivalent.
@@ -64,8 +39,8 @@ type ColumnType uint8
 const (
 	// ColumnText marks plain, unstyled columns.
 	ColumnText ColumnType = iota
-	// ColumnIP marks the results' key column; copyable, never styled.
-	ColumnIP
+	// ColumnHost marks the results' key column; copyable, never styled.
+	ColumnHost
 	// ColumnDuration marks latency measurements; styled by quality tier.
 	ColumnDuration
 	// ColumnBandwidth marks throughput measurements; reserved for tiering.
@@ -99,6 +74,7 @@ type ResultFile struct {
 	Schema      ResultSchema
 	RecordCount uint64
 	Path        string
+	Kind        target.Kind
 }
 
 // SizeString returns a human-readable file size (e.g., "1.5 MB").

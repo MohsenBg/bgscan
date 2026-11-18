@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // mockRoundTripCloser implements http.RoundTripper and io.Closer for testing HTTP/3 probes.
@@ -53,32 +53,37 @@ func mockResponse(statusCode int, proto string) *http.Response {
 
 // newTestHTTP3Probe constructs an HTTP3Probe with a mocked transport for isolated testing.
 func newTestHTTP3Probe(
-	transport roundTripCloser,
-	req HTTPRequest,
+	m roundTripCloser,
+	mode Mode,
 	acceptedCodes []int,
 ) *HTTP3Probe {
 	return &HTTP3Probe{
-		req:       req,
-		filter:    newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
-		transport: transport,
+		settings: Settings{Timeout: 5 * time.Second, UseTLS: true},
+		mode:     mode,
+		filter:   newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
+		newTransport: func(string) roundTripCloser {
+			return m
+		},
+		transports: map[string]roundTripCloser{"": m},
 	}
 }
 
-func defaultH3Request() HTTPRequest {
-	return HTTPRequest{
-		URL:     "https://example.com:443",
-		Host:    "example.com",
-		SNI:     "example.com",
-		UseTLS:  true,
-		Timeout: 5 * time.Second,
+func defaultH3Request() Request {
+	return Request{
+		URL:  "https://example.com:443",
+		Port: 443,
 	}
 }
 
 // --- NewHTTP3Probe ---
 
 func TestNewHTTP3Probe_Success(t *testing.T) {
-	req := defaultH3Request()
-	p, err := NewHTTP3Probe(req, nil, nil)
+	p, err := NewHTTP3Probe(
+		Settings{Timeout: 5 * time.Second},
+		staticMode{req: defaultH3Request()},
+		nil,
+		nil,
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -88,8 +93,12 @@ func TestNewHTTP3Probe_Success(t *testing.T) {
 }
 
 func TestNewHTTP3Probe_WithCodes(t *testing.T) {
-	req := defaultH3Request()
-	p, err := NewHTTP3Probe(req, []int{200, 204}, nil)
+	p, err := NewHTTP3Probe(
+		Settings{Timeout: 5 * time.Second},
+		staticMode{req: defaultH3Request()},
+		[]int{200, 204},
+		nil,
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -114,7 +123,7 @@ func TestHTTP3Probe_Init(t *testing.T) {
 
 func TestHTTP3Probe_Close_Success(t *testing.T) {
 	m := &mockRoundTripCloser{}
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
 
 	if err := p.Close(); err != nil {
 		t.Errorf("Close() = %v, want nil", err)
@@ -126,7 +135,7 @@ func TestHTTP3Probe_Close_Success(t *testing.T) {
 
 func TestHTTP3Probe_Close_Error(t *testing.T) {
 	m := &mockRoundTripCloser{closeErr: errors.New("quic shutdown failed")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
 
 	err := p.Close()
 	if err == nil {
@@ -156,17 +165,17 @@ func TestHTTP3Probe_Schema(t *testing.T) {
 
 func TestHTTP3Run_Success_200(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
 
 	ip := netip.MustParseAddr("93.184.216.34")
-	res, err := p.Run(context.Background(), ip)
+	res, err := p.Run(context.Background(), entryOf(ip))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	hr := res.(HTTPResult)
-	if hr.IP != ip {
-		t.Errorf("IP = %v, want %v", hr.IP, ip)
+	if hr.Entry.IP.Addr() != ip {
+		t.Errorf("IP = %v, want %v", hr.Entry.IP.Addr(), ip)
 	}
 	if hr.StatusCode != 200 {
 		t.Errorf("StatusCode = %d, want 200", hr.StatusCode)
@@ -184,9 +193,9 @@ func TestHTTP3Run_Success_200(t *testing.T) {
 
 func TestHTTP3Run_Success_204(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(204, "HTTP/3.0")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
 
-	res, err := p.Run(context.Background(), netip.MustParseAddr("1.2.3.4"))
+	res, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("1.2.3.4")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -199,9 +208,9 @@ func TestHTTP3Run_Success_204(t *testing.T) {
 
 func TestHTTP3Run_WithFilter_Accepted(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(301, "HTTP/3.0")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), []int{301, 302})
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, []int{301, 302})
 
-	res, err := p.Run(context.Background(), netip.MustParseAddr("1.2.3.4"))
+	res, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("1.2.3.4")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -216,9 +225,9 @@ func TestHTTP3Run_WithFilter_Accepted(t *testing.T) {
 
 func TestHTTP3Run_UsesHEADMethod(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
 
-	_, err := p.Run(context.Background(), netip.MustParseAddr("1.2.3.4"))
+	_, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("1.2.3.4")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -235,10 +244,14 @@ func TestHTTP3Run_UsesHEADMethod(t *testing.T) {
 // to the target IP address, ensuring the connection targets the correct endpoint.
 func TestHTTP3Run_RewritesHostToIP(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
 
 	ip := netip.MustParseAddr("10.20.30.40")
-	_, err := p.Run(context.Background(), ip)
+	req := defaultH3Request()
+	req.DialIP = ip
+
+	p := newTestHTTP3Probe(m, staticMode{req: req}, nil)
+
+	_, err := p.Run(context.Background(), entryOf(ip))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -258,9 +271,9 @@ func TestHTTP3Run_PreservesOriginalHost(t *testing.T) {
 	req := defaultH3Request()
 	req.Host = "cdn.example.com"
 
-	p := newTestHTTP3Probe(m, req, nil)
+	p := newTestHTTP3Probe(m, staticMode{req: req}, nil)
 
-	_, err := p.Run(context.Background(), netip.MustParseAddr("1.2.3.4"))
+	_, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("1.2.3.4")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -275,10 +288,14 @@ func TestHTTP3Run_PreservesOriginalHost(t *testing.T) {
 // in the URL host to comply with URI syntax rules.
 func TestHTTP3Run_IPv6(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
 
 	ip := netip.MustParseAddr("2001:db8::1")
-	_, err := p.Run(context.Background(), ip)
+	req := defaultH3Request()
+	req.DialIP = ip
+
+	p := newTestHTTP3Probe(m, staticMode{req: req}, nil)
+
+	_, err := p.Run(context.Background(), entryOf(ip))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -294,12 +311,12 @@ func TestHTTP3Run_IPv6(t *testing.T) {
 
 func TestHTTP3Run_ContextCancelled(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := p.Run(ctx, netip.MustParseAddr("1.2.3.4"))
+	_, err := p.Run(ctx, entryOf(netip.MustParseAddr("1.2.3.4")))
 	if err == nil {
 		t.Fatal("expected error with cancelled context")
 	}
@@ -310,9 +327,9 @@ func TestHTTP3Run_ContextCancelled(t *testing.T) {
 
 func TestHTTP3Run_TransportError(t *testing.T) {
 	m := &mockRoundTripCloser{roundErr: errors.New("QUIC handshake failed")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
 
-	_, err := p.Run(context.Background(), netip.MustParseAddr("1.2.3.4"))
+	_, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("1.2.3.4")))
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -324,9 +341,9 @@ func TestHTTP3Run_TransportError(t *testing.T) {
 
 func TestHTTP3Run_StatusNotAccepted(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(503, "HTTP/3.0")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), []int{200})
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, []int{200})
 
-	_, err := p.Run(context.Background(), netip.MustParseAddr("1.2.3.4"))
+	_, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("1.2.3.4")))
 	if err == nil {
 		t.Fatal("expected error for rejected status")
 	}
@@ -345,9 +362,9 @@ func TestHTTP3Run_InvalidURL(t *testing.T) {
 	req := defaultH3Request()
 	req.URL = "://bad-url"
 
-	p := newTestHTTP3Probe(m, req, nil)
+	p := newTestHTTP3Probe(m, staticMode{req: req}, nil)
 
-	_, err := p.Run(context.Background(), netip.MustParseAddr("1.2.3.4"))
+	_, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("1.2.3.4")))
 	if err == nil {
 		t.Fatal("expected error for invalid URL")
 	}
@@ -360,18 +377,18 @@ func TestHTTP3Run_InvalidURL(t *testing.T) {
 
 func TestHTTP3Run_ResultInterface(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
 
 	ip := netip.MustParseAddr("8.8.8.8")
-	res, err := p.Run(context.Background(), ip)
+	res, err := p.Run(context.Background(), entryOf(ip))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if res.Key() != "8.8.8.8" {
-		t.Errorf("Key() = %q, want %q", res.Key(), "8.8.8.8")
+	if res.Key() != "8.8.8.8/32:443:" {
+		t.Errorf("Key() = %q, want %q", res.Key(), "8.8.8.8/32:443:")
 	}
-	if res.KeyType() != result.KeyIP {
+	if res.KeyType() != target.KindIP {
 		t.Errorf("KeyType() = %v, want KeyIP", res.KeyType())
 	}
 }
@@ -382,14 +399,9 @@ func TestHTTP3Run_ResultInterface(t *testing.T) {
 // HTTP/3.0 and TLS usage, as HTTP/3 inherently requires TLS.
 func TestHTTP3Run_AlwaysHTTP3AndTLS(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
 
-	// Even if req says UseTLS=false, HTTP3Probe hardcodes true.
-	req := defaultH3Request()
-	req.UseTLS = false
-
-	p := newTestHTTP3Probe(m, req, nil)
-
-	res, err := p.Run(context.Background(), netip.MustParseAddr("1.2.3.4"))
+	res, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("1.2.3.4")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -408,25 +420,14 @@ func TestHTTP3Run_AlwaysHTTP3AndTLS(t *testing.T) {
 // TestHTTP3Run_MultipleCalls verifies that the probe can be executed
 // multiple times sequentially without state leakage or transport exhaustion.
 func TestHTTP3Run_MultipleCalls(t *testing.T) {
-	callCount := 0
 	m := &mockRoundTripCloser{}
-
-	// Track call count (origRT unused but kept for future mocking extensions).
-	origRT := m.RoundTrip
-	_ = origRT
-
-	p := newTestHTTP3Probe(m, defaultH3Request(), nil)
+	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
 
 	for i := range 5 {
 		m.resp = mockResponse(200, "HTTP/3.0")
-		_, err := p.Run(context.Background(), netip.MustParseAddr("1.2.3.4"))
+		_, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("1.2.3.4")))
 		if err != nil {
 			t.Fatalf("call %d: unexpected error: %v", i, err)
 		}
-		callCount++
-	}
-
-	if callCount != 5 {
-		t.Errorf("ran %d times, want 5", callCount)
 	}
 }

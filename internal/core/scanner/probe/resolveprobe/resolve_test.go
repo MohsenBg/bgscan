@@ -86,7 +86,7 @@ func TestRun_CanceledContext(t *testing.T) {
 	cancel()
 
 	p := probeWith(baseRequest(), stubQuery(0, nil))
-	_, err := p.Run(ctx, testIP)
+	_, err := p.Run(ctx, entryOf(testIP))
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("want context.Canceled, got %v", err)
 	}
@@ -95,13 +95,13 @@ func TestRun_CanceledContext(t *testing.T) {
 func TestRun_Success(t *testing.T) {
 	p := probeWith(baseRequest(), stubQuery(0, nil))
 
-	res, err := p.Run(context.Background(), testIP)
+	res, err := p.Run(context.Background(), entryOf(testIP))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	r := res.(ResolverResult)
-	if r.IP != testIP {
-		t.Errorf("IP = %v, want %v", r.IP, testIP)
+	if r.Entry.IP.Addr() != testIP {
+		t.Errorf("IP = %v, want %v", r.Entry.IP.Addr(), testIP)
 	}
 	if r.RecordType != "A" {
 		t.Errorf("RecordType = %q, want A", r.RecordType)
@@ -123,7 +123,7 @@ func TestRun_NoAcceptedResponse(t *testing.T) {
 
 	// rcode 3 (NXDOMAIN) is not in AcceptedRcodes.
 	p := probeWith(req, stubQuery(3, nil))
-	_, err := p.Run(context.Background(), testIP)
+	_, err := p.Run(context.Background(), entryOf(testIP))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -141,7 +141,7 @@ func TestRun_QueryError_RetriesExhausted(t *testing.T) {
 		return nil, errors.New("network error")
 	})
 
-	_, err := p.Run(context.Background(), testIP)
+	_, err := p.Run(context.Background(), entryOf(testIP))
 	if err == nil {
 		t.Fatal("expected error after exhausted retries")
 	}
@@ -165,7 +165,7 @@ func TestRun_SucceedsOnRetry(t *testing.T) {
 		return msg(0), nil
 	})
 
-	res, err := p.Run(context.Background(), testIP)
+	res, err := p.Run(context.Background(), entryOf(testIP))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestRun_UnacceptedRcodeStopsRetries(t *testing.T) {
 		return msg(3), nil // NXDOMAIN
 	})
 
-	p.Run(context.Background(), testIP) //nolint:errcheck
+	p.Run(context.Background(), entryOf(testIP)) //nolint:errcheck
 	if calls != 1 {
 		t.Errorf("want 1 call (no retry on unaccepted rcode), got %d", calls)
 	}
@@ -206,7 +206,7 @@ func TestRun_FirstAcceptedCheckTypeWins(t *testing.T) {
 		return msg(0), nil
 	})
 
-	res, err := p.Run(context.Background(), testIP)
+	res, err := p.Run(context.Background(), entryOf(testIP))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestRun_FallsBackToNextCheckType(t *testing.T) {
 		return msg(0), nil
 	})
 
-	res, err := p.Run(context.Background(), testIP)
+	res, err := p.Run(context.Background(), entryOf(testIP))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestRun_MultipleAcceptedRcodes(t *testing.T) {
 	req.AcceptedRcodes = []uint16{0, 3} // NOERROR and NXDOMAIN both ok
 
 	p := probeWith(req, stubQuery(3, nil))
-	_, err := p.Run(context.Background(), testIP)
+	_, err := p.Run(context.Background(), entryOf(testIP))
 	if err != nil {
 		t.Errorf("rcode 3 should be accepted, got error: %v", err)
 	}
@@ -268,7 +268,7 @@ func TestRun_ContextCanceledDuringRetry(t *testing.T) {
 		return nil, errors.New("error")
 	})
 
-	_, err := p.Run(ctx, testIP)
+	_, err := p.Run(ctx, entryOf(testIP))
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("want context.Canceled, got %v", err)
 	}
@@ -291,7 +291,7 @@ func TestRun_DpiCheck_HonestResolver(t *testing.T) {
 		return msg(0), nil
 	})
 
-	res, err := p.Run(context.Background(), testIP)
+	res, err := p.Run(context.Background(), entryOf(testIP))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestRun_DpiCheck_DetectsHijacking(t *testing.T) {
 
 	// rcode 0 for .invalid domain = DPI/hijacking detected
 	p := probeWith(req, stubQuery(0, nil))
-	_, err := p.Run(context.Background(), testIP)
+	_, err := p.Run(context.Background(), entryOf(testIP))
 	if err == nil {
 		t.Fatal("expected DPI detection error")
 	}
@@ -328,7 +328,7 @@ func TestRun_DpiCheck_RetriesOnError(t *testing.T) {
 		return nil, errors.New("timeout")
 	})
 
-	_, err := p.Run(context.Background(), testIP)
+	_, err := p.Run(context.Background(), entryOf(testIP))
 	if err == nil {
 		t.Fatal("expected error after DPI retries exhausted")
 	}
@@ -358,7 +358,7 @@ func TestRun_DpiCheck_SucceedsOnRetry(t *testing.T) {
 		return msg(0), nil
 	})
 
-	_, err := p.Run(context.Background(), testIP)
+	_, err := p.Run(context.Background(), entryOf(testIP))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -382,7 +382,7 @@ func TestRun_DpiCheck_DefaultTimeout(t *testing.T) {
 		return msg(0), nil
 	})
 
-	p.Run(context.Background(), testIP) //nolint:errcheck
+	p.Run(context.Background(), entryOf(testIP)) //nolint:errcheck
 	if capturedTimeout != 500*time.Millisecond {
 		t.Errorf("DPI timeout = %v, want 500ms", capturedTimeout)
 	}
@@ -405,7 +405,7 @@ func TestRun_DpiCheck_ContextCanceledDuringDpi(t *testing.T) {
 		return nil, errors.New("error")
 	})
 
-	_, err := p.Run(ctx, testIP)
+	_, err := p.Run(ctx, entryOf(testIP))
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("want context.Canceled, got %v", err)
 	}
@@ -449,7 +449,7 @@ func TestRun_QueryReceivesCorrectResolver(t *testing.T) {
 		return msg(0), nil
 	})
 
-	p.Run(context.Background(), testIP) //nolint:errcheck
+	p.Run(context.Background(), entryOf(testIP)) //nolint:errcheck
 	if capturedQuery.Resolver != testIP.String() {
 		t.Errorf("Resolver = %q, want %q", capturedQuery.Resolver, testIP.String())
 	}

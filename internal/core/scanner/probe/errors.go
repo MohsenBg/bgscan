@@ -15,6 +15,11 @@ var (
 	ErrRefused     = errors.New("connection refused")
 	ErrUnreachable = errors.New("host unreachable")
 	ErrBadResponse = errors.New("bad response")
+
+	// ErrDomainTarget means a probe got a domain row. Probes work on
+	// addresses, and nothing resolves names yet. Failing here beats probing
+	// an unset address and reporting a misleading dial error.
+	ErrDomainTarget = errors.New("domain target needs DNS resolution")
 )
 
 func NormalizeErr(err error) error {

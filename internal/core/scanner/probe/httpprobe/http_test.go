@@ -12,28 +12,46 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
-// newTestProbe constructs an HTTPProbe that routes requests to the provided
-// test server, bypassing the actual target IP resolution.
-func newTestProbe(ts *httptest.Server, req HTTPRequest, acceptedCodes []int) *HTTPProbe {
+// staticMode returns one fixed Request for every entry. It lets Run be tested
+// without depending on HostMode or DirectMode.
+type staticMode struct {
+	req Request
+	err error
+}
+
+func (m staticMode) Input() target.Kind { return target.KindHost }
+
+func (m staticMode) Build(target.Entry) (Request, error) {
+	return m.req, m.err
+}
+
+// newTestProbe constructs an HTTPProbe that routes requests to ts.
+func newTestProbe(ts *httptest.Server, req Request, acceptedCodes []int) *HTTPProbe {
 	p := &HTTPProbe{
-		req:    req,
+		settings: Settings{
+			Timeout: 5 * time.Second,
+			UseTLS:  strings.HasPrefix(req.URL, "https://"),
+		},
+		mode:   staticMode{req: req},
 		filter: newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
+		dialer: &net.Dialer{Timeout: 5 * time.Second},
 	}
 
-	p.clientFactory = func(_ netip.Addr) httpClientResult {
-		t := &http.Transport{
+	p.clientFactory = func(Request) httpClientResult {
+		tr := &http.Transport{
 			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 				return (&net.Dialer{}).DialContext(ctx, network, ts.Listener.Addr().String())
 			},
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
+
 		return httpClientResult{
-			client: &http.Client{Transport: t, Timeout: 5 * time.Second},
-			close:  t.CloseIdleConnections,
+			client: &http.Client{Transport: tr, Timeout: 5 * time.Second},
+			close:  tr.CloseIdleConnections,
 		}
 	}
 
@@ -46,21 +64,23 @@ func mustParseAddr(s string) netip.Addr {
 }
 
 func TestNewHTTPProbe_ReturnsProbe(t *testing.T) {
-	req := HTTPRequest{
-		URL:     "http://example.com:80",
-		Timeout: 5 * time.Second,
-	}
+	s := Settings{Timeout: 5 * time.Second}
+	mode := staticMode{req: Request{URL: "http://example.com:80"}}
 
-	p := NewHTTPProbe(req, nil, nil)
+	p := NewHTTPProbe(s, mode, nil, nil)
 	if p == nil {
 		t.Fatal("NewHTTPProbe returned nil")
 	}
 }
 
 func TestNewHTTPProbe_WithAcceptedCodes(t *testing.T) {
-	req := HTTPRequest{URL: "http://example.com:80", Timeout: time.Second}
-
-	p := NewHTTPProbe(req, []int{200, 301}, nil).(*HTTPProbe)
+	s := Settings{Timeout: time.Second}
+	p := NewHTTPProbe(
+		s,
+		staticMode{req: Request{URL: "http://example.com:80"}},
+		[]int{200, 301},
+		nil,
+	).(*HTTPProbe)
 
 	if !p.filter.isAccepted(200) {
 		t.Error("200 should be accepted")
@@ -74,9 +94,13 @@ func TestNewHTTPProbe_WithAcceptedCodes(t *testing.T) {
 }
 
 func TestNewHTTPProbe_EmptyCodesAcceptsAll(t *testing.T) {
-	req := HTTPRequest{URL: "http://example.com:80", Timeout: time.Second}
-
-	p := NewHTTPProbe(req, nil, nil).(*HTTPProbe)
+	s := Settings{Timeout: time.Second}
+	p := NewHTTPProbe(
+		s,
+		staticMode{req: Request{URL: "http://example.com:80"}},
+		nil,
+		nil,
+	).(*HTTPProbe)
 
 	for _, code := range []int{100, 200, 301, 404, 500} {
 		if !p.filter.isAccepted(code) {
@@ -120,23 +144,19 @@ func TestRun_Success_200(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	req := HTTPRequest{
-		URL:     "http://target:80",
-		UseTLS:  false,
-		Timeout: 5 * time.Second,
-	}
+	req := Request{URL: "http://target:80"}
 
 	p := newTestProbe(ts, req, nil)
 	ip := mustParseAddr("93.184.216.34")
 
-	res, err := p.Run(context.Background(), ip)
+	res, err := p.Run(context.Background(), entryOf(ip))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	hr := res.(HTTPResult)
-	if hr.IP != ip {
-		t.Errorf("IP = %v, want %v", hr.IP, ip)
+	if hr.Entry.IP.Addr() != ip {
+		t.Errorf("IP = %v, want %v", hr.Entry.IP.Addr(), ip)
 	}
 	if hr.StatusCode != 200 {
 		t.Errorf("StatusCode = %d, want 200", hr.StatusCode)
@@ -158,10 +178,9 @@ func TestRun_Success_301(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	req := HTTPRequest{URL: "http://target:80", Timeout: 5 * time.Second}
-	p := newTestProbe(ts, req, nil)
+	p := newTestProbe(ts, Request{URL: "http://target:80"}, nil)
 
-	res, err := p.Run(context.Background(), mustParseAddr("1.2.3.4"))
+	res, err := p.Run(context.Background(), entryOf(mustParseAddr("1.2.3.4")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -178,11 +197,9 @@ func TestRun_Success_WithFilter(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	req := HTTPRequest{URL: "http://target:80", Timeout: 5 * time.Second}
-	// Accept only 403.
-	p := newTestProbe(ts, req, []int{403})
+	p := newTestProbe(ts, Request{URL: "http://target:80"}, []int{403})
 
-	res, err := p.Run(context.Background(), mustParseAddr("1.2.3.4"))
+	res, err := p.Run(context.Background(), entryOf(mustParseAddr("1.2.3.4")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -201,10 +218,9 @@ func TestRun_UsesHEADMethod(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	req := HTTPRequest{URL: "http://target:80", Timeout: 5 * time.Second}
-	p := newTestProbe(ts, req, nil)
+	p := newTestProbe(ts, Request{URL: "http://target:80"}, nil)
 
-	_, err := p.Run(context.Background(), mustParseAddr("1.2.3.4"))
+	_, err := p.Run(context.Background(), entryOf(mustParseAddr("1.2.3.4")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -220,11 +236,9 @@ func TestRun_StatusNotAccepted(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	req := HTTPRequest{URL: "http://target:80", Timeout: 5 * time.Second}
-	// Only accept 200.
-	p := newTestProbe(ts, req, []int{200})
+	p := newTestProbe(ts, Request{URL: "http://target:80"}, []int{200})
 
-	_, err := p.Run(context.Background(), mustParseAddr("1.2.3.4"))
+	_, err := p.Run(context.Background(), entryOf(mustParseAddr("1.2.3.4")))
 	if err == nil {
 		t.Fatal("expected error for rejected status code")
 	}
@@ -244,26 +258,25 @@ func TestRun_ContextCancelled(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	req := HTTPRequest{URL: "http://target:80", Timeout: 5 * time.Second}
-	p := newTestProbe(ts, req, nil)
+	p := newTestProbe(ts, Request{URL: "http://target:80"}, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := p.Run(ctx, mustParseAddr("1.2.3.4"))
+	_, err := p.Run(ctx, entryOf(mustParseAddr("1.2.3.4")))
 	if err == nil {
 		t.Fatal("expected error with cancelled context")
 	}
 }
 
 func TestRun_ConnectionRefused(t *testing.T) {
-	req := HTTPRequest{URL: "http://target:80", Timeout: time.Second}
-
 	p := &HTTPProbe{
-		req:    req,
-		filter: newStatusFilter(nil, totalHTTPStatusCodes),
+		settings: Settings{Timeout: time.Second},
+		mode:     staticMode{req: Request{URL: "http://target:80"}},
+		filter:   newStatusFilter(nil, totalHTTPStatusCodes),
+		dialer:   &net.Dialer{Timeout: time.Second},
 	}
-	p.clientFactory = func(_ netip.Addr) httpClientResult {
+	p.clientFactory = func(Request) httpClientResult {
 		tr := &http.Transport{
 			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 				return nil, net.ErrClosed
@@ -275,7 +288,7 @@ func TestRun_ConnectionRefused(t *testing.T) {
 		}
 	}
 
-	_, err := p.Run(context.Background(), mustParseAddr("1.2.3.4"))
+	_, err := p.Run(context.Background(), entryOf(mustParseAddr("1.2.3.4")))
 	if err == nil {
 		t.Fatal("expected error for connection failure")
 	}
@@ -288,13 +301,13 @@ func TestRun_ServerTimeout(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	req := HTTPRequest{URL: "http://target:80", Timeout: 100 * time.Millisecond}
-
 	p := &HTTPProbe{
-		req:    req,
-		filter: newStatusFilter(nil, totalHTTPStatusCodes),
+		settings: Settings{Timeout: 100 * time.Millisecond},
+		mode:     staticMode{req: Request{URL: "http://target:80"}},
+		filter:   newStatusFilter(nil, totalHTTPStatusCodes),
+		dialer:   &net.Dialer{Timeout: 100 * time.Millisecond},
 	}
-	p.clientFactory = func(_ netip.Addr) httpClientResult {
+	p.clientFactory = func(Request) httpClientResult {
 		tr := &http.Transport{
 			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 				return (&net.Dialer{}).DialContext(ctx, network, ts.Listener.Addr().String())
@@ -306,7 +319,7 @@ func TestRun_ServerTimeout(t *testing.T) {
 		}
 	}
 
-	_, err := p.Run(context.Background(), mustParseAddr("1.2.3.4"))
+	_, err := p.Run(context.Background(), entryOf(mustParseAddr("1.2.3.4")))
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}
@@ -318,14 +331,10 @@ func TestRun_TLS_Success(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	req := HTTPRequest{
-		URL:     "https://target:443",
-		UseTLS:  true,
-		Timeout: 5 * time.Second,
-	}
+	req := Request{URL: "https://target:443"}
 
 	p := newTestProbe(ts, req, nil)
-	res, err := p.Run(context.Background(), mustParseAddr("10.0.0.1"))
+	res, err := p.Run(context.Background(), entryOf(mustParseAddr("10.0.0.1")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -364,19 +373,20 @@ func TestTLSNextProto_H1H2(t *testing.T) {
 }
 
 func TestBuildClient_TransportConfig(t *testing.T) {
-	tlsCfg := &tls.Config{ServerName: "example.com"}
 	p := &HTTPProbe{
-		req: HTTPRequest{
-			Timeout: 7 * time.Second,
-			Version: HTTPVersionH1,
-			UseTLS:  true,
+		settings: Settings{
+			Timeout:       7 * time.Second,
+			Version:       HTTPVersionH1,
+			UseTLS:        true,
+			MinTLSVersion: tls.VersionTLS12,
+			MaxTLSVersion: tls.VersionTLS13,
 		},
-		tls:    tlsCfg,
 		dialer: &net.Dialer{Timeout: 5 * time.Second},
 	}
 
-	res := p.newStdClient(mustParseAddr("1.2.3.4"))
+	res := p.newStdClient(Request{URL: "https://example.com:443", SNI: "example.com", Port: 443})
 	defer res.close()
+
 	client := res.client
 	tr, ok := client.Transport.(*http.Transport)
 	if !ok {
@@ -395,8 +405,11 @@ func TestBuildClient_TransportConfig(t *testing.T) {
 	if !tr.DisableKeepAlives {
 		t.Error("DisableKeepAlives = false, want true")
 	}
-	if tr.TLSClientConfig != tlsCfg {
-		t.Error("TLSClientConfig not set correctly")
+	if tr.TLSClientConfig == nil {
+		t.Fatal("TLSClientConfig is nil")
+	}
+	if tr.TLSClientConfig.ServerName != "example.com" {
+		t.Errorf("ServerName = %q, want %q", tr.TLSClientConfig.ServerName, "example.com")
 	}
 	// H1 → empty non-nil map
 	if tr.TLSNextProto == nil || len(tr.TLSNextProto) != 0 {
@@ -406,15 +419,17 @@ func TestBuildClient_TransportConfig(t *testing.T) {
 
 func TestBuildClient_H2_ForcesHTTP2(t *testing.T) {
 	p := &HTTPProbe{
-		req: HTTPRequest{
+		settings: Settings{
 			Timeout: 5 * time.Second,
 			Version: HTTPVersionH2,
+			UseTLS:  true,
 		},
 		dialer: &net.Dialer{},
 	}
 
-	res := p.newStdClient(mustParseAddr("1.2.3.4"))
+	res := p.newStdClient(Request{URL: "https://example.com:443", Port: 443})
 	defer res.close()
+
 	tr, ok := res.client.Transport.(*http.Transport)
 	if !ok {
 		t.Fatal("transport is not *http.Transport")
@@ -436,21 +451,17 @@ func TestBuildClient_H1H2NegotiatesHTTP2(t *testing.T) {
 	ts.StartTLS()
 	defer ts.Close()
 
-	req := HTTPRequest{
-		URL:           ts.URL,
-		Timeout:       5 * time.Second,
-		Version:       HTTPVersionH1H2,
-		UseTLS:        true,
-		SkipTLSVerify: true,
-	}
-
 	p := &HTTPProbe{
-		req:    req,
-		dialer: &net.Dialer{Timeout: req.Timeout},
-		tls:    newTLSConfig(req),
+		settings: Settings{
+			Timeout:       5 * time.Second,
+			Version:       HTTPVersionH1H2,
+			UseTLS:        true,
+			SkipTLSVerify: true,
+		},
+		dialer: &net.Dialer{Timeout: 5 * time.Second},
 	}
 
-	res := p.newStdClient(netip.MustParseAddr("127.0.0.1"))
+	res := p.newStdClient(Request{URL: ts.URL})
 	defer res.close()
 
 	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodHead, ts.URL, nil)
@@ -475,24 +486,6 @@ func TestBuildClient_H1H2NegotiatesHTTP2(t *testing.T) {
 // TestBuildClient_DialRedirectsToIP verifies that DialContext rewrites the
 // target address to the specified IP while preserving the original port.
 func TestBuildClient_DialRedirectsToIP(t *testing.T) {
-	p := &HTTPProbe{
-		req: HTTPRequest{
-			Timeout: 5 * time.Second,
-			Version: HTTPVersionH1H2,
-		},
-		dialer: &net.Dialer{},
-	}
-
-	res := p.newStdClient(mustParseAddr("10.20.30.40"))
-	defer res.close()
-	tr, ok := res.client.Transport.(*http.Transport)
-	if !ok {
-		t.Fatal("transport is not *http.Transport")
-	}
-	if tr == nil {
-		t.Fatal("transport is nil")
-	}
-
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
@@ -507,6 +500,25 @@ func TestBuildClient_DialRedirectsToIP(t *testing.T) {
 	}()
 
 	_, port, _ := net.SplitHostPort(ln.Addr().String())
+
+	p := &HTTPProbe{
+		settings: Settings{
+			Timeout: 5 * time.Second,
+			Version: HTTPVersionH1H2,
+		},
+		dialer: &net.Dialer{},
+	}
+
+	res := p.newStdClient(Request{
+		URL:    "http://original.host:" + port,
+		DialIP: netip.MustParseAddr("10.20.30.40"),
+	})
+	defer res.close()
+
+	tr, ok := res.client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatal("transport is not *http.Transport")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -524,18 +536,17 @@ func TestRun_ResultImplementsInterface(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	req := HTTPRequest{URL: "http://target:80", Timeout: 5 * time.Second}
-	p := newTestProbe(ts, req, nil)
+	p := newTestProbe(ts, Request{URL: "http://target:80"}, nil)
 
-	res, err := p.Run(context.Background(), mustParseAddr("8.8.8.8"))
+	res, err := p.Run(context.Background(), entryOf(mustParseAddr("8.8.8.8")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if res.Key() != "8.8.8.8" {
-		t.Errorf("Key() = %q, want %q", res.Key(), "8.8.8.8")
+	if res.Key() != "8.8.8.8/32:0:" {
+		t.Errorf("Key() = %q, want %q", res.Key(), "8.8.8.8/32:0:")
 	}
-	if res.KeyType() != result.KeyIP {
+	if res.KeyType() != target.KindIP {
 		t.Errorf("KeyType() = %v, want KeyIP", res.KeyType())
 	}
 }
@@ -548,11 +559,10 @@ func TestRun_MultipleCalls(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	req := HTTPRequest{URL: "http://target:80", Timeout: 5 * time.Second}
-	p := newTestProbe(ts, req, nil)
+	p := newTestProbe(ts, Request{URL: "http://target:80"}, nil)
 
 	for i := range 5 {
-		_, err := p.Run(context.Background(), mustParseAddr("1.2.3.4"))
+		_, err := p.Run(context.Background(), entryOf(mustParseAddr("1.2.3.4")))
 		if err != nil {
 			t.Fatalf("call %d: unexpected error: %v", i, err)
 		}

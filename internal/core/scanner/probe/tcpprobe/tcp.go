@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/netip"
 	"strconv"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/netutil"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
@@ -53,16 +53,20 @@ func (p *TCPProbe) Init(_ context.Context) error {
 	return nil
 }
 
+func (p *TCPProbe) Input() target.Kind {
+	return target.KindHost
+}
+
 // Run implements probe.Probe. It attempts up to `tries` TCP handshakes to the
-// target IP. Timeouts are retried, while other errors (e.g., connection refused)
-// fail immediately to preserve scanning throughput. On success, it returns a
-// TCPResult with the latency of the first successful attempt.
-func (p *TCPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+// target address. Timeouts are retried, while other errors (e.g., connection
+// refused) fail immediately to preserve scanning throughput. On success, it
+// returns a TCPResult with the latency of the first successful attempt.
+func (p *TCPProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	address := net.JoinHostPort(ip.String(), strconv.FormatUint(uint64(p.port), 10))
+	address := net.JoinHostPort(entry.Host(), strconv.FormatUint(uint64(p.port), 10))
 	var lastErr error
 
 	for i := 0; i < int(p.tries); i++ {
@@ -84,7 +88,7 @@ func (p *TCPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error
 		}
 
 		return TCPResult{
-			IP:      ip,
+			Entry:   entry,
 			Port:    p.port,
 			Latency: rtt,
 			Tries:   i + 1,

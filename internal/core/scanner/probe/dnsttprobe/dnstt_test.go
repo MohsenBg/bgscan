@@ -19,7 +19,7 @@ type fakeDNSTTService struct {
 	newErr      error
 	called      bool
 	gotConfig   dns.DNSTTConfig
-	gotResolver netip.Addr
+	gotResolver string
 }
 
 // EditConfig implements [dns.DNSTTService].
@@ -51,7 +51,7 @@ func (f *fakeDNSTTService) SaveConfig(config dns.DNSTTConfig, name string) error
 	return nil
 }
 
-func (f *fakeDNSTTService) NewTunnel(ctx context.Context, cfg dns.DNSTTConfig, resolverAddr netip.Addr) (net.Conn, error) {
+func (f *fakeDNSTTService) NewTunnel(ctx context.Context, cfg dns.DNSTTConfig, resolverAddr string) (net.Conn, error) {
 	f.called = true
 	f.gotConfig = cfg
 	f.gotResolver = resolverAddr
@@ -280,7 +280,7 @@ func TestRunReturnsCanceledContextBeforeCreatingTunnel(t *testing.T) {
 		&fakeSpeedtestService{},
 	)
 
-	_, err := p.Run(ctx, testIP())
+	_, err := p.Run(ctx, entryOf(testIP()))
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
@@ -305,7 +305,7 @@ func TestRunReturnsTunnelError(t *testing.T) {
 		&fakeSpeedtestService{},
 	)
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected tunnel error")
 	}
@@ -339,7 +339,7 @@ func TestRunPassesTargetIPAsResolverAddr(t *testing.T) {
 		&fakeSpeedtestService{result: speedtest.LatencyResult{RTT: time.Millisecond}},
 	)
 
-	if _, err := p.Run(context.Background(), testIP()); err != nil {
+	if _, err := p.Run(context.Background(), entryOf(testIP())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -347,7 +347,7 @@ func TestRunPassesTargetIPAsResolverAddr(t *testing.T) {
 		t.Fatal("DNSTT service was not called")
 	}
 
-	want := netip.MustParseAddr("1.2.3.4")
+	want := "1.2.3.4"
 	if dnstt.gotResolver != want {
 		t.Fatalf(
 			"resolverAddr = %s, want %s",
@@ -378,7 +378,7 @@ func TestRunReturnsUnsupportedProxyType(t *testing.T) {
 		&fakeSpeedtestService{},
 	)
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected unsupported proxy error")
 	}
@@ -460,7 +460,7 @@ func TestRunSOCKSConnectError(t *testing.T) {
 		speedtestService,
 	)
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected SOCKS connection error")
 	}
@@ -519,7 +519,7 @@ func TestRunSOCKSSuccess(t *testing.T) {
 		speedtestService,
 	)
 
-	gotResult, err := p.Run(context.Background(), testIP())
+	gotResult, err := p.Run(context.Background(), entryOf(testIP()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -529,8 +529,8 @@ func TestRunSOCKSSuccess(t *testing.T) {
 		t.Fatalf("result type = %T, want DNSTTResult", gotResult)
 	}
 
-	if got.IP != testIP() {
-		t.Fatalf("IP = %s, want %s", got.IP, testIP())
+	if got.Entry.IP.Addr() != testIP() {
+		t.Fatalf("IP = %s, want %s", got.Entry.IP.Addr(), testIP())
 	}
 
 	if got.Latency != 120*time.Millisecond {
@@ -655,7 +655,7 @@ func TestRunReturnsLatencyError(t *testing.T) {
 		speedtestService,
 	)
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected latency error")
 	}

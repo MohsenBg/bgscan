@@ -147,7 +147,7 @@ func TestRun_ContextAlreadyCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err = p.Run(ctx, netip.MustParseAddr("2.2.2.2"))
+	_, err = p.Run(ctx, entryOf(netip.MustParseAddr("2.2.2.2")))
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}
@@ -165,7 +165,7 @@ func TestRun_ServiceError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	_, err = p.Run(context.Background(), netip.MustParseAddr("2.2.2.2"))
+	_, err = p.Run(context.Background(), entryOf(netip.MustParseAddr("2.2.2.2")))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -193,7 +193,7 @@ func TestRun_Success(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	res, err := p.Run(context.Background(), netip.MustParseAddr("2.2.2.2"))
+	res, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("2.2.2.2")))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -202,8 +202,8 @@ func TestRun_Success(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected TheFeedResult, got %T", res)
 	}
-	if got.IP != netip.MustParseAddr("2.2.2.2") {
-		t.Errorf("IP = %v, want 2.2.2.2", got.IP)
+	if got.Entry.IP.Addr() != netip.MustParseAddr("2.2.2.2") {
+		t.Errorf("IP = %v, want 2.2.2.2", got.Entry.IP.Addr())
 	}
 	if got.Domain != cfg.Domain {
 		t.Errorf("Domain = %q, want %q", got.Domain, cfg.Domain)
@@ -235,7 +235,7 @@ func TestRun_PassesConfig(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if _, err := p.Run(context.Background(), netip.MustParseAddr("2.2.2.2")); err != nil {
+	if _, err := p.Run(context.Background(), entryOf(netip.MustParseAddr("2.2.2.2"))); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -260,7 +260,7 @@ func TestRun_RetriesUpToTries(t *testing.T) {
 	}
 
 	ip := netip.MustParseAddr("10.0.0.1")
-	if _, err := p.Run(context.Background(), ip); err == nil {
+	if _, err := p.Run(context.Background(), entryOf(ip)); err == nil {
 		t.Fatal("expected error after exhausting tries, got nil")
 	}
 	if mock.runCalls != 3 {
@@ -281,7 +281,7 @@ func TestRun_SuccessStopsEarly(t *testing.T) {
 	}
 
 	ip := netip.MustParseAddr("10.0.0.1")
-	if _, err := p.Run(context.Background(), ip); err != nil {
+	if _, err := p.Run(context.Background(), entryOf(ip)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if mock.runCalls != 1 {

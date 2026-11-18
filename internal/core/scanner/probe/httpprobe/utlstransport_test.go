@@ -46,21 +46,26 @@ func TestUTLSHTTPClient_PlainHTTPConnectsToTargetIP(t *testing.T) {
 	startRecordingServer(t, targetLn, targetHit)
 	startRecordingServer(t, unrelatedLn, unrelatedHit)
 
+	url := fmt.Sprintf("http://127.0.0.2:%d/plain", port)
+
 	client, err := utlsHTTPClientFactory(
-		netip.MustParseAddr("127.0.0.1"),
-		2*time.Second,
-		"Chrome",
-		0,
-		0,
-		true,
-		HTTPVersionH1,
+		Request{
+			URL:    url,
+			DialIP: netip.MustParseAddr("127.0.0.1"),
+		},
+		Settings{
+			Timeout:       2 * time.Second,
+			Fingerprint:   "Chrome",
+			UseTLS:        false,
+			SkipTLSVerify: true,
+			Version:       HTTPVersionH1,
+		},
 	)
 	if err != nil {
 		t.Fatalf("create uTLS client: %v", err)
 	}
 	defer client.CloseIdleConnections()
 
-	url := fmt.Sprintf("http://127.0.0.2:%d/plain", port)
 	resp, err := client.Get(url)
 	if err != nil {
 		t.Fatalf("GET %s: %v", url, err)

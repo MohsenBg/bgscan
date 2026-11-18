@@ -255,7 +255,7 @@ func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
 	p := newTestProbe(t, validConfig(), pm,
 		&fakeSlipstreamService{}, &fakeSocksService{}, &fakeSpeedtestService{})
 
-	_, err := p.Run(ctx, testIP())
+	_, err := p.Run(ctx, entryOf(testIP()))
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
@@ -270,7 +270,7 @@ func TestRunReleasesPortWhenAllocationFails(t *testing.T) {
 	p := newTestProbe(t, validConfig(), pm,
 		&fakeSlipstreamService{}, &fakeSocksService{}, &fakeSpeedtestService{})
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected an allocation error")
 	}
@@ -286,7 +286,7 @@ func TestRunReleasesPortWhenTunnelFails(t *testing.T) {
 	slipstreamSvc := &fakeSlipstreamService{client: client, runErr: errors.New("start failed")}
 	p := newTestProbe(t, validConfig(), pm, slipstreamSvc, &fakeSocksService{}, &fakeSpeedtestService{})
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected a tunnel error")
 	}
@@ -306,7 +306,7 @@ func TestRunStopsTunnelWhenWaitOpenFails(t *testing.T) {
 	slipstreamSvc := &fakeSlipstreamService{client: client}
 	p := newTestProbe(t, validConfig(), pm, slipstreamSvc, &fakeSocksService{}, &fakeSpeedtestService{})
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected a wait-open error")
 	}
@@ -332,7 +332,7 @@ func TestRunReturnsContextErrorWhenMeasureLatencyCancelsContext(t *testing.T) {
 
 	p := newTestProbe(t, validConfig(), &fakePortManager{port: 8000}, slipstreamSvc, socksSvc, speedtestSvc)
 
-	_, err := p.Run(ctx, testIP())
+	_, err := p.Run(ctx, entryOf(testIP()))
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
@@ -351,7 +351,7 @@ func TestRunSuccess(t *testing.T) {
 
 	p := newTestProbe(t, validConfig(), pm, slipstreamSvc, socksSvc, speedtestSvc)
 
-	result, err := p.Run(context.Background(), testIP())
+	result, err := p.Run(context.Background(), entryOf(testIP()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,7 +361,7 @@ func TestRunSuccess(t *testing.T) {
 		t.Fatalf("result type = %T, want SlipstreamResult", result)
 	}
 
-	if got.IP != testIP() || got.Port != 9000 {
+	if got.Entry.IP.Addr() != testIP() || got.Port != 9000 {
 		t.Fatalf("unexpected result: %#v", got)
 	}
 

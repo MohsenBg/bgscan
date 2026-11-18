@@ -13,6 +13,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/scanner/portmgr"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/core/xray"
 	"github.com/MohsenBg/bgscan/internal/logger"
 	"github.com/xtls/xray-core/shared"
@@ -23,7 +24,7 @@ const bytesPerKbpsSecond float64 = 1000.0 / 8.0
 // XrayService is the probe's view of xray.XrayService.
 type XrayService interface {
 	GetOutboundTemplateByName(string) (*xray.OutboundFile, error)
-	GenerateConfig(outbound string, ip netip.Addr, localPort, remotePort uint16) (*xray.Config, error)
+	GenerateConfig(outbound string, addr string, localPort, remotePort uint16) (*xray.Config, error)
 	ValidateConfig(context.Context, *xray.Config) error
 	Start(context.Context, *xray.Config) (xray.Instance, error)
 	CloseShared() error
@@ -45,6 +46,10 @@ type XrayProbe struct {
 	uploadBytes     int64
 	minDownload     speedtest.BitsPerSec
 	minUpload       speedtest.BitsPerSec
+}
+
+func (p *XrayProbe) Input() target.Kind {
+	return target.KindHost
 }
 
 // Option configures an XrayProbe.
@@ -157,7 +162,7 @@ func (p *XrayProbe) Init(ctx context.Context) error {
 	}
 	p.pm.Release(port)
 
-	loopback := netip.AddrFrom4([4]byte{127, 0, 0, 1})
+	loopback := netip.AddrFrom4([4]byte{127, 0, 0, 1}).String()
 
 	cfg, err := p.xray.GenerateConfig(p.outbound, loopback, port, 0)
 	if err != nil {
@@ -171,9 +176,19 @@ func (p *XrayProbe) Init(ctx context.Context) error {
 	return nil
 }
 
-// Run starts a temporary Xray instance for ip and performs the configured
-// connectivity, download, and upload checks.
-func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+// Run starts a temporary Xray instance for the entry's address and performs
+// the configured connectivity, download, and upload checks.
+//
+// Domain targets are refused: a probe needs an address, and nothing resolves
+// names yet.
+func (p *XrayProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
+	host := ""
+	if entry.Kind == target.KindIP {
+		host = entry.IP.Addr().String()
+	} else {
+		host = entry.Domain
+	}
+
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -187,7 +202,7 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	}
 	defer p.pm.Release(port)
 
-	cfg, err := p.xray.GenerateConfig(p.outbound, ip, port, 0)
+	cfg, err := p.xray.GenerateConfig(p.outbound, host, port, 0)
 	if err != nil {
 		return nil, probe.NormalizeErr(fmt.Errorf("generate Xray config: %w", err))
 	}
@@ -223,7 +238,7 @@ func (p *XrayProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 	}
 
 	result := XrayResult{
-		IP:      ip,
+		Entry:   entry,
 		Latency: latency.RTT,
 	}
 

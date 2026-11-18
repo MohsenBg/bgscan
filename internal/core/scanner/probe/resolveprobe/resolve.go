@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net/netip"
 	"slices"
 	"strings"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // queryExecutor abstracts DNS query execution, primarily to allow
@@ -74,6 +74,11 @@ type ResolverProbe struct {
 	resolver dns.Resolver
 }
 
+// Input implements [probe.Probe].
+func (r *ResolverProbe) Input() target.Kind {
+	return target.KindHost
+}
+
 // NewResolverProbe returns a probe that mutates req to ensure Tries and
 // DpiTries are at least 1.
 func NewResolverProbe(req *DNSRequest) probe.Probe {
@@ -110,20 +115,25 @@ func (r *ResolverProbe) Close() error {
 	return nil
 }
 
-// Run validates the resolver at ip, with an optional DPI honesty check
-// first.
-func (r *ResolverProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+// Run validates the resolver at the entry's address, with an optional DPI
+// honesty check first.
+//
+// Domain targets are refused: a probe needs an address, and nothing resolves
+// names yet.
+func (r *ResolverProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
+	resolver := entry.Host()
+
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
 	if r.request.DpiCheck {
-		if err := r.verifyResolverHonesty(ctx, ip); err != nil {
+		if err := r.verifyResolverHonesty(ctx, resolver); err != nil {
 			return nil, probe.NormalizeErr(err)
 		}
 	}
 
-	res, err := r.executeNormalProbe(ctx, ip)
+	res, err := r.executeNormalProbe(ctx, entry)
 	if err != nil {
 		return nil, probe.NormalizeErr(err)
 	}
@@ -132,7 +142,7 @@ func (r *ResolverProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, 
 
 // verifyResolverHonesty queries a guaranteed-invalid .invalid domain; rcode 0
 // means the resolver answers for names that cannot exist (hijacking/DPI).
-func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip netip.Addr) error {
+func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, resolver string) error {
 	fakeDomain := generateRandomString(16) + ".invalid"
 
 	timeout := r.request.DpiTimeout
@@ -141,7 +151,7 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip netip.Addr
 	}
 
 	query := dns.Query{
-		Resolver:         ip.String(),
+		Resolver:         resolver,
 		Port:             r.request.Port,
 		Domain:           fakeDomain,
 		RecordType:       dns.TypeA,
@@ -175,9 +185,9 @@ func (r *ResolverProbe) verifyResolverHonesty(ctx context.Context, ip netip.Addr
 }
 
 // executeNormalProbe returns the first CheckType yielding an AcceptedRcode.
-func (r *ResolverProbe) executeNormalProbe(ctx context.Context, ip netip.Addr) (result.Result, error) {
+func (r *ResolverProbe) executeNormalProbe(ctx context.Context, entry target.Entry) (result.Result, error) {
 	query := dns.Query{
-		Resolver:         ip.String(),
+		Resolver:         entry.Host(),
 		Port:             r.request.Port,
 		Transport:        r.request.Transport,
 		EDNSBufSize:      r.request.Edns0Size,
@@ -213,7 +223,7 @@ func (r *ResolverProbe) executeNormalProbe(ctx context.Context, ip netip.Addr) (
 
 			if r.isRcodeAccepted(uint16(resp.Rcode)) {
 				return ResolverResult{
-					IP:         ip,
+					Entry:      entry,
 					Latency:    latency,
 					RecordType: strings.ToUpper(typeStr),
 					Tries:      i + 1,

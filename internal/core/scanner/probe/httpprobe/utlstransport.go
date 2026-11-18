@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/netip"
 	"sync"
-	"time"
 
 	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/http2"
@@ -17,8 +16,9 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 )
 
-// utlsDialContext connects to addr using uTLS and forces the connection
-// to targetIP while preserving the original port.
+// utlsDialContext connects to addr using uTLS. If targetIP is valid the
+// connection is forced to it while preserving the original port; otherwise
+// addr is dialed as given (normal DNS resolution).
 func utlsDialContext(
 	ctx context.Context,
 	network, addr string,
@@ -30,22 +30,20 @@ func utlsDialContext(
 		utlsConfig = &utls.Config{}
 	}
 
-	if utlsConfig.ServerName == "" {
-		host, _, err := net.SplitHostPort(addr)
-		if err != nil {
-			return nil, fmt.Errorf("parse address: %w", err)
-		}
-
-		utlsConfig = utlsConfig.Clone()
-		utlsConfig.ServerName = host
-	}
-
-	_, port, err := net.SplitHostPort(addr)
+	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, fmt.Errorf("parse address: %w", err)
 	}
 
-	dialAddr := net.JoinHostPort(targetIP.String(), port)
+	if utlsConfig.ServerName == "" {
+		utlsConfig = utlsConfig.Clone()
+		utlsConfig.ServerName = host
+	}
+
+	dialAddr := addr
+	if targetIP.IsValid() {
+		dialAddr = net.JoinHostPort(targetIP.String(), port)
+	}
 
 	conn, err := (&net.Dialer{}).DialContext(ctx, network, dialAddr)
 	if err != nil {
@@ -71,7 +69,7 @@ func utlsDialContext(
 type utlsRoundTripper struct {
 	clientHelloID *utls.ClientHelloID
 	config        *utls.Config
-	targetIP      netip.Addr
+	targetIP      netip.Addr // invalid means "do not pin, use DNS"
 	version       HTTPVersion
 
 	mu    sync.Mutex
@@ -273,12 +271,14 @@ func (rt *utlsRoundTripper) plainHTTPTransport() *http.Transport {
 			ctx context.Context,
 			network, addr string,
 		) (net.Conn, error) {
-			_, port, err := net.SplitHostPort(addr)
-			if err != nil {
-				port = "80"
+			if rt.targetIP.IsValid() {
+				_, port, err := net.SplitHostPort(addr)
+				if err != nil {
+					port = "80"
+				}
+				addr = net.JoinHostPort(rt.targetIP.String(), port)
 			}
-			dialAddr := net.JoinHostPort(rt.targetIP.String(), port)
-			return (&net.Dialer{}).DialContext(ctx, network, dialAddr)
+			return (&net.Dialer{}).DialContext(ctx, network, addr)
 		}
 		rt.httpRT = tr
 	})
@@ -286,36 +286,30 @@ func (rt *utlsRoundTripper) plainHTTPTransport() *http.Transport {
 }
 
 // utlsHTTPClientFactory creates an HTTP client that uses uTLS for HTTPS
-// connections to the specified target IP.
-func utlsHTTPClientFactory(
-	targetIP netip.Addr,
-	timeout time.Duration,
-	fingerprint string,
-	minTLSVersion uint16,
-	maxTLSVersion uint16,
-	skipVerify bool,
-	version HTTPVersion,
-) (*http.Client, error) {
-	clientHelloID := config.UTLSLookup(fingerprint)
+// connections. If r.DialIP is valid the connection is pinned to it; r.SNI is
+// used as the TLS server name when set.
+func utlsHTTPClientFactory(r Request, s Settings) (*http.Client, error) {
+	clientHelloID := config.UTLSLookup(s.Fingerprint)
 	if clientHelloID == nil {
-		return nil, fmt.Errorf("unknown uTLS fingerprint: %q", fingerprint)
+		return nil, fmt.Errorf("unknown uTLS fingerprint: %q", s.Fingerprint)
 	}
 
 	utlsConfig := &utls.Config{
-		InsecureSkipVerify: skipVerify,
-		MinVersion:         minTLSVersion,
-		MaxVersion:         maxTLSVersion,
+		ServerName:         r.SNI,
+		InsecureSkipVerify: s.SkipTLSVerify,
+		MinVersion:         s.MinTLSVersion,
+		MaxVersion:         s.MaxTLSVersion,
 	}
 
 	rt := newUTLSRoundTripper(
-		targetIP,
+		r.DialIP,
 		utlsConfig,
 		clientHelloID,
-		version,
+		s.Version,
 	)
 
 	return &http.Client{
 		Transport: rt,
-		Timeout:   timeout,
+		Timeout:   s.Timeout,
 	}, nil
 }

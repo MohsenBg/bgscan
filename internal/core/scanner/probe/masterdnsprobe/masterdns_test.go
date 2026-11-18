@@ -212,7 +212,7 @@ func TestRun_ContextCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := p.Run(ctx, testIP())
+	_, err := p.Run(ctx, entryOf(testIP()))
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
@@ -222,7 +222,7 @@ func TestRun_PortManagerFails(t *testing.T) {
 	pm := &fakePortManager{getErr: errors.New("no ports")}
 	p := newTestProbe(t, pm, &fakeMasterDNSService{})
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected port manager error")
 	}
@@ -237,7 +237,7 @@ func TestRun_TunnelStartFails(t *testing.T) {
 	svc := &fakeMasterDNSService{runTunnelErr: errors.New("session init failed")}
 	p := newTestProbe(t, pm, svc)
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil || !errors.Is(err, svc.runTunnelErr) {
 		t.Fatalf("error = %v, want wrapped session-init failure", err)
 	}
@@ -251,7 +251,7 @@ func TestRun_WaitOpenFails(t *testing.T) {
 	svc := &fakeMasterDNSService{}
 	p := newTestProbe(t, pm, svc)
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected WaitOpen failure")
 	}
@@ -278,7 +278,7 @@ func TestRun_MeasureLatencyFails(t *testing.T) {
 		t.Fatalf("NewMasterDNSProbe: %v", err)
 	}
 
-	_, err = got.Run(context.Background(), testIP())
+	_, err = got.Run(context.Background(), entryOf(testIP()))
 	if err == nil || !errors.Is(err, wantErr) {
 		t.Fatalf("error = %v, want wrapped %v", err, wantErr)
 	}
@@ -308,7 +308,7 @@ func TestRun_Success(t *testing.T) {
 		t.Fatalf("NewMasterDNSProbe: %v", err)
 	}
 
-	res, err := got.Run(context.Background(), testIP())
+	res, err := got.Run(context.Background(), entryOf(testIP()))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -350,8 +350,8 @@ func TestRun_Success(t *testing.T) {
 	if !ok {
 		t.Fatalf("result type = %T, want MasterDNSResult", res)
 	}
-	if gotResult.IP != testIP() {
-		t.Errorf("IP = %v, want %v", gotResult.IP, testIP())
+	if gotResult.Entry.IP.Addr() != testIP() {
+		t.Errorf("IP = %v, want %v", gotResult.Entry.IP.Addr(), testIP())
 	}
 	if gotResult.Latency != 42*time.Millisecond {
 		t.Errorf("Latency = %v, want 42ms", gotResult.Latency)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/netip"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
@@ -13,6 +12,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 	"github.com/MohsenBg/bgscan/internal/core/socks"
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
@@ -30,6 +30,10 @@ type MasterDNSProbe struct {
 	speedtestService speedtest.Service
 	timeout          time.Duration
 	tries            int
+}
+
+func (p *MasterDNSProbe) Input() target.Kind {
+	return target.KindIP
 }
 
 type Option func(*MasterDNSProbe)
@@ -121,10 +125,17 @@ func (p *MasterDNSProbe) Init(context.Context) error {
 	return nil
 }
 
-// Run boots the embedded MasterDNS client with ip as its DNS resolver
-// and measures latency through its local SOCKS5 listener, retrying
-// failed attempts up to the configured tries.
-func (p *MasterDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+// Run boots the embedded MasterDNS client against the entry's address and
+// measures latency through its local SOCKS5 listener, retrying failed
+// attempts up to the configured tries.
+//
+// Domain targets are refused: a probe needs an address, and nothing resolves
+// names yet.
+func (p *MasterDNSProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
+	if entry.Kind != target.KindIP {
+		return nil, fmt.Errorf("%w: %s", probe.ErrDomainTarget, entry.Domain)
+	}
+
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -145,7 +156,7 @@ func (p *MasterDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result,
 
 	for attempt := 0; attempt < tries; attempt++ {
 		var res result.Result
-		if res, err = p.runOnce(ctx, ip, localPort); err == nil {
+		if res, err = p.runOnce(ctx, entry, localPort); err == nil {
 			return res, nil
 		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -156,9 +167,9 @@ func (p *MasterDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result,
 	return nil, probe.NormalizeErr(err)
 }
 
-func (p *MasterDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort uint16) (result.Result, error) {
+func (p *MasterDNSProbe) runOnce(ctx context.Context, entry target.Entry, localPort uint16) (result.Result, error) {
 	// RunTunnel blocks until the tunnel session is ready.
-	handle, err := p.masterDNSService.RunTunnel(ctx, p.config, ip.String(), localPort)
+	handle, err := p.masterDNSService.RunTunnel(ctx, p.config, entry.Host(), localPort)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +198,7 @@ func (p *MasterDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort u
 	}
 
 	return MasterDNSResult{
-		IP:      ip,
+		Entry:   entry,
 		Latency: latency.RTT,
 		Port:    p.config.ResolverPort,
 		Enc:     p.config.DataEncMethod,

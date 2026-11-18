@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/netip"
 	"strconv"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/socks"
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
 	"github.com/MohsenBg/bgscan/internal/core/ssh"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
@@ -28,6 +28,10 @@ type DNSTTProbe struct {
 	speedtestService speedtest.Service
 	timeout          time.Duration
 	tries            int
+}
+
+func (d *DNSTTProbe) Input() target.Kind {
+	return target.KindHost
 }
 
 type Option func(*DNSTTProbe)
@@ -128,9 +132,12 @@ func (d *DNSTTProbe) Init(context.Context) error {
 	return nil
 }
 
-// Run tests DNSTT connectivity for ip, retrying failed attempts up
-// to the configured tries.
-func (d *DNSTTProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+// Run tests DNSTT connectivity for the entry's address, retrying failed
+// attempts up to the configured tries.
+//
+// Domain targets are refused: a probe needs an address, and nothing resolves
+// names yet.
+func (d *DNSTTProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -143,7 +150,7 @@ func (d *DNSTTProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, err
 	var err error
 	for attempt := 0; attempt < tries; attempt++ {
 		var res result.Result
-		if res, err = d.runOnce(ctx, ip); err == nil {
+		if res, err = d.runOnce(ctx, entry); err == nil {
 			return res, nil
 		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -154,9 +161,9 @@ func (d *DNSTTProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, err
 	return nil, probe.NormalizeErr(err)
 }
 
-func (d *DNSTTProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result, error) {
+func (d *DNSTTProbe) runOnce(ctx context.Context, entry target.Entry) (result.Result, error) {
 	cfg := d.cfg
-	tunnel, err := d.dnsttService.NewTunnel(ctx, cfg, ip)
+	tunnel, err := d.dnsttService.NewTunnel(ctx, cfg, entry.Host())
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +189,7 @@ func (d *DNSTTProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result,
 		return nil, err
 	}
 
-	return d.measureLatency(ctx, ip, dialContext)
+	return d.measureLatency(ctx, entry, dialContext)
 }
 
 // dialSSH authenticates an SSH session over tunnel and returns a
@@ -288,7 +295,7 @@ func (d *DNSTTProbe) dialSOCKS(tunnel net.Conn) (func(context.Context, string, s
 
 func (d *DNSTTProbe) measureLatency(
 	ctx context.Context,
-	ip netip.Addr,
+	entry target.Entry,
 	dialContext func(context.Context, string, string) (net.Conn, error),
 ) (result.Result, error) {
 	latency, err := d.speedtestService.MeasureLatency(ctx, speedtest.LatencyConfig{
@@ -303,7 +310,7 @@ func (d *DNSTTProbe) measureLatency(
 	}
 
 	return DNSTTResult{
-		IP:                ip,
+		Entry:             entry,
 		Latency:           latency.RTT,
 		Transport:         d.cfg.ResolverType,
 		Port:              d.cfg.ResolverPort,

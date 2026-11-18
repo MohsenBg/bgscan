@@ -60,7 +60,7 @@ func (s *fakeXrayService) GetOutboundTemplateByName(string) (*xray.OutboundFile,
 	return &xray.OutboundFile{}, nil
 }
 
-func (s *fakeXrayService) GenerateConfig(string, netip.Addr, uint16, uint16) (*xray.Config, error) {
+func (s *fakeXrayService) GenerateConfig(string, string, uint16, uint16) (*xray.Config, error) {
 	if s.generateErr != nil {
 		return nil, s.generateErr
 	}
@@ -233,7 +233,7 @@ func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
 
 	p, pm, _, _ := newTestProbe(config.ConnectivityOnly)
 
-	_, err := p.Run(ctx, testIP())
+	_, err := p.Run(ctx, entryOf(testIP()))
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
@@ -247,7 +247,7 @@ func TestRunReleasesPortWhenConfigGenerationFails(t *testing.T) {
 	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 	service.generateErr = errors.New("generation failed")
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -261,7 +261,7 @@ func TestRunReleasesPortWhenStartFails(t *testing.T) {
 	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 	service.startErr = errors.New("start failed")
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -289,7 +289,7 @@ func TestRunClosesInstanceAfterWaitOpenFailure(t *testing.T) {
 	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 	pm.waitOpenErr = errors.New("proxy did not open")
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -306,7 +306,7 @@ func TestRunClosesInstanceAfterWaitOpenFailure(t *testing.T) {
 func TestRunConnectivityOnly(t *testing.T) {
 	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 
-	result, err := p.Run(context.Background(), testIP())
+	result, err := p.Run(context.Background(), entryOf(testIP()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +316,7 @@ func TestRunConnectivityOnly(t *testing.T) {
 		t.Fatalf("result type = %T, want XrayResult", result)
 	}
 
-	if got.IP != testIP() || got.Latency != 25*time.Millisecond {
+	if got.Entry.IP.Addr() != testIP() || got.Latency != 25*time.Millisecond {
 		t.Fatalf("unexpected result: %#v", got)
 	}
 
@@ -332,7 +332,7 @@ func TestRunConnectivityOnly(t *testing.T) {
 func TestRunBoth(t *testing.T) {
 	p, _, _, _ := newTestProbe(config.Both)
 
-	result, err := p.Run(context.Background(), testIP())
+	result, err := p.Run(context.Background(), entryOf(testIP()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +352,7 @@ func TestRunReturnsSpeedTestError(t *testing.T) {
 	p, _, _, speed := newTestProbe(config.DownloadSpeedOnly)
 	speed.downloadErr = errors.New("speed below minimum")
 
-	_, err := p.Run(context.Background(), testIP())
+	_, err := p.Run(context.Background(), entryOf(testIP()))
 	if err == nil {
 		t.Fatal("expected an error")
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/netip"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
 	"github.com/MohsenBg/bgscan/internal/core/socks"
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
@@ -31,6 +31,10 @@ type StormDNSProbe struct {
 	speedtestSvc    speedtest.Service
 	timeout         time.Duration
 	tries           int
+}
+
+func (p *StormDNSProbe) Input() target.Kind {
+	return target.KindIP
 }
 
 type Option func(*StormDNSProbe)
@@ -122,10 +126,17 @@ func (p *StormDNSProbe) Init(context.Context) error {
 	return nil
 }
 
-// Run boots the embedded StormDNS client with ip as its DNS resolver
-// and measures latency through its local SOCKS5 listener, retrying
-// failed attempts up to the configured tries.
-func (p *StormDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+// Run boots the embedded StormDNS client against the entry's address and
+// measures latency through its local SOCKS5 listener, retrying failed
+// attempts up to the configured tries.
+//
+// Domain targets are refused: a probe needs an address, and nothing resolves
+// names yet.
+func (p *StormDNSProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
+	if entry.Kind != target.KindIP {
+		return nil, fmt.Errorf("%w: %s", probe.ErrDomainTarget, entry.Domain)
+	}
+
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -146,7 +157,7 @@ func (p *StormDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, 
 
 	for attempt := 0; attempt < tries; attempt++ {
 		var res result.Result
-		if res, err = p.runOnce(ctx, ip, localPort); err == nil {
+		if res, err = p.runOnce(ctx, entry, localPort); err == nil {
 			return res, nil
 		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -157,9 +168,9 @@ func (p *StormDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, 
 	return nil, probe.NormalizeErr(err)
 }
 
-func (p *StormDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort uint16) (result.Result, error) {
+func (p *StormDNSProbe) runOnce(ctx context.Context, entry target.Entry, localPort uint16) (result.Result, error) {
 	// RunTunnel blocks until the tunnel session is ready.
-	handle, err := p.stormDNSService.RunTunnel(ctx, p.config, ip.String(), localPort)
+	handle, err := p.stormDNSService.RunTunnel(ctx, p.config, entry.IP.Addr().String(), localPort)
 	if err != nil {
 		return nil, err
 	}
@@ -188,9 +199,8 @@ func (p *StormDNSProbe) runOnce(ctx context.Context, ip netip.Addr, localPort ui
 	}
 
 	return StormDNSResult{
-		IP:        ip,
+		Entry:     entry,
 		Latency:   latency.RTT,
-		Port:      p.config.ResolverPort,
 		QueryType: normalizeQueryType(p.config.DNSQueryType),
 		Enc:       p.config.DataEncMethod,
 	}, nil

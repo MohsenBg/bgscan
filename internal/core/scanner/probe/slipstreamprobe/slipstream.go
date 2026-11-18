@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/netip"
 	"strconv"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/socks"
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
 	"github.com/MohsenBg/bgscan/internal/core/ssh"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
@@ -31,6 +31,11 @@ type SlipstreamProbe struct {
 	speedtestSvc  speedtest.Service
 	timeout       time.Duration
 	tries         int
+}
+
+// Input implements [probe.Probe].
+func (s *SlipstreamProbe) Input() target.Kind {
+	return target.KindIP
 }
 
 type Option func(*SlipstreamProbe)
@@ -142,10 +147,17 @@ func (s *SlipstreamProbe) Init(ctx context.Context) error {
 	return nil
 }
 
-// Run opens a Slipstream tunnel to ip (via the embedded libslipstream
-// library) and verifies connectivity through its local proxy listener,
-// retrying failed attempts up to the configured tries.
-func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+// Run opens a Slipstream tunnel to the entry's address (via the embedded
+// libslipstream library) and verifies connectivity through its local proxy
+// listener, retrying failed attempts up to the configured tries.
+//
+// Domain targets are refused: a probe needs an address, and nothing resolves
+// names yet.
+func (s *SlipstreamProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
+	if entry.Kind != target.KindIP {
+		return nil, fmt.Errorf("%w: %s", probe.ErrDomainTarget, entry.Domain)
+	}
+
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -167,7 +179,7 @@ func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result
 
 	for attempt := 0; attempt < tries; attempt++ {
 		var res result.Result
-		if res, err = s.runOnce(ctx, ip, localPort); err == nil {
+		if res, err = s.runOnce(ctx, entry, localPort); err == nil {
 			return res, nil
 		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -178,7 +190,9 @@ func (s *SlipstreamProbe) Run(ctx context.Context, ip netip.Addr) (result.Result
 	return nil, probe.NormalizeErr(err)
 }
 
-func (s *SlipstreamProbe) runOnce(ctx context.Context, ip netip.Addr, localPort uint16) (result.Result, error) {
+func (s *SlipstreamProbe) runOnce(ctx context.Context, entry target.Entry, localPort uint16) (result.Result, error) {
+	ip := entry.IP.Addr()
+
 	client, err := s.slipstreamSvc.RunTunnel(ctx, s.config, ip, localPort, uint16(s.timeout.Seconds()))
 	if err != nil {
 		return nil, err
@@ -215,7 +229,7 @@ func (s *SlipstreamProbe) runOnce(ctx context.Context, ip netip.Addr, localPort 
 	}
 
 	return SlipstreamResult{
-		IP:                ip,
+		Entry:             entry,
 		Latency:           latency.RTT,
 		Port:              localPort,
 		AuthMethod:        s.config.AuthMethod,

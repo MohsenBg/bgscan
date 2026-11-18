@@ -14,7 +14,14 @@ import (
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
+
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
+
+// entryOf wraps an address in the single-address row a probe now receives.
+func entryOf(addr netip.Addr) target.Entry {
+	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
+}
 
 // fakeClock is a manually-advanced clock for deterministic timeout testing.
 type fakeClock struct {
@@ -268,7 +275,7 @@ func TestNew_IPv6UnavailableIsNonFatal(t *testing.T) {
 func TestRun_IPv4_SuccessOnFirstTry(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 3}, true)
 
-	res, err := fx.probe.Run(t.Context(), ipv4Addr())
+	res, err := fx.probe.Run(t.Context(), entryOf(ipv4Addr()))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -277,8 +284,8 @@ func TestRun_IPv4_SuccessOnFirstTry(t *testing.T) {
 	if !ok {
 		t.Fatalf("unexpected result type %T", res)
 	}
-	if r.IP != ipv4Addr() {
-		t.Errorf("IP: got %v, want %v", r.IP, ipv4Addr())
+	if r.Entry.IP.Addr() != ipv4Addr() {
+		t.Errorf("IP: got %v, want %v", r.Entry.IP.Addr(), ipv4Addr())
 	}
 	if r.Tries != 1 {
 		t.Errorf("Tries: got %d, want 1", r.Tries)
@@ -294,14 +301,14 @@ func TestRun_IPv4_SuccessOnFirstTry(t *testing.T) {
 func TestRun_IPv6_SuccessOnFirstTry(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 3}, true)
 
-	res, err := fx.probe.Run(t.Context(), ipv6Addr())
+	res, err := fx.probe.Run(t.Context(), entryOf(ipv6Addr()))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 
 	r := res.(ICMPResult)
-	if r.IP != ipv6Addr() {
-		t.Errorf("IP: got %v, want %v", r.IP, ipv6Addr())
+	if r.Entry.IP.Addr() != ipv6Addr() {
+		t.Errorf("IP: got %v, want %v", r.Entry.IP.Addr(), ipv6Addr())
 	}
 	if r.Mode != "udp" {
 		t.Errorf("Mode: got %q, want %q", r.Mode, "udp")
@@ -314,7 +321,7 @@ func TestRun_IPv6_SuccessOnFirstTry(t *testing.T) {
 func TestRun_IPv6_UnavailableReturnsError(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, false)
 
-	_, err := fx.probe.Run(t.Context(), ipv6Addr())
+	_, err := fx.probe.Run(t.Context(), entryOf(ipv6Addr()))
 	if err == nil {
 		t.Fatal("expected error for IPv6 target when IPv6 unavailable")
 	}
@@ -331,7 +338,7 @@ func TestRun_ExhaustsRetriesReturnsLastError(t *testing.T) {
 	fx.sock4.autoReply = false
 	fx.sock4.mu.Unlock()
 
-	_, err := fx.probe.Run(t.Context(), ipv4Addr())
+	_, err := fx.probe.Run(t.Context(), entryOf(ipv4Addr()))
 	if err == nil {
 		t.Fatal("expected error after exhausting retries")
 	}
@@ -373,7 +380,7 @@ func TestRun_SucceedsOnSecondTry(t *testing.T) {
 		}
 	}()
 
-	res, err := fx.probe.Run(t.Context(), ipv4Addr())
+	res, err := fx.probe.Run(t.Context(), entryOf(ipv4Addr()))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -389,7 +396,7 @@ func TestRun_CancelledContextBeforeStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := fx.probe.Run(ctx, ipv4Addr())
+	_, err := fx.probe.Run(ctx, entryOf(ipv4Addr()))
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("error: got %v, want context.Canceled", err)
 	}
@@ -411,7 +418,7 @@ func TestRun_CancelledContextDuringPing(t *testing.T) {
 		cancel()
 	}()
 
-	_, err := fx.probe.Run(ctx, ipv4Addr())
+	_, err := fx.probe.Run(ctx, entryOf(ipv4Addr()))
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("error: got %v, want context.Canceled", err)
 	}
@@ -426,7 +433,7 @@ func TestRun_ProbeClosedDuringPing(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		_, err := fx.probe.Run(t.Context(), ipv4Addr())
+		_, err := fx.probe.Run(t.Context(), entryOf(ipv4Addr()))
 		errCh <- err
 	}()
 
@@ -452,7 +459,7 @@ func TestRun_LatencyReflectsClockAdvance(t *testing.T) {
 
 	resultCh := make(chan ICMPResult, 1)
 	go func() {
-		res, err := fx.probe.Run(t.Context(), ipv4Addr())
+		res, err := fx.probe.Run(t.Context(), entryOf(ipv4Addr()))
 		if err != nil {
 			return
 		}
@@ -748,13 +755,13 @@ func TestSequenceNumber_Wraps16Bit(t *testing.T) {
 
 	p.seq.Store(0xfffe)
 
-	res, err := p.Run(t.Context(), ipv4Addr())
+	res, err := p.Run(t.Context(), entryOf(ipv4Addr()))
 	if err != nil {
 		t.Fatalf("Run at seq 0xffff: %v", err)
 	}
 	_ = res
 
-	res, err = p.Run(t.Context(), ipv4Addr())
+	res, err = p.Run(t.Context(), entryOf(ipv4Addr()))
 	if err != nil {
 		t.Fatalf("Run at seq 0: %v", err)
 	}

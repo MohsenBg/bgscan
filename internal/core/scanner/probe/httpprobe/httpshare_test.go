@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // --- statusFilter ---
@@ -71,24 +72,22 @@ func TestStatusFilter_IsAccepted(t *testing.T) {
 // --- newTLSConfig ---
 
 func TestNewTLSConfig_NoTLS(t *testing.T) {
-	req := HTTPRequest{UseTLS: false}
-	if cfg := newTLSConfig(req); cfg != nil {
-		t.Errorf("expected nil for non-TLS request, got %+v", cfg)
+	if cfg := newTLSConfig(Settings{UseTLS: false}, ""); cfg != nil {
+		t.Errorf("expected nil for non-TLS settings, got %+v", cfg)
 	}
 }
 
 func TestNewTLSConfig_WithTLS(t *testing.T) {
-	req := HTTPRequest{
+	s := Settings{
 		UseTLS:        true,
-		SNI:           "example.com",
 		SkipTLSVerify: true,
 		MinTLSVersion: tls.VersionTLS12,
 		MaxTLSVersion: tls.VersionTLS13,
 	}
 
-	cfg := newTLSConfig(req)
+	cfg := newTLSConfig(s, "example.com")
 	if cfg == nil {
-		t.Fatal("expected non-nil tls.Config for TLS request")
+		t.Fatal("expected non-nil tls.Config for TLS settings")
 	}
 	if cfg.ServerName != "example.com" {
 		t.Errorf("ServerName = %q, want %q", cfg.ServerName, "example.com")
@@ -105,15 +104,12 @@ func TestNewTLSConfig_WithTLS(t *testing.T) {
 }
 
 func TestNewTLSConfig_NoSkipVerify(t *testing.T) {
-	req := HTTPRequest{
-		UseTLS:        true,
-		SNI:           "secure.io",
-		SkipTLSVerify: false,
-	}
-
-	cfg := newTLSConfig(req)
+	cfg := newTLSConfig(Settings{UseTLS: true}, "secure.io")
 	if cfg.InsecureSkipVerify {
 		t.Error("InsecureSkipVerify = true, want false")
+	}
+	if cfg.ServerName != "secure.io" {
+		t.Errorf("ServerName = %q, want %q", cfg.ServerName, "secure.io")
 	}
 }
 
@@ -152,43 +148,6 @@ func TestDefaultPort(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("defaultPort(%d, %v) = %d, want %d", tt.port, tt.useTLS, got, tt.want)
-			}
-		})
-	}
-}
-
-// --- resolveSNI ---
-
-// TestResolveSNI verifies that explicit SNI is preserved and empty SNI
-// gracefully falls back without error, leaving derivation to the caller.
-func TestResolveSNI(t *testing.T) {
-	tests := []struct {
-		name       string
-		serverName string
-		useTLS     bool
-		want       string
-		wantErr    bool
-	}{
-		{"explicit SNI", "cdn.example.com", true, "cdn.example.com", false},
-		{"explicit SNI no TLS", "cdn.example.com", false, "cdn.example.com", false},
-		{"empty SNI with TLS", "", true, "", false},
-		{"empty SNI no TLS", "", false, "", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolveSNI(tt.serverName, tt.useTLS)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatal("expected error")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got != tt.want {
-				t.Errorf("resolveSNI(%q, %v) = %q, want %q", tt.serverName, tt.useTLS, got, tt.want)
 			}
 		})
 	}
@@ -314,9 +273,9 @@ func TestResolveTLSVersions_InvalidMax(t *testing.T) {
 	}
 }
 
-// --- NewHTTPRequestFromConfig ---
+// --- NewSettings ---
 
-func TestNewHTTPRequestFromConfig_HTTPS(t *testing.T) {
+func TestNewSettings_HTTPS(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "example.com",
 		Port:          443,
@@ -328,38 +287,35 @@ func TestNewHTTPRequestFromConfig_HTTPS(t *testing.T) {
 		Timeout:       config.NewDurationMS(5 * time.Second),
 	}
 
-	req, err := NewHTTPRequestFromConfig(cfg)
+	s, err := NewSettings(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !req.UseTLS {
+	if !s.UseTLS {
 		t.Error("UseTLS = false, want true for https")
 	}
-	if req.Version != HTTPVersionH2 {
-		t.Errorf("Version = %d, want HTTPVersionH2", req.Version)
+	if s.Version != HTTPVersionH2 {
+		t.Errorf("Version = %d, want HTTPVersionH2", s.Version)
 	}
-	if req.SkipTLSVerify {
+	if s.SkipTLSVerify {
 		t.Error("SkipTLSVerify = true, want false (TLSValidation=true)")
 	}
-	if req.Timeout != 5*time.Second {
-		t.Errorf("Timeout = %v, want 5s", req.Timeout)
+	if s.Timeout != 5*time.Second {
+		t.Errorf("Timeout = %v, want 5s", s.Timeout)
 	}
-	if req.SNI != "example.com" {
-		t.Errorf("SNI = %q, want %q", req.SNI, "example.com")
+	if s.DefaultPort != 443 {
+		t.Errorf("DefaultPort = %d, want 443", s.DefaultPort)
 	}
-	if req.Host != "example.com" {
-		t.Errorf("Host = %q, want %q", req.Host, "example.com")
+	if s.MinTLSVersion != tls.VersionTLS12 {
+		t.Errorf("MinTLSVersion = %x, want %x", s.MinTLSVersion, tls.VersionTLS12)
 	}
-	if req.MinTLSVersion != tls.VersionTLS12 {
-		t.Errorf("MinTLSVersion = %x, want %x", req.MinTLSVersion, tls.VersionTLS12)
-	}
-	if req.MaxTLSVersion != tls.VersionTLS13 {
-		t.Errorf("MaxTLSVersion = %x, want %x", req.MaxTLSVersion, tls.VersionTLS13)
+	if s.MaxTLSVersion != tls.VersionTLS13 {
+		t.Errorf("MaxTLSVersion = %x, want %x", s.MaxTLSVersion, tls.VersionTLS13)
 	}
 }
 
-func TestNewHTTPRequestFromConfig_HTTP(t *testing.T) {
+func TestNewSettings_HTTP(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "plain.io",
 		Port:          8080,
@@ -371,25 +327,29 @@ func TestNewHTTPRequestFromConfig_HTTP(t *testing.T) {
 		Timeout:       config.NewDurationMS(3 * time.Second),
 	}
 
-	req, err := NewHTTPRequestFromConfig(cfg)
+	s, err := NewSettings(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if req.UseTLS {
+	if s.UseTLS {
 		t.Error("UseTLS = true, want false for http")
 	}
-	if req.Version != HTTPVersionH1 {
-		t.Errorf("Version = %d, want HTTPVersionH1", req.Version)
+	if s.Version != HTTPVersionH1 {
+		t.Errorf("Version = %d, want HTTPVersionH1", s.Version)
 	}
-	if req.Timeout != 3*time.Second {
-		t.Errorf("Timeout = %v, want 3s", req.Timeout)
+	if s.Timeout != 3*time.Second {
+		t.Errorf("Timeout = %v, want 3s", s.Timeout)
+	}
+	if s.DefaultPort != 8080 {
+		t.Errorf("DefaultPort = %d, want 8080", s.DefaultPort)
+	}
+	if !s.SkipTLSVerify {
+		t.Error("SkipTLSVerify = false, want true when TLSValidation=false")
 	}
 }
 
-// TestNewHTTPRequestFromConfig_DefaultPort_HTTPS verifies that a zero port
-// correctly defaults to 443 in the generated URL for HTTPS.
-func TestNewHTTPRequestFromConfig_DefaultPort_HTTPS(t *testing.T) {
+func TestNewSettings_DefaultPort_HTTPS(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "secure.io",
 		Port:          0,
@@ -400,19 +360,16 @@ func TestNewHTTPRequestFromConfig_DefaultPort_HTTPS(t *testing.T) {
 		Timeout:       config.NewDurationMS(4 * time.Second),
 	}
 
-	req, err := NewHTTPRequestFromConfig(cfg)
+	s, err := NewSettings(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	if want := "https://secure.io:443"; req.URL != want {
-		t.Errorf("URL = %q, want %q", req.URL, want)
+	if s.DefaultPort != 443 {
+		t.Errorf("DefaultPort = %d, want 443", s.DefaultPort)
 	}
 }
 
-// TestNewHTTPRequestFromConfig_DefaultPort_HTTP verifies that a zero port
-// correctly defaults to 80 in the generated URL for plain HTTP.
-func TestNewHTTPRequestFromConfig_DefaultPort_HTTP(t *testing.T) {
+func TestNewSettings_DefaultPort_HTTP(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "plain.io",
 		Port:          0,
@@ -422,132 +379,16 @@ func TestNewHTTPRequestFromConfig_DefaultPort_HTTP(t *testing.T) {
 		Timeout:       config.NewDurationMS(4 * time.Second),
 	}
 
-	req, err := NewHTTPRequestFromConfig(cfg)
+	s, err := NewSettings(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	if want := "http://plain.io:80"; req.URL != want {
-		t.Errorf("URL = %q, want %q", req.URL, want)
+	if s.DefaultPort != 80 {
+		t.Errorf("DefaultPort = %d, want 80", s.DefaultPort)
 	}
 }
 
-func TestNewHTTPRequestFromConfig_CustomServerName(t *testing.T) {
-	cfg := config.HTTPConfig{
-		Host:          "1.2.3.4",
-		ServerName:    "real.example.com",
-		Port:          443,
-		Protocol:      "https",
-		TLSValidation: true,
-		MinTLSVersion: "tls1.2",
-		MaxTLSVersion: "tls1.3",
-		Timeout:       config.NewDurationMS(4 * time.Second),
-	}
-
-	req, err := NewHTTPRequestFromConfig(cfg)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if req.SNI != "real.example.com" {
-		t.Errorf("SNI = %q, want %q", req.SNI, "real.example.com")
-	}
-}
-
-// TestNewHTTPRequestFromConfig_PortInAuthority verifies that the configured
-// port is placed in the URL authority, before any path or query suffix, and
-// that IPv6 hosts are re-bracketed correctly. It also checks that the scheme
-// and explicit SNI behavior are unchanged for these inputs.
-func TestNewHTTPRequestFromConfig_PortInAuthority(t *testing.T) {
-	tests := []struct {
-		name     string
-		host     string
-		port     int
-		sni      string
-		wantURL  string
-		wantHost string
-	}{
-		{
-			name:     "host with path",
-			host:     "example.com/api",
-			port:     8080,
-			wantURL:  "http://example.com:8080/api",
-			wantHost: "example.com",
-		},
-		{
-			name:     "host with query",
-			host:     "example.com?q=1",
-			port:     8080,
-			sni:      "sni.example.com",
-			wantURL:  "http://example.com:8080?q=1",
-			wantHost: "example.com",
-		},
-		{
-			name:     "ipv6 host with path",
-			host:     "[2001:db8::1]/api",
-			port:     8443,
-			wantURL:  "http://[2001:db8::1]:8443/api",
-			wantHost: "2001:db8::1",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := config.HTTPConfig{
-				Host:          tt.host,
-				Port:          tt.port,
-				Protocol:      "http",
-				ServerName:    tt.sni,
-				MinTLSVersion: "tls1.2",
-				MaxTLSVersion: "tls1.3",
-				Timeout:       config.NewDurationMS(4 * time.Second),
-			}
-
-			req, err := NewHTTPRequestFromConfig(cfg)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if req.URL != tt.wantURL {
-				t.Errorf("URL = %q, want %q", req.URL, tt.wantURL)
-			}
-			if req.UseTLS {
-				t.Error("UseTLS = true, want false for http scheme")
-			}
-			if req.Host != tt.wantHost {
-				t.Errorf("Host = %q, want %q", req.Host, tt.wantHost)
-			}
-			if tt.sni != "" && req.SNI != tt.sni {
-				t.Errorf("SNI = %q, want %q", req.SNI, tt.sni)
-			}
-		})
-	}
-}
-
-// TestNewHTTPRequestFromConfig_SkipVerify confirms that disabling TLSValidation
-// correctly sets SkipTLSVerify to true.
-func TestNewHTTPRequestFromConfig_SkipVerify(t *testing.T) {
-	cfg := config.HTTPConfig{
-		Host:          "self-signed.local",
-		Port:          443,
-		Protocol:      "https",
-		TLSValidation: false,
-		MinTLSVersion: "tls1.2",
-		MaxTLSVersion: "tls1.3",
-		Timeout:       config.NewDurationMS(4 * time.Second),
-	}
-
-	req, err := NewHTTPRequestFromConfig(cfg)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if !req.SkipTLSVerify {
-		t.Error("SkipTLSVerify = false, want true when TLSValidation=false")
-	}
-}
-
-func TestNewHTTPRequestFromConfig_InvalidPort(t *testing.T) {
+func TestNewSettings_InvalidPort(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "example.com",
 		Port:          -1,
@@ -557,13 +398,13 @@ func TestNewHTTPRequestFromConfig_InvalidPort(t *testing.T) {
 		Timeout:       config.NewDurationMS(4 * time.Second),
 	}
 
-	_, err := NewHTTPRequestFromConfig(cfg)
+	_, err := NewSettings(cfg)
 	if err == nil {
 		t.Fatal("expected error for invalid port")
 	}
 }
 
-func TestNewHTTPRequestFromConfig_InvalidTLSVersions(t *testing.T) {
+func TestNewSettings_InvalidTLSVersions(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "example.com",
 		Port:          443,
@@ -573,13 +414,51 @@ func TestNewHTTPRequestFromConfig_InvalidTLSVersions(t *testing.T) {
 		Timeout:       config.NewDurationMS(4 * time.Second),
 	}
 
-	_, err := NewHTTPRequestFromConfig(cfg)
+	_, err := NewSettings(cfg)
 	if err == nil {
 		t.Fatal("expected error when min TLS > max TLS")
 	}
 }
 
-// --- isHTTPS (assumed helper) ---
+// --- resolvePort ---
+
+func TestSettings_ResolvePort(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings Settings
+		entry    target.Entry
+		want     uint16
+	}{
+		{
+			name:     "fixed port ignores entry port",
+			settings: Settings{DefaultPort: 443},
+			entry:    target.Entry{Port: 8443},
+			want:     443,
+		},
+		{
+			name:     "dynamic port uses entry port",
+			settings: Settings{DefaultPort: 443, DynamicPort: true},
+			entry:    target.Entry{Port: 8443},
+			want:     8443,
+		},
+		{
+			name:     "dynamic port falls back to default",
+			settings: Settings{DefaultPort: 443, DynamicPort: true},
+			entry:    target.Entry{},
+			want:     443,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.settings.resolvePort(tt.entry); got != tt.want {
+				t.Errorf("resolvePort() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+// --- isHTTPS ---
 
 func TestIsHTTPS(t *testing.T) {
 	tests := []struct {

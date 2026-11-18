@@ -18,6 +18,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/netutil"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 const (
@@ -135,6 +136,26 @@ func (p *ICMPProbe) Init(_ context.Context) error {
 	return nil
 }
 
+// socketFor returns the connection, echo ID, mode and protocol for ip's
+// address family. IPv6 targets error when no IPv6 socket is available.
+func (p *ICMPProbe) socketFor(ip netip.Addr) (conn socket, id int, mode string, proto int, err error) {
+	if ip.Is4() {
+		return p.conn4, p.id4, p.mode4, icmpProtocol, nil
+	}
+	if p.conn6 == nil {
+		return nil, 0, "", 0, errors.New("IPv6 is not available on this system")
+	}
+	return p.conn6, p.id6, p.mode6, icmp6Protocol, nil
+}
+
+// modeFor reports the socket mode ("raw" or "udp") for ip's address family.
+func (p *ICMPProbe) modeFor(ip netip.Addr) string {
+	if ip.Is4() {
+		return p.mode4
+	}
+	return p.mode6
+}
+
 // reader demultiplexes incoming ICMP replies to waiting Ping callers.
 func (p *ICMPProbe) reader(conn socket, protocol int) {
 	buf := make([]byte, maxPacket)
@@ -171,16 +192,17 @@ func (p *ICMPProbe) handlePacket(packet []byte, protocol int, from net.Addr) {
 		return
 	}
 
+	var replyType icmp.Type
 	switch protocol {
 	case icmpProtocol:
-		if msg.Type != ipv4.ICMPTypeEchoReply {
-			return
-		}
+		replyType = ipv4.ICMPTypeEchoReply
 	case icmp6Protocol:
-		if msg.Type != ipv6.ICMPTypeEchoReply {
-			return
-		}
+		replyType = ipv6.ICMPTypeEchoReply
 	default:
+		return
+	}
+
+	if msg.Type != replyType {
 		return
 	}
 
@@ -197,11 +219,10 @@ func (p *ICMPProbe) handlePacket(packet []byte, protocol int, from net.Addr) {
 	}
 
 	w := v.(*waiter)
+
+	// Key collision (sequence wraparound under very high concurrency):
+	// the reply belongs to a different in-flight target.
 	if !addrMatches(w.addr, from) {
-		// Key collision (sequence wraparound under very high concurrency):
-		// the reply belongs to a different in-flight target. Drop it — its
-		// real waiter already fired or will time out and retry. Never signals
-		// the wrong waiter.
 		return
 	}
 
@@ -241,26 +262,9 @@ func makeKey(protocol, id, seq int) uint64 {
 
 // Ping sends a single ICMP echo request to the target IP and waits for a reply or timeout.
 func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Duration) error {
-	var (
-		conn  socket
-		id    int
-		mode  string
-		proto int
-	)
-
-	if ip.Is4() {
-		conn = p.conn4
-		id = p.id4
-		mode = p.mode4
-		proto = icmpProtocol
-	} else {
-		if p.conn6 == nil {
-			return errors.New("IPv6 is not available on this system")
-		}
-		conn = p.conn6
-		id = p.id6
-		mode = p.mode6
-		proto = icmp6Protocol
+	conn, id, mode, proto, err := p.socketFor(ip)
+	if err != nil {
+		return err
 	}
 
 	seq := int(p.seq.Add(1) & 0xffff)
@@ -270,10 +274,8 @@ func (p *ICMPProbe) Ping(ctx context.Context, ip netip.Addr, timeout time.Durati
 	p.waiters.Store(key, w)
 	defer p.waiters.Delete(key)
 
-	var msgType icmp.Type
-	if proto == icmpProtocol {
-		msgType = ipv4.ICMPTypeEcho
-	} else {
+	var msgType icmp.Type = ipv4.ICMPTypeEcho
+	if proto == icmp6Protocol {
 		msgType = ipv6.ICMPTypeEchoRequest
 	}
 
@@ -320,8 +322,19 @@ func destination(ip netip.Addr, mode string) net.Addr {
 	return &net.IPAddr{IP: stdIP}
 }
 
-// Run pings ip, retrying up to the configured Tries limit.
-func (p *ICMPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+func (*ICMPProbe) Input() target.Kind {
+	return target.KindIP
+}
+
+// Run pings the target address, retrying up to the configured Tries limit.
+// Domain targets are refused: ICMP needs an address, and nothing resolves
+// names yet.
+func (p *ICMPProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
+	if entry.Kind != target.KindIP {
+		return nil, fmt.Errorf("%w: %s", probe.ErrDomainTarget, entry.Domain)
+	}
+
+	ip := entry.IP.Addr()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -340,16 +353,11 @@ func (p *ICMPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 			continue
 		}
 
-		reportMode := p.mode4
-		if !ip.Is4() {
-			reportMode = p.mode6
-		}
-
 		return ICMPResult{
-			IP:      ip,
+			Entry:   entry,
 			Latency: p.clock.Now().Sub(start),
 			Tries:   i + 1,
-			Mode:    reportMode,
+			Mode:    p.modeFor(ip),
 		}, nil
 	}
 
@@ -363,17 +371,16 @@ func (p *ICMPProbe) Close() error {
 	p.closeOnce.Do(func() {
 		close(p.done)
 
-		if p.conn4 != nil {
-			if err := p.conn4.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("close IPv4 ICMP socket: %w", err))
+		closeSocket := func(name string, conn socket) {
+			if conn == nil {
+				return
+			}
+			if err := conn.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("close %s ICMP socket: %w", name, err))
 			}
 		}
-
-		if p.conn6 != nil {
-			if err := p.conn6.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("close IPv6 ICMP socket: %w", err))
-			}
-		}
+		closeSocket("IPv4", p.conn4)
+		closeSocket("IPv6", p.conn6)
 	})
 
 	return errors.Join(errs...)

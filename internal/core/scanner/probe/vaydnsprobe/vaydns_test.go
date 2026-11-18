@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"net/netip"
 	"testing"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 )
 
 type mockVayDNSService struct {
-	newTunnelFn func(dns.VayDNSConfig, netip.Addr) (net.Conn, error)
+	newTunnelFn func(dns.VayDNSConfig, string) (net.Conn, error)
 }
 
 // EditConfig implements [dns.VayDNSService].
@@ -33,7 +32,7 @@ func (m *mockVayDNSService) LoadConfig(string) (dns.VayDNSConfig, error) {
 	return dns.VayDNSConfig{}, nil
 }
 func (m *mockVayDNSService) GetAllConfigFiles() ([]dns.VayDNSConfigFile, error) { return nil, nil }
-func (m *mockVayDNSService) NewTunnel(ctx context.Context, cfg dns.VayDNSConfig, resolverAddr netip.Addr) (net.Conn, error) {
+func (m *mockVayDNSService) NewTunnel(ctx context.Context, cfg dns.VayDNSConfig, resolverAddr string) (net.Conn, error) {
 	return m.newTunnelFn(cfg, resolverAddr)
 }
 
@@ -140,7 +139,7 @@ func TestRun_ContextAlreadyCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err = p.Run(ctx, netip.MustParseAddr("2.2.2.2"))
+	_, err = p.Run(ctx, mustEntry(t, "2.2.2.2"))
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}
@@ -154,7 +153,7 @@ func TestRun_TunnelCreationFails(t *testing.T) {
 	p, err := NewVayDNSProbe(
 		cfg, time.Second,
 		WithVayDNSService(&mockVayDNSService{
-			newTunnelFn: func(dns.VayDNSConfig, netip.Addr) (net.Conn, error) {
+			newTunnelFn: func(dns.VayDNSConfig, string) (net.Conn, error) {
 				return nil, wantErr
 			},
 		}),
@@ -163,7 +162,7 @@ func TestRun_TunnelCreationFails(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	_, err = p.Run(context.Background(), netip.MustParseAddr("2.2.2.2"))
+	_, err = p.Run(context.Background(), mustEntry(t, "2.2.2.2"))
 	if err == nil || !errors.Is(err, wantErr) {
 		t.Fatalf("expected wrapped %v, got %v", wantErr, err)
 	}
@@ -181,7 +180,7 @@ func TestRun_UnsupportedProxyType(t *testing.T) {
 	p, err := NewVayDNSProbe(
 		cfg, time.Second,
 		WithVayDNSService(&mockVayDNSService{
-			newTunnelFn: func(dns.VayDNSConfig, netip.Addr) (net.Conn, error) {
+			newTunnelFn: func(dns.VayDNSConfig, string) (net.Conn, error) {
 				return tunnel, nil
 			},
 		}),
@@ -190,7 +189,7 @@ func TestRun_UnsupportedProxyType(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	_, err = p.Run(context.Background(), netip.MustParseAddr("2.2.2.2"))
+	_, err = p.Run(context.Background(), mustEntry(t, "2.2.2.2"))
 	if err == nil {
 		t.Fatal("expected error for unsupported proxy type, got nil")
 	}
@@ -205,14 +204,15 @@ func TestRun_SOCKS_Success(t *testing.T) {
 	tunnel := netPipeConn()
 
 	wantLatency := 42 * time.Millisecond
-	targetIP := netip.MustParseAddr("2.2.2.2")
+	entry := mustEntry(t, "2.2.2.2")
+	targetIP := entry.IP.Addr()
 
-	var gotResolverAddr netip.Addr
+	var gotResolverAddr string
 
 	p, err := NewVayDNSProbe(
 		cfg, time.Second,
 		WithVayDNSService(&mockVayDNSService{
-			newTunnelFn: func(c dns.VayDNSConfig, r netip.Addr) (net.Conn, error) {
+			newTunnelFn: func(c dns.VayDNSConfig, r string) (net.Conn, error) {
 				gotResolverAddr = r
 				return &closeTrackingConn{Conn: tunnel, closed: &tunnelClosed}, nil
 			},
@@ -235,7 +235,7 @@ func TestRun_SOCKS_Success(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	res, err := p.Run(context.Background(), targetIP)
+	res, err := p.Run(context.Background(), entry)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -244,8 +244,8 @@ func TestRun_SOCKS_Success(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected VayDNSResult, got %T", res)
 	}
-	if got.IP != targetIP {
-		t.Errorf("IP = %v, want %v", got.IP, targetIP)
+	if got.Entry.IP.Addr() != targetIP {
+		t.Errorf("IP = %v, want %v", got.Entry.IP.Addr(), targetIP)
 	}
 	if got.Latency != wantLatency {
 		t.Errorf("Latency = %v, want %v", got.Latency, wantLatency)
@@ -255,11 +255,11 @@ func TestRun_SOCKS_Success(t *testing.T) {
 	}
 
 	// The scanned target must be passed as the DNS resolver address.
-	if gotResolverAddr != targetIP {
+	if gotResolverAddr != entry.Host() {
 		t.Errorf(
 			"resolverAddr = %s, want %s",
 			gotResolverAddr,
-			targetIP,
+			entry.Host(),
 		)
 	}
 }
@@ -277,7 +277,7 @@ func TestRun_SOCKS_KeyAuthRejected(t *testing.T) {
 	_, err := NewVayDNSProbe(
 		cfg, time.Second,
 		WithVayDNSService(&mockVayDNSService{
-			newTunnelFn: func(dns.VayDNSConfig, netip.Addr) (net.Conn, error) {
+			newTunnelFn: func(dns.VayDNSConfig, string) (net.Conn, error) {
 				return tunnel, nil
 			},
 		}),
@@ -300,7 +300,7 @@ func TestRun_SSH_NoAuthRejected(t *testing.T) {
 	_, err := NewVayDNSProbe(
 		cfg, time.Second,
 		WithVayDNSService(&mockVayDNSService{
-			newTunnelFn: func(dns.VayDNSConfig, netip.Addr) (net.Conn, error) {
+			newTunnelFn: func(dns.VayDNSConfig, string) (net.Conn, error) {
 				return tunnel, nil
 			},
 		}),
@@ -324,7 +324,7 @@ func TestRun_MeasureLatencyFails(t *testing.T) {
 	p, err := NewVayDNSProbe(
 		cfg, time.Second,
 		WithVayDNSService(&mockVayDNSService{
-			newTunnelFn: func(dns.VayDNSConfig, netip.Addr) (net.Conn, error) {
+			newTunnelFn: func(dns.VayDNSConfig, string) (net.Conn, error) {
 				return tunnel, nil
 			},
 		}),
@@ -343,7 +343,7 @@ func TestRun_MeasureLatencyFails(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	_, err = p.Run(context.Background(), netip.MustParseAddr("2.2.2.2"))
+	_, err = p.Run(context.Background(), mustEntry(t, "2.2.2.2"))
 	if err == nil || !errors.Is(err, wantErr) {
 		t.Fatalf("expected wrapped %v, got %v", wantErr, err)
 	}

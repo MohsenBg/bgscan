@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/netip"
 	"strconv"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/socks"
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
 	"github.com/MohsenBg/bgscan/internal/core/ssh"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
@@ -28,6 +28,10 @@ type VayDNSProbe struct {
 	speedtestService speedtest.Service
 	timeout          time.Duration
 	tries            int
+}
+
+func (v *VayDNSProbe) Input() target.Kind {
+	return target.KindHost
 }
 
 type Option func(*VayDNSProbe)
@@ -128,9 +132,9 @@ func (v *VayDNSProbe) Init(context.Context) error {
 	return nil
 }
 
-// Run tests VayDNS connectivity for ip, retrying failed attempts up
-// to the configured tries.
-func (v *VayDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+// Run tests VayDNS connectivity for the entry's address, retrying failed
+// attempts up to the configured tries.
+func (v *VayDNSProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -143,7 +147,7 @@ func (v *VayDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, er
 	var err error
 	for attempt := 0; attempt < tries; attempt++ {
 		var res result.Result
-		if res, err = v.runOnce(ctx, ip); err == nil {
+		if res, err = v.runOnce(ctx, entry); err == nil {
 			return res, nil
 		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -154,10 +158,10 @@ func (v *VayDNSProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, er
 	return nil, probe.NormalizeErr(err)
 }
 
-func (v *VayDNSProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result, error) {
+func (v *VayDNSProbe) runOnce(ctx context.Context, entry target.Entry) (result.Result, error) {
 	// The scanned target acts as the DNS resolver, matching the
 	// Slipstream and DNSTT probes.
-	tunnel, err := v.vaydnsService.NewTunnel(ctx, v.cfg, ip)
+	tunnel, err := v.vaydnsService.NewTunnel(ctx, v.cfg, entry.Host())
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +185,7 @@ func (v *VayDNSProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result
 		return nil, err
 	}
 
-	return v.measureLatency(ctx, ip, dialContext)
+	return v.measureLatency(ctx, entry, dialContext)
 }
 
 // dialSSH authenticates an SSH session over tunnel and returns a
@@ -286,7 +290,7 @@ func (v *VayDNSProbe) dialSOCKS(tunnel net.Conn) (func(context.Context, string, 
 
 func (v *VayDNSProbe) measureLatency(
 	ctx context.Context,
-	ip netip.Addr,
+	entry target.Entry,
 	dialContext func(context.Context, string, string) (net.Conn, error),
 ) (result.Result, error) {
 	latency, err := v.speedtestService.MeasureLatency(ctx, speedtest.LatencyConfig{
@@ -301,10 +305,9 @@ func (v *VayDNSProbe) measureLatency(
 	}
 
 	return VayDNSResult{
-		IP:                ip,
+		Entry:             entry,
 		Latency:           latency.RTT,
 		Transport:         v.cfg.ResolverType,
-		Port:              v.cfg.ResolverPort,
 		AuthMethod:        v.cfg.AuthMethod,
 		ResolverProxyType: v.cfg.ProxyType,
 	}, nil

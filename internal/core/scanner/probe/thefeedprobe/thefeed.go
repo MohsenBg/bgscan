@@ -3,12 +3,12 @@ package thefeedprobe
 import (
 	"context"
 	"fmt"
-	"net/netip"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // TheFeedProbe verifies that a scanned IP can serve as a DNS resolver for
@@ -21,6 +21,11 @@ type TheFeedProbe struct {
 	thefeedSvc dns.TheFeedService
 	timeout    time.Duration
 	tries      int
+}
+
+// Input implements [probe.Probe].
+func (p *TheFeedProbe) Input() target.Kind {
+	return target.KindIP
 }
 
 type Option func(*TheFeedProbe)
@@ -87,7 +92,14 @@ func (p *TheFeedProbe) Init(context.Context) error {
 
 // Run probes ip as a thefeed DNS resolver and validates the encrypted
 // metadata response, retrying failed attempts up to the configured tries.
-func (p *TheFeedProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+//
+// Domain targets are refused: a probe needs an address, and nothing resolves
+// names yet.
+func (p *TheFeedProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
+	if entry.Kind != target.KindIP {
+		return nil, fmt.Errorf("%w: %s", probe.ErrDomainTarget, entry.Domain)
+	}
+
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -100,7 +112,7 @@ func (p *TheFeedProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, e
 	var err error
 	for attempt := 0; attempt < tries; attempt++ {
 		var res result.Result
-		if res, err = p.runOnce(ctx, ip); err == nil {
+		if res, err = p.runOnce(ctx, entry); err == nil {
 			return res, nil
 		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -111,13 +123,13 @@ func (p *TheFeedProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, e
 	return nil, probe.NormalizeErr(err)
 }
 
-func (p *TheFeedProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Result, error) {
+func (p *TheFeedProbe) runOnce(ctx context.Context, entry target.Entry) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
 	start := time.Now()
-	err := p.thefeedSvc.RunTunnel(ctx, p.config, ip, p.timeout)
+	err := p.thefeedSvc.RunTunnel(ctx, p.config, entry.IP.Addr(), p.timeout)
 	latency := time.Since(start)
 
 	if err != nil {
@@ -125,7 +137,7 @@ func (p *TheFeedProbe) runOnce(ctx context.Context, ip netip.Addr) (result.Resul
 	}
 
 	return TheFeedResult{
-		IP:        ip,
+		Entry:     entry,
 		Latency:   latency,
 		Domain:    p.config.Domain,
 		QueryMode: p.config.QueryMode,

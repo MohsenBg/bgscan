@@ -12,6 +12,7 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/netutil"
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // mustParseAddr parses an IP address string, failing the test if invalid.
@@ -160,7 +161,7 @@ func TestTCPProbeRunContextCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := p.Run(ctx, mustParseAddr(t, "127.0.0.1"))
+	_, err := p.Run(ctx, mustEntry(t, "127.0.0.1"))
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Run() error = %v, want %v", err, context.Canceled)
 	}
@@ -183,7 +184,7 @@ func TestTCPProbeRunSuccess(t *testing.T) {
 		dialer:  net.Dialer{Timeout: 2 * time.Second},
 	}
 
-	got, err := p.Run(context.Background(), mustParseAddr(t, "127.0.0.1"))
+	got, err := p.Run(context.Background(), mustEntry(t, "127.0.0.1"))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -193,8 +194,8 @@ func TestTCPProbeRunSuccess(t *testing.T) {
 		t.Fatalf("Run() result type = %T, want %T", got, TCPResult{})
 	}
 
-	if res.IP != mustParseAddr(t, "127.0.0.1") {
-		t.Fatalf("IP = %v, want %v", res.IP, mustParseAddr(t, "127.0.0.1"))
+	if res.Entry.IP.Addr() != mustParseAddr(t, "127.0.0.1") {
+		t.Fatalf("Entry.IP = %v, want %v", res.Entry.IP, mustParseAddr(t, "127.0.0.1"))
 	}
 	if res.Port != port {
 		t.Fatalf("Port = %d, want %d", res.Port, port)
@@ -222,7 +223,7 @@ func TestTCPProbeRunConnectionRefusedFailsFast(t *testing.T) {
 	}
 
 	start := time.Now()
-	_, err := p.Run(context.Background(), mustParseAddr(t, "127.0.0.1"))
+	_, err := p.Run(context.Background(), mustEntry(t, "127.0.0.1"))
 	elapsed := time.Since(start)
 
 	if err == nil {
@@ -244,7 +245,7 @@ func TestTCPProbeImplementsProbeInterface(t *testing.T) {
 	var _ interface {
 		Schema() result.ResultSchema
 		Init(context.Context) error
-		Run(context.Context, netip.Addr) (result.Result, error)
+		Run(context.Context, target.Entry) (result.Result, error)
 		Close() error
 	} = (*TCPProbe)(nil)
 }

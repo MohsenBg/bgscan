@@ -2,11 +2,11 @@ package tcpprobe
 
 import (
 	"fmt"
-	"net/netip"
 	"strconv"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // Schema defines the output format and parsing logic for TCP probe results.
@@ -16,13 +16,13 @@ var Schema = result.ResultSchema{
 
 	Columns: []result.ColumnDef{
 		{
-			Name:       "IP",
-			Width:      60,
-			ColumnType: result.ColumnIP,
+			Name:       "Target",
+			Width:      50,
+			ColumnType: result.ColumnHost,
 		},
 		{
 			Name:       "Latency",
-			Width:      20,
+			Width:      10,
 			ColumnType: result.ColumnDuration,
 		},
 		{
@@ -33,6 +33,11 @@ var Schema = result.ResultSchema{
 			Name:  "Tries",
 			Width: 10,
 		},
+		{
+			Name:       "ResolvedFrom",
+			Width:      20,
+			ColumnType: result.ColumnText,
+		},
 	},
 
 	Parser: parseTCPResult,
@@ -40,29 +45,29 @@ var Schema = result.ResultSchema{
 
 // TCPResult represents the outcome of a single TCP handshake probe.
 type TCPResult struct {
-	IP      netip.Addr
-	Port    uint16 // 0 if the connection failed before a port could be established.
-	Latency time.Duration
-	Tries   int // Number of connection attempts made.
+	Entry        target.Entry // The row that produced this result.
+	Port         uint16       // 0 if the connection failed before a port could be established.
+	Latency      time.Duration
+	ResolvedFrom string
+	Tries        int // Number of connection attempts made.
 }
 
-// Key returns the IP address string used for result deduplication.
-func (r TCPResult) Key() string {
-	return r.IP.String()
-}
+// Key returns the identity of the probed target with probe index prefix.
+func (r TCPResult) Key() string { return r.Entry.Key() }
 
 // KeyType implements result.Result, identifying this as an IP-based key.
-func (r TCPResult) KeyType() result.KeyType {
-	return result.KeyIP
+func (r TCPResult) KeyType() target.Kind {
+	return r.Entry.Kind
 }
 
-// Equal reports whether r and other represent the same target IP.
+// Equal reports whether r and other point at the same target.
 func (r TCPResult) Equal(rs result.Result) bool {
-	return r.IP.String() == rs.Key()
+	return r.Key() == rs.Key()
 }
 
 // ToRecord serializes the result into a string slice for tabular output.
-// It renders port as "-" if 0, and defaults tries to 1 if 0.
+// The target comes first, in value,port,path,enable form; the measurements
+// follow. Port renders as "-" if 0, and tries defaults to 1 if 0.
 func (r TCPResult) ToRecord() []string {
 	port := "-"
 	if r.Port != 0 {
@@ -74,12 +79,11 @@ func (r TCPResult) ToRecord() []string {
 		tries = r.Tries
 	}
 
-	return []string{
-		r.IP.String(),
+	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),
 		port,
 		strconv.Itoa(tries),
-	}
+	)
 }
 
 // Score rates lower latency higher; sub-millisecond values clamp to 1ms to
@@ -92,44 +96,55 @@ func (r TCPResult) Score() float64 {
 	return 1000.0 / ms
 }
 
-// parseTCPResult reconstructs a TCPResult from a string slice.
-// It enforces a minimum latency of 1ms and a minimum of 1 try,
-// and provides backward compatibility for legacy records missing the Tries field.
 func parseTCPResult(record []string) (result.Result, error) {
-	if len(record) < 3 {
+	const entryFields = 4
+	const resultFields = 3
+
+	if len(record) < entryFields+resultFields {
 		return nil, fmt.Errorf(
-			"invalid TCP result record: expected at least 3 fields, got %d",
+			"invalid TCP result record: expected at least %d fields, got %d",
+			entryFields+resultFields,
 			len(record),
 		)
 	}
 
-	ip, err := netip.ParseAddr(record[0])
+	entry, err := target.ParseRecord(record[:entryFields])
 	if err != nil {
-		return nil, fmt.Errorf("parse IP: %w", err)
+		return nil, err
 	}
 
-	latency, err := time.ParseDuration(record[1])
+	fields := record[entryFields:]
+
+	latency, err := time.ParseDuration(fields[0])
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
 	}
 
-	port, err := strconv.ParseUint(record[2], 10, 16)
-	if err != nil {
-		port = 0
+	var port uint16
+	if fields[1] != "-" && fields[1] != "" {
+		p, err := strconv.ParseUint(fields[1], 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("parse port: %w", err)
+		}
+		port = uint16(p)
 	}
 
-	// Backward compatibility: old records had no Tries field.
-	var tries int
-	if len(record) >= 4 {
-		if _, err := fmt.Sscanf(record[3], "%d", &tries); err != nil {
-			return nil, fmt.Errorf("parse tries: %w", err)
-		}
+	tries, err := strconv.Atoi(fields[2])
+	if err != nil {
+		return nil, fmt.Errorf("parse tries: %w", err)
+	}
+
+	// ResolvedFrom is optional: older records end after tries.
+	resolvedFrom := ""
+	if len(fields) > 3 {
+		resolvedFrom = fields[3]
 	}
 
 	return TCPResult{
-		IP:      ip,
-		Latency: max(time.Millisecond, latency.Round(time.Millisecond)),
-		Port:    uint16(port),
-		Tries:   max(1, tries),
+		Entry:        entry,
+		Port:         port,
+		Latency:      max(time.Millisecond, latency.Round(time.Millisecond)),
+		ResolvedFrom: resolvedFrom,
+		Tries:        max(1, tries),
 	}, nil
 }

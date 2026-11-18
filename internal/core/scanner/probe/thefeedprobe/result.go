@@ -2,10 +2,10 @@ package thefeedprobe
 
 import (
 	"fmt"
-	"net/netip"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // Schema defines the database layout and parsing rules for TheFeed probe
@@ -15,7 +15,7 @@ var Schema = result.ResultSchema{
 	Directory: "thefeed",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 30, ColumnType: result.ColumnIP},
+		{Name: "Target", Width: 30, ColumnType: result.ColumnHost},
 		{Name: "Latency", Width: 15, ColumnType: result.ColumnDuration},
 		{Name: "Domain", Width: 35},
 		{Name: "Mode", Width: 10},
@@ -29,65 +29,68 @@ var Schema = result.ResultSchema{
 // Latency measures only the DNS exchange: from the query send until the
 // encrypted TXT response is decrypted successfully.
 type TheFeedResult struct {
-	IP        netip.Addr
+	Entry     target.Entry // The row that produced this result.
 	Latency   time.Duration
 	Domain    string
 	QueryMode string
 }
 
-func (r TheFeedResult) Key() string {
-	return r.IP.String()
-}
+// Key returns the identity of the probed target with probe index prefix.
+func (r TheFeedResult) Key() string { return r.Entry.Key() }
 
-func (r TheFeedResult) KeyType() result.KeyType {
-	return result.KeyIP
+func (r TheFeedResult) KeyType() target.Kind {
+	return r.Entry.Kind
 }
 
 func (r TheFeedResult) Equal(rs result.Result) bool {
-	return r.IP.String() == rs.Key()
+	return r.Key() == rs.Key()
 }
 
+// ToRecord converts the TheFeedResult into a slice of strings for serialization.
+// The target comes first, in value,port,path,enable form; the measurements
+// follow.
 func (r TheFeedResult) ToRecord() []string {
-	return []string{
-		r.IP.String(),
+	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),
 		r.Domain,
 		r.QueryMode,
-	}
+	)
 }
 
 // Score rates lower latency higher; sub-millisecond values clamp to 1ms to
 // avoid dividing by zero.
 func (r TheFeedResult) Score() float64 {
-	ms := float64(r.Latency.Milliseconds())
-	if ms < 1 {
-		ms = 1
-	}
-	return 1000.0 / ms
+	return 1000 / float64(max(1, r.Latency.Milliseconds()))
 }
 
 func parseTheFeedResult(record []string) (result.Result, error) {
-	if len(record) < 4 {
+	const entryFields = 4
+	const resultFields = 3
+
+	if len(record) < entryFields+resultFields {
 		return nil, fmt.Errorf(
-			"invalid TheFeed result record: expected 4 fields, got %d",
+			"invalid TheFeed result record: expected at least %d fields, got %d",
+			entryFields+resultFields,
 			len(record),
 		)
 	}
 
-	ip, err := netip.ParseAddr(record[0])
+	entry, err := target.ParseRecord(record[:entryFields])
 	if err != nil {
-		return nil, fmt.Errorf("parse IP: %w", err)
+		return nil, fmt.Errorf("parse target: %w", err)
 	}
 
-	latency, err := time.ParseDuration(record[1])
+	latencyRaw, domain, mode := record[entryFields], record[entryFields+1], record[entryFields+2]
+
+	latency, err := time.ParseDuration(latencyRaw)
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
 	}
 
 	return TheFeedResult{
-		IP:        ip,
+		Entry:     entry,
 		Latency:   latency,
-		Domain:    record[2],
-		QueryMode: record[3],
+		Domain:    domain,
+		QueryMode: mode,
 	}, nil
 }

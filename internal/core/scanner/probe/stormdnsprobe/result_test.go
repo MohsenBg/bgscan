@@ -8,40 +8,46 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
-func TestStormDNSResult_KeyAndType(t *testing.T) {
-	r := StormDNSResult{IP: netip.MustParseAddr("1.2.3.4")}
+// entryOf wraps an address in the single-address row a probe now receives.
+func entryOf(addr netip.Addr) target.Entry {
+	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
+}
 
-	if got := r.Key(); got != "1.2.3.4" {
-		t.Errorf("Key() = %q, want 1.2.3.4", got)
+func TestStormDNSResult_KeyAndType(t *testing.T) {
+	r := StormDNSResult{Entry: entryOf(netip.MustParseAddr("1.2.3.4"))}
+
+	if got := r.Key(); got != "1.2.3.4/32:0:" {
+		t.Errorf("Key() = %q, want 1.2.3.4/32:0:", got)
 	}
-	if got := r.KeyType(); got != result.KeyIP {
-		t.Errorf("KeyType() = %v, want %v", got, result.KeyIP)
+	if got := r.KeyType(); got != target.KindIP {
+		t.Errorf("KeyType() = %v, want %v", got, target.KindIP)
 	}
 }
 
 func TestStormDNSResult_Equal(t *testing.T) {
-	base := StormDNSResult{IP: netip.MustParseAddr("8.8.8.8")}
+	base := StormDNSResult{Entry: entryOf(netip.MustParseAddr("8.8.8.8"))}
 
-	if !base.Equal(StormDNSResult{IP: netip.MustParseAddr("8.8.8.8"), Latency: time.Second}) {
+	if !base.Equal(StormDNSResult{Entry: entryOf(netip.MustParseAddr("8.8.8.8")), Latency: time.Second}) {
 		t.Error("same IP should be equal")
 	}
-	if base.Equal(StormDNSResult{IP: netip.MustParseAddr("1.1.1.1")}) {
+	if base.Equal(StormDNSResult{Entry: entryOf(netip.MustParseAddr("1.1.1.1"))}) {
 		t.Error("different IP should not be equal")
 	}
 }
 
 func TestStormDNSResult_ToRecord(t *testing.T) {
 	r := StormDNSResult{
-		IP:        netip.MustParseAddr("2001:db8::1"),
+		Entry:     entryOf(netip.MustParseAddr("2001:db8::1")),
 		Latency:   1500 * time.Millisecond,
 		Port:      20110,
 		QueryType: "rotate",
 		Enc:       dns.EncChaCha20,
 	}
 
-	want := []string{"2001:db8::1", "1.50s", "20110", "ROTATE", "ChaCha20"}
+	want := []string{"2001:db8::1/128", "0", "", "1", "1.50s", "20110", "ROTATE", "ChaCha20"}
 
 	if got := r.ToRecord(); !reflect.DeepEqual(got, want) {
 		t.Errorf("ToRecord() = %#v, want %#v", got, want)
@@ -87,7 +93,7 @@ func TestNormalizeQueryType(t *testing.T) {
 }
 
 func TestParseStormDNSResult(t *testing.T) {
-	ip := "1.2.3.4"
+	ip := "1.2.3.4/32"
 
 	tests := []struct {
 		name    string
@@ -97,9 +103,9 @@ func TestParseStormDNSResult(t *testing.T) {
 	}{
 		{
 			name:   "full record",
-			record: []string{ip, "250ms", "20110", "CNAME", "AES-128-GCM"},
+			record: []string{ip, "0", "", "1", "250ms", "20110", "CNAME", "AES-128-GCM"},
 			want: StormDNSResult{
-				IP:        netip.MustParseAddr(ip),
+				Entry:     entryOf(netip.MustParseAddr("1.2.3.4")),
 				Latency:   250 * time.Millisecond,
 				Port:      20110,
 				QueryType: "CNAME",
@@ -107,10 +113,10 @@ func TestParseStormDNSResult(t *testing.T) {
 			},
 		},
 		{
-			name:   "port and query",
-			record: []string{ip, "250ms", "1234", "NS"},
+			name:   "query",
+			record: []string{ip, "0", "", "1", "250ms", "1234", "NS", "XOR"},
 			want: StormDNSResult{
-				IP:        netip.MustParseAddr(ip),
+				Entry:     entryOf(netip.MustParseAddr("1.2.3.4")),
 				Latency:   250 * time.Millisecond,
 				Port:      1234,
 				QueryType: "NS",
@@ -118,45 +124,35 @@ func TestParseStormDNSResult(t *testing.T) {
 			},
 		},
 		{
-			name:   "port only",
-			record: []string{ip, "250ms", "1234"},
-			want: StormDNSResult{
-				IP:        netip.MustParseAddr(ip),
-				Latency:   250 * time.Millisecond,
-				Port:      1234,
-				QueryType: "TXT",
-				Enc:       dns.EncXOR,
-			},
-		},
-		{
-			name:   "legacy record",
-			record: []string{ip, "1.50s"},
-			want: StormDNSResult{
-				IP:        netip.MustParseAddr(ip),
-				Latency:   1500 * time.Millisecond,
-				QueryType: "TXT",
-				Enc:       dns.EncXOR,
-			},
+			name:    "legacy record rejected",
+			record:  []string{ip, "0", "", "1", "1.50s"},
+			wantErr: true,
 		},
 		{
 			name:    "too short",
-			record:  []string{ip},
+			record:  []string{ip, "0", "", "1"},
 			wantErr: true,
 		},
 		{
 			name:    "bad ip",
-			record:  []string{"not-an-ip", "250ms", "1234", "TXT", "XOR"},
+			record:  []string{"not-an-ip", "0", "", "1", "250ms", "1234", "TXT", "XOR"},
 			wantErr: true,
 		},
 		{
 			name:    "bad latency",
-			record:  []string{ip, "soon", "1234", "TXT", "XOR"},
+			record:  []string{ip, "0", "", "1", "soon", "1234", "TXT", "XOR"},
 			wantErr: true,
 		},
 		{
-			name:    "bad port",
-			record:  []string{ip, "250ms", "port"},
-			wantErr: true,
+			name:   "bad port defaults to zero",
+			record: []string{ip, "0", "", "1", "250ms", "port", "TXT", "XOR"},
+			want: StormDNSResult{
+				Entry:     entryOf(netip.MustParseAddr("1.2.3.4")),
+				Latency:   250 * time.Millisecond,
+				Port:      0,
+				QueryType: "TXT",
+				Enc:       dns.EncXOR,
+			},
 		},
 	}
 
@@ -184,9 +180,8 @@ func TestParseStormDNSResult(t *testing.T) {
 
 func TestStormDNSResult_ParseRoundTrip(t *testing.T) {
 	original := StormDNSResult{
-		IP:        netip.MustParseAddr("5.6.7.8"),
+		Entry:     entryOf(netip.MustParseAddr("5.6.7.8")),
 		Latency:   321 * time.Millisecond,
-		Port:      20200,
 		QueryType: "ROTATE",
 		Enc:       dns.EncAES256GCM,
 	}

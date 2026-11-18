@@ -2,11 +2,11 @@ package resolveprobe
 
 import (
 	"fmt"
-	"net/netip"
 	"strconv"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // Schema defines the output format and parsing logic for DNS resolver probe results.
@@ -15,7 +15,7 @@ var Schema = result.ResultSchema{
 	Directory: "dns_resolver",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 35, ColumnType: result.ColumnIP},
+		{Name: "Target", Width: 35, ColumnType: result.ColumnHost},
 		{Name: "Latency", Width: 15, ColumnType: result.ColumnDuration},
 		{Name: "Record Type", Width: 12},
 		{Name: "Tries", Width: 8},
@@ -28,7 +28,7 @@ var Schema = result.ResultSchema{
 
 // ResolverResult represents the outcome of a single DNS resolver probe.
 type ResolverResult struct {
-	IP         netip.Addr
+	Entry      target.Entry // The row that produced this result.
 	Latency    time.Duration
 	RecordType string
 	Tries      int
@@ -36,36 +36,35 @@ type ResolverResult struct {
 	DPIChecked bool
 }
 
-// Key returns the IP address string used for result deduplication.
-func (r ResolverResult) Key() string {
-	return r.IP.String()
-}
+// Key returns the identity of the probed target with probe index prefix.
+func (r ResolverResult) Key() string { return r.Entry.Key() }
 
 // KeyType implements result.Result, identifying this as an IP-based key.
-func (r ResolverResult) KeyType() result.KeyType {
-	return result.KeyIP
+func (r ResolverResult) KeyType() target.Kind {
+	return r.Entry.Kind
 }
 
-// Equal reports whether r and other represent the same resolver IP.
+// Equal reports whether r and other point at the same target.
 func (r ResolverResult) Equal(rs result.Result) bool {
-	return r.IP.String() == rs.Key()
+	return r.Key() == rs.Key()
 }
 
-// ToRecord serializes the result into a string slice for CSV-style output.
+// ToRecord serializes the result into a string slice for tabular output.
+// The target comes first, in value,port,path,enable form; the measurements
+// follow.
 func (r ResolverResult) ToRecord() []string {
 	dpi := "skipped"
 	if r.DPIChecked {
 		dpi = "passed"
 	}
 
-	return []string{
-		r.IP.String(),
+	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),
 		r.RecordType,
 		strconv.Itoa(r.Tries),
 		strconv.FormatUint(uint64(r.Rcode), 10),
 		dpi,
-	}
+	)
 }
 
 // Score rates lower latency higher; sub-millisecond values clamp to 1ms to
@@ -78,69 +77,47 @@ func (r ResolverResult) Score() float64 {
 	return 1000.0 / ms
 }
 
-// parseResolverResult reconstructs a ResolverResult from a string slice.
-// It sanitizes parsed values and falls back to legacy parsing for older 2-field records.
 func parseResolverResult(record []string) (result.Result, error) {
-	// Backward compatibility: old records only had IP + Latency.
-	if len(record) == 2 {
-		return parseResolverResultLegacy(record)
-	}
+	const (
+		entryFields  = 4
+		resultFields = 5
+	)
 
-	if len(record) < 6 {
+	if len(record) < entryFields+resultFields {
 		return nil, fmt.Errorf(
-			"invalid DNS resolver result record: expected 6 fields, got %d",
-			len(record),
+			"invalid Resolver result record: expected at least %d fields, got %d",
+			entryFields+resultFields, len(record),
 		)
 	}
-	ip, err := netip.ParseAddr(record[0])
+
+	entry, err := target.ParseRecord(record[:entryFields])
 	if err != nil {
-		return nil, fmt.Errorf("parse IP: %w", err)
+		return nil, err
 	}
 
-	latency, err := time.ParseDuration(record[1])
+	fields := record[entryFields:]
+
+	latency, err := time.ParseDuration(fields[0])
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
 	}
 
-	tries, err := strconv.Atoi(record[3])
+	tries, err := strconv.Atoi(fields[2])
 	if err != nil {
 		return nil, fmt.Errorf("parse tries: %w", err)
 	}
 
-	rcode, err := strconv.ParseUint(record[4], 10, 16)
+	rcode, err := strconv.ParseUint(fields[3], 10, 16)
 	if err != nil {
 		return nil, fmt.Errorf("parse rcode: %w", err)
 	}
 
 	return ResolverResult{
-		IP:         ip,
+		Entry:      entry,
 		Latency:    max(time.Millisecond, latency.Round(time.Millisecond)),
-		RecordType: record[2],
+		RecordType: fields[1],
 		Tries:      max(1, tries),
 		Rcode:      uint16(rcode),
-		DPIChecked: record[5] == "passed",
-	}, nil
-}
-
-// parseResolverResultLegacy handles older 2-field result records by filling
-// missing fields with safe defaults.
-func parseResolverResultLegacy(record []string) (result.Result, error) {
-	ip, err := netip.ParseAddr(record[0])
-	if err != nil {
-		return nil, fmt.Errorf("parse IP: %w", err)
-	}
-
-	latency, err := time.ParseDuration(record[1])
-	if err != nil {
-		return nil, fmt.Errorf("parse latency: %w", err)
-	}
-
-	return ResolverResult{
-		IP:         ip,
-		Latency:    max(time.Millisecond, latency.Round(time.Millisecond)),
-		RecordType: "?",
-		Tries:      1,
-		Rcode:      0,
-		DPIChecked: false,
+		DPIChecked: fields[4] == "passed",
 	}, nil
 }

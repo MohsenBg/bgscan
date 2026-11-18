@@ -2,11 +2,11 @@ package httpprobe
 
 import (
 	"fmt"
-	"net/netip"
 	"strconv"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // Schema defines the output format and parsing logic for HTTP probe results.
@@ -16,9 +16,9 @@ var Schema = result.ResultSchema{
 
 	Columns: []result.ColumnDef{
 		{
-			Name:       "IP",
+			Name:       "Target",
 			Width:      39,
-			ColumnType: result.ColumnIP,
+			ColumnType: result.ColumnHost,
 		},
 		{
 			Name:       "Latency",
@@ -44,30 +44,29 @@ var Schema = result.ResultSchema{
 
 // HTTPResult represents the outcome of a single HTTP probe.
 type HTTPResult struct {
-	IP          netip.Addr
-	StatusCode  int    // 0 if the request failed before a response was received.
-	HTTPVersion string // e.g., "HTTP/1.1" or "HTTP/2.0".
-	UseTLS      bool   // True if the connection was established over TLS.
+	Entry       target.Entry // The row that produced this result.
+	StatusCode  int          // 0 if the request failed before a response was received.
+	HTTPVersion string       // e.g., "HTTP/1.1" or "HTTP/2.0".
+	UseTLS      bool         // True if the connection was established over TLS.
 	Latency     time.Duration
 }
 
-// Key returns the IP address string used for result deduplication.
-func (r HTTPResult) Key() string {
-	return r.IP.String()
-}
+// Key returns the identity of the probed target with probe index prefix.
+func (r HTTPResult) Key() string { return r.Entry.Key() }
 
 // KeyType implements result.Result, identifying this as an IP-based key.
-func (r HTTPResult) KeyType() result.KeyType {
-	return result.KeyIP
+func (r HTTPResult) KeyType() target.Kind {
+	return r.Entry.Kind
 }
 
-// Equal reports whether r and other represent the same target IP.
+// Equal reports whether r and other point at the same target.
 func (r HTTPResult) Equal(rs result.Result) bool {
-	return r.IP.String() == rs.Key()
+	return r.Key() == rs.Key()
 }
 
 // ToRecord serializes the result into a string slice for tabular output.
-// Failed requests (StatusCode 0) render as "-" for status and TLS.
+// The target comes first, in value,port,path,enable form; the measurements
+// follow. Failed requests (StatusCode 0) render as "-" for status and TLS.
 func (r HTTPResult) ToRecord() []string {
 	status := "-"
 	useTLS := "-"
@@ -76,13 +75,12 @@ func (r HTTPResult) ToRecord() []string {
 		useTLS = strconv.FormatBool(r.UseTLS)
 	}
 
-	return []string{
-		r.IP.String(),
+	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),
 		status,
 		r.HTTPVersion,
 		useTLS,
-	}
+	)
 }
 
 // Score rates lower latency higher; sub-millisecond values clamp to 1ms to
@@ -100,49 +98,55 @@ func (r HTTPResult) Score() float64 {
 }
 
 // parseHTTPResult reconstructs an HTTPResult from a string slice.
-// It enforces a minimum latency of 1ms and supports backward compatibility
-// for legacy records containing only IP and latency.
 func parseHTTPResult(record []string) (result.Result, error) {
-	if len(record) < 2 {
-		return nil, fmt.Errorf("invalid HTTP result record: expected 6 fields, got %d", len(record))
+	const (
+		entryFields  = 4
+		resultFields = 4
+		minFields    = entryFields + resultFields
+	)
+
+	if len(record) < minFields {
+		return nil, fmt.Errorf(
+			"invalid HTTP result record: expected at least %d fields, got %d",
+			minFields,
+			len(record),
+		)
 	}
 
-	latency, err := time.ParseDuration(record[1])
+	entry, err := target.ParseRecord(record[:entryFields])
+	if err != nil {
+		return nil, err
+	}
+
+	fields := record[entryFields:]
+
+	latency, err := time.ParseDuration(fields[0])
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
 	}
 
-	ip, err := netip.ParseAddr(record[0])
-	if err != nil {
-		return nil, fmt.Errorf("parse IP: %w", err)
-	}
-
-	status := 0
-	tls := false
-	httpVersion := "-"
-
-	if len(record) > 4 {
-		var err error
-
-		status, err = strconv.Atoi(record[2])
+	// Failed requests are written as "-" for both status and TLS.
+	statusCode := 0
+	if fields[1] != "-" {
+		statusCode, err = strconv.Atoi(fields[1])
 		if err != nil {
 			return nil, fmt.Errorf("parse status code: %w", err)
 		}
-
-		httpVersion = record[3]
-
-		tls, err = strconv.ParseBool(record[4])
-		if err != nil {
-			return nil, fmt.Errorf("parse tls: %w", err)
-		}
-
 	}
-	return HTTPResult{
-		IP:      ip,
-		Latency: max(time.Millisecond, latency.Round(time.Millisecond)),
 
-		StatusCode:  status,
-		HTTPVersion: httpVersion,
-		UseTLS:      tls,
+	useTLS := false
+	if fields[3] != "-" {
+		useTLS, err = strconv.ParseBool(fields[3])
+		if err != nil {
+			return nil, fmt.Errorf("parse TLS: %w", err)
+		}
+	}
+
+	return HTTPResult{
+		Entry:       entry,
+		Latency:     max(time.Millisecond, latency.Round(time.Millisecond)),
+		StatusCode:  statusCode,
+		HTTPVersion: fields[2],
+		UseTLS:      useTLS,
 	}, nil
 }

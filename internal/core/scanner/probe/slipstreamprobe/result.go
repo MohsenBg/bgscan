@@ -2,11 +2,12 @@ package slipstreamprobe
 
 import (
 	"fmt"
-	"net/netip"
+	"strconv"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // Schema defines the output format and parsing logic for Slipstream probe results.
@@ -15,7 +16,7 @@ var Schema = result.ResultSchema{
 	Directory: "slipstream",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 35, ColumnType: result.ColumnIP},
+		{Name: "Target", Width: 35, ColumnType: result.ColumnHost},
 		{Name: "Latency", Width: 15, ColumnType: result.ColumnDuration},
 		{Name: "Port", Width: 10},
 		{Name: "Auth", Width: 20},
@@ -27,92 +28,76 @@ var Schema = result.ResultSchema{
 
 // SlipstreamResult represents the outcome of a single Slipstream tunnel probe.
 type SlipstreamResult struct {
-	IP                netip.Addr
+	Entry             target.Entry          // The row that produced this result.
 	Latency           time.Duration         // Measures only the proxy validation phase, reflecting tunnel quality rather than startup overhead.
 	Port              uint16                // Local SOCKS5 port allocated for this run.
 	AuthMethod        dns.AuthMethod        // How the tunnel authenticates.
 	ResolverProxyType dns.ResolverProxyType // Proxy type used to reach the resolver.
 }
 
-// Key returns the IP address string used for result deduplication.
-func (r SlipstreamResult) Key() string {
-	return r.IP.String()
-}
+// Key returns the identity of the probed target with probe index prefix.
+func (r SlipstreamResult) Key() string { return r.Entry.Key() }
 
 // KeyType implements result.Result, identifying this as an IP-based key.
-func (r SlipstreamResult) KeyType() result.KeyType {
-	return result.KeyIP
+func (r SlipstreamResult) KeyType() target.Kind {
+	return r.Entry.Kind
 }
 
-// Equal reports whether r and other represent the same target IP.
+// Equal reports whether r and other point at the same target.
 func (r SlipstreamResult) Equal(rs result.Result) bool {
-	return r.IP.String() == rs.Key()
+	return r.Key() == rs.Key()
 }
 
 // ToRecord serializes the result into a string slice for tabular output.
+// The target comes first, in value,port,path,enable form; the measurements
+// follow.
 func (r SlipstreamResult) ToRecord() []string {
-	return []string{
-		r.IP.String(),
+	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),
 		fmt.Sprintf("%d", r.Port),
 		string(r.AuthMethod),
 		string(r.ResolverProxyType),
-	}
+	)
 }
 
 // Score rates lower latency higher; sub-millisecond values clamp to 1ms to
 // avoid dividing by zero.
 func (r SlipstreamResult) Score() float64 {
-	ms := float64(r.Latency.Milliseconds())
-	if ms < 1 {
-		ms = 1
-	}
-	return 1000.0 / ms
+	return 1000 / float64(max(1, r.Latency.Milliseconds()))
 }
 
 // parseSlipstreamResult reconstructs a SlipstreamResult from a string slice.
-// It provides backward compatibility for older records that only contain IP and latency.
 func parseSlipstreamResult(record []string) (result.Result, error) {
-	if len(record) < 2 {
+	const entryFields = 4
+	const resultFields = 4
+
+	if len(record) < entryFields+resultFields {
 		return nil, fmt.Errorf(
-			"invalid Slipstream result record: expected at least 2 fields, got %d",
+			"invalid Slipstream result record: expected at least %d fields, got %d",
+			entryFields+resultFields,
 			len(record),
 		)
 	}
 
-	ip, err := netip.ParseAddr(record[0])
+	entry, err := target.ParseRecord(record[:entryFields])
 	if err != nil {
-		return nil, fmt.Errorf("parse IP: %w", err)
+		return nil, fmt.Errorf("parse target: %w", err)
 	}
 
-	latency, err := time.ParseDuration(record[1])
+	latencyRaw, portRaw, authRaw, proxyRaw := record[entryFields], record[entryFields+1], record[entryFields+2], record[entryFields+3]
+
+	latency, err := time.ParseDuration(latencyRaw)
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
 	}
 
-	// Backward compatibility: old records had only IP + Latency.
-	var port uint16
-	if len(record) >= 3 {
-		if _, err := fmt.Sscanf(record[2], "%d", &port); err != nil {
-			return nil, fmt.Errorf("parse port: %w", err)
-		}
-	}
-
-	var authMethod dns.AuthMethod
-	var proxyType dns.ResolverProxyType
-	if len(record) >= 5 {
-		authMethod = dns.ParseAuthMethod(record[3])
-		proxyType = dns.ParseResolverProxyType(record[4])
-	} else {
-		authMethod = dns.AuthNone
-		proxyType = dns.ResolverProxySOCKS
-	}
+	port, _ := strconv.ParseUint(portRaw, 10, 16)
 
 	return SlipstreamResult{
-		IP:                ip,
+		Entry:             entry,
 		Latency:           latency,
-		Port:              port,
-		AuthMethod:        authMethod,
-		ResolverProxyType: proxyType,
+		Port:              uint16(port),
+		AuthMethod:        dns.ParseAuthMethod(authRaw),
+		ResolverProxyType: dns.ParseResolverProxyType(proxyRaw),
 	}, nil
 }

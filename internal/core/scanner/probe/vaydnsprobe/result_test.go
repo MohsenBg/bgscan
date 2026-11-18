@@ -7,14 +7,24 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
+
+// mustEntry wraps an address in the single-address row a probe now receives.
+func mustEntry(t *testing.T, s string) target.Entry {
+	t.Helper()
+
+	addr := netip.MustParseAddr(s)
+
+	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
+}
 
 func TestVayDNSResult_ToRecord(t *testing.T) {
 	r := VayDNSResult{
-		IP:                netip.MustParseAddr("1.2.3.4"),
+		Entry:             mustEntry(t, "1.2.3.4"),
 		Latency:           125 * time.Millisecond,
-		Transport:         dns.ResolverTypeUDP,
 		Port:              1080,
+		Transport:         dns.ResolverTypeUDP,
 		AuthMethod:        dns.AuthNone,
 		ResolverProxyType: dns.ResolverProxySOCKS,
 	}
@@ -22,10 +32,13 @@ func TestVayDNSResult_ToRecord(t *testing.T) {
 	got := r.ToRecord()
 
 	want := []string{
-		"1.2.3.4",
+		"1.2.3.4/32",
+		"0",
+		"",
+		"1",
 		"125.00ms",
-		string(dns.ResolverTypeUDP),
 		"1080",
+		string(dns.ResolverTypeUDP),
 		"none",
 		"socks",
 	}
@@ -91,26 +104,27 @@ func TestVayDNSResult_Score(t *testing.T) {
 }
 
 func TestVayDNSResult_Key(t *testing.T) {
+	entry := mustEntry(t, "2001:db8::1")
 	r := VayDNSResult{
-		IP: netip.MustParseAddr("2001:db8::1"),
+		Entry: entry,
 	}
 
-	if got := r.Key(); got != "2001:db8::1" {
-		t.Errorf("Key() = %q, want %q", got, "2001:db8::1")
+	if got := r.Key(); got != entry.Key() {
+		t.Errorf("Key() = %q, want %q", got, entry.Key())
 	}
 }
 
 func TestVayDNSResult_KeyType(t *testing.T) {
 	r := VayDNSResult{}
 
-	if got := r.KeyType(); got != result.KeyIP {
-		t.Errorf("KeyType() = %v, want %v", got, result.KeyIP)
+	if got := r.KeyType(); got != target.KindIP {
+		t.Errorf("KeyType() = %v, want %v", got, target.KindIP)
 	}
 }
 
 func TestVayDNSResult_Equal(t *testing.T) {
 	r := VayDNSResult{
-		IP: netip.MustParseAddr("1.2.3.4"),
+		Entry: mustEntry(t, "1.2.3.4"),
 	}
 
 	tests := []struct {
@@ -121,14 +135,14 @@ func TestVayDNSResult_Equal(t *testing.T) {
 		{
 			name: "same IP",
 			rs: VayDNSResult{
-				IP: netip.MustParseAddr("1.2.3.4"),
+				Entry: mustEntry(t, "1.2.3.4"),
 			},
 			want: true,
 		},
 		{
 			name: "different IP",
 			rs: VayDNSResult{
-				IP: netip.MustParseAddr("5.6.7.8"),
+				Entry: mustEntry(t, "5.6.7.8"),
 			},
 			want: false,
 		},
@@ -153,74 +167,121 @@ func TestParseVayDNSResult(t *testing.T) {
 		{
 			name: "full record",
 			record: []string{
-				"1.2.3.4",
+				"1.2.3.4/32", "0", "", "1",
 				"125ms",
-				string(dns.ResolverTypeUDP),
 				"1080",
+				string(dns.ResolverTypeUDP),
+				string(dns.AuthNone),
+				string(dns.ResolverProxySOCKS),
 			},
 			want: VayDNSResult{
-				IP:        netip.MustParseAddr("1.2.3.4"),
-				Latency:   125 * time.Millisecond,
-				Transport: dns.ResolverTypeUDP,
-				Port:      1080,
+				Entry:             mustEntry(t, "1.2.3.4"),
+				Latency:           125 * time.Millisecond,
+				Port:              1080,
+				Transport:         dns.ResolverTypeUDP,
+				AuthMethod:        dns.AuthNone,
+				ResolverProxyType: dns.ResolverProxySOCKS,
 			},
 		},
 		{
-			name: "legacy record",
+			name: "record with port and path",
 			record: []string{
-				"1.2.3.4",
+				"192.0.2.10/32", "8443", "/probe", "1",
 				"125ms",
+				"1080",
+				string(dns.ResolverTypeUDP),
+				string(dns.AuthPassword),
+				string(dns.ResolverProxySSH),
 			},
 			want: VayDNSResult{
-				IP:      netip.MustParseAddr("1.2.3.4"),
-				Latency: 125 * time.Millisecond,
+				Entry: target.Entry{
+					Kind:   target.KindIP,
+					IP:     netip.MustParsePrefix("192.0.2.10/32"),
+					Port:   8443,
+					Path:   "/probe",
+					Enable: true,
+				},
+				Latency:           125 * time.Millisecond,
+				Port:              1080,
+				Transport:         dns.ResolverTypeUDP,
+				AuthMethod:        dns.AuthPassword,
+				ResolverProxyType: dns.ResolverProxySSH,
 			},
 		},
 		{
 			name: "IPv6",
 			record: []string{
-				"2001:db8::1",
+				"2001:db8::1/128", "0", "", "1",
 				"250ms",
-				string(dns.ResolverTypeUDP),
 				"5353",
+				string(dns.ResolverTypeUDP),
+				string(dns.AuthNone),
+				string(dns.ResolverProxySOCKS),
 			},
 			want: VayDNSResult{
-				IP:        netip.MustParseAddr("2001:db8::1"),
-				Latency:   250 * time.Millisecond,
-				Transport: dns.ResolverTypeUDP,
-				Port:      5353,
+				Entry:             mustEntry(t, "2001:db8::1"),
+				Latency:           250 * time.Millisecond,
+				Port:              5353,
+				Transport:         dns.ResolverTypeUDP,
+				AuthMethod:        dns.AuthNone,
+				ResolverProxyType: dns.ResolverProxySOCKS,
 			},
 		},
 		{
 			name:      "missing fields",
-			record:    []string{"1.2.3.4"},
+			record:    []string{"1.2.3.4/32", "0", "", "1"},
+			wantError: true,
+		},
+		{
+			name: "legacy record rejected",
+			record: []string{
+				"1.2.3.4/32", "0", "", "1",
+				"125ms",
+			},
 			wantError: true,
 		},
 		{
 			name: "invalid IP",
 			record: []string{
-				"not-an-ip",
+				"not-an-ip", "0", "", "1",
 				"100ms",
+				"1080",
+				string(dns.ResolverTypeUDP),
+				string(dns.AuthNone),
+				string(dns.ResolverProxySOCKS),
 			},
 			wantError: true,
 		},
 		{
 			name: "invalid latency",
 			record: []string{
-				"1.2.3.4",
+				"1.2.3.4/32", "0", "", "1",
 				"not-a-duration",
+				"1080",
+				string(dns.ResolverTypeUDP),
+				string(dns.AuthNone),
+				string(dns.ResolverProxySOCKS),
 			},
 			wantError: true,
 		},
 		{
-			name: "invalid port",
+			name: "invalid port defaults to zero",
 			record: []string{
-				"1.2.3.4",
+				"1.2.3.4/32", "0", "", "1",
 				"100ms",
-				string(dns.ResolverTypeUDP),
 				"invalid",
+				string(dns.ResolverTypeUDP),
+				string(dns.AuthNone),
+				string(dns.ResolverProxySOCKS),
 			},
-			wantError: true,
+			want: VayDNSResult{
+				Entry:             mustEntry(t, "1.2.3.4"),
+				Latency:           100 * time.Millisecond,
+				Port:              0,
+				Transport:         dns.ResolverTypeUDP,
+				AuthMethod:        dns.AuthNone,
+				ResolverProxyType: dns.ResolverProxySOCKS,
+			},
 		},
 	}
 
@@ -244,8 +305,8 @@ func TestParseVayDNSResult(t *testing.T) {
 				t.Fatalf("parseVayDNSResult() returned %T, want VayDNSResult", got)
 			}
 
-			if result.IP != tt.want.IP {
-				t.Errorf("IP = %v, want %v", result.IP, tt.want.IP)
+			if result.Entry.Key() != tt.want.Entry.Key() {
+				t.Errorf("Entry = %v, want %v", result.Entry, tt.want.Entry)
 			}
 
 			if result.Latency != tt.want.Latency {
@@ -256,9 +317,6 @@ func TestParseVayDNSResult(t *testing.T) {
 				t.Errorf("Transport = %v, want %v", result.Transport, tt.want.Transport)
 			}
 
-			if result.Port != tt.want.Port {
-				t.Errorf("Port = %d, want %d", result.Port, tt.want.Port)
-			}
 		})
 	}
 }

@@ -8,7 +8,13 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
+
+// entryOf wraps an address in the single-address row a probe now receives.
+func entryOf(addr netip.Addr) target.Entry {
+	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
+}
 
 func mustAddr(t *testing.T, s string) netip.Addr {
 	t.Helper()
@@ -24,11 +30,11 @@ func TestDNSTTResult_Key(t *testing.T) {
 	t.Parallel()
 
 	r := DNSTTResult{
-		IP: mustAddr(t, "1.2.3.4"),
+		Entry: entryOf(mustAddr(t, "1.2.3.4")),
 	}
 
 	got := r.Key()
-	want := "1.2.3.4"
+	want := "0:1.2.3.4/32:0:"
 
 	if got != want {
 		t.Fatalf("Key() = %q, want %q", got, want)
@@ -41,8 +47,8 @@ func TestDNSTTResult_KeyType(t *testing.T) {
 	r := DNSTTResult{}
 	got := r.KeyType()
 
-	if got != result.KeyIP {
-		t.Fatalf("KeyType() = %v, want %v", got, result.KeyIP)
+	if got != target.KindIP {
+		t.Fatalf("KeyType() = %v, want %v", got, target.KindIP)
 	}
 }
 
@@ -50,7 +56,7 @@ func TestDNSTTResult_Equal(t *testing.T) {
 	t.Parallel()
 
 	base := DNSTTResult{
-		IP: mustAddr(t, "8.8.8.8"),
+		Entry: entryOf(mustAddr(t, "8.8.8.8")),
 	}
 
 	tests := []struct {
@@ -61,21 +67,21 @@ func TestDNSTTResult_Equal(t *testing.T) {
 		{
 			name: "same ip",
 			other: DNSTTResult{
-				IP: mustAddr(t, "8.8.8.8"),
+				Entry: entryOf(mustAddr(t, "8.8.8.8")),
 			},
 			want: true,
 		},
 		{
 			name: "different ip",
 			other: DNSTTResult{
-				IP: mustAddr(t, "1.1.1.1"),
+				Entry: entryOf(mustAddr(t, "1.1.1.1")),
 			},
 			want: false,
 		},
 		{
 			name: "same key different fields",
 			other: DNSTTResult{
-				IP:        mustAddr(t, "8.8.8.8"),
+				Entry:     entryOf(mustAddr(t, "8.8.8.8")),
 				Latency:   250 * time.Millisecond,
 				Transport: dns.ResolverType("doh"),
 				Port:      1080,
@@ -101,7 +107,7 @@ func TestDNSTTResult_ToRecord(t *testing.T) {
 	t.Parallel()
 
 	r := DNSTTResult{
-		IP:        mustAddr(t, "2001:db8::1"),
+		Entry:     entryOf(mustAddr(t, "2001:db8::1")),
 		Latency:   1500 * time.Millisecond,
 		Transport: dns.ResolverType("udp"),
 		Port:      1080,
@@ -109,7 +115,7 @@ func TestDNSTTResult_ToRecord(t *testing.T) {
 
 	got := r.ToRecord()
 	want := []string{
-		"2001:db8::1",
+		"2001:db8::1/128", "0", "", "1",
 		"1.50s",
 		"udp",
 		"1080",
@@ -175,43 +181,29 @@ func TestDNSTTResult_Score(t *testing.T) {
 func TestParseDNSTTResult_BackwardCompatibleOldFormat(t *testing.T) {
 	t.Parallel()
 
+	// Old format is no longer supported; this test verifies it's rejected.
 	record := []string{
 		"1.1.1.1",
 		"250ms",
 	}
 
-	got, err := parseDNSTTResult(record)
-	if err != nil {
-		t.Fatalf("parseDNSTTResult() error = %v", err)
-	}
-
-	res, ok := got.(DNSTTResult)
-	if !ok {
-		t.Fatalf("parseDNSTTResult() type = %T, want DNSTTResult", got)
-	}
-
-	if res.IP != mustAddr(t, "1.1.1.1") {
-		t.Fatalf("IP = %v, want %v", res.IP, mustAddr(t, "1.1.1.1"))
-	}
-	if res.Latency != 250*time.Millisecond {
-		t.Fatalf("Latency = %v, want %v", res.Latency, 250*time.Millisecond)
-	}
-	if res.Transport != "" {
-		t.Fatalf("Transport = %q, want empty", res.Transport)
-	}
-	if res.Port != 0 {
-		t.Fatalf("Port = %d, want 0", res.Port)
+	_, err := parseDNSTTResult(record)
+	if err == nil {
+		t.Fatal("expected error for legacy two-field record")
 	}
 }
 
 func TestParseDNSTTResult_NewFormat(t *testing.T) {
 	t.Parallel()
 
+	// New format: entry fields (value, port, path, enable) + result fields (latency, transport, port, auth, proxy)
 	record := []string{
-		"8.8.8.8",
+		"8.8.8.8/32", "0", "", "1",
 		"150ms",
 		"udp",
 		"1080",
+		"none",
+		"socks",
 	}
 
 	got, err := parseDNSTTResult(record)
@@ -224,17 +216,23 @@ func TestParseDNSTTResult_NewFormat(t *testing.T) {
 		t.Fatalf("parseDNSTTResult() type = %T, want DNSTTResult", got)
 	}
 
-	want := DNSTTResult{
-		IP:                mustAddr(t, "8.8.8.8"),
-		Latency:           150 * time.Millisecond,
-		Transport:         dns.ParseResolverType("udp"),
-		Port:              1080,
-		AuthMethod:        dns.AuthNone,
-		ResolverProxyType: dns.ResolverProxySOCKS,
+	if res.Entry.IP.Addr() != mustAddr(t, "8.8.8.8") {
+		t.Fatalf("IP = %v, want %v", res.Entry.IP.Addr(), mustAddr(t, "8.8.8.8"))
 	}
-
-	if res != want {
-		t.Fatalf("parseDNSTTResult() = %#v, want %#v", res, want)
+	if res.Latency != 150*time.Millisecond {
+		t.Fatalf("Latency = %v, want %v", res.Latency, 150*time.Millisecond)
+	}
+	if res.Transport != dns.ParseResolverType("udp") {
+		t.Fatalf("Transport = %q, want %q", res.Transport, dns.ParseResolverType("udp"))
+	}
+	if res.Port != 1080 {
+		t.Fatalf("Port = %d, want %d", res.Port, 1080)
+	}
+	if res.AuthMethod != dns.AuthNone {
+		t.Fatalf("AuthMethod = %q, want %q", res.AuthMethod, dns.AuthNone)
+	}
+	if res.ResolverProxyType != dns.ResolverProxySOCKS {
+		t.Fatalf("ResolverProxyType = %q, want %q", res.ResolverProxyType, dns.ResolverProxySOCKS)
 	}
 }
 
@@ -242,10 +240,12 @@ func TestParseDNSTTResult_IPv6(t *testing.T) {
 	t.Parallel()
 
 	record := []string{
-		"2001:db8::5",
+		"2001:db8::5/128", "0", "", "1",
 		"2.00s",
 		"doh",
 		"9050",
+		"none",
+		"socks",
 	}
 
 	got, err := parseDNSTTResult(record)
@@ -258,8 +258,8 @@ func TestParseDNSTTResult_IPv6(t *testing.T) {
 		t.Fatalf("parseDNSTTResult() type = %T, want DNSTTResult", got)
 	}
 
-	if res.IP != mustAddr(t, "2001:db8::5") {
-		t.Fatalf("IP = %v, want %v", res.IP, mustAddr(t, "2001:db8::5"))
+	if res.Entry.IP.Addr() != mustAddr(t, "2001:db8::5") {
+		t.Fatalf("IP = %v, want %v", res.Entry.IP.Addr(), mustAddr(t, "2001:db8::5"))
 	}
 	if res.Latency != 2*time.Second {
 		t.Fatalf("Latency = %v, want %v", res.Latency, 2*time.Second)
@@ -276,24 +276,35 @@ func TestParseDNSTTResult_Errors(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name   string
-		record []string
+		name        string
+		record      []string
+		wantError   bool
+		checkResult func(t *testing.T, res DNSTTResult)
 	}{
 		{
-			name:   "too few fields",
-			record: []string{"1.1.1.1"},
+			name:      "too few fields",
+			record:    []string{"1.1.1.1/32", "0", "", "1"},
+			wantError: true,
 		},
 		{
-			name:   "invalid ip",
-			record: []string{"not-an-ip", "100ms"},
+			name:      "invalid ip",
+			record:    []string{"not-an-ip", "0", "", "1", "100ms", "udp", "1080", "none", "socks"},
+			wantError: true,
 		},
 		{
-			name:   "invalid latency",
-			record: []string{"1.1.1.1", "not-a-duration"},
+			name:      "invalid latency",
+			record:    []string{"1.1.1.1/32", "0", "", "1", "not-a-duration", "udp", "1080", "none", "socks"},
+			wantError: true,
 		},
 		{
-			name:   "invalid port",
-			record: []string{"1.1.1.1", "100ms", "udp", "not-a-port"},
+			name:      "invalid port defaults to zero",
+			record:    []string{"1.1.1.1/32", "0", "", "1", "100ms", "udp", "not-a-port", "none", "socks"},
+			wantError: false,
+			checkResult: func(t *testing.T, res DNSTTResult) {
+				if res.Port != 0 {
+					t.Fatalf("Port = %d, want 0 for invalid port", res.Port)
+				}
+			},
 		},
 	}
 
@@ -303,8 +314,21 @@ func TestParseDNSTTResult_Errors(t *testing.T) {
 			t.Parallel()
 
 			got, err := parseDNSTTResult(tt.record)
-			if err == nil {
-				t.Fatalf("expected error, got result = %#v", got)
+			if tt.wantError {
+				if err == nil {
+					t.Fatalf("expected error, got result = %#v", got)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				res, ok := got.(DNSTTResult)
+				if !ok {
+					t.Fatalf("parseDNSTTResult() type = %T, want DNSTTResult", got)
+				}
+				if tt.checkResult != nil {
+					tt.checkResult(t, res)
+				}
 			}
 		})
 	}
@@ -325,7 +349,7 @@ func TestSchema_Metadata(t *testing.T) {
 		t.Fatalf("len(Schema.Columns) = %d, want 6", len(Schema.Columns))
 	}
 
-	wantNames := []string{"IP", "Latency", "Transport", "Port", "Auth", "Proxy"}
+	wantNames := []string{"Target", "Latency", "Transport", "Port", "Auth", "Proxy"}
 	for i, want := range wantNames {
 		if Schema.Columns[i].Name != want {
 			t.Fatalf("Schema.Columns[%d].Name = %q, want %q", i, Schema.Columns[i].Name, want)
@@ -340,7 +364,7 @@ func TestSchema_Metadata(t *testing.T) {
 func TestSchema_Parser(t *testing.T) {
 	t.Parallel()
 
-	record := []string{"9.9.9.9", "300ms", "dot", "1081"}
+	record := []string{"9.9.9.9/32", "0", "", "1", "300ms", "dot", "1081", "none", "socks"}
 
 	got, err := Schema.Parser(record)
 	if err != nil {
@@ -352,8 +376,8 @@ func TestSchema_Parser(t *testing.T) {
 		t.Fatalf("Schema.Parser() type = %T, want DNSTTResult", got)
 	}
 
-	if res.IP != mustAddr(t, "9.9.9.9") {
-		t.Fatalf("IP = %v, want %v", res.IP, mustAddr(t, "9.9.9.9"))
+	if res.Entry.IP.Addr() != mustAddr(t, "9.9.9.9") {
+		t.Fatalf("IP = %v, want %v", res.Entry.IP.Addr(), mustAddr(t, "9.9.9.9"))
 	}
 	if res.Latency != 300*time.Millisecond {
 		t.Fatalf("Latency = %v, want %v", res.Latency, 300*time.Millisecond)

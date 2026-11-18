@@ -5,8 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/dns"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
+
+// entryOf wraps an address in the single-address row a probe now receives.
+func entryOf(addr netip.Addr) target.Entry {
+	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
+}
 
 // mustParseIP parses an IP address string, failing the test if invalid.
 func mustParseIP(t *testing.T, s string) netip.Addr {
@@ -39,7 +45,7 @@ func TestSchema(t *testing.T) {
 		name  string
 		width int
 	}{
-		{name: "IP", width: 35},
+		{name: "Target", width: 35},
 		{name: "Latency", width: 15},
 		{name: "Port", width: 10},
 		{name: "Auth", width: 20},
@@ -64,11 +70,11 @@ func TestSlipstreamResultKey(t *testing.T) {
 	t.Parallel()
 
 	r := SlipstreamResult{
-		IP: mustParseIP(t, "192.0.2.10"),
+		Entry: entryOf(mustParseIP(t, "192.0.2.10")),
 	}
 
-	if got := r.Key(); got != "192.0.2.10" {
-		t.Fatalf("Key() = %q, want %q", got, "192.0.2.10")
+	if got := r.Key(); got != "192.0.2.10/32:0:" {
+		t.Fatalf("Key() = %q, want %q", got, "192.0.2.10/32:0:")
 	}
 }
 
@@ -77,17 +83,17 @@ func TestSlipstreamResultKeyType(t *testing.T) {
 
 	r := SlipstreamResult{}
 
-	if got := r.KeyType(); got != result.KeyIP {
-		t.Fatalf("KeyType() = %v, want %v", got, result.KeyIP)
+	if got := r.KeyType(); got != target.KindIP {
+		t.Fatalf("KeyType() = %v, want %v", got, target.KindIP)
 	}
 }
 
 func TestSlipstreamResultEqual(t *testing.T) {
 	t.Parallel()
 
-	r1 := SlipstreamResult{IP: mustParseIP(t, "198.51.100.1")}
-	r2 := SlipstreamResult{IP: mustParseIP(t, "198.51.100.1")}
-	r3 := SlipstreamResult{IP: mustParseIP(t, "198.51.100.2")}
+	r1 := SlipstreamResult{Entry: entryOf(mustParseIP(t, "198.51.100.1"))}
+	r2 := SlipstreamResult{Entry: entryOf(mustParseIP(t, "198.51.100.1"))}
+	r3 := SlipstreamResult{Entry: entryOf(mustParseIP(t, "198.51.100.2"))}
 
 	if !r1.Equal(r2) {
 		t.Fatal("Equal() = false, want true for same IP")
@@ -102,13 +108,13 @@ func TestSlipstreamResultToRecord(t *testing.T) {
 	t.Parallel()
 
 	r := SlipstreamResult{
-		IP:      mustParseIP(t, "203.0.113.5"),
+		Entry:   entryOf(mustParseIP(t, "203.0.113.5")),
 		Latency: 25 * time.Millisecond,
 		Port:    1080,
 	}
 
 	got := r.ToRecord()
-	want := []string{"203.0.113.5", "25.00ms", "1080", "", ""}
+	want := []string{"203.0.113.5/32", "0", "", "1", "25.00ms", "1080", "", ""}
 
 	if len(got) != len(want) {
 		t.Fatalf("len(ToRecord()) = %d, want %d", len(got), len(want))
@@ -185,55 +191,56 @@ func TestParseSlipstreamResult(t *testing.T) {
 	}{
 		{
 			name:   "valid full record",
-			record: []string{"192.0.2.1", "25ms", "1080"},
+			record: []string{"192.0.2.1/32", "0", "", "1", "25ms", "1080", "none", "socks"},
 			want: SlipstreamResult{
-				IP:      mustParseIP(t, "192.0.2.1"),
-				Latency: 25 * time.Millisecond,
-				Port:    1080,
+				Entry:             entryOf(mustParseIP(t, "192.0.2.1")),
+				Latency:           25 * time.Millisecond,
+				Port:              1080,
+				AuthMethod:        dns.AuthNone,
+				ResolverProxyType: dns.ResolverProxySOCKS,
 			},
 		},
 		{
-			name:   "legacy two field record",
-			record: []string{"192.0.2.2", "40ms"},
-			want: SlipstreamResult{
-				IP:      mustParseIP(t, "192.0.2.2"),
-				Latency: 40 * time.Millisecond,
-				Port:    0,
-			},
-		},
-		{
-			name:   "extra fields ignored",
-			record: []string{"192.0.2.3", "12ms", "9050", "extra"},
-			want: SlipstreamResult{
-				IP:      mustParseIP(t, "192.0.2.3"),
-				Latency: 12 * time.Millisecond,
-				Port:    9050,
-			},
+			name:      "legacy two field record rejected",
+			record:    []string{"192.0.2.2/32", "0", "", "1", "40ms"},
+			wantError: true,
 		},
 		{
 			name:      "too few fields",
-			record:    []string{"192.0.2.4"},
+			record:    []string{"192.0.2.4/32", "0", "", "1"},
 			wantError: true,
 		},
 		{
 			name:      "invalid ip",
-			record:    []string{"not-an-ip", "10ms", "1080"},
+			record:    []string{"not-an-ip", "0", "", "1", "10ms", "1080", "none", "socks"},
 			wantError: true,
 		},
 		{
 			name:      "invalid latency",
-			record:    []string{"192.0.2.5", "bad-duration", "1080"},
+			record:    []string{"192.0.2.5/32", "0", "", "1", "bad-duration", "1080", "none", "socks"},
 			wantError: true,
 		},
 		{
-			name:      "invalid port",
-			record:    []string{"192.0.2.6", "10ms", "bad-port"},
-			wantError: true,
+			name:   "invalid port defaults to zero",
+			record: []string{"192.0.2.6/32", "0", "", "1", "10ms", "bad-port", "none", "socks"},
+			want: SlipstreamResult{
+				Entry:             entryOf(mustParseIP(t, "192.0.2.6")),
+				Latency:           10 * time.Millisecond,
+				Port:              0,
+				AuthMethod:        dns.AuthNone,
+				ResolverProxyType: dns.ResolverProxySOCKS,
+			},
 		},
 		{
-			name:      "negative port",
-			record:    []string{"192.0.2.7", "10ms", "-1"},
-			wantError: true,
+			name:   "negative port defaults to zero",
+			record: []string{"192.0.2.7/32", "0", "", "1", "10ms", "-1", "none", "socks"},
+			want: SlipstreamResult{
+				Entry:             entryOf(mustParseIP(t, "192.0.2.7")),
+				Latency:           10 * time.Millisecond,
+				Port:              0,
+				AuthMethod:        dns.AuthNone,
+				ResolverProxyType: dns.ResolverProxySOCKS,
+			},
 		},
 	}
 
@@ -259,14 +266,20 @@ func TestParseSlipstreamResult(t *testing.T) {
 				t.Fatalf("parseSlipstreamResult() type = %T, want SlipstreamResult", got)
 			}
 
-			if res.IP != tt.want.IP {
-				t.Fatalf("IP = %v, want %v", res.IP, tt.want.IP)
+			if res.Entry.IP.Addr() != tt.want.Entry.IP.Addr() {
+				t.Fatalf("IP = %v, want %v", res.Entry.IP.Addr(), tt.want.Entry.IP.Addr())
 			}
 			if res.Latency != tt.want.Latency {
 				t.Fatalf("Latency = %v, want %v", res.Latency, tt.want.Latency)
 			}
 			if res.Port != tt.want.Port {
 				t.Fatalf("Port = %d, want %d", res.Port, tt.want.Port)
+			}
+			if res.AuthMethod != tt.want.AuthMethod {
+				t.Fatalf("AuthMethod = %q, want %q", res.AuthMethod, tt.want.AuthMethod)
+			}
+			if res.ResolverProxyType != tt.want.ResolverProxyType {
+				t.Fatalf("ResolverProxyType = %q, want %q", res.ResolverProxyType, tt.want.ResolverProxyType)
 			}
 		})
 	}

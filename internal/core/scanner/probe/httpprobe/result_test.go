@@ -7,23 +7,30 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
+
+// entryOf wraps an address in the single-address row a probe now receives.
+func entryOf(addr netip.Addr) target.Entry {
+	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
+}
 
 func TestHTTPResult_Key(t *testing.T) {
 	tests := []struct {
 		name string
 		ip   string
+		want string
 	}{
-		{"IPv4", "192.168.1.1"},
-		{"IPv6", "2001:db8::1"},
-		{"loopback", "127.0.0.1"},
+		{"IPv4", "192.168.1.1", "192.168.1.1/32:0:"},
+		{"IPv6", "2001:db8::1", "2001:db8::1/128:0:"},
+		{"loopback", "127.0.0.1", "127.0.0.1/32:0:"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := HTTPResult{IP: netip.MustParseAddr(tt.ip)}
-			if got := r.Key(); got != tt.ip {
-				t.Errorf("Key() = %q, want %q", got, tt.ip)
+			r := HTTPResult{Entry: entryOf(netip.MustParseAddr(tt.ip))}
+			if got := r.Key(); got != tt.want {
+				t.Errorf("Key() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -31,7 +38,7 @@ func TestHTTPResult_Key(t *testing.T) {
 
 func TestHTTPResult_KeyType(t *testing.T) {
 	r := HTTPResult{}
-	if got := r.KeyType(); got != result.KeyIP {
+	if got := r.KeyType(); got != target.KindIP {
 		t.Errorf("KeyType() = %v, want KeyIP", got)
 	}
 }
@@ -45,26 +52,26 @@ func TestHTTPResult_Equal(t *testing.T) {
 	}{
 		{
 			name:  "same IP",
-			r:     HTTPResult{IP: netip.MustParseAddr("10.0.0.1")},
-			other: HTTPResult{IP: netip.MustParseAddr("10.0.0.1"), StatusCode: 200},
+			r:     HTTPResult{Entry: entryOf(netip.MustParseAddr("10.0.0.1"))},
+			other: HTTPResult{Entry: entryOf(netip.MustParseAddr("10.0.0.1")), StatusCode: 200},
 			want:  true,
 		},
 		{
 			name:  "different IP",
-			r:     HTTPResult{IP: netip.MustParseAddr("10.0.0.1")},
-			other: HTTPResult{IP: netip.MustParseAddr("10.0.0.2")},
+			r:     HTTPResult{Entry: entryOf(netip.MustParseAddr("10.0.0.1"))},
+			other: HTTPResult{Entry: entryOf(netip.MustParseAddr("10.0.0.2"))},
 			want:  false,
 		},
 		{
 			name:  "same IPv6",
-			r:     HTTPResult{IP: netip.MustParseAddr("::1")},
-			other: HTTPResult{IP: netip.MustParseAddr("::1")},
+			r:     HTTPResult{Entry: entryOf(netip.MustParseAddr("::1"))},
+			other: HTTPResult{Entry: entryOf(netip.MustParseAddr("::1"))},
 			want:  true,
 		},
 		{
 			name:  "different IPv6",
-			r:     HTTPResult{IP: netip.MustParseAddr("::1")},
-			other: HTTPResult{IP: netip.MustParseAddr("::2")},
+			r:     HTTPResult{Entry: entryOf(netip.MustParseAddr("::1"))},
+			other: HTTPResult{Entry: entryOf(netip.MustParseAddr("::2"))},
 			want:  false,
 		},
 	}
@@ -80,7 +87,7 @@ func TestHTTPResult_Equal(t *testing.T) {
 
 func TestHTTPResult_ToRecord_Full(t *testing.T) {
 	r := HTTPResult{
-		IP:          netip.MustParseAddr("93.184.216.34"),
+		Entry:       entryOf(netip.MustParseAddr("93.184.216.34")),
 		Latency:     150 * time.Millisecond,
 		StatusCode:  200,
 		HTTPVersion: "HTTP/2.0",
@@ -89,11 +96,11 @@ func TestHTTPResult_ToRecord_Full(t *testing.T) {
 
 	rec := r.ToRecord()
 
-	if len(rec) != 5 {
-		t.Fatalf("len = %d, want 5", len(rec))
+	want := []string{"93.184.216.34/32", "0", "", "1", "150.00ms", "200", "HTTP/2.0", "true"}
+	if len(rec) != len(want) {
+		t.Fatalf("len = %d, want %d", len(rec), len(want))
 	}
 
-	want := []string{"93.184.216.34", "150.00ms", "200", "HTTP/2.0", "true"}
 	for i, w := range want {
 		if rec[i] != w {
 			t.Errorf("record[%d] = %q, want %q", i, rec[i], w)
@@ -103,7 +110,7 @@ func TestHTTPResult_ToRecord_Full(t *testing.T) {
 
 func TestHTTPResult_ToRecord_NoTLS(t *testing.T) {
 	r := HTTPResult{
-		IP:          netip.MustParseAddr("10.0.0.1"),
+		Entry:       entryOf(netip.MustParseAddr("10.0.0.1")),
 		Latency:     25 * time.Millisecond,
 		StatusCode:  301,
 		HTTPVersion: "HTTP/1.1",
@@ -112,11 +119,11 @@ func TestHTTPResult_ToRecord_NoTLS(t *testing.T) {
 
 	rec := r.ToRecord()
 
-	if rec[2] != "301" {
-		t.Errorf("status = %q, want %q", rec[2], "301")
+	if rec[5] != "301" {
+		t.Errorf("status = %q, want %q", rec[5], "301")
 	}
-	if rec[4] != "false" {
-		t.Errorf("tls = %q, want %q", rec[4], "false")
+	if rec[7] != "false" {
+		t.Errorf("tls = %q, want %q", rec[7], "false")
 	}
 }
 
@@ -124,7 +131,7 @@ func TestHTTPResult_ToRecord_NoTLS(t *testing.T) {
 // status and TLS fields are rendered as "-" regardless of the UseTLS value.
 func TestHTTPResult_ToRecord_ZeroStatusCode(t *testing.T) {
 	r := HTTPResult{
-		IP:          netip.MustParseAddr("1.2.3.4"),
+		Entry:       entryOf(netip.MustParseAddr("1.2.3.4")),
 		Latency:     10 * time.Millisecond,
 		StatusCode:  0,
 		HTTPVersion: "HTTP/1.1",
@@ -133,11 +140,11 @@ func TestHTTPResult_ToRecord_ZeroStatusCode(t *testing.T) {
 
 	rec := r.ToRecord()
 
-	if rec[2] != "-" {
-		t.Errorf("status = %q, want %q for zero StatusCode", rec[2], "-")
+	if rec[5] != "-" {
+		t.Errorf("status = %q, want %q for zero StatusCode", rec[5], "-")
 	}
-	if rec[4] != "-" {
-		t.Errorf("tls = %q, want %q for zero StatusCode", rec[4], "-")
+	if rec[7] != "-" {
+		t.Errorf("tls = %q, want %q for zero StatusCode", rec[7], "-")
 	}
 }
 
@@ -145,7 +152,7 @@ func TestHTTPResult_ToRecord_VariousStatusCodes(t *testing.T) {
 	codes := []int{100, 204, 301, 403, 404, 500, 503}
 	for _, code := range codes {
 		r := HTTPResult{
-			IP:          netip.MustParseAddr("1.2.3.4"),
+			Entry:       entryOf(netip.MustParseAddr("1.2.3.4")),
 			Latency:     time.Millisecond,
 			StatusCode:  code,
 			HTTPVersion: "HTTP/1.1",
@@ -153,8 +160,8 @@ func TestHTTPResult_ToRecord_VariousStatusCodes(t *testing.T) {
 		}
 		rec := r.ToRecord()
 		want := strconv.Itoa(code)
-		if rec[2] != want {
-			t.Errorf("StatusCode %d: record[2] = %q, want %q", code, rec[2], want)
+		if rec[5] != want {
+			t.Errorf("StatusCode %d: record[5] = %q, want %q", code, rec[5], want)
 		}
 	}
 }
@@ -210,7 +217,7 @@ func TestHTTPResult_Score_Ordering(t *testing.T) {
 }
 
 func TestParseHTTPResult_FullRecord(t *testing.T) {
-	record := []string{"93.184.216.34", "150.00ms", "200", "HTTP/2.0", "true"}
+	record := []string{"93.184.216.34", "0", "", "1", "150.00ms", "200", "HTTP/2.0", "true"}
 
 	res, err := parseHTTPResult(record)
 	if err != nil {
@@ -219,8 +226,8 @@ func TestParseHTTPResult_FullRecord(t *testing.T) {
 
 	hr := res.(HTTPResult)
 
-	if hr.IP != netip.MustParseAddr("93.184.216.34") {
-		t.Errorf("IP = %v, want 93.184.216.34", hr.IP)
+	if hr.Entry.IP.Addr() != netip.MustParseAddr("93.184.216.34") {
+		t.Errorf("IP = %v, want 93.184.216.34", hr.Entry.IP.Addr())
 	}
 	if hr.Latency != 150*time.Millisecond {
 		t.Errorf("Latency = %v, want 150ms", hr.Latency)
@@ -236,53 +243,26 @@ func TestParseHTTPResult_FullRecord(t *testing.T) {
 	}
 }
 
-// TestParseHTTPResult_ShortRecord_TwoFields ensures backward compatibility
-// for legacy records containing only IP and latency.
-func TestParseHTTPResult_ShortRecord_TwoFields(t *testing.T) {
+// TestParseHTTPResult_LegacyShortRecordRejected verifies that records written
+// before the entry columns were added are no longer accepted.
+func TestParseHTTPResult_LegacyShortRecordRejected(t *testing.T) {
 	record := []string{"10.0.0.1", "42ms"}
 
-	res, err := parseHTTPResult(record)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	hr := res.(HTTPResult)
-
-	if hr.IP != netip.MustParseAddr("10.0.0.1") {
-		t.Errorf("IP = %v, want 10.0.0.1", hr.IP)
-	}
-	if hr.Latency != 42*time.Millisecond {
-		t.Errorf("Latency = %v, want 42ms", hr.Latency)
-	}
-	if hr.StatusCode != 0 {
-		t.Errorf("StatusCode = %d, want 0", hr.StatusCode)
-	}
-	if hr.HTTPVersion != "-" {
-		t.Errorf("HTTPVersion = %q, want %q", hr.HTTPVersion, "-")
-	}
-	if hr.UseTLS {
-		t.Error("UseTLS = true, want false")
+	if _, err := parseHTTPResult(record); err == nil {
+		t.Fatal("expected error for legacy two-field record")
 	}
 }
 
-// TestParseHTTPResult_ThreeFields_TreatedAsShort verifies that records with
-// 3 or 4 fields skip status parsing, as the parser requires > 4 fields.
-func TestParseHTTPResult_ThreeFields_TreatedAsShort(t *testing.T) {
-	record := []string{"1.2.3.4", "10ms", "200"}
+func TestParseHTTPResult_FiveFieldsRejected(t *testing.T) {
+	record := []string{"1.2.3.4", "10ms", "200", "HTTP/1.1", "true"}
 
-	res, err := parseHTTPResult(record)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	hr := res.(HTTPResult)
-	if hr.StatusCode != 0 {
-		t.Errorf("StatusCode = %d, want 0 (fields <= 4 not parsed)", hr.StatusCode)
+	if _, err := parseHTTPResult(record); err == nil {
+		t.Fatal("expected error for five-field record")
 	}
 }
 
-func TestParseHTTPResult_FiveFields_NoTLS(t *testing.T) {
-	record := []string{"172.16.0.1", "30ms", "404", "HTTP/1.1", "false"}
+func TestParseHTTPResult_NoTLS(t *testing.T) {
+	record := []string{"172.16.0.1", "0", "", "1", "30ms", "404", "HTTP/1.1", "false"}
 
 	res, err := parseHTTPResult(record)
 	if err != nil {
@@ -302,7 +282,7 @@ func TestParseHTTPResult_FiveFields_NoTLS(t *testing.T) {
 }
 
 func TestParseHTTPResult_LatencyRounded(t *testing.T) {
-	record := []string{"1.2.3.4", "42.6ms", "200", "HTTP/1.1", "true"}
+	record := []string{"1.2.3.4", "0", "", "1", "42.6ms", "200", "HTTP/1.1", "true"}
 
 	res, err := parseHTTPResult(record)
 	if err != nil {
@@ -316,7 +296,7 @@ func TestParseHTTPResult_LatencyRounded(t *testing.T) {
 }
 
 func TestParseHTTPResult_LatencyClampedToMinimum(t *testing.T) {
-	record := []string{"1.2.3.4", "0s", "200", "HTTP/1.1", "true"}
+	record := []string{"1.2.3.4", "0", "", "1", "0s", "200", "HTTP/1.1", "true"}
 
 	res, err := parseHTTPResult(record)
 	if err != nil {
@@ -344,21 +324,21 @@ func TestParseHTTPResult_EmptyRecord(t *testing.T) {
 }
 
 func TestParseHTTPResult_InvalidIP(t *testing.T) {
-	_, err := parseHTTPResult([]string{"not-an-ip", "42ms"})
+	_, err := parseHTTPResult([]string{"not-an-ip", "0", "", "1", "42ms", "200", "HTTP/1.1", "true"})
 	if err == nil {
 		t.Fatal("expected error for invalid IP")
 	}
 }
 
 func TestParseHTTPResult_InvalidLatency(t *testing.T) {
-	_, err := parseHTTPResult([]string{"1.2.3.4", "garbage"})
+	_, err := parseHTTPResult([]string{"1.2.3.4", "0", "", "1", "garbage", "200", "HTTP/1.1", "true"})
 	if err == nil {
 		t.Fatal("expected error for invalid latency")
 	}
 }
 
 func TestParseHTTPResult_InvalidStatusCode(t *testing.T) {
-	record := []string{"1.2.3.4", "10ms", "not-a-number", "HTTP/1.1", "true"}
+	record := []string{"1.2.3.4", "0", "", "1", "10ms", "not-a-number", "HTTP/1.1", "true"}
 	_, err := parseHTTPResult(record)
 	if err == nil {
 		t.Fatal("expected error for invalid status code")
@@ -366,7 +346,7 @@ func TestParseHTTPResult_InvalidStatusCode(t *testing.T) {
 }
 
 func TestParseHTTPResult_InvalidTLS(t *testing.T) {
-	record := []string{"1.2.3.4", "10ms", "200", "HTTP/1.1", "maybe"}
+	record := []string{"1.2.3.4", "0", "", "1", "10ms", "200", "HTTP/1.1", "maybe"}
 	_, err := parseHTTPResult(record)
 	if err == nil {
 		t.Fatal("expected error for invalid TLS bool")
@@ -374,7 +354,7 @@ func TestParseHTTPResult_InvalidTLS(t *testing.T) {
 }
 
 func TestParseHTTPResult_IPv6(t *testing.T) {
-	record := []string{"2001:db8::42", "55ms", "200", "HTTP/2.0", "true"}
+	record := []string{"2001:db8::42", "0", "", "1", "55ms", "200", "HTTP/2.0", "true"}
 
 	res, err := parseHTTPResult(record)
 	if err != nil {
@@ -382,8 +362,8 @@ func TestParseHTTPResult_IPv6(t *testing.T) {
 	}
 
 	hr := res.(HTTPResult)
-	if hr.IP != netip.MustParseAddr("2001:db8::42") {
-		t.Errorf("IP = %v, want 2001:db8::42", hr.IP)
+	if hr.Entry.IP.Addr() != netip.MustParseAddr("2001:db8::42") {
+		t.Errorf("IP = %v, want 2001:db8::42", hr.Entry.IP.Addr())
 	}
 }
 
@@ -391,7 +371,7 @@ func TestParseHTTPResult_IPv6(t *testing.T) {
 // yields the original values, validating the symmetry of ToRecord and parseHTTPResult.
 func TestHTTPResult_RoundTrip_Full(t *testing.T) {
 	original := HTTPResult{
-		IP:          netip.MustParseAddr("104.16.132.229"),
+		Entry:       entryOf(netip.MustParseAddr("104.16.132.229")),
 		Latency:     87 * time.Millisecond,
 		StatusCode:  200,
 		HTTPVersion: "HTTP/2.0",
@@ -406,8 +386,8 @@ func TestHTTPResult_RoundTrip_Full(t *testing.T) {
 
 	got := parsed.(HTTPResult)
 
-	if got.IP != original.IP {
-		t.Errorf("IP = %v, want %v", got.IP, original.IP)
+	if got.Entry.IP.Addr() != original.Entry.IP.Addr() {
+		t.Errorf("IP = %v, want %v", got.Entry.IP.Addr(), original.Entry.IP.Addr())
 	}
 	if got.Latency != original.Latency {
 		t.Errorf("Latency = %v, want %v", got.Latency, original.Latency)
@@ -423,12 +403,11 @@ func TestHTTPResult_RoundTrip_Full(t *testing.T) {
 	}
 }
 
-// TestHTTPResult_RoundTrip_ZeroStatus verifies the parsing behavior when
-// StatusCode is 0. Since ToRecord outputs "-", parseHTTPResult will fail
-// to parse "-" as an integer, which is the expected behavior for this edge case.
+// TestHTTPResult_RoundTrip_ZeroStatus verifies that failed requests survive a
+// serialization round trip: "-" is parsed back as a zero status.
 func TestHTTPResult_RoundTrip_ZeroStatus(t *testing.T) {
 	original := HTTPResult{
-		IP:          netip.MustParseAddr("8.8.8.8"),
+		Entry:       entryOf(netip.MustParseAddr("8.8.8.8")),
 		Latency:     12 * time.Millisecond,
 		StatusCode:  0,
 		HTTPVersion: "HTTP/1.1",
@@ -437,17 +416,23 @@ func TestHTTPResult_RoundTrip_ZeroStatus(t *testing.T) {
 
 	record := original.ToRecord()
 
-	_, err := parseHTTPResult(record)
-	if err == nil {
-		t.Log("round-trip with zero StatusCode succeeds (parser handles '-')")
-	} else {
-		t.Logf("round-trip with zero StatusCode fails as expected: %v", err)
+	parsed, err := parseHTTPResult(record)
+	if err != nil {
+		t.Fatalf("round-trip parse failed: %v", err)
+	}
+
+	got := parsed.(HTTPResult)
+	if got.StatusCode != 0 {
+		t.Errorf("StatusCode = %d, want 0", got.StatusCode)
+	}
+	if got.UseTLS {
+		t.Error("UseTLS = true, want false")
 	}
 }
 
 func TestHTTPResult_RoundTrip_IPv6(t *testing.T) {
 	original := HTTPResult{
-		IP:          netip.MustParseAddr("::1"),
+		Entry:       entryOf(netip.MustParseAddr("::1")),
 		Latency:     3 * time.Millisecond,
 		StatusCode:  204,
 		HTTPVersion: "HTTP/1.1",
@@ -461,8 +446,8 @@ func TestHTTPResult_RoundTrip_IPv6(t *testing.T) {
 	}
 
 	got := parsed.(HTTPResult)
-	if got.IP != original.IP {
-		t.Errorf("IP = %v, want %v", got.IP, original.IP)
+	if got.Entry.IP.Addr() != original.Entry.IP.Addr() {
+		t.Errorf("IP = %v, want %v", got.Entry.IP.Addr(), original.Entry.IP.Addr())
 	}
 }
 
@@ -480,7 +465,7 @@ func TestSchema_Columns(t *testing.T) {
 		name  string
 		width int
 	}{
-		{"IP", 39},
+		{"Target", 39},
 		{"Latency", 19},
 		{"Status", 12},
 		{"Version", 20},
@@ -508,13 +493,13 @@ func TestSchema_ParserNotNil(t *testing.T) {
 }
 
 func TestSchema_ParserWorks(t *testing.T) {
-	res, err := Schema.Parser([]string{"1.1.1.1", "20ms", "200", "HTTP/1.1", "true"})
+	res, err := Schema.Parser([]string{"1.1.1.1", "0", "", "1", "20ms", "200", "HTTP/1.1", "true"})
 	if err != nil {
 		t.Fatalf("Schema.Parser error: %v", err)
 	}
 	hr := res.(HTTPResult)
-	if hr.IP != netip.MustParseAddr("1.1.1.1") {
-		t.Errorf("IP = %v, want 1.1.1.1", hr.IP)
+	if hr.Entry.IP.Addr() != netip.MustParseAddr("1.1.1.1") {
+		t.Errorf("IP = %v, want 1.1.1.1", hr.Entry.IP.Addr())
 	}
 	if hr.StatusCode != 200 {
 		t.Errorf("StatusCode = %d, want 200", hr.StatusCode)

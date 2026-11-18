@@ -3,11 +3,12 @@ package masterdnsprobe
 import (
 	"errors"
 	"fmt"
-	"net/netip"
+	"strconv"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 func joinConfigErrors(errs map[dns.Field]error) error {
@@ -25,7 +26,7 @@ var Schema = result.ResultSchema{
 	Directory: "masterdns",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 35, ColumnType: result.ColumnIP},
+		{Name: "Target", Width: 35, ColumnType: result.ColumnHost},
 		{Name: "Latency", Width: 15, ColumnType: result.ColumnDuration},
 		{Name: "Port", Width: 10},
 		{Name: "Enc", Width: 15},
@@ -39,79 +40,70 @@ var Schema = result.ResultSchema{
 // Latency measures only the proxy validation phase, excluding tunnel
 // startup overhead, to reflect sustained tunnel performance.
 type MasterDNSResult struct {
-	IP      netip.Addr
+	Entry   target.Entry // The row that produced this result.
 	Latency time.Duration
 	Port    uint16        // Local SOCKS5 port allocated for this run.
 	Enc     dns.EncMethod // Data encryption method of the tunnel.
 }
 
-func (r MasterDNSResult) Key() string {
-	return r.IP.String()
-}
+// Key returns the identity of the probed target with probe index prefix.
+func (r MasterDNSResult) Key() string { return r.Entry.Key() }
 
-func (r MasterDNSResult) KeyType() result.KeyType {
-	return result.KeyIP
+func (r MasterDNSResult) KeyType() target.Kind {
+	return r.Entry.Kind
 }
 
 func (r MasterDNSResult) Equal(rs result.Result) bool {
-	return r.IP.String() == rs.Key()
+	return r.Key() == rs.Key()
 }
 
 func (r MasterDNSResult) ToRecord() []string {
-	return []string{
-		r.IP.String(),
+	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),
 		fmt.Sprintf("%d", r.Port),
 		r.Enc.String(),
-	}
+	)
 }
 
 // Score rates lower latency higher; sub-millisecond values clamp to 1ms to
 // avoid dividing by zero.
 func (r MasterDNSResult) Score() float64 {
-	ms := float64(r.Latency.Milliseconds())
-	if ms < 1 {
-		ms = 1
-	}
-	return 1000.0 / ms
+	return 1000 / float64(max(1, r.Latency.Milliseconds()))
 }
 
 func parseMasterDNSResult(record []string) (result.Result, error) {
-	if len(record) < 2 {
+	const entryFields = 4
+	const resultFields = 3
+
+	if len(record) < entryFields+resultFields {
 		return nil, fmt.Errorf(
-			"invalid MasterDNS result record: expected at least 2 fields, got %d",
+			"invalid MasterDNS result record: expected at least %d fields, got %d",
+			entryFields+resultFields,
 			len(record),
 		)
 	}
 
-	ip, err := netip.ParseAddr(record[0])
+	entry, err := target.ParseRecord(record[:entryFields])
 	if err != nil {
-		return nil, fmt.Errorf("parse IP: %w", err)
+		return nil, fmt.Errorf("parse target: %w", err)
 	}
 
-	latency, err := time.ParseDuration(record[1])
+	latencyRaw, portRaw, encRaw := record[entryFields], record[entryFields+1], record[entryFields+2]
+
+	latency, err := time.ParseDuration(latencyRaw)
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
 	}
 
-	// Legacy records contain only IP and Latency.
-	var port uint16
-	enc := dns.EncXOR
-
-	if len(record) >= 3 {
-		if _, err := fmt.Sscanf(record[2], "%d", &port); err != nil {
-			return nil, fmt.Errorf("parse port: %w", err)
-		}
-	}
-
-	if len(record) >= 4 {
-		enc = dns.ParseEncMethod(record[3])
+	port, err := strconv.ParseUint(portRaw, 10, 16)
+	if err != nil {
+		return nil, fmt.Errorf("parse port: %w", err)
 	}
 
 	return MasterDNSResult{
-		IP:      ip,
+		Entry:   entry,
 		Latency: latency,
-		Port:    port,
-		Enc:     enc,
+		Port:    uint16(port),
+		Enc:     dns.ParseEncMethod(encRaw),
 	}, nil
 }

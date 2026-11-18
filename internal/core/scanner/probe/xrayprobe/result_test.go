@@ -7,25 +7,31 @@ import (
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
+// entryOf wraps an address in the single-address row a probe now receives.
+func entryOf(addr netip.Addr) target.Entry {
+	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
+}
+
 func TestXrayResult_Key(t *testing.T) {
-	r := XrayResult{IP: netip.MustParseAddr("192.168.1.1")}
-	if got := r.Key(); got != "192.168.1.1" {
-		t.Errorf("Key() = %q, want %q", got, "192.168.1.1")
+	r := XrayResult{Entry: entryOf(netip.MustParseAddr("192.168.1.1"))}
+	if got := r.Key(); got != "192.168.1.1/32:0:" {
+		t.Errorf("Key() = %q, want %q", got, "0:192.168.1.1/32:0:")
 	}
 }
 
 func TestXrayResult_Key_IPv6(t *testing.T) {
-	r := XrayResult{IP: netip.MustParseAddr("::1")}
-	if got := r.Key(); got != "::1" {
-		t.Errorf("Key() = %q, want %q", got, "::1")
+	r := XrayResult{Entry: entryOf(netip.MustParseAddr("::1"))}
+	if got := r.Key(); got != "::1/128:0:" {
+		t.Errorf("Key() = %q, want %q", got, "::1/128:0:")
 	}
 }
 
 func TestXrayResult_KeyType(t *testing.T) {
 	r := XrayResult{}
-	if got := r.KeyType(); got != result.KeyIP {
+	if got := r.KeyType(); got != target.KindIP {
 		t.Errorf("KeyType() = %v, want KeyIP", got)
 	}
 }
@@ -39,20 +45,20 @@ func TestXrayResult_Equal(t *testing.T) {
 	}{
 		{
 			name:  "same IP",
-			r:     XrayResult{IP: netip.MustParseAddr("1.2.3.4")},
-			other: XrayResult{IP: netip.MustParseAddr("1.2.3.4"), Latency: 99 * time.Second},
+			r:     XrayResult{Entry: entryOf(netip.MustParseAddr("1.2.3.4"))},
+			other: XrayResult{Entry: entryOf(netip.MustParseAddr("1.2.3.4")), Latency: 99 * time.Second},
 			want:  true,
 		},
 		{
 			name:  "different IP",
-			r:     XrayResult{IP: netip.MustParseAddr("1.2.3.4")},
-			other: XrayResult{IP: netip.MustParseAddr("5.6.7.8")},
+			r:     XrayResult{Entry: entryOf(netip.MustParseAddr("1.2.3.4"))},
+			other: XrayResult{Entry: entryOf(netip.MustParseAddr("5.6.7.8"))},
 			want:  false,
 		},
 		{
 			name:  "same IPv6",
-			r:     XrayResult{IP: netip.MustParseAddr("2001:db8::1")},
-			other: XrayResult{IP: netip.MustParseAddr("2001:db8::1")},
+			r:     XrayResult{Entry: entryOf(netip.MustParseAddr("2001:db8::1"))},
+			other: XrayResult{Entry: entryOf(netip.MustParseAddr("2001:db8::1"))},
 			want:  true,
 		},
 	}
@@ -68,7 +74,7 @@ func TestXrayResult_Equal(t *testing.T) {
 
 func TestXrayResult_ToRecord(t *testing.T) {
 	r := XrayResult{
-		IP:       netip.MustParseAddr("10.0.0.1"),
+		Entry:    entryOf(netip.MustParseAddr("10.0.0.1")),
 		Latency:  42 * time.Millisecond,
 		Download: 100_000_000, // 100 Mbps
 		Upload:   50_000_000,  // 50 Mbps
@@ -76,39 +82,39 @@ func TestXrayResult_ToRecord(t *testing.T) {
 
 	rec := r.ToRecord()
 
-	if len(rec) != 4 {
-		t.Fatalf("ToRecord() len = %d, want 4", len(rec))
+	if len(rec) != 7 {
+		t.Fatalf("ToRecord() len = %d, want 7", len(rec))
 	}
-	if rec[0] != "10.0.0.1" {
-		t.Errorf("record[0] = %q, want %q", rec[0], "10.0.0.1")
+	if rec[0] != "10.0.0.1/32" {
+		t.Errorf("record[0] = %q, want %q", rec[0], "10.0.0.1/32")
 	}
-	if rec[1] != "42.00ms" {
-		t.Errorf("record[1] = %q, want %q", rec[1], "42.00ms")
+	if rec[4] != "42.00ms" {
+		t.Errorf("record[4] = %q, want %q", rec[4], "42.00ms")
 	}
 
 	wantDL := speedtest.BitsPerSec(100_000_000).String()
-	if rec[2] != wantDL {
-		t.Errorf("record[2] = %q, want %q", rec[2], wantDL)
+	if rec[5] != wantDL {
+		t.Errorf("record[5] = %q, want %q", rec[5], wantDL)
 	}
 	wantUL := speedtest.BitsPerSec(50_000_000).String()
-	if rec[3] != wantUL {
-		t.Errorf("record[3] = %q, want %q", rec[3], wantUL)
+	if rec[6] != wantUL {
+		t.Errorf("record[6] = %q, want %q", rec[6], wantUL)
 	}
 }
 
 func TestXrayResult_ToRecord_ZeroValues(t *testing.T) {
 	r := XrayResult{
-		IP:      netip.MustParseAddr("1.1.1.1"),
+		Entry:   entryOf(netip.MustParseAddr("1.1.1.1")),
 		Latency: 5 * time.Millisecond,
 		// Download and Upload are zero (ConnectivityOnly mode)
 	}
 
 	rec := r.ToRecord()
-	if rec[2] != speedtest.BitsPerSec(0).String() {
-		t.Errorf("record[2] = %q, want zero value string", rec[2])
+	if rec[5] != speedtest.BitsPerSec(0).String() {
+		t.Errorf("record[5] = %q, want zero value string", rec[5])
 	}
-	if rec[3] != speedtest.BitsPerSec(0).String() {
-		t.Errorf("record[3] = %q, want zero value string", rec[3])
+	if rec[6] != speedtest.BitsPerSec(0).String() {
+		t.Errorf("record[6] = %q, want zero value string", rec[6])
 	}
 }
 
@@ -121,7 +127,7 @@ func TestXrayResult_Score(t *testing.T) {
 		{
 			name: "balanced result",
 			r: XrayResult{
-				IP:       netip.MustParseAddr("1.2.3.4"),
+				Entry:    entryOf(netip.MustParseAddr("1.2.3.4")),
 				Latency:  100 * time.Millisecond,
 				Download: speedtest.BitsPerSec(100) * speedtest.Mbps,
 				Upload:   speedtest.BitsPerSec(50) * speedtest.Mbps,
@@ -136,7 +142,7 @@ func TestXrayResult_Score(t *testing.T) {
 		{
 			name: "connectivity only - zero speeds",
 			r: XrayResult{
-				IP:      netip.MustParseAddr("1.2.3.4"),
+				Entry:   entryOf(netip.MustParseAddr("1.2.3.4")),
 				Latency: 50 * time.Millisecond,
 			},
 			checkFn: func(t *testing.T, score float64) {
@@ -149,7 +155,7 @@ func TestXrayResult_Score(t *testing.T) {
 		{
 			name: "sub-millisecond latency clamped to 1ms",
 			r: XrayResult{
-				IP:       netip.MustParseAddr("1.2.3.4"),
+				Entry:    entryOf(netip.MustParseAddr("1.2.3.4")),
 				Latency:  500 * time.Microsecond,
 				Download: speedtest.BitsPerSec(10) * speedtest.Mbps,
 			},
@@ -163,7 +169,7 @@ func TestXrayResult_Score(t *testing.T) {
 		{
 			name: "zero latency clamped to 1ms",
 			r: XrayResult{
-				IP:      netip.MustParseAddr("1.2.3.4"),
+				Entry:   entryOf(netip.MustParseAddr("1.2.3.4")),
 				Latency: 0,
 			},
 			checkFn: func(t *testing.T, score float64) {
@@ -176,7 +182,7 @@ func TestXrayResult_Score(t *testing.T) {
 		{
 			name: "high latency low score",
 			r: XrayResult{
-				IP:       netip.MustParseAddr("1.2.3.4"),
+				Entry:    entryOf(netip.MustParseAddr("1.2.3.4")),
 				Latency:  1000 * time.Millisecond,
 				Download: speedtest.BitsPerSec(10) * speedtest.Mbps,
 				Upload:   speedtest.BitsPerSec(5) * speedtest.Mbps,
@@ -201,13 +207,13 @@ func TestXrayResult_Score(t *testing.T) {
 // scores higher than a slow server, ensuring the weighting logic behaves as expected.
 func TestXrayResult_Score_Ordering(t *testing.T) {
 	fast := XrayResult{
-		IP:       netip.MustParseAddr("1.1.1.1"),
+		Entry:    entryOf(netip.MustParseAddr("1.1.1.1")),
 		Latency:  20 * time.Millisecond,
 		Download: speedtest.BitsPerSec(200) * speedtest.Mbps,
 		Upload:   speedtest.BitsPerSec(100) * speedtest.Mbps,
 	}
 	slow := XrayResult{
-		IP:       netip.MustParseAddr("2.2.2.2"),
+		Entry:    entryOf(netip.MustParseAddr("2.2.2.2")),
 		Latency:  300 * time.Millisecond,
 		Download: speedtest.BitsPerSec(10) * speedtest.Mbps,
 		Upload:   speedtest.BitsPerSec(5) * speedtest.Mbps,
@@ -222,8 +228,9 @@ func TestParseXrayResult_Valid(t *testing.T) {
 	dl := speedtest.BitsPerSec(100_000_000)
 	ul := speedtest.BitsPerSec(50_000_000)
 
+	// New format: entry fields (value, port, path, enable) + result fields (latency, download, upload)
 	record := []string{
-		"192.168.1.100",
+		"192.168.1.100/32", "0", "", "1",
 		"42ms",
 		dl.String(),
 		ul.String(),
@@ -239,8 +246,8 @@ func TestParseXrayResult_Valid(t *testing.T) {
 		t.Fatalf("expected XrayResult, got %T", res)
 	}
 
-	if xr.IP != netip.MustParseAddr("192.168.1.100") {
-		t.Errorf("IP = %v, want 192.168.1.100", xr.IP)
+	if xr.Entry.IP.Addr() != netip.MustParseAddr("192.168.1.100") {
+		t.Errorf("IP = %v, want 192.168.1.100", xr.Entry.IP.Addr())
 	}
 	if xr.Latency != 42*time.Millisecond {
 		t.Errorf("Latency = %v, want 42ms", xr.Latency)
@@ -254,7 +261,7 @@ func TestParseXrayResult_Valid(t *testing.T) {
 }
 
 func TestParseXrayResult_LatencyRounded(t *testing.T) {
-	record := []string{"1.2.3.4", "42.7ms", "0", "0"}
+	record := []string{"1.2.3.4/32", "0", "", "1", "42.7ms", "0", "0"}
 
 	res, err := parseXrayResult(record)
 	if err != nil {
@@ -268,7 +275,7 @@ func TestParseXrayResult_LatencyRounded(t *testing.T) {
 }
 
 func TestParseXrayResult_LatencyClampedToMinimum(t *testing.T) {
-	record := []string{"1.2.3.4", "0s", "0", "0"}
+	record := []string{"1.2.3.4/32", "0", "", "1", "0s", "0", "0"}
 
 	res, err := parseXrayResult(record)
 	if err != nil {
@@ -282,9 +289,9 @@ func TestParseXrayResult_LatencyClampedToMinimum(t *testing.T) {
 }
 
 func TestParseXrayResult_TooFewFields(t *testing.T) {
-	_, err := parseXrayResult([]string{"1.2.3.4", "42ms", "100"})
+	_, err := parseXrayResult([]string{"1.2.3.4/32", "0", "", "1", "42ms", "100"})
 	if err == nil {
-		t.Fatal("expected error for 3 fields")
+		t.Fatal("expected error for 6 fields (need 7)")
 	}
 }
 
@@ -296,14 +303,14 @@ func TestParseXrayResult_EmptyRecord(t *testing.T) {
 }
 
 func TestParseXrayResult_InvalidIP(t *testing.T) {
-	_, err := parseXrayResult([]string{"not-an-ip", "42ms", "0", "0"})
+	_, err := parseXrayResult([]string{"not-an-ip", "0", "", "1", "42ms", "0", "0"})
 	if err == nil {
 		t.Fatal("expected error for invalid IP")
 	}
 }
 
 func TestParseXrayResult_InvalidLatency(t *testing.T) {
-	_, err := parseXrayResult([]string{"1.2.3.4", "not-a-duration", "0", "0"})
+	_, err := parseXrayResult([]string{"1.2.3.4/32", "0", "", "1", "not-a-duration", "0", "0"})
 	if err == nil {
 		t.Fatal("expected error for invalid latency")
 	}
@@ -312,7 +319,7 @@ func TestParseXrayResult_InvalidLatency(t *testing.T) {
 // TestParseXrayResult_InvalidSpeed_Ignored verifies that unparseable speed
 // values are silently discarded and default to zero, matching the production behavior.
 func TestParseXrayResult_InvalidSpeed_Ignored(t *testing.T) {
-	record := []string{"1.2.3.4", "10ms", "garbage", "also-garbage"}
+	record := []string{"1.2.3.4/32", "0", "", "1", "10ms", "garbage", "also-garbage"}
 
 	res, err := parseXrayResult(record)
 	if err != nil {
@@ -332,7 +339,7 @@ func TestParseXrayResult_InvalidSpeed_Ignored(t *testing.T) {
 // yields the original values, validating the symmetry of ToRecord and parseXrayResult.
 func TestXrayResult_RoundTrip(t *testing.T) {
 	original := XrayResult{
-		IP:       netip.MustParseAddr("172.16.0.1"),
+		Entry:    entryOf(netip.MustParseAddr("172.16.0.1")),
 		Latency:  123 * time.Millisecond,
 		Download: speedtest.BitsPerSec(75_000_000),
 		Upload:   speedtest.BitsPerSec(25_000_000),
@@ -346,8 +353,8 @@ func TestXrayResult_RoundTrip(t *testing.T) {
 
 	got := parsed.(XrayResult)
 
-	if got.IP != original.IP {
-		t.Errorf("IP = %v, want %v", got.IP, original.IP)
+	if got.Entry.IP.Addr() != original.Entry.IP.Addr() {
+		t.Errorf("IP = %v, want %v", got.Entry.IP.Addr(), original.Entry.IP.Addr())
 	}
 	if got.Latency != original.Latency {
 		t.Errorf("Latency = %v, want %v", got.Latency, original.Latency)
@@ -362,7 +369,7 @@ func TestXrayResult_RoundTrip(t *testing.T) {
 
 func TestXrayResult_RoundTrip_IPv6(t *testing.T) {
 	original := XrayResult{
-		IP:      netip.MustParseAddr("2001:db8::42"),
+		Entry:   entryOf(netip.MustParseAddr("2001:db8::42")),
 		Latency: 7 * time.Millisecond,
 	}
 
@@ -373,8 +380,8 @@ func TestXrayResult_RoundTrip_IPv6(t *testing.T) {
 	}
 
 	got := parsed.(XrayResult)
-	if got.IP != original.IP {
-		t.Errorf("IP = %v, want %v", got.IP, original.IP)
+	if got.Entry.IP.Addr() != original.Entry.IP.Addr() {
+		t.Errorf("IP = %v, want %v", got.Entry.IP.Addr(), original.Entry.IP.Addr())
 	}
 }
 
@@ -393,7 +400,7 @@ func TestSchema_Fields(t *testing.T) {
 		name  string
 		width int
 	}{
-		{"IP", 40},
+		{"Target", 40},
 		{"Latency", 20},
 		{"Download", 20},
 		{"Upload", 20},
@@ -415,12 +422,12 @@ func TestSchema_ParserNotNil(t *testing.T) {
 }
 
 func TestSchema_ParserWorks(t *testing.T) {
-	res, err := Schema.Parser([]string{"8.8.8.8", "15ms", "0", "0"})
+	res, err := Schema.Parser([]string{"8.8.8.8/32", "0", "", "1", "15ms", "0", "0"})
 	if err != nil {
 		t.Fatalf("Schema.Parser error: %v", err)
 	}
 	xr := res.(XrayResult)
-	if xr.IP != netip.MustParseAddr("8.8.8.8") {
-		t.Errorf("IP = %v, want 8.8.8.8", xr.IP)
+	if xr.Entry.IP.Addr() != netip.MustParseAddr("8.8.8.8") {
+		t.Errorf("IP = %v, want 8.8.8.8", xr.Entry.IP.Addr())
 	}
 }

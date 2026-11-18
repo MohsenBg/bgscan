@@ -2,11 +2,12 @@ package vaydnsprobe
 
 import (
 	"fmt"
-	"net/netip"
+	"strconv"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // Schema defines the database layout and parsing rules for VayDNS probe outcomes.
@@ -15,10 +16,10 @@ var Schema = result.ResultSchema{
 	Directory: "vaydns",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 30, ColumnType: result.ColumnIP},
+		{Name: "Target", Width: 40, ColumnType: result.ColumnHost},
 		{Name: "Latency", Width: 15, ColumnType: result.ColumnDuration},
-		{Name: "Transport", Width: 15},
 		{Name: "Port", Width: 10},
+		{Name: "Transport", Width: 15},
 		{Name: "Auth", Width: 15},
 		{Name: "Proxy", Width: 15},
 	},
@@ -32,35 +33,32 @@ var Schema = result.ResultSchema{
 // through the tunnel until a valid response is received. It excludes the initial
 // tunnel startup overhead to reflect sustained tunnel performance.
 type VayDNSResult struct {
-	IP                netip.Addr
+	Entry             target.Entry // The row that produced this result.
 	Latency           time.Duration
+	Port              uint16                // Local SOCKS5 port allocated for this run.
 	Transport         dns.ResolverType      // Underlying DNS transport used for the tunnel (e.g., UDP, DoH, DoT).
-	Port              uint16                // Local SOCKS5 port allocated for validation.
 	AuthMethod        dns.AuthMethod        // How the tunnel authenticates.
 	ResolverProxyType dns.ResolverProxyType // Proxy type used to reach the resolver.
 }
 
-func (r VayDNSResult) Key() string {
-	return r.IP.String()
-}
+func (r VayDNSResult) Key() string { return r.Entry.Key() }
 
-func (r VayDNSResult) KeyType() result.KeyType {
-	return result.KeyIP
+func (r VayDNSResult) KeyType() target.Kind {
+	return r.Entry.Kind
 }
 
 func (r VayDNSResult) Equal(rs result.Result) bool {
-	return r.IP.String() == rs.Key()
+	return r.Key() == rs.Key()
 }
 
 func (r VayDNSResult) ToRecord() []string {
-	return []string{
-		r.IP.String(),
+	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),
-		string(r.Transport),
 		fmt.Sprintf("%d", r.Port),
+		string(r.Transport),
 		string(r.AuthMethod),
 		string(r.ResolverProxyType),
-	}
+	)
 }
 
 // Score rates lower latency higher; sub-millisecond values clamp to 1ms to
@@ -74,50 +72,38 @@ func (r VayDNSResult) Score() float64 {
 }
 
 func parseVayDNSResult(record []string) (result.Result, error) {
-	if len(record) < 2 {
+	const (
+		entryFields  = 4
+		resultFields = 5
+	)
+
+	if len(record) < entryFields+resultFields {
 		return nil, fmt.Errorf(
-			"invalid VayDNS result record: expected at least 2 fields, got %d",
-			len(record),
+			"invalid VayDNS result record: expected at least %d fields, got %d",
+			entryFields+resultFields, len(record),
 		)
 	}
 
-	ip, err := netip.ParseAddr(record[0])
+	entry, err := target.ParseRecord(record[:entryFields])
 	if err != nil {
-		return nil, fmt.Errorf("parse IP: %w", err)
+		return nil, err
 	}
 
-	latency, err := time.ParseDuration(record[1])
+	fields := record[entryFields:]
+
+	latency, err := time.ParseDuration(fields[0])
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
 	}
 
-	// Legacy records contain only IP and Latency.
-	var transport dns.ResolverType
-	var port uint16
-	var authMethod dns.AuthMethod
-	var proxyType dns.ResolverProxyType
-
-	if len(record) >= 4 {
-		transport = dns.ParseResolverType(record[2])
-		if _, err := fmt.Sscanf(record[3], "%d", &port); err != nil {
-			return nil, fmt.Errorf("parse port: %w", err)
-		}
-	}
-
-	if len(record) >= 6 {
-		authMethod = dns.ParseAuthMethod(record[4])
-		proxyType = dns.ParseResolverProxyType(record[5])
-	} else {
-		authMethod = dns.AuthNone
-		proxyType = dns.ResolverProxySOCKS
-	}
+	port, _ := strconv.ParseUint(fields[1], 10, 16)
 
 	return VayDNSResult{
-		IP:                ip,
+		Entry:             entry,
 		Latency:           latency,
-		Transport:         transport,
-		Port:              port,
-		AuthMethod:        authMethod,
-		ResolverProxyType: proxyType,
+		Port:              uint16(port),
+		Transport:         dns.ParseResolverType(fields[2]),
+		AuthMethod:        dns.ParseAuthMethod(fields[3]),
+		ResolverProxyType: dns.ParseResolverProxyType(fields[4]),
 	}, nil
 }

@@ -6,7 +6,13 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
+
+// entryOf wraps an address in the single-address row a probe now receives.
+func entryOf(addr netip.Addr) target.Entry {
+	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
+}
 
 func TestSchemaValidate(t *testing.T) {
 	if err := Schema.Validate(); err != nil {
@@ -30,30 +36,30 @@ func TestSchemaValidate(t *testing.T) {
 func TestTheFeedResult_Methods(t *testing.T) {
 	ip := netip.MustParseAddr("2.2.2.2")
 	r := TheFeedResult{
-		IP:        ip,
+		Entry:     entryOf(ip),
 		Latency:   42 * time.Millisecond,
 		Domain:    "t.example.com",
 		QueryMode: "single",
 	}
 
-	if r.Key() != "2.2.2.2" {
-		t.Errorf("Key() = %q, want 2.2.2.2", r.Key())
+	if r.Key() != "2.2.2.2/32:0:" {
+		t.Errorf("Key() = %q, want 2.2.2.2/32:0:", r.Key())
 	}
 
-	if r.KeyType() != result.KeyIP {
-		t.Errorf("KeyType() = %v, want %v", r.KeyType(), result.KeyIP)
+	if r.KeyType() != target.KindIP {
+		t.Errorf("KeyType() = %v, want %v", r.KeyType(), target.KindIP)
 	}
 
-	if !r.Equal(TheFeedResult{IP: ip}) {
+	if !r.Equal(TheFeedResult{Entry: entryOf(ip)}) {
 		t.Error("Equal() = false for same IP, want true")
 	}
 
-	if r.Equal(TheFeedResult{IP: netip.MustParseAddr("1.1.1.1")}) {
+	if r.Equal(TheFeedResult{Entry: entryOf(netip.MustParseAddr("1.1.1.1"))}) {
 		t.Error("Equal() = true for different IP, want false")
 	}
 
 	want := []string{
-		"2.2.2.2",
+		"2.2.2.2/32", "0", "", "1",
 		result.FormatDuration(42 * time.Millisecond),
 		"t.example.com",
 		"single",
@@ -87,7 +93,7 @@ func TestTheFeedResult_Score(t *testing.T) {
 
 func TestParseTheFeedResult(t *testing.T) {
 	record := []string{
-		"2.2.2.2",
+		"2.2.2.2/32", "0", "", "1",
 		result.FormatDuration(42 * time.Millisecond),
 		"t.example.com",
 		"single",
@@ -104,14 +110,14 @@ func TestParseTheFeedResult(t *testing.T) {
 	}
 
 	want := TheFeedResult{
-		IP:        netip.MustParseAddr("2.2.2.2"),
+		Entry:     entryOf(netip.MustParseAddr("2.2.2.2")),
 		Latency:   42 * time.Millisecond,
 		Domain:    "t.example.com",
 		QueryMode: "single",
 	}
 
-	if got.IP != want.IP {
-		t.Errorf("IP = %v, want %v", got.IP, want.IP)
+	if got.Entry.IP.Addr() != want.Entry.IP.Addr() {
+		t.Errorf("IP = %v, want %v", got.Entry.IP.Addr(), want.Entry.IP.Addr())
 	}
 	if got.Latency != want.Latency {
 		t.Errorf("Latency = %v, want %v", got.Latency, want.Latency)
@@ -125,14 +131,14 @@ func TestParseTheFeedResult(t *testing.T) {
 }
 
 func TestParseTheFeedResult_TooShort(t *testing.T) {
-	if _, err := parseTheFeedResult([]string{"2.2.2.2"}); err == nil {
+	if _, err := parseTheFeedResult([]string{"2.2.2.2/32", "0", "", "1"}); err == nil {
 		t.Fatal("expected error for short record")
 	}
 }
 
 func TestParseTheFeedResult_BadIP(t *testing.T) {
 	record := []string{
-		"not-an-ip",
+		"not-an-ip", "0", "", "1",
 		result.FormatDuration(42 * time.Millisecond),
 		"t.example.com",
 		"single",
@@ -145,7 +151,7 @@ func TestParseTheFeedResult_BadIP(t *testing.T) {
 
 func TestParseTheFeedResult_BadLatency(t *testing.T) {
 	record := []string{
-		"2.2.2.2",
+		"2.2.2.2/32", "0", "", "1",
 		"not-a-duration",
 		"t.example.com",
 		"single",
@@ -158,7 +164,7 @@ func TestParseTheFeedResult_BadLatency(t *testing.T) {
 
 func TestTheFeedResult_RoundTrip(t *testing.T) {
 	want := TheFeedResult{
-		IP:        netip.MustParseAddr("9.9.9.9"),
+		Entry:     entryOf(netip.MustParseAddr("9.9.9.9")),
 		Latency:   123 * time.Millisecond,
 		Domain:    "feed.example.com",
 		QueryMode: "double",

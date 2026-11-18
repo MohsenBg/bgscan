@@ -3,11 +3,12 @@ package stormdnsprobe
 import (
 	"errors"
 	"fmt"
-	"net/netip"
+	"strconv"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/dns"
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 func joinConfigErrors(errs map[dns.Field]error) error {
@@ -25,7 +26,7 @@ var Schema = result.ResultSchema{
 	Directory: "stormdns",
 
 	Columns: []result.ColumnDef{
-		{Name: "IP", Width: 35, ColumnType: result.ColumnIP},
+		{Name: "Target", Width: 35, ColumnType: result.ColumnHost},
 		{Name: "Latency", Width: 20, ColumnType: result.ColumnDuration},
 		{Name: "Port", Width: 10},
 		{Name: "Query", Width: 15},
@@ -40,87 +41,70 @@ var Schema = result.ResultSchema{
 // Latency measures only the proxy validation phase, excluding tunnel
 // startup overhead, to reflect sustained tunnel performance.
 type StormDNSResult struct {
-	IP        netip.Addr
+	Entry     target.Entry // The row that produced this result.
 	Latency   time.Duration
-	Port      uint16        // Local SOCKS5 port allocated for this run.
+	Port      uint16
 	QueryType string        // Tunnel DNS query type: TXT, NS, CNAME or ROTATE.
 	Enc       dns.EncMethod // Data encryption method of the tunnel.
 }
 
-func (r StormDNSResult) Key() string {
-	return r.IP.String()
-}
+// Key returns the identity of the probed target with probe index prefix.
+func (r StormDNSResult) Key() string { return r.Entry.Key() }
 
-func (r StormDNSResult) KeyType() result.KeyType {
-	return result.KeyIP
+func (r StormDNSResult) KeyType() target.Kind {
+	return target.KindIP
 }
 
 func (r StormDNSResult) Equal(rs result.Result) bool {
-	return r.IP.String() == rs.Key()
+	return r.Key() == rs.Key()
 }
 
 func (r StormDNSResult) ToRecord() []string {
-	return []string{
-		r.IP.String(),
+	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),
 		fmt.Sprintf("%d", r.Port),
 		normalizeQueryType(r.QueryType),
 		r.Enc.String(),
-	}
+	)
 }
 
 // Score rates lower latency higher; sub-millisecond values clamp to 1ms to
 // avoid dividing by zero.
 func (r StormDNSResult) Score() float64 {
-	ms := float64(r.Latency.Milliseconds())
-	if ms < 1 {
-		ms = 1
-	}
-	return 1000.0 / ms
+	return 1000 / float64(max(1, r.Latency.Milliseconds()))
 }
 
 func parseStormDNSResult(record []string) (result.Result, error) {
-	if len(record) < 2 {
+	const entryFields = 4
+	const resultFields = 4
+
+	if len(record) < entryFields+resultFields {
 		return nil, fmt.Errorf(
-			"invalid StormDNS result record: expected at least 2 fields, got %d",
+			"invalid StormDNS result record: expected at least %d fields, got %d",
+			entryFields+resultFields,
 			len(record),
 		)
 	}
 
-	ip, err := netip.ParseAddr(record[0])
+	entry, err := target.ParseRecord(record[:entryFields])
 	if err != nil {
-		return nil, fmt.Errorf("parse IP: %w", err)
+		return nil, fmt.Errorf("parse target: %w", err)
 	}
 
-	latency, err := time.ParseDuration(record[1])
+	latencyRaw, portRaw, queryRaw, encRaw := record[entryFields], record[entryFields+1], record[entryFields+2], record[entryFields+3]
+
+	latency, err := time.ParseDuration(latencyRaw)
 	if err != nil {
 		return nil, fmt.Errorf("parse latency: %w", err)
 	}
 
-	// Legacy records contain only IP and Latency.
-	var port uint16
-	queryType := "TXT"
-	enc := dns.EncXOR
-
-	if len(record) >= 3 {
-		if _, err := fmt.Sscanf(record[2], "%d", &port); err != nil {
-			return nil, fmt.Errorf("parse port: %w", err)
-		}
-	}
-
-	if len(record) >= 4 {
-		queryType = normalizeQueryType(record[3])
-	}
-
-	if len(record) >= 5 {
-		enc = dns.ParseEncMethod(record[4])
-	}
+	port, _ := strconv.ParseUint(portRaw, 10, 16)
 
 	return StormDNSResult{
-		IP:        ip,
+		Entry:     entry,
 		Latency:   latency,
-		Port:      port,
-		QueryType: queryType,
-		Enc:       enc,
+		Port:      uint16(port),
+		QueryType: normalizeQueryType(queryRaw),
+		Enc:       dns.ParseEncMethod(encRaw),
 	}, nil
 }

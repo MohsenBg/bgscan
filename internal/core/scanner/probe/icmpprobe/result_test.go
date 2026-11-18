@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 func mustAddr(t *testing.T, s string) netip.Addr {
@@ -19,15 +20,24 @@ func mustAddr(t *testing.T, s string) netip.Addr {
 	return ip
 }
 
+// mustEntry wraps an address in the single-address row a probe now receives.
+func mustEntry(t *testing.T, s string) target.Entry {
+	t.Helper()
+
+	addr := mustAddr(t, s)
+
+	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
+}
+
 func TestICMPResult_Key(t *testing.T) {
 	t.Parallel()
 
 	r := ICMPResult{
-		IP: mustAddr(t, "1.2.3.4"),
+		Entry: mustEntry(t, "1.2.3.4"),
 	}
 
 	got := r.Key()
-	want := "1.2.3.4"
+	want := mustEntry(t, "1.2.3.4").Key()
 
 	if got != want {
 		t.Fatalf("Key() = %q, want %q", got, want)
@@ -40,8 +50,8 @@ func TestICMPResult_KeyType(t *testing.T) {
 	r := ICMPResult{}
 	got := r.KeyType()
 
-	if got != result.KeyIP {
-		t.Fatalf("KeyType() = %v, want %v", got, result.KeyIP)
+	if got != target.KindIP {
+		t.Fatalf("KeyType() = %v, want %v", got, target.KindIP)
 	}
 }
 
@@ -49,15 +59,15 @@ func TestICMPResult_Equal(t *testing.T) {
 	t.Parallel()
 
 	base := ICMPResult{
-		IP: mustAddr(t, "8.8.8.8"),
+		Entry: mustEntry(t, "8.8.8.8"),
 	}
 
 	same := ICMPResult{
-		IP: mustAddr(t, "8.8.8.8"),
+		Entry: mustEntry(t, "8.8.8.8"),
 	}
 
 	diff := ICMPResult{
-		IP: mustAddr(t, "1.1.1.1"),
+		Entry: mustEntry(t, "1.1.1.1"),
 	}
 
 	if !base.Equal(same) {
@@ -73,7 +83,7 @@ func TestICMPResult_ToRecord(t *testing.T) {
 	t.Parallel()
 
 	r := ICMPResult{
-		IP:      mustAddr(t, "192.0.2.1"),
+		Entry:   mustEntry(t, "192.0.2.1"),
 		Latency: 25 * time.Millisecond,
 		Tries:   3,
 		Mode:    "raw",
@@ -81,7 +91,10 @@ func TestICMPResult_ToRecord(t *testing.T) {
 
 	got := r.ToRecord()
 	want := []string{
-		"192.0.2.1",
+		"192.0.2.1/32",
+		"0",
+		"",
+		"1",
 		"25.00ms",
 		"3",
 		"raw",
@@ -102,7 +115,7 @@ func TestICMPResult_ToRecord_DefaultTries(t *testing.T) {
 	t.Parallel()
 
 	r := ICMPResult{
-		IP:      mustAddr(t, "192.0.2.2"),
+		Entry:   mustEntry(t, "192.0.2.2"),
 		Latency: 10 * time.Millisecond,
 		Tries:   0,
 		Mode:    "udp",
@@ -110,7 +123,10 @@ func TestICMPResult_ToRecord_DefaultTries(t *testing.T) {
 
 	got := r.ToRecord()
 	want := []string{
-		"192.0.2.2",
+		"192.0.2.2/32",
+		"0",
+		"",
+		"1",
 		"10.00ms",
 		"1",
 		"udp",
@@ -173,7 +189,6 @@ func TestICMPResult_Score(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -185,10 +200,10 @@ func TestICMPResult_Score(t *testing.T) {
 	}
 }
 
-func TestParseICMPResult_LegacyTwoFields(t *testing.T) {
+func TestParseICMPResult_MinimalRecord(t *testing.T) {
 	t.Parallel()
 
-	rec := []string{"203.0.113.10", "23ms"}
+	rec := []string{"203.0.113.10", "0", "", "1", "23ms", "1", ""}
 
 	got, err := parseICMPResult(rec)
 	if err != nil {
@@ -200,8 +215,8 @@ func TestParseICMPResult_LegacyTwoFields(t *testing.T) {
 		t.Fatalf("parseICMPResult() type = %T, want ICMPResult", got)
 	}
 
-	if r.IP != mustAddr(t, "203.0.113.10") {
-		t.Fatalf("IP = %v, want %v", r.IP, mustAddr(t, "203.0.113.10"))
+	if r.Entry.IP.Addr() != mustAddr(t, "203.0.113.10") {
+		t.Fatalf("Entry.IP = %v, want %v", r.Entry.IP, mustAddr(t, "203.0.113.10"))
 	}
 
 	if r.Latency != 23*time.Millisecond {
@@ -217,10 +232,10 @@ func TestParseICMPResult_LegacyTwoFields(t *testing.T) {
 	}
 }
 
-func TestParseICMPResult_FourFields(t *testing.T) {
+func TestParseICMPResult_FullRecord(t *testing.T) {
 	t.Parallel()
 
-	rec := []string{"203.0.113.11", "42ms", "4", "udp"}
+	rec := []string{"203.0.113.11", "0", "", "1", "42ms", "4", "udp"}
 
 	got, err := parseICMPResult(rec)
 	if err != nil {
@@ -232,8 +247,8 @@ func TestParseICMPResult_FourFields(t *testing.T) {
 		t.Fatalf("parseICMPResult() type = %T, want ICMPResult", got)
 	}
 
-	if r.IP != mustAddr(t, "203.0.113.11") {
-		t.Fatalf("IP = %v, want %v", r.IP, mustAddr(t, "203.0.113.11"))
+	if r.Entry.IP.Addr() != mustAddr(t, "203.0.113.11") {
+		t.Fatalf("Entry.IP = %v, want %v", r.Entry.IP, mustAddr(t, "203.0.113.11"))
 	}
 
 	if r.Latency != 42*time.Millisecond {
@@ -252,7 +267,7 @@ func TestParseICMPResult_FourFields(t *testing.T) {
 func TestParseICMPResult_RoundsLatencyToMilliseconds(t *testing.T) {
 	t.Parallel()
 
-	rec := []string{"203.0.113.12", "1500us"}
+	rec := []string{"203.0.113.12", "0", "", "1", "1500us", "1", ""}
 
 	got, err := parseICMPResult(rec)
 	if err != nil {
@@ -269,7 +284,7 @@ func TestParseICMPResult_RoundsLatencyToMilliseconds(t *testing.T) {
 func TestParseICMPResult_MinimumLatencyIsOneMillisecond(t *testing.T) {
 	t.Parallel()
 
-	rec := []string{"203.0.113.13", "200us"}
+	rec := []string{"203.0.113.13", "0", "", "1", "200us", "1", ""}
 
 	got, err := parseICMPResult(rec)
 	if err != nil {
@@ -292,16 +307,15 @@ func TestParseICMPResult_TriesMinimumIsOne(t *testing.T) {
 	}{
 		{
 			name: "tries zero",
-			rec:  []string{"203.0.113.14", "5ms", "0", "raw"},
+			rec:  []string{"203.0.113.14", "0", "", "1", "5ms", "0", "raw"},
 		},
 		{
 			name: "tries negative",
-			rec:  []string{"203.0.113.15", "5ms", "-3", "raw"},
+			rec:  []string{"203.0.113.15", "0", "", "1", "5ms", "-3", "raw"},
 		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -337,7 +351,6 @@ func TestParseICMPResult_InvalidRecordLength(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -352,7 +365,7 @@ func TestParseICMPResult_InvalidRecordLength(t *testing.T) {
 func TestParseICMPResult_InvalidLatency(t *testing.T) {
 	t.Parallel()
 
-	rec := []string{"203.0.113.16", "not-a-duration"}
+	rec := []string{"203.0.113.16", "0", "", "1", "not-a-duration", "1", ""}
 
 	got, err := parseICMPResult(rec)
 	if err == nil {
@@ -363,7 +376,7 @@ func TestParseICMPResult_InvalidLatency(t *testing.T) {
 func TestParseICMPResult_InvalidTries(t *testing.T) {
 	t.Parallel()
 
-	rec := []string{"203.0.113.17", "10ms", "NaN", "udp"}
+	rec := []string{"203.0.113.17", "0", "", "1", "10ms", "NaN", "udp"}
 
 	got, err := parseICMPResult(rec)
 	if err == nil {
@@ -390,7 +403,7 @@ func TestSchema(t *testing.T) {
 		name  string
 		width int
 	}{
-		{"IP", 60},
+		{"Target", 60},
 		{"Latency", 20},
 		{"Tries", 10},
 		{"Mode", 10},
@@ -414,7 +427,7 @@ func TestSchema(t *testing.T) {
 func TestSchemaParser(t *testing.T) {
 	t.Parallel()
 
-	got, err := Schema.Parser([]string{"198.51.100.20", "8ms", "2", "raw"})
+	got, err := Schema.Parser([]string{"198.51.100.20", "0", "", "1", "8ms", "2", "raw"})
 	if err != nil {
 		t.Fatalf("Schema.Parser() error = %v", err)
 	}
@@ -424,8 +437,8 @@ func TestSchemaParser(t *testing.T) {
 		t.Fatalf("Schema.Parser() type = %T, want ICMPResult", got)
 	}
 
-	if r.IP != mustAddr(t, "198.51.100.20") {
-		t.Fatalf("IP = %v, want %v", r.IP, mustAddr(t, "198.51.100.20"))
+	if r.Entry.IP.Addr() != mustAddr(t, "198.51.100.20") {
+		t.Fatalf("Entry.IP = %v, want %v", r.Entry.IP, mustAddr(t, "198.51.100.20"))
 	}
 
 	if r.Latency != 8*time.Millisecond {

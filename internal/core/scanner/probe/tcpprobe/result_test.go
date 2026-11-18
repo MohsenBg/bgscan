@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // mustAddr parses an IP address string, failing the test if invalid.
@@ -20,6 +20,15 @@ func mustAddr(t *testing.T, s string) netip.Addr {
 	return ip
 }
 
+// mustEntry wraps an address in the single-address row a probe now receives.
+func mustEntry(t *testing.T, s string) target.Entry {
+	t.Helper()
+
+	addr := mustAddr(t, s)
+
+	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
+}
+
 func TestSchema(t *testing.T) {
 	t.Parallel()
 
@@ -31,12 +40,12 @@ func TestSchema(t *testing.T) {
 		t.Fatalf("Schema.Directory = %q, want %q", Schema.Directory, "tcp")
 	}
 
-	if len(Schema.Columns) != 4 {
-		t.Fatalf("len(Schema.Columns) = %d, want %d", len(Schema.Columns), 4)
+	if len(Schema.Columns) != 5 {
+		t.Fatalf("len(Schema.Columns) = %d, want %d", len(Schema.Columns), 5)
 	}
 
-	if Schema.Columns[0].Name != "IP" {
-		t.Fatalf("Schema.Columns[0].Name = %q, want %q", Schema.Columns[0].Name, "IP")
+	if Schema.Columns[0].Name != "Target" {
+		t.Fatalf("Schema.Columns[0].Name = %q, want %q", Schema.Columns[0].Name, "Target")
 	}
 	if Schema.Columns[1].Name != "Latency" {
 		t.Fatalf("Schema.Columns[1].Name = %q, want %q", Schema.Columns[1].Name, "Latency")
@@ -47,6 +56,9 @@ func TestSchema(t *testing.T) {
 	if Schema.Columns[3].Name != "Tries" {
 		t.Fatalf("Schema.Columns[3].Name = %q, want %q", Schema.Columns[3].Name, "Tries")
 	}
+	if Schema.Columns[4].Name != "ResolvedFrom" {
+		t.Fatalf("Schema.Columns[4].Name = %q, want %q", Schema.Columns[4].Name, "ResolvedFrom")
+	}
 
 	if Schema.Parser == nil {
 		t.Fatal("Schema.Parser is nil")
@@ -56,12 +68,11 @@ func TestSchema(t *testing.T) {
 func TestTCPResultKey(t *testing.T) {
 	t.Parallel()
 
-	r := TCPResult{
-		IP: mustAddr(t, "192.0.2.10"),
-	}
+	entry := mustEntry(t, "192.0.2.10")
+	r := TCPResult{Entry: entry}
 
-	if got := r.Key(); got != "192.0.2.10" {
-		t.Fatalf("Key() = %q, want %q", got, "192.0.2.10")
+	if got, want := r.Key(), entry.Key(); got != want {
+		t.Fatalf("Key() = %q, want %q", got, want)
 	}
 }
 
@@ -70,30 +81,24 @@ func TestTCPResultKeyType(t *testing.T) {
 
 	r := TCPResult{}
 
-	if got := r.KeyType(); got != result.KeyIP {
-		t.Fatalf("KeyType() = %v, want %v", got, result.KeyIP)
+	if got := r.KeyType(); got != target.KindIP {
+		t.Fatalf("KeyType() = %v, want %v", got, target.KindIP)
 	}
 }
 
 func TestTCPResultEqual(t *testing.T) {
 	t.Parallel()
 
-	r1 := TCPResult{
-		IP: mustAddr(t, "198.51.100.7"),
-	}
-	r2 := TCPResult{
-		IP: mustAddr(t, "198.51.100.7"),
-	}
-	r3 := TCPResult{
-		IP: mustAddr(t, "198.51.100.8"),
-	}
+	r1 := TCPResult{Entry: mustEntry(t, "198.51.100.7")}
+	r2 := TCPResult{Entry: mustEntry(t, "198.51.100.7")}
+	r3 := TCPResult{Entry: mustEntry(t, "198.51.100.8")}
 
 	if !r1.Equal(r2) {
-		t.Fatal("Equal() = false, want true for same IP")
+		t.Fatal("Equal() = false, want true for same target")
 	}
 
 	if r1.Equal(r3) {
-		t.Fatal("Equal() = true, want false for different IP")
+		t.Fatal("Equal() = true, want false for different target")
 	}
 }
 
@@ -108,37 +113,36 @@ func TestTCPResultToRecord(t *testing.T) {
 		{
 			name: "full values",
 			in: TCPResult{
-				IP:      mustAddr(t, "203.0.113.5"),
+				Entry:   mustEntry(t, "203.0.113.5"),
 				Port:    443,
 				Latency: 23 * time.Millisecond,
 				Tries:   4,
 			},
-			want: []string{"203.0.113.5", "23.00ms", "443", "4"},
+			want: []string{"203.0.113.5/32", "0", "", "1", "23.00ms", "443", "4"},
 		},
 		{
 			name: "zero port becomes dash",
 			in: TCPResult{
-				IP:      mustAddr(t, "203.0.113.6"),
+				Entry:   mustEntry(t, "203.0.113.6"),
 				Port:    0,
 				Latency: 50 * time.Millisecond,
 				Tries:   2,
 			},
-			want: []string{"203.0.113.6", "50.00ms", "-", "2"},
+			want: []string{"203.0.113.6/32", "0", "", "1", "50.00ms", "-", "2"},
 		},
 		{
 			name: "zero tries defaults to one",
 			in: TCPResult{
-				IP:      mustAddr(t, "203.0.113.7"),
+				Entry:   mustEntry(t, "203.0.113.7"),
 				Port:    80,
 				Latency: 75 * time.Millisecond,
 				Tries:   0,
 			},
-			want: []string{"203.0.113.7", "75.00ms", "80", "1"},
+			want: []string{"203.0.113.7/32", "0", "", "1", "75.00ms", "80", "1"},
 		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -195,7 +199,6 @@ func TestTCPResultScore(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -220,19 +223,25 @@ func TestParseTCPResult(t *testing.T) {
 	}{
 		{
 			name:   "valid full record",
-			record: []string{"192.0.2.1", "25ms", "443", "3"},
+			record: []string{"192.0.2.1", "8443", "/probe", "1", "25ms", "443", "3"},
 			want: TCPResult{
-				IP:      mustAddr(t, "192.0.2.1"),
+				Entry: target.Entry{
+					Kind:   target.KindIP,
+					IP:     netip.MustParsePrefix("192.0.2.1/32"),
+					Port:   8443,
+					Path:   "/probe",
+					Enable: true,
+				},
 				Latency: 25 * time.Millisecond,
 				Port:    443,
 				Tries:   3,
 			},
 		},
 		{
-			name:   "backward compatible record without tries",
-			record: []string{"192.0.2.2", "40ms", "80"},
+			name:   "record with port and tries",
+			record: []string{"192.0.2.2", "0", "", "1", "40ms", "80", "1"},
 			want: TCPResult{
-				IP:      mustAddr(t, "192.0.2.2"),
+				Entry:   mustEntry(t, "192.0.2.2"),
 				Latency: 40 * time.Millisecond,
 				Port:    80,
 				Tries:   1,
@@ -240,9 +249,9 @@ func TestParseTCPResult(t *testing.T) {
 		},
 		{
 			name:   "invalid port falls back to zero",
-			record: []string{"192.0.2.3", "12ms", "-", "2"},
+			record: []string{"192.0.2.3", "0", "", "1", "12ms", "-", "2"},
 			want: TCPResult{
-				IP:      mustAddr(t, "192.0.2.3"),
+				Entry:   mustEntry(t, "192.0.2.3"),
 				Latency: 12 * time.Millisecond,
 				Port:    0,
 				Tries:   2,
@@ -250,9 +259,9 @@ func TestParseTCPResult(t *testing.T) {
 		},
 		{
 			name:   "latency rounded to nearest millisecond",
-			record: []string{"192.0.2.4", "1500us", "22", "1"},
+			record: []string{"192.0.2.4", "0", "", "1", "1500us", "22", "1"},
 			want: TCPResult{
-				IP:      mustAddr(t, "192.0.2.4"),
+				Entry:   mustEntry(t, "192.0.2.4"),
 				Latency: 2 * time.Millisecond,
 				Port:    22,
 				Tries:   1,
@@ -260,9 +269,9 @@ func TestParseTCPResult(t *testing.T) {
 		},
 		{
 			name:   "latency minimum one millisecond",
-			record: []string{"192.0.2.5", "100us", "53", "1"},
+			record: []string{"192.0.2.5", "0", "", "1", "100us", "53", "1"},
 			want: TCPResult{
-				IP:      mustAddr(t, "192.0.2.5"),
+				Entry:   mustEntry(t, "192.0.2.5"),
 				Latency: 1 * time.Millisecond,
 				Port:    53,
 				Tries:   1,
@@ -270,9 +279,9 @@ func TestParseTCPResult(t *testing.T) {
 		},
 		{
 			name:   "zero tries coerced to one",
-			record: []string{"192.0.2.6", "18ms", "8080", "0"},
+			record: []string{"192.0.2.6", "0", "", "1", "18ms", "8080", "0"},
 			want: TCPResult{
-				IP:      mustAddr(t, "192.0.2.6"),
+				Entry:   mustEntry(t, "192.0.2.6"),
 				Latency: 18 * time.Millisecond,
 				Port:    8080,
 				Tries:   1,
@@ -285,23 +294,27 @@ func TestParseTCPResult(t *testing.T) {
 		},
 		{
 			name:      "invalid ip",
-			record:    []string{"not-an-ip", "10ms", "443", "1"},
+			record:    []string{"not-an-ip", "0", "", "1", "10ms", "443", "1"},
 			wantError: true,
 		},
 		{
 			name:      "invalid latency",
-			record:    []string{"192.0.2.8", "not-a-duration", "443", "1"},
+			record:    []string{"192.0.2.8", "0", "", "1", "not-a-duration", "443", "1"},
+			wantError: true,
+		},
+		{
+			name:      "invalid port",
+			record:    []string{"192.0.2.10", "0", "", "1", "10ms", "bad", "1"},
 			wantError: true,
 		},
 		{
 			name:      "invalid tries",
-			record:    []string{"192.0.2.9", "10ms", "443", "bad"},
+			record:    []string{"192.0.2.9", "0", "", "1", "10ms", "443", "bad"},
 			wantError: true,
 		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -322,8 +335,8 @@ func TestParseTCPResult(t *testing.T) {
 				t.Fatalf("parseTCPResult() type = %T, want TCPResult", got)
 			}
 
-			if res.IP != tt.want.IP {
-				t.Fatalf("IP = %v, want %v", res.IP, tt.want.IP)
+			if res.Entry.Key() != tt.want.Entry.Key() {
+				t.Fatalf("Entry = %v, want %v", res.Entry, tt.want.Entry)
 			}
 			if res.Latency != tt.want.Latency {
 				t.Fatalf("Latency = %v, want %v", res.Latency, tt.want.Latency)

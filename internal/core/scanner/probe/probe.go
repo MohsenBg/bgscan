@@ -3,9 +3,9 @@ package probe
 
 import (
 	"context"
-	"net/netip"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // Probe defines the interface for all active scanning primitives.
@@ -15,11 +15,13 @@ type Probe interface {
 	// state. Implementations that require no initialization may return nil.
 	Init(ctx context.Context) error
 
-	// Run executes a probe against the provided IP address. It must honor
-	// ctx for cancellation, return a populated Result on success, and
-	// return an error if the probe fails or times out. Use probe.NormalizeErr
-	// to map low-level timeouts/refusals into the shared sentinel errors.
-	Run(ctx context.Context, ip netip.Addr) (result.Result, error)
+	Input() target.Kind
+
+	// Run probes one target row. It must honor ctx for cancellation, return
+	// a populated Result on success, and return an error if the probe fails
+	// or times out. Use probe.NormalizeErr to map low-level timeouts and
+	// refusals into the shared sentinel errors.
+	Run(ctx context.Context, entry target.Entry) (result.Result, error)
 
 	// Schema returns the schema describing this probe's results.
 	Schema() result.ResultSchema

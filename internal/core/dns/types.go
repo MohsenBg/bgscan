@@ -46,12 +46,13 @@ const (
 	ResolverTypeUDP ResolverType = "udp"
 	ResolverTypeTCP ResolverType = "tcp"
 	ResolverTypeDOT ResolverType = "dot"
+	ResolverTypeDOH ResolverType = "doh"
 )
 
 // IsValid reports whether the resolver type is supported.
 func (t ResolverType) IsValid() bool {
 	switch strings.ToLower(strings.TrimSpace(string(t))) {
-	case string(ResolverTypeUDP), string(ResolverTypeTCP), string(ResolverTypeDOT):
+	case string(ResolverTypeUDP), string(ResolverTypeTCP), string(ResolverTypeDOT), string(ResolverTypeDOH):
 		return true
 	default:
 		return false
@@ -68,6 +69,8 @@ func ParseResolverType(s string) ResolverType {
 		return ResolverTypeDOT
 	case string(ResolverTypeUDP):
 		return ResolverTypeUDP
+	case string(ResolverTypeDOH):
+		return ResolverTypeDOH
 	default:
 		return ResolverTypeUDP
 	}

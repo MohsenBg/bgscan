@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/netip"
 	"os"
 	"strconv"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 type mockResult struct {
@@ -20,10 +20,10 @@ type mockResult struct {
 	score float64
 }
 
-func (r *mockResult) Key() string             { return r.key }
-func (r *mockResult) KeyType() result.KeyType { return result.KeyIP }
-func (r *mockResult) ToRecord() []string      { return []string{r.key} }
-func (r *mockResult) Score() float64          { return r.score }
+func (r *mockResult) Key() string          { return r.key }
+func (r *mockResult) KeyType() target.Kind { return target.KindIP }
+func (r *mockResult) ToRecord() []string   { return []string{r.key} }
+func (r *mockResult) Score() float64       { return r.score }
 func (r *mockResult) Equal(o result.Result) bool {
 	other, ok := o.(*mockResult)
 	return ok && other.key == r.key
@@ -54,7 +54,7 @@ type mockProbe struct {
 	closeErr error
 	runErr   error
 	runDelay time.Duration
-	onRun    func(ip netip.Addr)
+	onRun    func(entry target.Entry)
 
 	initCalled  atomic.Int32
 	closeCalled atomic.Int32
@@ -64,7 +64,8 @@ type mockProbe struct {
 func (p *mockProbe) Init(_ context.Context) error { p.initCalled.Add(1); return p.initErr }
 func (p *mockProbe) Close() error                 { p.closeCalled.Add(1); return p.closeErr }
 func (p *mockProbe) Schema() result.ResultSchema  { return mockResultSchema() }
-func (p *mockProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+func (p *mockProbe) Input() target.Kind           { return target.KindIP }
+func (p *mockProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	p.runCalled.Add(1)
 	if p.runDelay > 0 {
 		select {
@@ -74,12 +75,12 @@ func (p *mockProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 		}
 	}
 	if p.onRun != nil {
-		p.onRun(ip)
+		p.onRun(entry)
 	}
 	if p.runErr != nil {
 		return nil, p.runErr
 	}
-	return &mockResult{key: ip.String(), score: 1.0}, nil
+	return &mockResult{key: entry.Value(), score: 1.0}, nil
 }
 
 type filteringProbe struct {
@@ -91,11 +92,13 @@ type filteringProbe struct {
 func (p *filteringProbe) Init(_ context.Context) error { p.initCalled.Add(1); return nil }
 func (p *filteringProbe) Close() error                 { p.closeCalled.Add(1); return nil }
 func (p *filteringProbe) Schema() result.ResultSchema  { return mockResultSchema() }
-func (p *filteringProbe) Run(_ context.Context, ip netip.Addr) (result.Result, error) {
-	if p.failIPs[ip.String()] {
+func (p *filteringProbe) Input() target.Kind           { return target.KindIP }
+func (p *filteringProbe) Run(_ context.Context, entry target.Entry) (result.Result, error) {
+	ip := entry.IP.Addr().String()
+	if p.failIPs[ip] {
 		return nil, errors.New("filtered")
 	}
-	return &mockResult{key: ip.String()}, nil
+	return &mockResult{key: ip}, nil
 }
 
 type mockWriter struct {

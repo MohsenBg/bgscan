@@ -6,34 +6,6 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
-func TestKeyType_String(t *testing.T) {
-	cases := []struct {
-		k    result.KeyType
-		want string
-	}{
-		{result.KeyIP, "ip"},
-		{result.KeyDomain, "domain"},
-		{result.KeyType(99), "unknown(99)"},
-	}
-	for _, tc := range cases {
-		if got := tc.k.String(); got != tc.want {
-			t.Errorf("KeyType(%d).String() = %q, want %q", tc.k, got, tc.want)
-		}
-	}
-}
-
-func TestKeyType_Valid(t *testing.T) {
-	if !result.KeyIP.Valid() {
-		t.Error("KeyIP should be valid")
-	}
-	if !result.KeyDomain.Valid() {
-		t.Error("KeyDomain should be valid")
-	}
-	if result.KeyType(99).Valid() {
-		t.Error("KeyType(99) should be invalid")
-	}
-}
-
 func TestResultSchema_Validate(t *testing.T) {
 	parser := func([]string) (result.Result, error) { return nil, nil }
 

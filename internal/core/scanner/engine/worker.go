@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
-	"net/netip"
 	"sync"
 	"sync/atomic"
 
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 type errStats struct {
@@ -52,19 +52,19 @@ func (s *errStats) snapshot() ErrorStats {
 	}
 }
 
-func (e *stageExecutor) logIPError(ip netip.Addr, err error) {
+func (e *stageExecutor) logIPError(entry target.Entry, err error) {
 	if errors.Is(err, context.Canceled) || errors.Is(err, ErrResultLimitReached) {
 		return
 	}
 
 	if e.errs.count(err) {
-		e.log.Debug("%s: %v", ip, err)
+		e.log.Debug("%s: %v", entry.Value(), err)
 		return
 	}
-	e.log.Error("%s: %v", ip, err)
+	e.log.Error("%s: %v", entry.Value(), err)
 }
 
-type ipProcessor func(netip.Addr) error
+type entryProcessor func(target.Entry) error
 
 func (e *stageExecutor) workerCount() int {
 	return getWorkerCount(e.stage.Workers)
@@ -73,8 +73,8 @@ func (e *stageExecutor) workerCount() int {
 func (e *stageExecutor) runPool(
 	ctx context.Context,
 	cancel context.CancelCauseFunc,
-	input <-chan netip.Addr,
-	process ipProcessor,
+	input <-chan target.Entry,
+	process entryProcessor,
 ) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, 1)
@@ -111,7 +111,7 @@ func (e *stageExecutor) runPool(
 	return nil
 }
 
-func (e *stageExecutor) runWorker(ctx context.Context, input <-chan netip.Addr, process ipProcessor) error {
+func (e *stageExecutor) runWorker(ctx context.Context, input <-chan target.Entry, process entryProcessor) error {
 	for {
 		if e.pause != nil && !e.pause.Wait(ctx) {
 			return nil
@@ -121,15 +121,15 @@ func (e *stageExecutor) runWorker(ctx context.Context, input <-chan netip.Addr, 
 		case <-ctx.Done():
 			return nil
 
-		case ip, ok := <-input:
+		case entry, ok := <-input:
 			if !ok {
 				return nil
 			}
-			if err := process(ip); err != nil {
+			if err := process(entry); err != nil {
 				if terminating(err) {
 					return err
 				}
-				e.logIPError(ip, err)
+				e.logIPError(entry, err)
 			}
 		}
 	}

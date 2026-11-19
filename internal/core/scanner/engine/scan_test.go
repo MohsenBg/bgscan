@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/netip"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 func TestRunScan_EmptyInput(t *testing.T) {
@@ -477,7 +477,7 @@ func TestWorkerPool_ConcurrencyRespected(t *testing.T) {
 	)
 
 	prb := &mockProbe{}
-	prb.onRun = func(_ netip.Addr) {
+	prb.onRun = func(_ target.Entry) {
 		mu.Lock()
 		concurrent++
 		if concurrent > peakConc {

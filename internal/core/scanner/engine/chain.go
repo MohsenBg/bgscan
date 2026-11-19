@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"errors"
-	"net/netip"
 	"sync"
 
 	"github.com/MohsenBg/bgscan/internal/core/target"
@@ -252,8 +251,8 @@ func (p *pipeline) countInput(input string) uint64 {
 }
 
 // createStageChannels creates buffered channels between pipeline stages.
-func (p *pipeline) createStageChannels() []chan netip.Addr {
-	channels := make([]chan netip.Addr, len(p.cfg.Stages))
+func (p *pipeline) createStageChannels() []chan target.Entry {
+	channels := make([]chan target.Entry, len(p.cfg.Stages))
 
 	for i := range channels {
 		size := p.cfg.MaxBuffer
@@ -263,14 +262,14 @@ func (p *pipeline) createStageChannels() []chan netip.Addr {
 		if i+1 < len(p.cfg.Stages) {
 			size = max(size, getWorkerCount(p.cfg.Stages[i+1].Workers))
 		}
-		channels[i] = make(chan netip.Addr, size)
+		channels[i] = make(chan target.Entry, size)
 	}
 
 	return channels
 }
 
 // getInputChannel returns the input channel for a stage (nil for the first).
-func getInputChannel(stageIdx int, channels []chan netip.Addr) chan netip.Addr {
+func getInputChannel(stageIdx int, channels []chan target.Entry) chan target.Entry {
 	if stageIdx == 0 {
 		return nil
 	}
@@ -278,14 +277,14 @@ func getInputChannel(stageIdx int, channels []chan netip.Addr) chan netip.Addr {
 }
 
 // getOutputChannel returns the output channel for a stage (nil for the last).
-func getOutputChannel(stageIdx, total int, channels []chan netip.Addr) chan netip.Addr {
+func getOutputChannel(stageIdx, total int, channels []chan target.Entry) chan target.Entry {
 	if stageIdx >= total-1 {
 		return nil
 	}
 	return channels[stageIdx]
 }
 
-func closeOutputChannel(ch chan netip.Addr) {
+func closeOutputChannel(ch chan target.Entry) {
 	if ch != nil {
 		close(ch)
 	}
@@ -308,30 +307,30 @@ func (p *pipeline) batchSize() int {
 	return max(maxWorkers, p.cfg.BatchSize)
 }
 
-// streamBatches streams IPs from the input file in fixed-size batches.
-func (p *pipeline) streamBatches(input string, batchSize int) <-chan []netip.Addr {
-	out := make(chan []netip.Addr, 2)
+// streamBatches streams targets from the input file in fixed-size batches.
+func (p *pipeline) streamBatches(input string, batchSize int) <-chan []target.Entry {
+	out := make(chan []target.Entry, 2)
 
 	go func() {
 		defer close(out)
 
-		ipCh := make(chan netip.Addr, batchSize*2)
+		entries := make(chan target.Entry, batchSize*2)
 		done := make(chan error, 1)
 
 		go func() {
-			defer close(ipCh)
-			done <- target.StreamActive(p.cfg.Log, p.ctx, input, p.cfg.MaxIPsToTest, p.cfg.Shuffled, ipCh)
+			defer close(entries)
+			done <- target.StreamActive(p.cfg.Log, p.ctx, input, p.cfg.MaxIPsToTest, p.cfg.Shuffled, entries)
 		}()
 
-		batch := make([]netip.Addr, 0, batchSize)
+		batch := make([]target.Entry, 0, batchSize)
 
-		for ip := range ipCh {
-			batch = append(batch, ip)
+		for entry := range entries {
+			batch = append(batch, entry)
 
 			if len(batch) == batchSize {
 				select {
 				case out <- batch:
-					batch = make([]netip.Addr, 0, batchSize)
+					batch = make([]target.Entry, 0, batchSize)
 				case <-p.ctx.Done():
 					return
 				}
@@ -354,7 +353,7 @@ func (p *pipeline) streamBatches(input string, batchSize int) <-chan []netip.Add
 }
 
 // processBatch runs a single batch through all stages.
-func (p *pipeline) processBatch(batch []netip.Addr, execs []*stageExecutor) error {
+func (p *pipeline) processBatch(batch []target.Entry, execs []*stageExecutor) error {
 	current := batch
 
 	for i, exec := range execs {
@@ -377,14 +376,14 @@ func (p *pipeline) processBatch(batch []netip.Addr, execs []*stageExecutor) erro
 }
 
 // runStageBatch processes one batch through a single stage's worker pool and
-// returns the IPs that passed.
-func (p *pipeline) runStageBatch(batch []netip.Addr, exec *stageExecutor) ([]netip.Addr, error) {
-	input := make(chan netip.Addr, exec.workerCount()*2)
+// returns the targets that passed.
+func (p *pipeline) runStageBatch(batch []target.Entry, exec *stageExecutor) ([]target.Entry, error) {
+	input := make(chan target.Entry, exec.workerCount()*2)
 	go func() {
 		defer close(input)
-		for _, ip := range batch {
+		for _, entry := range batch {
 			select {
-			case input <- ip:
+			case input <- entry:
 			case <-p.ctx.Done():
 				return
 			}
@@ -393,15 +392,15 @@ func (p *pipeline) runStageBatch(batch []netip.Addr, exec *stageExecutor) ([]net
 
 	var (
 		mu  sync.Mutex
-		out = make([]netip.Addr, 0, len(batch))
+		out = make([]target.Entry, 0, len(batch))
 	)
 
-	err := exec.runPool(p.ctx, p.cancel, input, func(ip netip.Addr) error {
-		if err := exec.processIP(p.ctx, ip); err != nil {
+	err := exec.runPool(p.ctx, p.cancel, input, func(entry target.Entry) error {
+		if err := exec.processIP(p.ctx, entry); err != nil {
 			return err // no classifier here
 		}
 		mu.Lock()
-		out = append(out, ip)
+		out = append(out, entry)
 		mu.Unlock()
 		return nil
 	})
@@ -412,10 +411,10 @@ func (p *pipeline) runStageBatch(batch []netip.Addr, exec *stageExecutor) ([]net
 	return out, nil
 }
 
-// streamStageFromFile runs a single stage reading IPs from a file. If out is
-// non-nil, passing IPs are forwarded to the next stage.
-func (p *pipeline) streamStageFromFile(input string, exec, next *stageExecutor, out chan netip.Addr) error {
-	in := make(chan netip.Addr, exec.workerCount()*2)
+// streamStageFromFile runs a single stage reading targets from a file. If out
+// is non-nil, passing targets are forwarded to the next stage.
+func (p *pipeline) streamStageFromFile(input string, exec, next *stageExecutor, out chan target.Entry) error {
+	in := make(chan target.Entry, exec.workerCount()*2)
 	done := make(chan error, 1)
 
 	go func() {
@@ -438,24 +437,24 @@ func (p *pipeline) streamStageFromFile(input string, exec, next *stageExecutor, 
 	return errors.Join(runErr, readErr)
 }
 
-// streamStage runs a single stage over an input channel of IPs.
-func (p *pipeline) streamStage(exec, next *stageExecutor, in, out chan netip.Addr) error {
-	return exec.runPool(p.ctx, p.cancel, in, func(ip netip.Addr) error {
-		if err := exec.processIP(p.ctx, ip); err != nil {
+// streamStage runs a single stage over an input channel of targets.
+func (p *pipeline) streamStage(exec, next *stageExecutor, in, out chan target.Entry) error {
+	return exec.runPool(p.ctx, p.cancel, in, func(entry target.Entry) error {
+		if err := exec.processIP(p.ctx, entry); err != nil {
 			return p.stageErr(err)
 		}
-		forward(p.ctx, out, next, ip)
+		forward(p.ctx, out, next, entry)
 		return nil
 	})
 }
 
-// forward passes an IP to the next stage, counting it toward its total.
-func forward(ctx context.Context, out chan netip.Addr, next *stageExecutor, ip netip.Addr) {
+// forward passes a target to the next stage, counting it toward its total.
+func forward(ctx context.Context, out chan target.Entry, next *stageExecutor, entry target.Entry) {
 	if out == nil {
 		return
 	}
 	select {
-	case out <- ip:
+	case out <- entry:
 		if next != nil {
 			next.total.Add(1)
 		}

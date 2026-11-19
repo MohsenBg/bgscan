@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/netip"
 	"sync/atomic"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/logger"
 
 	"golang.org/x/time/rate"
@@ -130,7 +130,7 @@ func (e *stageExecutor) close() error {
 	return closeErr
 }
 
-func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) error {
+func (e *stageExecutor) processIP(ctx context.Context, entry target.Entry) error {
 	if e.resultLimitReached() {
 		return ErrResultLimitReached
 	}
@@ -143,7 +143,7 @@ func (e *stageExecutor) processIP(ctx context.Context, ip netip.Addr) error {
 
 	probeStart := time.Now()
 
-	res, err := e.stage.Probe.Run(ctx, ip)
+	res, err := e.stage.Probe.Run(ctx, entry)
 	e.processed.Add(1)
 
 	e.waitMinProbeDuration(ctx, probeStart)

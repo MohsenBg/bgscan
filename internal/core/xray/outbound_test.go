@@ -143,7 +143,7 @@ func TestSetOutboundAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := setOutboundAddress(tt.in, ip, tt.port); err != nil {
+			if err := setOutboundAddress(tt.in, ip.String(), tt.port); err != nil {
 				t.Fatalf("setOutboundAddress() error = %v", err)
 			}
 
@@ -212,7 +212,7 @@ func TestSetOutboundAddress_Errors(t *testing.T) {
 				target = netip.Addr{}
 			}
 
-			err := setOutboundAddress(tt.in, target, 0)
+			err := setOutboundAddress(tt.in, target.String(), 0)
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -283,7 +283,7 @@ func TestApplyOutboundTemplate(t *testing.T) {
 			path := filepath.Join(dir, "template.json")
 			writeJSONFile(t, path, tt.tmpl)
 
-			got, err := applyOutboundTemplate(path, netip.MustParseAddr("8.8.8.8"), tt.port)
+			got, err := applyOutboundTemplate(path, "8.8.8.8", tt.port)
 			if err != nil {
 				t.Fatalf("applyOutboundTemplate() error = %v", err)
 			}
@@ -316,7 +316,7 @@ func TestApplyOutboundTemplate_InvalidIP(t *testing.T) {
 	})
 
 	// The zero netip.Addr is the only invalid value the type can carry.
-	_, err := applyOutboundTemplate(path, netip.Addr{}, 0)
+	_, err := applyOutboundTemplate(path, "", 0)
 	if err == nil {
 		t.Fatal("expected invalid IP error")
 	}
@@ -333,7 +333,7 @@ func TestApplyOutboundTemplate_InvalidJSON(t *testing.T) {
 		t.Fatalf("os.WriteFile() error = %v", err)
 	}
 
-	_, err := applyOutboundTemplate(path, netip.MustParseAddr("1.1.1.1"), 0)
+	_, err := applyOutboundTemplate(path, "1.1.1.1", 0)
 	if err == nil {
 		t.Fatal("expected JSON parse error")
 	}

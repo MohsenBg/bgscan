@@ -19,7 +19,7 @@ func TestServiceVersion_NonEmpty(t *testing.T) {
 func TestGenerateConfig_InvalidIP(t *testing.T) {
 	svc := NewXrayService()
 
-	if _, err := svc.GenerateConfig("anything", netip.Addr{}, 1080, 0); err == nil {
+	if _, err := svc.GenerateConfig("anything", "", 1080, 0); err == nil {
 		t.Fatal("expected error for invalid IP")
 	}
 }
@@ -28,7 +28,7 @@ func TestGenerateConfig_MissingTemplate(t *testing.T) {
 	svc := NewXrayService()
 
 	ip := netip.MustParseAddr("1.2.3.4")
-	if _, err := svc.GenerateConfig("does-not-exist-xyz", ip, 1080, 0); err == nil {
+	if _, err := svc.GenerateConfig("does-not-exist-xyz", ip.String(), 1080, 0); err == nil {
 		t.Fatal("expected error for missing outbound template")
 	}
 }

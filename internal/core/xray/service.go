@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/netip"
 	"path/filepath"
 	"time"
 
@@ -29,7 +28,7 @@ type XrayService interface {
 	// A nonzero remotePort overrides the dial port (written to the protocol's
 	// port field, or the host:port endpoint for WireGuard); pass 0 to keep the
 	// template's own port. localPort is the SOCKS listener port.
-	GenerateConfig(outbound string, ip netip.Addr, localPort, remotePort uint16) (*Config, error)
+	GenerateConfig(outbound string, addr string, localPort, remotePort uint16) (*Config, error)
 	ValidateConfig(ctx context.Context, config *Config) error
 	Start(ctx context.Context, config *Config) (Instance, error)
 
@@ -66,17 +65,13 @@ func (s *xrayService) GetOutboundTemplateByName(name string) (*OutboundFile, err
 	return GetOutboundTemplateByName(name)
 }
 
-func (s *xrayService) GenerateConfig(outboundName string, ip netip.Addr, localPort, remotePort uint16) (*Config, error) {
-	if !ip.IsValid() {
-		return nil, fmt.Errorf("invalid IP: %s", ip)
-	}
-
+func (s *xrayService) GenerateConfig(outboundName string, addr string, localPort, remotePort uint16) (*Config, error) {
 	template, err := s.GetOutboundTemplateByName(outboundName)
 	if err != nil {
 		return nil, err
 	}
 
-	outbound, err := applyOutboundTemplate(template.Path, ip, remotePort)
+	outbound, err := applyOutboundTemplate(template.Path, addr, remotePort)
 	if err != nil {
 		return nil, err
 	}

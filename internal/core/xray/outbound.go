@@ -103,9 +103,13 @@ func requireReplaceableAddress(outbound map[string]any) error {
 	return err
 }
 
-func setOutboundAddress(outbound map[string]any, ip netip.Addr, port uint16) error {
-	if !ip.IsValid() {
-		return fmt.Errorf("invalid IP target address: %s", ip)
+func setOutboundAddress(outbound map[string]any, addr string, port uint16) error {
+	if addr == "" {
+		return errors.New("invalid IP: address is empty")
+	}
+	// Validate that addr is a valid IP address.
+	if _, err := netip.ParseAddr(addr); err != nil {
+		return fmt.Errorf("invalid IP: %w", err)
 	}
 
 	locs, err := outboundAddressLocations(outbound)
@@ -114,7 +118,7 @@ func setOutboundAddress(outbound map[string]any, ip netip.Addr, port uint16) err
 	}
 
 	for _, loc := range locs {
-		if err := setAddressAt(outbound, loc, ip, port); err != nil {
+		if err := setAddressAt(outbound, loc, addr, port); err != nil {
 			return err
 		}
 	}
@@ -123,7 +127,7 @@ func setOutboundAddress(outbound map[string]any, ip netip.Addr, port uint16) err
 }
 
 // setAddressAt applies a scanned IP to one address location
-func setAddressAt(outbound map[string]any, loc addressLocation, ip netip.Addr, port uint16) error {
+func setAddressAt(outbound map[string]any, loc addressLocation, addr string, port uint16) error {
 	node := any(outbound)
 
 	for _, key := range loc.path[:len(loc.path)-1] {
@@ -148,18 +152,18 @@ func setAddressAt(outbound map[string]any, loc addressLocation, ip netip.Addr, p
 	if loc.portKey == "" {
 		// WireGuard peers dial "host:port" endpoints.
 		if port != 0 {
-			parent[last] = net.JoinHostPort(ip.String(), strconv.Itoa(int(port)))
+			parent[last] = net.JoinHostPort(addr, strconv.Itoa(int(port)))
 			return nil
 		}
 		if _, embeddedPort, err := net.SplitHostPort(current); err == nil {
-			parent[last] = net.JoinHostPort(ip.String(), embeddedPort)
+			parent[last] = net.JoinHostPort(addr, embeddedPort)
 			return nil
 		}
-		parent[last] = ip.String()
+		parent[last] = addr
 		return nil
 	}
 
-	parent[last] = ip.String()
+	parent[last] = addr
 	if port != 0 {
 		parent[loc.portKey] = port
 	}
@@ -183,11 +187,7 @@ func descend(node any, key string) (any, bool) {
 	}
 }
 
-func applyOutboundTemplate(templatePath string, ip netip.Addr, port uint16) (any, error) {
-	if !ip.IsValid() {
-		return nil, fmt.Errorf("invalid IP target address: %s", ip)
-	}
-
+func applyOutboundTemplate(templatePath string, addr string, port uint16) (any, error) {
 	raw, err := os.ReadFile(templatePath)
 	if err != nil {
 		return nil, fmt.Errorf("read template file: %w", err)
@@ -198,7 +198,7 @@ func applyOutboundTemplate(templatePath string, ip netip.Addr, port uint16) (any
 		return nil, fmt.Errorf("parse outbound template JSON: %w", err)
 	}
 
-	if err := setOutboundAddress(outbound, ip, port); err != nil {
+	if err := setOutboundAddress(outbound, addr, port); err != nil {
 		return nil, err
 	}
 
@@ -361,7 +361,7 @@ func RenameOutboundTemplate(oldName, newName string) (*OutboundFile, error) {
 // ValidateOutbound checks a saved template by building a throwaway loopback config.
 func ValidateOutbound(outbound string) error {
 	svc := NewXrayService()
-	loopback := netip.AddrFrom4([4]byte{127, 0, 0, 1})
+	loopback := netip.AddrFrom4([4]byte{127, 0, 0, 1}).String()
 
 	cfg, err := svc.GenerateConfig(outbound, loopback, 40443, 0)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 func TestNewResultRegistry_Empty(t *testing.T) {
@@ -184,16 +185,14 @@ func TestResultRegistry_ConcurrentAccess(t *testing.T) {
 	s := validSchema(t)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 50; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 50 {
+		wg.Go(func() {
 			_ = r.Register(s)
 			_, _ = r.Get(s.Directory)
 			_ = r.All()
 			_ = r.Len()
 			_ = r.Unregister(s.Directory)
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -264,12 +263,18 @@ func TestFindResultFiles_FindsCSVFiles(t *testing.T) {
 	}
 
 	schemaDir := getSchemaDir(cfg.ResultBaseDir, schema.Directory)
-	if err := os.MkdirAll(schemaDir, resultDirPerm); err != nil {
+	// FindResultFiles looks in ips/ and domains/ subdirectories
+	ipDir := filepath.Join(schemaDir, target.KindIP.Dir())
+	domainDir := filepath.Join(schemaDir, target.KindDomain.Dir())
+	if err := os.MkdirAll(ipDir, resultDirPerm); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.MkdirAll(domainDir, resultDirPerm); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
 
 	for _, name := range []string{"scan1.csv", "scan2.csv"} {
-		if err := os.WriteFile(filepath.Join(schemaDir, name), nil, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(ipDir, name), nil, 0o644); err != nil {
 			t.Fatalf("WriteFile: %v", err)
 		}
 	}

@@ -7,23 +7,24 @@ import (
 	"testing"
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 type mockResult struct {
 	key     string
-	keyType KeyType
+	keyType target.Kind
 	score   float64
 	record  []string
 }
 
 func newMockResult(key string, score float64, record ...string) *mockResult {
-	return &mockResult{key: key, keyType: KeyIP, score: score, record: record}
+	return &mockResult{key: key, keyType: target.KindIP, score: score, record: record}
 }
 
-func (m *mockResult) Key() string        { return m.key }
-func (m *mockResult) KeyType() KeyType   { return m.keyType }
-func (m *mockResult) ToRecord() []string { return m.record }
-func (m *mockResult) Score() float64     { return m.score }
+func (m *mockResult) Key() string          { return m.key }
+func (m *mockResult) KeyType() target.Kind { return m.keyType }
+func (m *mockResult) ToRecord() []string   { return m.record }
+func (m *mockResult) Score() float64       { return m.score }
 
 func (m *mockResult) Equal(other Result) bool {
 	o, ok := other.(*mockResult)

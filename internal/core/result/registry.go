@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/config/validate"
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 const (
@@ -121,25 +123,27 @@ func FindResultFiles(cfg config.WriterConfig, schemas ...ResultSchema) ([]Result
 	var results []ResultFile
 
 	for _, schema := range schemas {
-		dir := getSchemaDir(cfg.ResultBaseDir, schema.Directory)
-
-		files, err := fileutil.ListFiles(dir, func(name string, _ os.FileInfo) bool {
-			return fileutil.HasExt(name, csvExtension)
-		})
-		if err != nil {
-			continue
-		}
-
-		for _, f := range files {
-			results = append(results, ResultFile{
-				Name:        fileutil.StripExt(f.Name),
-				SizeBytes:   f.Info.Size(),
-				CreatedTime: f.Info.ModTime(),
-				Path:        f.Path,
-				Schema:      schema,
-				RecordCount: 0,
+		for _, kind := range []target.Kind{target.KindIP, target.KindDomain} {
+			dir := path.Join(getSchemaDir(cfg.ResultBaseDir, schema.Directory), kind.Dir())
+			files, err := fileutil.ListFiles(dir, func(name string, _ os.FileInfo) bool {
+				return fileutil.HasExt(name, csvExtension)
 			})
+			if err != nil {
+				continue
+			}
+
+			for _, f := range files {
+				results = append(results, ResultFile{
+					Name:        fileutil.StripExt(f.Name),
+					SizeBytes:   f.Info.Size(),
+					CreatedTime: f.Info.ModTime(),
+					Path:        f.Path,
+					Schema:      schema,
+					RecordCount: 0,
+				})
+			}
 		}
+
 	}
 
 	return results, nil

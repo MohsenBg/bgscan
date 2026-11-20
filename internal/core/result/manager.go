@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"path/filepath"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -13,6 +14,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/config/validate"
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
@@ -56,6 +58,14 @@ type writer struct {
 	log    *logger.Logger
 	config config.WriterConfig
 	schema ResultSchema
+	prefix string
+
+	// Result file path. Decided lazily at the first flush, from the first
+	// result's KeyType: a run is all IPs or all domains, and the kind is
+	// only known once a result arrives. Guarded by pathMu because the loop
+	// goroutine writes it while GetResultPath may read it from another
+	// goroutine.
+	pathMu sync.RWMutex
 	path   string
 
 	// Lifecycle: parent ctx -> w.ctx, cancelled on shutdown.
@@ -101,6 +111,10 @@ type WriterOptions struct {
 }
 
 // NewWriter creates a Writer tied to the given context.
+//
+// The result file path is not built here: whether results land under the
+// schema's ips or domains directory is only known when the first result
+// arrives, so the path is decided at the first flush (see ensurePath).
 func NewWriter(ctx context.Context, opts WriterOptions) (Writer, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -111,9 +125,8 @@ func NewWriter(ctx context.Context, opts WriterOptions) (Writer, error) {
 	if err := opts.Schema.Validate(); err != nil {
 		return nil, err
 	}
-	path, err := prepareResultFilePath(opts.Config, opts.Schema, opts.ResultPrefix)
-	if err != nil {
-		return nil, err
+	if opts.ResultPrefix == "" {
+		return nil, errors.New("result: prefix cannot be empty")
 	}
 
 	wctx, cancel := context.WithCancel(ctx)
@@ -121,7 +134,7 @@ func NewWriter(ctx context.Context, opts WriterOptions) (Writer, error) {
 		log:    opts.Log,
 		config: opts.Config,
 		schema: opts.Schema,
-		path:   path,
+		prefix: opts.ResultPrefix,
 		ctx:    wctx,
 		cancel: cancel,
 		input:  make(chan Result, opts.Config.ChanSize),
@@ -129,6 +142,8 @@ func NewWriter(ctx context.Context, opts WriterOptions) (Writer, error) {
 		batch:  make([]Result, 0, opts.Config.BatchSize),
 	}, nil
 }
+
+// --- Lifecycle ---
 
 func (w *writer) Start() error {
 	w.startOnce.Do(func() {
@@ -141,17 +156,12 @@ func (w *writer) Start() error {
 }
 
 func (w *writer) doStart() error {
-	if err := fileutil.EnsureParentDir(w.path); err != nil {
-		return fmt.Errorf("ensure result dir: %w", err)
-	}
-	if err := fileutil.RemoveFile(w.path); err != nil {
-		return fmt.Errorf("remove stale result file: %w", err)
-	}
+	// Nothing to prepare on disk yet: the result path (and its directory)
+	// is only decided at the first flush, when the first result reveals
+	// whether this run is IPs or domains.
 	go w.loop()
 	return nil
 }
-
-// --- Write ---
 
 func (w *writer) Write(r Result) error {
 	if !w.started.Load() {
@@ -180,33 +190,28 @@ func (w *writer) Write(r Result) error {
 	}
 }
 
-// --- Close ---
-
 func (w *writer) Close() error {
 	w.closeOnce.Do(func() {
-		// Prevent the loop from starting if Start was never called.
+		// Prevent new writes, then close the channel so the loop drains.
+		// Write holds RLock across its send, so this cannot race a send.
 		w.stateMu.Lock()
 		w.closed = true
 		close(w.input)
 		w.stateMu.Unlock()
 
-		// If Start never ran, the loop is not running; nothing to wait for.
-		if !w.started.Load() {
+		if w.started.Load() {
+			<-w.exited // loop flushed and exited
+		} else {
+			// Start never ran: no loop to wait for.
 			w.cancel()
-			w.errMu.Lock()
-			w.closeErr = w.firstErr
-			w.errMu.Unlock()
-			return
 		}
 
-		<-w.exited
-
-		w.errMu.Lock()
-		w.closeErr = w.firstErr
-		w.errMu.Unlock()
+		w.closeErr = w.flushError()
 	})
 	return w.closeErr
 }
+
+// --- Background loop ---
 
 func (w *writer) loop() {
 	defer close(w.exited)
@@ -247,7 +252,7 @@ func (w *writer) loop() {
 			if w.flush() {
 				w.cancel()
 			} else {
-				timer.Reset(w.config.MergeFlushInterval.Duration())
+				resetTimer()
 			}
 
 		case <-w.ctx.Done():
@@ -274,19 +279,31 @@ func (w *writer) drainIntoBatch() {
 	}
 }
 
+// --- Flushing ---
+
 // flush writes the current batch to disk. Returns true on fatal error.
 func (w *writer) flush() (fatal bool) {
 	if len(w.batch) == 0 {
 		return false
 	}
 
-	// Copy the batch: mergeResults sorts its argument in place.
-	tmp := make([]Result, len(w.batch))
-	copy(tmp, w.batch)
-	n := len(w.batch)
+	// Clone the batch: mergeResults sorts its argument in place.
+	tmp := slices.Clone(w.batch)
+	n := len(tmp)
 	w.batch = w.batch[:0]
 
-	if err := mergeResults(w.log, w.path, w.schema, tmp); err != nil {
+	// The first result of the first batch decides the file path for the
+	// whole run: a run is all IPs or all domains, never mixed.
+	if err := w.ensurePath(tmp[0].KeyType()); err != nil {
+		w.log.Error("prepare result path: %v", err)
+		if w.config.IgnoreErr {
+			return false
+		}
+		w.recordErr(err)
+		return true
+	}
+
+	if err := mergeResults(w.log, w.resultPath(), w.schema, tmp); err != nil {
 		w.log.Error("flush results: %v", err)
 		if w.config.IgnoreErr {
 			return false
@@ -300,6 +317,37 @@ func (w *writer) flush() (fatal bool) {
 	return false
 }
 
+// ensurePath builds the result file path the first time it is needed,
+// placing the file under the schema directory's ips or domains
+// subdirectory according to kind.
+func (w *writer) ensurePath(kind target.Kind) error {
+	if w.resultPath() != "" {
+		return nil
+	}
+
+	schema := w.schema
+	schema.Directory = filepath.Join(schema.Directory, kind.Dir())
+
+	path, err := prepareResultFilePath(w.config, schema, w.prefix)
+	if err != nil {
+		return err
+	}
+	if err := fileutil.RemoveFile(path); err != nil {
+		return fmt.Errorf("remove stale result file: %w", err)
+	}
+
+	w.pathMu.Lock()
+	w.path = path
+	w.pathMu.Unlock()
+	return nil
+}
+
+func (w *writer) resultPath() string {
+	w.pathMu.RLock()
+	defer w.pathMu.RUnlock()
+	return w.path
+}
+
 func (w *writer) recordErr(err error) {
 	w.errMu.Lock()
 	defer w.errMu.Unlock()
@@ -308,14 +356,25 @@ func (w *writer) recordErr(err error) {
 	}
 }
 
-// --- Queries ---
+// flushError returns the first flush error seen, or nil.
+func (w *writer) flushError() error {
+	w.errMu.Lock()
+	defer w.errMu.Unlock()
+	return w.firstErr
+}
+
+// --- Accessors ---
 
 func (w *writer) GetResultPath() string {
 	if !w.started.Load() {
 		return ""
 	}
-	if fileutil.FileExists(w.path) {
-		return w.path
+	path := w.resultPath()
+	if path == "" {
+		return ""
+	}
+	if fileutil.FileExists(path) {
+		return path
 	}
 	return ""
 }

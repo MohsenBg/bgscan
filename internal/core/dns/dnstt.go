@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/netip"
 
 	vaydns "github.com/net2share/vaydns/client"
 
@@ -103,7 +102,7 @@ type DNSTTService interface {
 	GetAllConfigFiles() ([]DNSTTConfigFile, error)
 	ValidateAllConfigs() ([]ConfigValidationResult, error)
 	RenameConfig(oldName, newName string) error
-	NewTunnel(ctx context.Context, config DNSTTConfig, resolverAddr netip.Addr) (net.Conn, error)
+	NewTunnel(ctx context.Context, config DNSTTConfig, resolverAddr string) (net.Conn, error)
 }
 
 // dnsttService is the default DNSTTService implementation.
@@ -164,7 +163,7 @@ func (s *dnsttService) RenameConfig(oldName, newName string) error {
 func (s *dnsttService) NewTunnel(
 	ctx context.Context,
 	config DNSTTConfig,
-	resolverAddr netip.Addr,
+	resolverAddr string,
 ) (net.Conn, error) {
 	if errs := config.Validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("invalid DNSTT config: %v", errs)

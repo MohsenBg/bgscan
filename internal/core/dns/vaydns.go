@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/netip"
+	"strconv"
 
 	vaydns "github.com/net2share/vaydns/client"
 
@@ -137,7 +137,7 @@ type VayDNSService interface {
 	GetAllConfigFiles() ([]VayDNSConfigFile, error)
 	ValidateAllConfigs() ([]ConfigValidationResult, error)
 	RenameConfig(oldName, newName string) error
-	NewTunnel(ctx context.Context, config VayDNSConfig, resolverAddr netip.Addr) (net.Conn, error)
+	NewTunnel(ctx context.Context, config VayDNSConfig, resolverAddr string) (net.Conn, error)
 }
 
 type vayDNSService struct {
@@ -197,7 +197,7 @@ func (s *vayDNSService) RenameConfig(oldName, newName string) error {
 func (s *vayDNSService) NewTunnel(
 	ctx context.Context,
 	config VayDNSConfig,
-	resolverAddr netip.Addr,
+	resolverAddr string,
 ) (net.Conn, error) {
 	if errs := config.Validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("invalid VayDNS config: %v", errs)
@@ -281,10 +281,9 @@ func newVayDNSResolver(
 	resolverType ResolverType,
 	resolverPort uint16,
 	fingerprint string,
-	resolverAddr netip.Addr,
+	resolverAddr string,
 ) (*vaydns.Resolver, error) {
-	addr := netip.AddrPortFrom(resolverAddr, resolverPort).String()
-
+	addr := net.JoinHostPort(resolverAddr, strconv.Itoa(int(resolverPort)))
 	resolver, err := vaydns.NewResolver(
 		toVayDNSResolverType(resolverType),
 		addr,

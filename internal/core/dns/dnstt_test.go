@@ -2,7 +2,6 @@ package dns
 
 import (
 	"math"
-	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -518,7 +517,7 @@ func TestNewDNSTTResolver(t *testing.T) {
 		config.ResolverType,
 		config.ResolverPort,
 		config.Fingerprint,
-		netip.MustParseAddr("8.8.8.8"),
+		"8.8.8.8",
 	)
 	if err != nil {
 		t.Fatalf(
@@ -546,7 +545,7 @@ func TestNewDNSTTResolverInvalidFingerprint(t *testing.T) {
 		config.ResolverType,
 		config.ResolverPort,
 		config.Fingerprint,
-		netip.MustParseAddr("8.8.8.8"),
+		"8.8.8.8",
 	)
 	if err == nil {
 		t.Fatal(

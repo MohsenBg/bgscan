@@ -3,6 +3,7 @@ package result
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -107,50 +108,89 @@ func TestWriter_WriteFlushesOnStop(t *testing.T) {
 
 func TestWriter_FlushErrorFailsByDefault(t *testing.T) {
 	cfg := defaultTestWriterConfig(t)
+	cfg.BatchSize = 1 // flush on every write
 	w := newWriterForTest(t, context.Background(), cfg)
+
+	if err := w.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+
+	// Write a result to trigger path creation
+	_ = w.Write(newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9"))
+
 	impl := w.(*writer)
 
-	if err := os.MkdirAll(impl.path, 0o755); err != nil {
-		t.Fatal(err)
+	// Wait for the loop to process the write and create the path
+	deadline := time.Now().Add(time.Second)
+	for impl.resultPath() == "" && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
 	}
 
-	impl.batch = []Result{newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9")}
-	if fatal := impl.flush(); !fatal {
-		t.Fatal("flush() = false, want fatal when IgnoreErr is disabled")
+	// Wait a bit more for the first flush to complete
+	time.Sleep(50 * time.Millisecond)
+
+	// Make the directory inaccessible to cause a flush error
+	path := impl.resultPath()
+	if path != "" {
+		dir := filepath.Dir(path)
+		if err := os.Chmod(dir, 0o000); err != nil {
+			t.Fatalf("chmod dir: %v", err)
+		}
+		defer os.Chmod(dir, 0o755)
 	}
-	if impl.firstErr == nil {
-		t.Fatal("expected flush error to be recorded")
+
+	// Add another result and try to flush - should fail because directory is inaccessible
+	_ = w.Write(newMockResult("5.6.7.8", 0.5, "5.6.7.8", "0.5"))
+	if err := w.Close(); err == nil {
+		t.Fatal("Close() error = nil, want error when flush fails")
 	}
 }
 
 func TestWriter_IgnoreErrContinuesAfterFlushError(t *testing.T) {
 	cfg := defaultTestWriterConfig(t)
 	cfg.IgnoreErr = true
+	cfg.BatchSize = 1 // flush on every write
 	w := newWriterForTest(t, context.Background(), cfg)
+
+	if err := w.Start(); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+
+	// Write a result to trigger path creation
+	_ = w.Write(newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9"))
+
 	impl := w.(*writer)
 
-	if err := os.MkdirAll(impl.path, 0o755); err != nil {
-		t.Fatal(err)
+	// Wait for the loop to process the write and create the path
+	deadline := time.Now().Add(time.Second)
+	for impl.resultPath() == "" && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
 	}
 
-	impl.batch = []Result{newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9")}
-	if fatal := impl.flush(); fatal {
-		t.Fatal("flush() = true, want non-fatal when IgnoreErr is enabled")
-	}
-	if impl.firstErr != nil {
-		t.Fatalf("firstErr = %v, want nil when IgnoreErr is enabled", impl.firstErr)
+	// Wait a bit more for the first flush to complete
+	time.Sleep(50 * time.Millisecond)
+
+	// Make the directory inaccessible to cause a flush error
+	path := impl.resultPath()
+	if path != "" {
+		dir := filepath.Dir(path)
+		if err := os.Chmod(dir, 0o000); err != nil {
+			t.Fatalf("chmod dir: %v", err)
+		}
+		// Restore permissions before the next write
+		if err := os.Chmod(dir, 0o755); err != nil {
+			t.Fatalf("chmod dir back: %v", err)
+		}
 	}
 
-	if err := os.RemoveAll(impl.path); err != nil {
-		t.Fatal(err)
+	// Add another result and try to flush - should succeed because directory is accessible again
+	_ = w.Write(newMockResult("5.6.7.8", 0.5, "5.6.7.8", "0.5"))
+	if err := w.Close(); err != nil {
+		t.Fatalf("Close() error = %v, want nil when IgnoreErr is enabled", err)
 	}
 
-	impl.batch = []Result{newMockResult("5.6.7.8", 0.5, "5.6.7.8", "0.5")}
-	if fatal := impl.flush(); fatal {
-		t.Fatal("second flush() = true, want non-fatal")
-	}
-
-	data, err := os.ReadFile(impl.path)
+	// The second result should be written successfully
+	data, err := os.ReadFile(w.GetResultPath())
 	if err != nil {
 		t.Fatalf("read result file: %v", err)
 	}

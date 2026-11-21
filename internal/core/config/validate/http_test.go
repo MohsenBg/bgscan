@@ -13,6 +13,7 @@ func TestHTTPConfig(t *testing.T) {
 	makeValidHTTP := func() config.HTTPConfig {
 		return config.HTTPConfig{
 			Workers:             100,
+			Mode:                config.HTTPModeHost,
 			Host:                "example.com",
 			ServerName:          "example.com",
 			Port:                443,
@@ -63,6 +64,19 @@ func TestHTTPConfig(t *testing.T) {
 			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
 				if c.Workers != def.Workers {
 					t.Errorf("Workers = %d, want %d", c.Workers, def.Workers)
+				}
+			},
+		},
+		{
+			name: "Mode invalid",
+			mutateCfg: func(c *config.HTTPConfig) {
+				c.Mode = "invalid"
+			},
+			wantErrKeys:   []Field{FieldMode},
+			wantWarnCount: 1,
+			checkFixed: func(t *testing.T, c *config.HTTPConfig) {
+				if c.Mode != def.Mode {
+					t.Errorf("Mode = %q, want %q", c.Mode, def.Mode)
 				}
 			},
 		},

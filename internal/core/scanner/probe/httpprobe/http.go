@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/netip"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
@@ -23,37 +23,40 @@ type httpClientResult struct {
 
 // httpClientFactory abstracts HTTP client creation, primarily to allow
 // mocking in tests.
-type httpClientFactory func(ip netip.Addr) httpClientResult
+type httpClientFactory func(r Request) httpClientResult
 
-// HTTPProbe validates HTTP/HTTPS connectivity to a target IP, preserving
-// Host and SNI semantics.
+// HTTPProbe validates HTTP/HTTPS connectivity to a target, preserving
+// Host and SNI semantics. How an entry becomes a request is decided by mode.
 type HTTPProbe struct {
 	log           *logger.Logger
-	req           HTTPRequest
+	settings      Settings
+	mode          Mode
 	filter        statusFilter
 	dialer        *net.Dialer
-	tls           *tls.Config
 	clientFactory httpClientFactory
 }
 
 // NewHTTPProbe creates an HTTPProbe. If acceptedCodes is empty or covers all
 // known codes, all response status codes are accepted.
-func NewHTTPProbe(req HTTPRequest, acceptedCodes []int, log *logger.Logger) probe.Probe {
+func NewHTTPProbe(s Settings, mode Mode, acceptedCodes []int, log *logger.Logger) probe.Probe {
 	p := &HTTPProbe{
-		log:    log,
-		req:    req,
-		dialer: &net.Dialer{Timeout: req.Timeout},
-		tls:    newTLSConfig(req),
-		filter: newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
+		log:      log,
+		settings: s,
+		mode:     mode,
+		dialer:   &net.Dialer{Timeout: s.Timeout},
+		filter:   newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
 	}
 
 	p.clientFactory = p.newStdClient
-	if req.Fingerprint != "" {
+	if s.Fingerprint != "" {
 		p.clientFactory = p.newUTLSClient
 	}
 
 	return p
 }
+
+// Input implements probe.Probe.
+func (p *HTTPProbe) Input() target.Kind { return p.mode.Input() }
 
 // Init implements probe.Probe. It is a no-op.
 func (p *HTTPProbe) Init(context.Context) error { return nil }
@@ -64,20 +67,28 @@ func (p *HTTPProbe) Close() error { return nil }
 // Schema implements probe.Probe.
 func (p *HTTPProbe) Schema() result.ResultSchema { return Schema }
 
-// Run executes an HTTP HEAD request against the target IP. It returns an
-// HTTPResult on success, or an error if the request fails or the response
-// status code is not accepted.
-func (p *HTTPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+// Run executes an HTTP HEAD request for the entry. It returns an HTTPResult
+// on success, or an error if the request fails or the response status code
+// is not accepted.
+func (p *HTTPProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, p.req.URL, nil)
+	r, err := p.mode.Build(entry)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, r.URL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
+	if r.Host != "" {
+		req.Host = r.Host
+	}
 
-	c := p.clientFactory(ip)
+	c := p.clientFactory(r)
 	defer c.close()
 
 	start := time.Now()
@@ -97,57 +108,56 @@ func (p *HTTPProbe) Run(ctx context.Context, ip netip.Addr) (result.Result, erro
 		return nil, fmt.Errorf("%w: status %d not accepted", probe.ErrBadResponse, resp.StatusCode)
 	}
 
+	// Record the port that was really probed, not the list's value.
+	entry.Port = r.Port
+
 	return HTTPResult{
-		IP:          ip,
+		Entry:       entry,
 		StatusCode:  resp.StatusCode,
 		HTTPVersion: resp.Proto,
-		UseTLS:      p.req.UseTLS,
+		UseTLS:      p.settings.UseTLS,
 		Latency:     latency,
 	}, nil
 }
 
 // newUTLSClient builds a client with a spoofed TLS fingerprint, falling back
 // to the standard client if the uTLS client cannot be created.
-func (p *HTTPProbe) newUTLSClient(ip netip.Addr) httpClientResult {
-	client, err := utlsHTTPClientFactory(
-		ip,
-		p.req.Timeout,
-		p.req.Fingerprint,
-		p.req.MinTLSVersion,
-		p.req.MaxTLSVersion,
-		p.req.SkipTLSVerify,
-		p.req.Version,
-	)
+func (p *HTTPProbe) newUTLSClient(r Request) httpClientResult {
+	client, err := utlsHTTPClientFactory(r, p.settings)
 	if err != nil {
-		p.log.Error("utls client for %s failed, falling back to std client: %v", ip, err)
-		return p.newStdClient(ip)
+		p.log.Error("utls client for %s failed, falling back to std client: %v", r.URL, err)
+		return p.newStdClient(r)
 	}
 
 	return httpClientResult{client: client, close: client.CloseIdleConnections}
 }
 
-// newStdClient returns a net/http client bound to ip. A fresh transport per
-// call avoids HTTP/2 readLoop goroutine leaks; callers must invoke close
-// when done.
-func (p *HTTPProbe) newStdClient(ip netip.Addr) httpClientResult {
+// newStdClient returns a net/http client for one request. If r.DialIP is
+// valid the connection is pinned to it; otherwise the address in the URL is
+// resolved normally. A fresh transport per call avoids HTTP/2 readLoop
+// goroutine leaks; callers must invoke close when done.
+func (p *HTTPProbe) newStdClient(r Request) httpClientResult {
 	t := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			_, port, err := net.SplitHostPort(addr)
-			if err != nil {
-				return nil, fmt.Errorf("parse addr: %w", err)
+			if r.DialIP.IsValid() {
+				_, port, err := net.SplitHostPort(addr)
+				if err != nil {
+					return nil, fmt.Errorf("parse addr: %w", err)
+				}
+				addr = net.JoinHostPort(r.DialIP.String(), port)
 			}
-			return p.dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+			return p.dialer.DialContext(ctx, network, addr)
 		},
 		DisableKeepAlives:     true,
-		TLSHandshakeTimeout:   p.req.Timeout,
-		ResponseHeaderTimeout: p.req.Timeout,
-		TLSClientConfig:       p.tls,
-		ForceAttemptHTTP2:     p.req.Version != HTTPVersionH1,
-		TLSNextProto:          tlsNextProto(p.req.Version),
+		TLSHandshakeTimeout:   p.settings.Timeout,
+		ResponseHeaderTimeout: p.settings.Timeout,
+		TLSClientConfig:       newTLSConfig(p.settings, r.SNI),
+		ForceAttemptHTTP2:     p.settings.Version != HTTPVersionH1,
+		TLSNextProto:          tlsNextProto(p.settings.Version),
 	}
 
 	return httpClientResult{
-		client: &http.Client{Transport: t, Timeout: p.req.Timeout},
+		client: &http.Client{Transport: t, Timeout: p.settings.Timeout},
 		close:  t.CloseIdleConnections,
 	}
 }

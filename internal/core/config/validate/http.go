@@ -13,6 +13,11 @@ var allowedProtocols = []string{
 	"https",
 }
 
+var allowedHTTPModes = []string{
+	string(config.HTTPModeHost),
+	string(config.HTTPModeTarget),
+}
+
 var allowedTLSVersions = []string{
 	"tls1.0",
 	"tls1.1",
@@ -57,6 +62,10 @@ func ValidateHTTP(cfg config.HTTPConfig) map[Field]error {
 
 	if err := checkInt("Workers", cfg.Workers, MinHTTPWorkers, MaxHTTPWorkers); err != nil {
 		errs[FieldWorkers] = err
+	}
+
+	if err := checkEnum("Mode", string(cfg.Mode), allowedHTTPModes); err != nil {
+		errs[FieldMode] = err
 	}
 
 	if err := checkHost("Host", cfg.Host); err != nil {
@@ -138,6 +147,10 @@ func NormalizeHTTP(cfg *config.HTTPConfig) []Warning {
 		def.Workers,
 		&warns,
 	)
+
+	mode := string(cfg.Mode)
+	fixEnum("Mode", &mode, allowedHTTPModes, string(def.Mode), &warns)
+	cfg.Mode = config.HTTPMode(mode)
 
 	fixInt(
 		"Port",

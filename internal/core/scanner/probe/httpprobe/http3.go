@@ -2,16 +2,18 @@ package httpprobe
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
-	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/quic-go/quic-go/http3"
 
 	"github.com/MohsenBg/bgscan/internal/core/result"
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
@@ -24,33 +26,72 @@ type roundTripCloser interface {
 	Close() error
 }
 
-// HTTP3Probe validates HTTP/3 (QUIC) connectivity to a target IP.
+// HTTP3Probe validates HTTP/3 (QUIC) connectivity to a target.
+//
+// A QUIC transport has one TLS config, so transports are cached per SNI.
+// Host mode has a single SNI and direct mode uses "", so in practice this
+// holds one transport.
 type HTTP3Probe struct {
-	log       *logger.Logger
-	req       HTTPRequest
-	filter    statusFilter
-	transport roundTripCloser
+	log      *logger.Logger
+	settings Settings
+	mode     Mode
+	filter   statusFilter
+
+	// newTransport builds the transport for one SNI; tests replace it.
+	newTransport func(sni string) roundTripCloser
+
+	mu         sync.Mutex
+	transports map[string]roundTripCloser
 }
 
 // NewHTTP3Probe creates an HTTP3Probe. If acceptedCodes is empty or covers all
 // known codes, all response status codes are accepted.
-func NewHTTP3Probe(req HTTPRequest, acceptedCodes []int, log *logger.Logger) (probe.Probe, error) {
+func NewHTTP3Probe(s Settings, mode Mode, acceptedCodes []int, log *logger.Logger) (probe.Probe, error) {
 	return &HTTP3Probe{
-		log:    log,
-		req:    req,
-		filter: newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
-		transport: &http3.Transport{
-			TLSClientConfig: newTLSConfig(req),
+		log:      log,
+		settings: s,
+		mode:     mode,
+		filter:   newStatusFilter(acceptedCodes, totalHTTPStatusCodes),
+		newTransport: func(sni string) roundTripCloser {
+			return &http3.Transport{TLSClientConfig: newTLSConfig(s, sni)}
 		},
+		transports: make(map[string]roundTripCloser),
 	}, nil
 }
+
+// transportFor returns the cached transport for sni, creating it on first use.
+func (p *HTTP3Probe) transportFor(sni string) roundTripCloser {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	t, ok := p.transports[sni]
+	if !ok {
+		t = p.newTransport(sni)
+		p.transports[sni] = t
+	}
+	return t
+}
+
+// Input implements probe.Probe.
+func (p *HTTP3Probe) Input() target.Kind { return p.mode.Input() }
 
 // Init implements probe.Probe. It is a no-op.
 func (p *HTTP3Probe) Init(context.Context) error { return nil }
 
-// Close implements probe.Probe, releasing the underlying QUIC transport.
+// Close implements probe.Probe, releasing the underlying QUIC transports.
 func (p *HTTP3Probe) Close() error {
-	if err := p.transport.Close(); err != nil {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	var errs []error
+	for sni, t := range p.transports {
+		if err := t.Close(); err != nil {
+			errs = append(errs, err)
+		}
+		delete(p.transports, sni)
+	}
+
+	if err := errors.Join(errs...); err != nil {
 		return fmt.Errorf("close http3 transport: %w", err)
 	}
 	return nil
@@ -59,31 +100,42 @@ func (p *HTTP3Probe) Close() error {
 // Schema implements probe.Probe.
 func (p *HTTP3Probe) Schema() result.ResultSchema { return Schema }
 
-// Run executes an HTTP/3 HEAD request against the target IP. The QUIC
-// connection is forced to the given IP while the original hostname is kept
-// in the Host header for virtual hosting.
-func (p *HTTP3Probe) Run(ctx context.Context, ip netip.Addr) (result.Result, error) {
+// Run executes an HTTP/3 HEAD request for the entry. If the request has a
+// DialIP, the QUIC connection is forced to it while the original host is
+// kept in the Host header for virtual hosting.
+func (p *HTTP3Probe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, p.req.URL, nil)
+	r, err := p.mode.Build(entry)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, r.URL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
 
-	port := req.URL.Port()
-	if port == "" {
-		port = defaultHTTPSPort
+	// Decide the Host header before the URL host is rewritten.
+	hostHeader := r.Host
+	if hostHeader == "" {
+		hostHeader = req.URL.Host
 	}
 
-	// Dial the target IP, but keep the original hostname for virtual hosting.
-	req.URL.Host = net.JoinHostPort(ip.String(), port)
-	req.Host = p.req.Host
+	if r.DialIP.IsValid() {
+		port := req.URL.Port()
+		if port == "" {
+			port = defaultHTTPSPort
+		}
+		req.URL.Host = net.JoinHostPort(r.DialIP.String(), port)
+	}
+	req.Host = hostHeader
 
 	client := &http.Client{
-		Transport: p.transport,
-		Timeout:   p.req.Timeout,
+		Transport: p.transportFor(r.SNI),
+		Timeout:   p.settings.Timeout,
 	}
 
 	start := time.Now()
@@ -103,8 +155,11 @@ func (p *HTTP3Probe) Run(ctx context.Context, ip netip.Addr) (result.Result, err
 		return nil, fmt.Errorf("%w: status %d not accepted", probe.ErrBadResponse, resp.StatusCode)
 	}
 
+	// Record the port that was really probed, not the list's value.
+	entry.Port = r.Port
+
 	return HTTPResult{
-		IP:          ip,
+		Entry:       entry,
 		StatusCode:  resp.StatusCode,
 		HTTPVersion: "HTTP/3.0",
 		UseTLS:      true,

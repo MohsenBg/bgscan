@@ -1,26 +1,58 @@
 package config
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
+type HTTPMode string
+
+const (
+	HTTPModeTarget HTTPMode = "target"
+	HTTPModeHost   HTTPMode = "host"
+)
+
+// ParseHTTPMode converts a raw mode string into an HTTPMode.
+// An empty value means the default mode (host), so config files written
+// before the mode field existed keep their previous behavior.
+func ParseHTTPMode(s string) (HTTPMode, error) {
+	mode := HTTPMode(strings.ToLower(strings.TrimSpace(s)))
+
+	switch mode {
+	case "":
+		return HTTPModeHost, nil
+	case HTTPModeHost, HTTPModeTarget:
+		return mode, nil
+	default:
+		return "", fmt.Errorf(
+			"invalid HTTP mode %q: want %q or %q",
+			s,
+			HTTPModeHost,
+			HTTPModeTarget,
+		)
+	}
+}
+
 // HTTPConfig defines configuration for HTTP probing and TLS validation.
 type HTTPConfig struct {
-	Workers             int        `toml:"workers" comment:"Concurrent HTTP workers. Range: 1-1000. Higher = faster but more CPU/network."`
-	Host                string     `toml:"host" comment:"Target host or URL. Used as Host header and SNI fallback."`
-	ServerName          string     `toml:"server_name" comment:"TLS SNI override. Empty = use host field. Must be a valid domain."`
-	Port                int        `toml:"port" comment:"HTTP port. Range: 1-65535. Common: 80 (HTTP), 443 (HTTPS)."`
+	Workers             int        `toml:"workers" comment:"Concurrent HTTP workers. Range: 1-1000."`
+	Mode                HTTPMode   `toml:"mode" comment:"Target mode: target or host."`
+	Host                string     `toml:"host" comment:"Hostname used as HTTP Host and TLS SNI when applicable."`
+	ServerName          string     `toml:"server_name" comment:"TLS SNI override. Empty = use Host when applicable."`
+	Port                int        `toml:"port" comment:"Default HTTP port. Used when dynamic port is disabled or the target has no port."`
+	DynamicPort         bool       `toml:"dynamic_port" comment:"Use the target's port when available; otherwise fall back to the configured Port."`
 	Protocol            string     `toml:"protocol" comment:"Protocol: http or https."`
-	Version             string     `toml:"version" comment:"HTTP version: h1 (HTTP/1.1 only), h2 (HTTP/2 only), h1,h2 (negotiate), h3 (QUIC)."`
-	Fingerprint         string     `toml:"fingerprint" comment:"uTLS fingerprint for TLS camouflage. Empty = standard crypto/tls. Options: Chrome, Firefox, iOS, random, etc."`
-	TLSValidation       bool       `toml:"tls_validation" comment:"Validate TLS certificates. false = accept self-signed/expired certs."`
-	MinTLSVersion       string     `toml:"min_tls_version" comment:"Min TLS version: tls1.0, tls1.1, tls1.2, tls1.3. Must be <= max_tls_version."`
-	MaxTLSVersion       string     `toml:"max_tls_version" comment:"Max TLS version: tls1.0, tls1.1, tls1.2, tls1.3. Must be >= min_tls_version."`
-	Timeout             DurationMS `toml:"timeout" comment:"Max wait for HTTP response, in ms. Range: 100-60000."`
+	Version             string     `toml:"version" comment:"HTTP version: h1, h2, h1,h2, h3."`
+	Fingerprint         string     `toml:"fingerprint" comment:"uTLS fingerprint. Empty = standard crypto/tls."`
+	TLSValidation       bool       `toml:"tls_validation" comment:"Validate TLS certificates."`
+	MinTLSVersion       string     `toml:"min_tls_version" comment:"Minimum TLS version."`
+	MaxTLSVersion       string     `toml:"max_tls_version" comment:"Maximum TLS version."`
+	Timeout             DurationMS `toml:"timeout" comment:"Maximum HTTP response wait, in ms."`
 	OutputPrefix        string     `toml:"output_prefix" comment:"Filename prefix for result files."`
-	AcceptedStatusCodes []int      `toml:"accepted_status_codes" comment:"HTTP status codes to accept. Empty = accept all codes."`
+	AcceptedStatusCodes []int      `toml:"accepted_status_codes" comment:"HTTP status codes to accept. Empty = accept all."`
 }
 
 func DefaultHTTPConfig(log *logger.Logger) HTTPConfig {
@@ -47,7 +79,8 @@ func DefaultHTTPConfig(log *logger.Logger) HTTPConfig {
 // and Timeout actually vary by platform/tier for HTTP probing.
 func httpBase() HTTPConfig {
 	return HTTPConfig{
-		Host:                "example.com",
+		Host:                "www.cloudflare.com",
+		Mode:                HTTPModeHost,
 		Port:                443,
 		Protocol:            "https",
 		Version:             "h1,h2",

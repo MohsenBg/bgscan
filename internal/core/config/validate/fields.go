@@ -24,6 +24,7 @@ const (
 	FieldMergeFlushInterval   Field = "MergeFlushInterval"
 	FieldMinProbeDuration     Field = "MinProbeDuration"
 	FieldMinTLSVersion        Field = "MinTLSVersion"
+	FieldMode                 Field = "Mode"
 	FieldOutputPrefix         Field = "OutputPrefix"
 	FieldPipelineMode         Field = "PipelineMode"
 	FieldPort                 Field = "Port"

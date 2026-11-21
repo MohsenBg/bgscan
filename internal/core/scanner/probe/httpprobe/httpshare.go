@@ -5,14 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/MohsenBg/bgscan/internal/core/config"
 	"github.com/MohsenBg/bgscan/internal/core/netutil"
+	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
 // totalHTTPStatusCodes is the approximate number of recognized HTTP status codes.
@@ -33,19 +31,66 @@ const (
 	HTTPVersionH2
 )
 
-// HTTPRequest is a normalized, ready-to-execute probe configuration shared
-// by HTTPProbe (HTTP/1.1, HTTP/2) and HTTP3Probe (QUIC).
-type HTTPRequest struct {
-	URL           string
-	Host          string
-	SNI           string
+// Settings contains probe configuration shared across all targets.
+// It is built once from config and remains immutable during a scan.
+// Target-specific settings belong in Request (see mode.go).
+type Settings struct {
+	Timeout       time.Duration
 	Version       HTTPVersion
 	UseTLS        bool
 	SkipTLSVerify bool
 	Fingerprint   string
-	Timeout       time.Duration
 	MinTLSVersion uint16
 	MaxTLSVersion uint16
+
+	// DefaultPort is used when dynamic port selection is disabled
+	// or the target does not provide a port.
+	DefaultPort uint16
+	DynamicPort bool
+}
+
+// NewSettings builds Settings from an HTTPConfig.
+func NewSettings(cfg config.HTTPConfig) (Settings, error) {
+	useTLS := isHTTPS(cfg.Protocol)
+
+	port, err := defaultPort(cfg.Port, useTLS)
+	if err != nil {
+		return Settings{}, err
+	}
+
+	minTLS, maxTLS, err := resolveTLSVersions(cfg)
+	if err != nil {
+		return Settings{}, err
+	}
+
+	return Settings{
+		Timeout:       cfg.Timeout.Duration(),
+		Version:       resolveHTTPVersion(cfg.Version),
+		UseTLS:        useTLS,
+		SkipTLSVerify: !cfg.TLSValidation,
+		Fingerprint:   cfg.Fingerprint,
+		MinTLSVersion: minTLS,
+		MaxTLSVersion: maxTLS,
+		DefaultPort:   port,
+		DynamicPort:   cfg.DynamicPort,
+	}, nil
+}
+
+func (s Settings) scheme() string {
+	if s.UseTLS {
+		return "https"
+	}
+	return "http"
+}
+
+// resolvePort picks the port to probe for an entry.
+// Today it always returns the configured default. When the "dynamic port"
+// setting is added, only this function changes.
+func (s Settings) resolvePort(e target.Entry) uint16 {
+	if s.DynamicPort && e.Port != 0 {
+		return e.Port
+	}
+	return s.DefaultPort
 }
 
 // statusFilter is an allow-list of valid HTTP status codes; the zero value
@@ -76,17 +121,17 @@ func (f statusFilter) isAccepted(code int) bool {
 	return ok
 }
 
-// newTLSConfig builds a *tls.Config, or nil when TLS is disabled.
-func newTLSConfig(req HTTPRequest) *tls.Config {
-	if !req.UseTLS {
+// newTLSConfig builds a *tls.Config for one request, or nil when TLS is
+// disabled. An empty sni lets Go derive the server name from the URL host.
+func newTLSConfig(s Settings, sni string) *tls.Config {
+	if !s.UseTLS {
 		return nil
 	}
-
 	return &tls.Config{
-		ServerName:         req.SNI,
-		InsecureSkipVerify: req.SkipTLSVerify,
-		MinVersion:         req.MinTLSVersion,
-		MaxVersion:         req.MaxTLSVersion,
+		ServerName:         sni,
+		InsecureSkipVerify: s.SkipTLSVerify,
+		MinVersion:         s.MinTLSVersion,
+		MaxVersion:         s.MaxTLSVersion,
 	}
 }
 
@@ -105,18 +150,6 @@ func defaultPort(port int, useTLS bool) (uint16, error) {
 	return 80, nil
 }
 
-// resolveSNI validates serverName. Empty stays empty so callers can fall
-// back to the host.
-func resolveSNI(serverName string, useTLS bool) (string, error) {
-	if serverName != "" {
-		return serverName, nil
-	}
-	if !useTLS {
-		return "", nil
-	}
-	return "", nil
-}
-
 // resolveHTTPVersion maps a protocol string to an HTTPVersion
 // ("h1"/"http/1.x" → H1, "h2"/"http/2" → H2, anything else → H1H2).
 func resolveHTTPVersion(protocol string) HTTPVersion {
@@ -128,65 +161,6 @@ func resolveHTTPVersion(protocol string) HTTPVersion {
 	default:
 		return HTTPVersionH1H2
 	}
-}
-
-// NewHTTPRequestFromConfig builds an HTTPRequest from an HTTPConfig.
-func NewHTTPRequestFromConfig(cfg config.HTTPConfig) (*HTTPRequest, error) {
-	scheme := "http://"
-	useHTTPS := isHTTPS(cfg.Protocol)
-
-	if useHTTPS {
-		scheme = "https://"
-	}
-
-	host, err := netutil.ExtractTLSServerName(cfg.Host)
-	if err != nil {
-		return nil, fmt.Errorf("extract host: %w", err)
-	}
-
-	urlHost, err := netutil.NormalizeHostWithSuffix(cfg.Host)
-	if err != nil {
-		return nil, fmt.Errorf("normalize host: %w", err)
-	}
-
-	port, err := defaultPort(cfg.Port, useHTTPS)
-	if err != nil {
-		return nil, err
-	}
-
-	sni := cfg.ServerName
-	if sni == "" {
-		sni = host
-	}
-
-	sni, err = resolveSNI(sni, useHTTPS)
-	if err != nil {
-		return nil, fmt.Errorf("resolve SNI: %w", err)
-	}
-
-	minTLS, maxTLS, err := resolveTLSVersions(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	parsedURL, err := url.Parse(scheme + urlHost)
-	if err != nil {
-		return nil, fmt.Errorf("parse URL: %w", err)
-	}
-	parsedURL.Host = net.JoinHostPort(host, strconv.Itoa(int(port)))
-
-	return &HTTPRequest{
-		URL:           parsedURL.String(),
-		Host:          host,
-		SNI:           sni,
-		Version:       resolveHTTPVersion(cfg.Version),
-		UseTLS:        useHTTPS,
-		SkipTLSVerify: !cfg.TLSValidation,
-		Fingerprint:   cfg.Fingerprint,
-		Timeout:       cfg.Timeout.Duration(),
-		MinTLSVersion: minTLS,
-		MaxTLSVersion: maxTLS,
-	}, nil
 }
 
 // resolveTLSVersions parses the TLS version range, rejecting min > max.

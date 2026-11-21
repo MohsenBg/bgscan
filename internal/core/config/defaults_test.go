@@ -118,8 +118,8 @@ func TestWriterDefaultsDesktopMidValues(t *testing.T) {
 	if cfg.BatchSize != 4096 {
 		t.Errorf("BatchSize = %d, want 4096", cfg.BatchSize)
 	}
-	if cfg.ResultBaseDir != "result" {
-		t.Errorf("ResultBaseDir = %q, want %q", cfg.ResultBaseDir, "result")
+	if cfg.ResultBaseDir != "results" {
+		t.Errorf("ResultBaseDir = %q, want %q", cfg.ResultBaseDir, "results")
 	}
 }
 
@@ -160,8 +160,8 @@ func TestHTTPDefaultsFixedFieldsConsistentAcrossTable(t *testing.T) {
 	for _, p := range allPlatforms {
 		for _, tr := range allTiers {
 			cfg := httpDefaults[p][tr]
-			if cfg.Host != "example.com" {
-				t.Errorf("[%s/%s] Host = %q, want %q", p, tr, cfg.Host, "example.com")
+			if cfg.Host != "www.cloudflare.com" {
+				t.Errorf("[%s/%s] Host = %q, want %q", p, tr, cfg.Host, "www.cloudflare.com")
 			}
 			if cfg.Port != 443 {
 				t.Errorf("[%s/%s] Port = %d, want 443", p, tr, cfg.Port)
@@ -235,8 +235,8 @@ func TestDNSDefaultsDesktopMidValues(t *testing.T) {
 	if r.Transport != "udp" {
 		t.Errorf("Resolver.Protocol = %q, want %q", r.Transport, "udp")
 	}
-	if r.Domain != "example.com" {
-		t.Errorf("Resolver.Domain = %q, want %q", r.Domain, "example.com")
+	if r.Domain != "www.cloudflare.com" {
+		t.Errorf("Resolver.Domain = %q, want %q", r.Domain, "www.cloudflare.com")
 	}
 	if r.Port != 53 {
 		t.Errorf("Resolver.Port = %d, want 53", r.Port)

@@ -39,7 +39,7 @@ func DefaultWriterConfig(log *logger.Logger) WriterConfig {
 func writerBase() WriterConfig {
 	return WriterConfig{
 		MergeFlushInterval: NewDurationMS(2 * time.Second),
-		ResultBaseDir:      "result",
+		ResultBaseDir:      "results",
 	}
 }
 

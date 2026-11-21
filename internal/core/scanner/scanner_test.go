@@ -59,7 +59,7 @@ func (m *mockDNSTTService) RenameConfig(oldName, newName string) error {
 	return nil
 }
 
-func (m *mockDNSTTService) NewTunnel(ctx context.Context, cfg dns.DNSTTConfig, resolverAddr netip.Addr) (net.Conn, error) {
+func (m *mockDNSTTService) NewTunnel(ctx context.Context, cfg dns.DNSTTConfig, resolverAddr string) (net.Conn, error) {
 	return nil, nil
 }
 
@@ -216,7 +216,7 @@ func (m *mockVayDNSService) RenameConfig(oldName, newName string) error {
 	return nil
 }
 
-func (m *mockVayDNSService) NewTunnel(ctx context.Context, cfg dns.VayDNSConfig, resolverAddr netip.Addr) (net.Conn, error) {
+func (m *mockVayDNSService) NewTunnel(ctx context.Context, cfg dns.VayDNSConfig, resolverAddr string) (net.Conn, error) {
 	return nil, nil
 }
 

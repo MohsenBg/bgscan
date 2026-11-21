@@ -15,7 +15,7 @@ type DNSConfig struct {
 // ResolverConfig defines settings for DNS resolver testing.
 type ResolverConfig struct {
 	Workers         int        `toml:"workers" comment:"Concurrent DNS workers. Range: 1-2500. Higher = faster but more CPU/network."`
-	Transport       string     `toml:"protocol" comment:"DNS transport: udp (fastest), tcp (reliable), dot (DNS-over-TLS, encrypted)."`
+	Transport       string     `toml:"protocol" comment:"DNS transport: udp (fastest), tcp (reliable), dot (DNS-over-TLS, encrypted), doh (DNS-over-HTTPS, encrypted)."`
 	Domain          string     `toml:"domain" comment:"Domain to query. Used as the base domain for resolver tests."`
 	Port            uint16     `toml:"port" comment:"DNS server port. Range: 1-65535. Standard: 53."`
 	CheckTypes      []string   `toml:"check_types" comment:"DNS record types to query. Common: A, AAAA, TXT. Use TXT for DNSTT compatibility."`
@@ -69,7 +69,7 @@ func DefaultDNSConfig(log *logger.Logger) DNSConfig {
 func resolverBase() ResolverConfig {
 	return ResolverConfig{
 		Transport:       "udp",
-		Domain:          "example.com",
+		Domain:          "www.cloudflare.com",
 		Port:            53,
 		CheckTypes:      []string{"TXT"},
 		EDNSBufSize:     1232,

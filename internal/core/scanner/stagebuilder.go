@@ -24,10 +24,7 @@ import (
 )
 
 // BuildICMPStage creates an ICMP scan stage.
-func (s *scanner) BuildICMPStage(
-	ctx context.Context,
-	hooks ...engine.ScanHooks,
-) (StageConfig, error) {
+func (s *scanner) BuildICMPStage(ctx context.Context, hooks ...engine.ScanHooks) (StageConfig, error) {
 	cfg := s.config.ICMP
 
 	prb, err := icmpprobe.NewICMPProbe(icmpprobe.Options{
@@ -38,23 +35,11 @@ func (s *scanner) BuildICMPStage(
 		return StageConfig{}, fmt.Errorf("create ICMP probe: %w", err)
 	}
 
-	writer, err := s.newWriter(
-		ctx,
-		cfg.OutputPrefix,
-		icmpprobe.Schema,
-	)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	return s.newStage(cfg.Workers, prb, writer, hooks...), nil
+	return s.buildStage(ctx, cfg.Workers, prb, cfg.OutputPrefix, icmpprobe.Schema, hooks...)
 }
 
 // BuildTCPStage creates a TCP scan stage.
-func (s *scanner) BuildTCPStage(
-	ctx context.Context,
-	hooks ...engine.ScanHooks,
-) (StageConfig, error) {
+func (s *scanner) BuildTCPStage(ctx context.Context, hooks ...engine.ScanHooks) (StageConfig, error) {
 	cfg := s.config.TCP
 
 	prb := tcpprobe.NewTCPProbe(
@@ -64,54 +49,40 @@ func (s *scanner) BuildTCPStage(
 		s.log.With("probe", "tcp"),
 	)
 
-	writer, err := s.newWriter(
-		ctx,
-		cfg.OutputPrefix,
-		tcpprobe.Schema,
-	)
-	if err != nil {
-		return StageConfig{}, err
-	}
-
-	return s.newStage(cfg.Workers, prb, writer, hooks...), nil
+	return s.buildStage(ctx, cfg.Workers, prb, cfg.OutputPrefix, tcpprobe.Schema, hooks...)
 }
 
 // BuildHTTPStage creates an HTTP scan stage.
-func (s *scanner) BuildHTTPStage(
-	ctx context.Context,
-	hooks ...engine.ScanHooks,
-) (StageConfig, error) {
+func (s *scanner) BuildHTTPStage(ctx context.Context, hooks ...engine.ScanHooks) (StageConfig, error) {
 	cfg := s.config.HTTP
 
-	req, err := httpprobe.NewHTTPRequestFromConfig(cfg)
+	set, err := httpprobe.NewSettings(cfg)
 	if err != nil {
-		return StageConfig{}, fmt.Errorf("create HTTP request: %w", err)
+		return StageConfig{}, fmt.Errorf("create HTTP settings: %w", err)
 	}
 
-	prb, err := s.newHTTPProbe(cfg, *req)
+	mode, err := httpprobe.NewMode(cfg, set)
 	if err != nil {
-		return StageConfig{}, err
+		return StageConfig{}, fmt.Errorf("create HTTP mode: %w", err)
 	}
 
-	writer, err := s.newWriter(
-		ctx,
-		cfg.OutputPrefix,
-		httpprobe.Schema,
-	)
+	prb, err := s.newHTTPProbe(cfg, set, mode)
 	if err != nil {
 		return StageConfig{}, err
 	}
 
-	return s.newStage(cfg.Workers, prb, writer, hooks...), nil
+	return s.buildStage(ctx, cfg.Workers, prb, cfg.OutputPrefix, httpprobe.Schema, hooks...)
 }
 
 func (s *scanner) newHTTPProbe(
 	cfg config.HTTPConfig,
-	req httpprobe.HTTPRequest,
+	settings httpprobe.Settings,
+	mode httpprobe.Mode,
 ) (probe.Probe, error) {
 	if isHTTP3(cfg.Version) {
 		prb, err := httpprobe.NewHTTP3Probe(
-			req,
+			settings,
+			mode,
 			cfg.AcceptedStatusCodes,
 			s.log.With("probe", "http3"),
 		)
@@ -122,7 +93,8 @@ func (s *scanner) newHTTPProbe(
 	}
 
 	return httpprobe.NewHTTPProbe(
-		req,
+		settings,
+		mode,
 		cfg.AcceptedStatusCodes,
 		s.log.With("probe", "http"),
 	), nil
@@ -151,7 +123,6 @@ func (s *scanner) BuildXrayStage(
 	if err != nil {
 		return nil, err
 	}
-
 	if preScan != nil {
 		stages = append(stages, *preScan)
 	}
@@ -166,16 +137,11 @@ func (s *scanner) BuildXrayStage(
 		return nil, fmt.Errorf("create Xray probe: %w", err)
 	}
 
-	writer, err := s.newWriter(
-		ctx,
-		cfg.OutputPrefix,
-		xrayprobe.Schema,
-	)
+	stage, err := s.buildStage(ctx, cfg.Workers, prb, cfg.OutputPrefix, xrayprobe.Schema, hooks...)
 	if err != nil {
 		return nil, err
 	}
-
-	stages = append(stages, s.newStage(cfg.Workers, prb, writer, hooks...))
+	stages = append(stages, stage)
 
 	return stages, nil
 }
@@ -213,81 +179,14 @@ func (s *scanner) buildXrayPreScanStage(
 		return &stage, nil
 
 	default:
-		return nil, fmt.Errorf(
-			"unsupported Xray pre_scan_type %q",
-			preScanType,
-		)
+		return nil, fmt.Errorf("unsupported Xray pre_scan_type %q", preScanType)
 	}
 }
 
 // BuildResolveStage creates a DNS resolver scan stage.
-func (s *scanner) BuildResolveStage(
-	ctx context.Context,
-	hooks ...engine.ScanHooks,
-) (StageConfig, error) {
+func (s *scanner) BuildResolveStage(ctx context.Context, hooks ...engine.ScanHooks) (StageConfig, error) {
 	cfg := s.config.DNS.Resolver
 	return s.buildResolverStage(ctx, cfg, hooks...)
-}
-
-// BuildDNSTTStage creates the stages required for a DNSTT scan.
-func (s *scanner) BuildDNSTTStage(
-	ctx context.Context,
-	configName string,
-	hooks ...engine.ScanHooks,
-) ([]StageConfig, error) {
-	tunCfg := s.config.DNS.DNSTunneling
-
-	dnsttCfg, err := s.dnsttService.LoadConfig(configName)
-	if err != nil {
-		return nil, fmt.Errorf("load DNSTT config: %w", err)
-	}
-
-	stages := make([]StageConfig, 0, 2)
-
-	if tunCfg.CheckDNSResolver {
-		resolverCfg := s.config.DNS.Resolver
-		if tunCfg.AdaptiveResolver {
-			resolverCfg.Port = dnsttCfg.ResolverPort
-			resolverCfg.Transport = string(dnsttCfg.ResolverType)
-			resolverCfg.Domain = dnsttCfg.Domain
-		}
-
-		stage, err := s.buildResolverStage(
-			ctx,
-			resolverCfg,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		stages = append(stages, stage)
-	}
-
-	prb, err := dnsttprobe.NewDNSTTProbe(
-		dnsttCfg,
-		tunCfg.Timeout.Duration(),
-		dnsttprobe.WithTries(tunCfg.Tries),
-		dnsttprobe.WithLogger(s.log.With("probe", "dnstt")),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create DNSTT probe: %w", err)
-	}
-
-	writer, err := s.newWriter(
-		ctx,
-		tunCfg.OutputPrefix,
-		dnsttprobe.Schema,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	stages = append(
-		stages,
-		s.newStage(tunCfg.Workers, prb, writer, hooks...),
-	)
-
-	return stages, nil
 }
 
 func (s *scanner) buildResolverStage(
@@ -297,10 +196,7 @@ func (s *scanner) buildResolverStage(
 ) (StageConfig, error) {
 	rcodes := make([]uint16, 0, len(cfg.AcceptedRCodes))
 	for _, code := range cfg.AcceptedRCodes {
-		rcodes = append(
-			rcodes,
-			uint16(dns.ParseDNSRcode(code)),
-		)
+		rcodes = append(rcodes, uint16(dns.ParseDNSRcode(code)))
 	}
 
 	prb := resolveprobe.NewResolverProbe(&resolveprobe.DNSRequest{
@@ -318,16 +214,54 @@ func (s *scanner) buildResolverStage(
 		Tries:           cfg.Tries,
 	})
 
-	writer, err := s.newWriter(
-		ctx,
-		cfg.OutputPrefix,
-		resolveprobe.Schema,
-	)
+	return s.buildStage(ctx, cfg.Workers, prb, cfg.OutputPrefix, resolveprobe.Schema, hooks...)
+}
+
+// BuildDNSTTStage creates the stages required for a DNSTT scan.
+func (s *scanner) BuildDNSTTStage(
+	ctx context.Context,
+	configName string,
+	hooks ...engine.ScanHooks,
+) ([]StageConfig, error) {
+
+	tunCfg := s.config.DNS.DNSTunneling
+
+	dnsttCfg, err := s.dnsttService.LoadConfig(configName)
 	if err != nil {
-		return StageConfig{}, err
+		return nil, fmt.Errorf("load DNSTT config: %w", err)
 	}
 
-	return s.newStage(cfg.Workers, prb, writer, hooks...), nil
+	stages := make([]StageConfig, 0, 2)
+
+	preStage, err := s.resolverPreStage(ctx, func(rc *config.ResolverConfig) {
+		rc.Port = dnsttCfg.ResolverPort
+		rc.Transport = string(dnsttCfg.ResolverType)
+		rc.Domain = dnsttCfg.Domain
+	})
+	if err != nil {
+		return nil, err
+	}
+	if preStage != nil {
+		stages = append(stages, *preStage)
+	}
+
+	prb, err := dnsttprobe.NewDNSTTProbe(
+		dnsttCfg,
+		tunCfg.Timeout.Duration(),
+		dnsttprobe.WithTries(tunCfg.Tries),
+		dnsttprobe.WithLogger(s.log.With("probe", "dnstt")),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create DNSTT probe: %w", err)
+	}
+
+	stage, err := s.buildStage(ctx, tunCfg.Workers, prb, tunCfg.OutputPrefix, dnsttprobe.Schema, hooks...)
+	if err != nil {
+		return nil, err
+	}
+	stages = append(stages, stage)
+
+	return stages, nil
 }
 
 // BuildSlipStreamStage creates the stages required for a Slipstream scan.
@@ -345,23 +279,16 @@ func (s *scanner) BuildSlipStreamStage(
 
 	stages := make([]StageConfig, 0, 2)
 
-	if tunCfg.CheckDNSResolver {
-		resolverCfg := s.config.DNS.Resolver
-		if tunCfg.AdaptiveResolver {
-			resolverCfg.Port = slipstreamCfg.ResolverPort
-			resolverCfg.Transport = string(dns.ResolverTypeUDP)
-			resolverCfg.Domain = slipstreamCfg.Domain
-		}
-
-		stage, err := s.buildResolverStage(
-			ctx,
-			resolverCfg,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		stages = append(stages, stage)
+	preStage, err := s.resolverPreStage(ctx, func(rc *config.ResolverConfig) {
+		rc.Port = slipstreamCfg.ResolverPort
+		rc.Transport = string(dns.ResolverTypeUDP)
+		rc.Domain = slipstreamCfg.Domain
+	})
+	if err != nil {
+		return nil, err
+	}
+	if preStage != nil {
+		stages = append(stages, *preStage)
 	}
 
 	prb, err := slipstreamprobe.NewSlipstreamProbe(
@@ -376,19 +303,11 @@ func (s *scanner) BuildSlipStreamStage(
 		return nil, fmt.Errorf("create Slipstream probe: %w", err)
 	}
 
-	writer, err := s.newWriter(
-		ctx,
-		tunCfg.OutputPrefix,
-		slipstreamprobe.Schema,
-	)
+	stage, err := s.buildStage(ctx, tunCfg.Workers, prb, tunCfg.OutputPrefix, slipstreamprobe.Schema, hooks...)
 	if err != nil {
 		return nil, err
 	}
-
-	stages = append(
-		stages,
-		s.newStage(tunCfg.Workers, prb, writer, hooks...),
-	)
+	stages = append(stages, stage)
 
 	return stages, nil
 }
@@ -408,23 +327,16 @@ func (s *scanner) BuildVayDNSStage(
 
 	stages := make([]StageConfig, 0, 2)
 
-	if tunCfg.CheckDNSResolver {
-		resolverCfg := s.config.DNS.Resolver
-		if tunCfg.AdaptiveResolver {
-			resolverCfg.Port = vaydnsCfg.ResolverPort
-			resolverCfg.Transport = string(vaydnsCfg.ResolverType)
-			resolverCfg.Domain = vaydnsCfg.Domain
-		}
-
-		stage, err := s.buildResolverStage(
-			ctx,
-			resolverCfg,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		stages = append(stages, stage)
+	preStage, err := s.resolverPreStage(ctx, func(rc *config.ResolverConfig) {
+		rc.Port = vaydnsCfg.ResolverPort
+		rc.Transport = string(vaydnsCfg.ResolverType)
+		rc.Domain = vaydnsCfg.Domain
+	})
+	if err != nil {
+		return nil, err
+	}
+	if preStage != nil {
+		stages = append(stages, *preStage)
 	}
 
 	prb, err := vaydnsprobe.NewVayDNSProbe(
@@ -438,19 +350,11 @@ func (s *scanner) BuildVayDNSStage(
 		return nil, fmt.Errorf("create VayDNS probe: %w", err)
 	}
 
-	writer, err := s.newWriter(
-		ctx,
-		tunCfg.OutputPrefix,
-		vaydnsprobe.Schema,
-	)
+	stage, err := s.buildStage(ctx, tunCfg.Workers, prb, tunCfg.OutputPrefix, vaydnsprobe.Schema, hooks...)
 	if err != nil {
 		return nil, err
 	}
-
-	stages = append(
-		stages,
-		s.newStage(tunCfg.Workers, prb, writer, hooks...),
-	)
+	stages = append(stages, stage)
 
 	return stages, nil
 }
@@ -470,23 +374,16 @@ func (s *scanner) BuildMasterDNSStage(
 
 	stages := make([]StageConfig, 0, 2)
 
-	if tunCfg.CheckDNSResolver {
-		resolverCfg := s.config.DNS.Resolver
-		if tunCfg.AdaptiveResolver {
-			resolverCfg.Port = uint16(masterCfg.ResolverPort)
-			resolverCfg.Transport = string(dns.ResolverTypeUDP)
-			resolverCfg.Domain = masterCfg.Domain
-		}
-
-		stage, err := s.buildResolverStage(
-			ctx,
-			resolverCfg,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		stages = append(stages, stage)
+	preStage, err := s.resolverPreStage(ctx, func(rc *config.ResolverConfig) {
+		rc.Port = uint16(masterCfg.ResolverPort)
+		rc.Transport = string(dns.ResolverTypeUDP)
+		rc.Domain = masterCfg.Domain
+	})
+	if err != nil {
+		return nil, err
+	}
+	if preStage != nil {
+		stages = append(stages, *preStage)
 	}
 
 	prb, err := masterdnsprobe.NewMasterDNSProbe(
@@ -501,19 +398,11 @@ func (s *scanner) BuildMasterDNSStage(
 		return nil, fmt.Errorf("create MasterDNS probe: %w", err)
 	}
 
-	writer, err := s.newWriter(
-		ctx,
-		tunCfg.OutputPrefix,
-		masterdnsprobe.Schema,
-	)
+	stage, err := s.buildStage(ctx, tunCfg.Workers, prb, tunCfg.OutputPrefix, masterdnsprobe.Schema, hooks...)
 	if err != nil {
 		return nil, err
 	}
-
-	stages = append(
-		stages,
-		s.newStage(tunCfg.Workers, prb, writer, hooks...),
-	)
+	stages = append(stages, stage)
 
 	return stages, nil
 }
@@ -533,23 +422,16 @@ func (s *scanner) BuildStormDNSStage(
 
 	stages := make([]StageConfig, 0, 2)
 
-	if tunCfg.CheckDNSResolver {
-		resolverCfg := s.config.DNS.Resolver
-		if tunCfg.AdaptiveResolver {
-			resolverCfg.Port = uint16(stormCfg.ResolverPort)
-			resolverCfg.Transport = string(dns.ResolverTypeUDP)
-			resolverCfg.Domain = stormCfg.Domain
-		}
-
-		stage, err := s.buildResolverStage(
-			ctx,
-			resolverCfg,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		stages = append(stages, stage)
+	preStage, err := s.resolverPreStage(ctx, func(rc *config.ResolverConfig) {
+		rc.Port = uint16(stormCfg.ResolverPort)
+		rc.Transport = string(dns.ResolverTypeUDP)
+		rc.Domain = stormCfg.Domain
+	})
+	if err != nil {
+		return nil, err
+	}
+	if preStage != nil {
+		stages = append(stages, *preStage)
 	}
 
 	prb, err := stormdnsprobe.NewStormDNSProbe(
@@ -564,19 +446,11 @@ func (s *scanner) BuildStormDNSStage(
 		return nil, fmt.Errorf("create StormDNS probe: %w", err)
 	}
 
-	writer, err := s.newWriter(
-		ctx,
-		tunCfg.OutputPrefix,
-		stormdnsprobe.Schema,
-	)
+	stage, err := s.buildStage(ctx, tunCfg.Workers, prb, tunCfg.OutputPrefix, stormdnsprobe.Schema, hooks...)
 	if err != nil {
 		return nil, err
 	}
-
-	stages = append(
-		stages,
-		s.newStage(tunCfg.Workers, prb, writer, hooks...),
-	)
+	stages = append(stages, stage)
 
 	return stages, nil
 }
@@ -596,23 +470,16 @@ func (s *scanner) BuildTheFeedStage(
 
 	stages := make([]StageConfig, 0, 2)
 
-	if tunCfg.CheckDNSResolver {
-		resolverCfg := s.config.DNS.Resolver
-		if tunCfg.AdaptiveResolver {
-			resolverCfg.Port = thefeedCfg.ResolverPort
-			resolverCfg.Transport = string(thefeedCfg.ResolverType)
-			resolverCfg.Domain = thefeedCfg.Domain
-		}
-
-		stage, err := s.buildResolverStage(
-			ctx,
-			resolverCfg,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		stages = append(stages, stage)
+	preStage, err := s.resolverPreStage(ctx, func(rc *config.ResolverConfig) {
+		rc.Port = thefeedCfg.ResolverPort
+		rc.Transport = string(thefeedCfg.ResolverType)
+		rc.Domain = thefeedCfg.Domain
+	})
+	if err != nil {
+		return nil, err
+	}
+	if preStage != nil {
+		stages = append(stages, *preStage)
 	}
 
 	prb, err := thefeedprobe.NewTheFeedProbe(
@@ -625,21 +492,56 @@ func (s *scanner) BuildTheFeedStage(
 		return nil, fmt.Errorf("create TheFeed probe: %w", err)
 	}
 
-	writer, err := s.newWriter(
-		ctx,
-		tunCfg.OutputPrefix,
-		thefeedprobe.Schema,
-	)
+	stage, err := s.buildStage(ctx, tunCfg.Workers, prb, tunCfg.OutputPrefix, thefeedprobe.Schema, hooks...)
 	if err != nil {
 		return nil, err
 	}
-
-	stages = append(
-		stages,
-		s.newStage(tunCfg.Workers, prb, writer, hooks...),
-	)
+	stages = append(stages, stage)
 
 	return stages, nil
+}
+
+// --- Shared helpers ---
+
+// buildStage creates the result writer for a probe and assembles its stage.
+func (s *scanner) buildStage(
+	ctx context.Context,
+	workers int,
+	prb probe.Probe,
+	prefix string,
+	schema result.ResultSchema,
+	hooks ...engine.ScanHooks,
+) (StageConfig, error) {
+	writer, err := s.newWriter(ctx, prefix, schema)
+	if err != nil {
+		return StageConfig{}, err
+	}
+	return s.newStage(workers, prb, writer, hooks...), nil
+}
+
+// resolverPreStage builds the optional resolver check stage that runs ahead
+// of the DNS tunnel stages. adapt (which may be nil) customizes the resolver
+// config from the loaded tunnel config when AdaptiveResolver is enabled.
+// It returns (nil, nil) when the resolver check is disabled.
+func (s *scanner) resolverPreStage(
+	ctx context.Context,
+	adapt func(*config.ResolverConfig),
+) (*StageConfig, error) {
+	tunCfg := s.config.DNS.DNSTunneling
+	if !tunCfg.CheckDNSResolver {
+		return nil, nil
+	}
+
+	resolverCfg := s.config.DNS.Resolver
+	if tunCfg.AdaptiveResolver && adapt != nil {
+		adapt(&resolverCfg)
+	}
+
+	stage, err := s.buildResolverStage(ctx, resolverCfg)
+	if err != nil {
+		return nil, err
+	}
+	return &stage, nil
 }
 
 func (s *scanner) newWriter(ctx context.Context, prefix string, schema result.ResultSchema) (result.Writer, error) {

@@ -608,7 +608,7 @@ func (m *Model) columnType(col int) result.ColumnType {
 // comparator picks the sort function for a column by its declared type.
 func (m *Model) comparator(col int) func(a, b string) int {
 	switch m.columnType(col) {
-	case result.ColumnIP:
+	case result.ColumnHost:
 		return sortIP
 	case result.ColumnDuration:
 		return sortDuration

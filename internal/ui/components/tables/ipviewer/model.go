@@ -204,11 +204,11 @@ func keepRowBackground(styled string) string {
 	return styled + "\x1b[39m"
 }
 
-// ipColumn returns the schema index of the results' IP column.
-// Falls back to 0; every schema declares the IP column first.
+// ipColumn returns the schema index of the results' key column.
+// Falls back to 0; every schema declares that column first.
 func (m *Model) ipColumn() int {
 	for i, c := range m.schema.Columns {
-		if c.ColumnType == result.ColumnIP {
+		if c.ColumnType == result.ColumnHost {
 			return i
 		}
 	}

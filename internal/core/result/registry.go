@@ -35,6 +35,7 @@ type ResultRegistry struct {
 	schemas []ResultSchema
 }
 
+// NewResultRegistry returns an empty registry.
 func NewResultRegistry() *ResultRegistry {
 	return &ResultRegistry{}
 }
@@ -86,6 +87,7 @@ func (r *ResultRegistry) All() []ResultSchema {
 	return out
 }
 
+// Len returns the number of registered schemas.
 func (r *ResultRegistry) Len() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

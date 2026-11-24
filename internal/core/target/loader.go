@@ -19,6 +19,7 @@ type ImportOption struct {
 	MaxInMemoryEntries uint64
 }
 
+// DefaultImportOption returns the default import settings.
 func DefaultImportOption() ImportOption {
 	return ImportOption{
 		MaxMapFileSize:     100_000_000,
@@ -315,6 +316,8 @@ func LoadAll(path string) ([]Entry, error) {
 	return items, err
 }
 
+// CountAll returns how many scan targets the list at path stands for,
+// counting enabled and disabled entries.
 func CountAll(path string) (uint64, error) {
 	var total uint64
 	err := ReadCSV(path, func(entry Entry, _ int64) error {
@@ -324,6 +327,8 @@ func CountAll(path string) (uint64, error) {
 	return total, err
 }
 
+// CountActive returns how many scan targets the enabled entries in the
+// list at path stand for.
 func CountActive(path string) (uint64, error) {
 	var total uint64
 	err := ReadCSV(path, func(entry Entry, _ int64) error {

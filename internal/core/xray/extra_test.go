@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestCleanJSONC: comments and a BOM are stripped while string contents stay intact.
 func TestCleanJSONC(t *testing.T) {
 	tests := []struct {
 		name string
@@ -48,6 +49,7 @@ func TestCleanJSONC(t *testing.T) {
 	}
 }
 
+// TestCleanJSONC_UnterminatedBlockComment: an unterminated block comment returns an error.
 func TestCleanJSONC_UnterminatedBlockComment(t *testing.T) {
 	_, err := cleanJSONC([]byte(`{"a":1} /* oops`))
 	if err == nil {
@@ -58,6 +60,7 @@ func TestCleanJSONC_UnterminatedBlockComment(t *testing.T) {
 	}
 }
 
+// TestCleanJSONC_KeepsLineNumbers: newlines inside comments survive, so line numbers stay right.
 func TestCleanJSONC_KeepsLineNumbers(t *testing.T) {
 	in := "{\n// one\n/* two\nthree */\n\"a\": 1\n}"
 

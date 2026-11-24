@@ -7,6 +7,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
+// TestDNSConfig checks ValidateDNS and NormalizeDNS on valid and invalid DNS configs.
 func TestDNSConfig(t *testing.T) {
 	tests := []struct {
 		name          string

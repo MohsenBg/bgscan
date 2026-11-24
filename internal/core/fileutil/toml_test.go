@@ -13,6 +13,7 @@ type testConfig struct {
 	Count   int    `toml:"count"`
 }
 
+// TestWriteTOMLFile_WritesAndCreatesDirectory covers write tomlfile writes and creates directory.
 func TestWriteTOMLFile_WritesAndCreatesDirectory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "config.toml")
 
@@ -36,6 +37,7 @@ func TestWriteTOMLFile_WritesAndCreatesDirectory(t *testing.T) {
 	}
 }
 
+// TestWriteTOMLFile_OverwritesExistingFile covers write tomlfile overwrites existing file.
 func TestWriteTOMLFile_OverwritesExistingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 
@@ -57,6 +59,7 @@ func TestWriteTOMLFile_OverwritesExistingFile(t *testing.T) {
 	}
 }
 
+// TestWriteTOMLFileIfNotExist_CreatesMissingFile covers write tomlfile if not exist creates missing file.
 func TestWriteTOMLFileIfNotExist_CreatesMissingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 
@@ -74,6 +77,7 @@ func TestWriteTOMLFileIfNotExist_CreatesMissingFile(t *testing.T) {
 	}
 }
 
+// TestWriteTOMLFileIfNotExist_DoesNotOverwrite covers write tomlfile if not exist does not overwrite.
 func TestWriteTOMLFileIfNotExist_DoesNotOverwrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 
@@ -95,6 +99,7 @@ func TestWriteTOMLFileIfNotExist_DoesNotOverwrite(t *testing.T) {
 	}
 }
 
+// TestReadTOMLFile_ReturnsErrorForMissingFile covers read tomlfile returns error for missing file.
 func TestReadTOMLFile_ReturnsErrorForMissingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "missing.toml")
 
@@ -104,6 +109,7 @@ func TestReadTOMLFile_ReturnsErrorForMissingFile(t *testing.T) {
 	}
 }
 
+// TestReadTOMLFile_ReturnsErrorForInvalidTOML covers read tomlfile returns error for invalid toml.
 func TestReadTOMLFile_ReturnsErrorForInvalidTOML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "broken.toml")
 
@@ -118,6 +124,7 @@ func TestReadTOMLFile_ReturnsErrorForInvalidTOML(t *testing.T) {
 	}
 }
 
+// TestReadTOMLFileOrDefault_UsesExistingValue covers read tomlfile or default uses existing value.
 func TestReadTOMLFileOrDefault_UsesExistingValue(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 
@@ -132,6 +139,7 @@ func TestReadTOMLFileOrDefault_UsesExistingValue(t *testing.T) {
 	}
 }
 
+// TestReadTOMLFileOrDefault_ReturnsDefaultForMissingFile covers read tomlfile or default returns default for missing file.
 func TestReadTOMLFileOrDefault_ReturnsDefaultForMissingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 
@@ -147,6 +155,7 @@ func TestReadTOMLFileOrDefault_ReturnsDefaultForMissingFile(t *testing.T) {
 	}
 }
 
+// TestUpdateTOMLFile_UpdatesValue covers update tomlfile updates value.
 func TestUpdateTOMLFile_UpdatesValue(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 
@@ -172,6 +181,7 @@ func TestUpdateTOMLFile_UpdatesValue(t *testing.T) {
 	}
 }
 
+// TestUpdateTOMLFile_ReturnsUpdateError covers update tomlfile returns update error.
 func TestUpdateTOMLFile_ReturnsUpdateError(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 

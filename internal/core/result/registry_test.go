@@ -11,6 +11,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
+// TestNewResultRegistry_Empty covers new result registry empty.
 func TestNewResultRegistry_Empty(t *testing.T) {
 	r := NewResultRegistry()
 	if r.Len() != 0 {
@@ -18,6 +19,7 @@ func TestNewResultRegistry_Empty(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_Register_Valid covers result registry register valid.
 func TestResultRegistry_Register_Valid(t *testing.T) {
 	r := NewResultRegistry()
 	s := validSchema(t)
@@ -31,6 +33,7 @@ func TestResultRegistry_Register_Valid(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_Register_InvalidSchema covers result registry register invalid schema.
 func TestResultRegistry_Register_InvalidSchema(t *testing.T) {
 	r := NewResultRegistry()
 
@@ -41,6 +44,7 @@ func TestResultRegistry_Register_InvalidSchema(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_Register_DuplicateDirectory covers result registry register duplicate directory.
 func TestResultRegistry_Register_DuplicateDirectory(t *testing.T) {
 	r := NewResultRegistry()
 	s1 := validSchema(t)
@@ -60,6 +64,7 @@ func TestResultRegistry_Register_DuplicateDirectory(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_Register_DifferentDirectories covers result registry register different directories.
 func TestResultRegistry_Register_DifferentDirectories(t *testing.T) {
 	r := NewResultRegistry()
 
@@ -82,6 +87,7 @@ func TestResultRegistry_Register_DifferentDirectories(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_Get_Found covers result registry get found.
 func TestResultRegistry_Get_Found(t *testing.T) {
 	r := NewResultRegistry()
 	s := validSchema(t)
@@ -97,6 +103,7 @@ func TestResultRegistry_Get_Found(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_Get_NotFound covers result registry get not found.
 func TestResultRegistry_Get_NotFound(t *testing.T) {
 	r := NewResultRegistry()
 
@@ -106,6 +113,7 @@ func TestResultRegistry_Get_NotFound(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_All_SortedByDirectory covers result registry all sorted by directory.
 func TestResultRegistry_All_SortedByDirectory(t *testing.T) {
 	r := NewResultRegistry()
 
@@ -132,6 +140,7 @@ func TestResultRegistry_All_SortedByDirectory(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_All_ReturnsCopy covers result registry all returns copy.
 func TestResultRegistry_All_ReturnsCopy(t *testing.T) {
 	r := NewResultRegistry()
 	s := validSchema(t)
@@ -149,6 +158,7 @@ func TestResultRegistry_All_ReturnsCopy(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_All_Empty covers result registry all empty.
 func TestResultRegistry_All_Empty(t *testing.T) {
 	r := NewResultRegistry()
 	all := r.All()
@@ -157,6 +167,7 @@ func TestResultRegistry_All_Empty(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_Unregister_Existing covers result registry unregister existing.
 func TestResultRegistry_Unregister_Existing(t *testing.T) {
 	r := NewResultRegistry()
 	s := validSchema(t)
@@ -171,6 +182,7 @@ func TestResultRegistry_Unregister_Existing(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_Unregister_NonExisting covers result registry unregister non existing.
 func TestResultRegistry_Unregister_NonExisting(t *testing.T) {
 	r := NewResultRegistry()
 
@@ -180,6 +192,7 @@ func TestResultRegistry_Unregister_NonExisting(t *testing.T) {
 	}
 }
 
+// TestResultRegistry_ConcurrentAccess covers result registry concurrent access.
 func TestResultRegistry_ConcurrentAccess(t *testing.T) {
 	r := NewResultRegistry()
 	s := validSchema(t)
@@ -234,6 +247,7 @@ func TestFindResultFiles_NoSchemas(t *testing.T) {
 	}
 }
 
+// TestFindResultFiles_NonexistentDir covers find result files nonexistent dir.
 func TestFindResultFiles_NonexistentDir(t *testing.T) {
 	schema := ResultSchema{
 		Name:      "test",
@@ -251,6 +265,7 @@ func TestFindResultFiles_NonexistentDir(t *testing.T) {
 	}
 }
 
+// TestFindResultFiles_FindsCSVFiles covers find result files finds csvfiles.
 func TestFindResultFiles_FindsCSVFiles(t *testing.T) {
 	setBaseDir(t)
 	cfg := defaultTestWriterConfig(t)
@@ -327,6 +342,7 @@ func TestReadResultFile_Existing(t *testing.T) {
 	}
 }
 
+// TestReadResultFile_Nonexistent covers read result file nonexistent.
 func TestReadResultFile_Nonexistent(t *testing.T) {
 	_, err := ReadResultFile("/nonexistent/path/file.csv", validSchema(t))
 	if err == nil {
@@ -334,6 +350,7 @@ func TestReadResultFile_Nonexistent(t *testing.T) {
 	}
 }
 
+// TestPrepareResultFilePath covers prepare result file path.
 func TestPrepareResultFilePath(t *testing.T) {
 	setBaseDir(t)
 	cfg := defaultTestWriterConfig(t)
@@ -360,6 +377,7 @@ func TestPrepareResultFilePath(t *testing.T) {
 	}
 }
 
+// TestPrepareResultFilePath_RejectsEmptyPrefix covers prepare result file path rejects empty prefix.
 func TestPrepareResultFilePath_RejectsEmptyPrefix(t *testing.T) {
 	_, err := prepareResultFilePath(defaultTestWriterConfig(t), validSchema(t), "")
 	if err == nil {
@@ -367,6 +385,7 @@ func TestPrepareResultFilePath_RejectsEmptyPrefix(t *testing.T) {
 	}
 }
 
+// TestFindResultFiles_RejectsInvalidWriterConfig covers find result files rejects invalid writer config.
 func TestFindResultFiles_RejectsInvalidWriterConfig(t *testing.T) {
 	_, err := FindResultFiles(config.WriterConfig{}, validSchema(t))
 	if err == nil {
@@ -374,6 +393,7 @@ func TestFindResultFiles_RejectsInvalidWriterConfig(t *testing.T) {
 	}
 }
 
+// TestReadResultFile_UsesModificationTime covers read result file uses modification time.
 func TestReadResultFile_UsesModificationTime(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "result.csv")
 	if err := os.WriteFile(path, []byte("a,1\n"), 0o644); err != nil {

@@ -47,7 +47,8 @@ func StreamCIDR(ctx context.Context, cidr string, limit uint64, out chan<- netip
 }
 
 // ParseIPOrCIDR validates and normalizes an IP or CIDR input string.
-// It returns a netip.Prefix, which can represent both networks and single IPs (as /32 or /128).
+// ParseIPOrCIDR returns a netip.Prefix and true on success. A single IP
+// comes back as a /32 or /128 prefix. Bad input returns false.
 func ParseIPOrCIDR(raw string) (netip.Prefix, bool) {
 	raw = strings.TrimSpace(raw)
 	if prefix, err := netip.ParsePrefix(raw); err == nil {
@@ -68,7 +69,9 @@ func Loopback(addr netip.Addr) netip.Addr {
 	return netip.AddrFrom4([4]byte{127, 0, 0, 1})
 }
 
-// parsePort treats an empty field as "use the scan settings" (0).
+// ParsePort parses a port field and reports whether the value is valid.
+// An empty field is valid and returns 0, which means the scan settings
+// choose the port.
 func ParsePort(raw string) (uint16, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

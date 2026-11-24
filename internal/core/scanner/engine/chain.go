@@ -14,6 +14,9 @@ const (
 )
 
 // RunScanWithChain executes a scan pipeline based on the configured chain mode.
+// It returns an error when cfg has no stages. Reaching the success
+// limit set by cfg.MaxSuccessfulIPs ends the scan early and is not an
+// error.
 func RunScanWithChain(ctx context.Context, input string, cfg ChainConfig) error {
 	if len(cfg.Stages) == 0 {
 		return errNoStages

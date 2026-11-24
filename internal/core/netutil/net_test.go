@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestNormalizeHostWithSuffix covers normalize host with suffix.
 func TestNormalizeHostWithSuffix(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -41,6 +42,7 @@ func TestNormalizeHostWithSuffix(t *testing.T) {
 	}
 }
 
+// TestExtractTLSServerName covers extract tlsserver name.
 func TestExtractTLSServerName(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -66,6 +68,7 @@ func TestExtractTLSServerName(t *testing.T) {
 	}
 }
 
+// TestProtocolToScheme covers protocol to scheme.
 func TestProtocolToScheme(t *testing.T) {
 	tests := []struct {
 		protocol string
@@ -86,6 +89,7 @@ func TestProtocolToScheme(t *testing.T) {
 	}
 }
 
+// TestIsHTTPS covers is https.
 func TestIsHTTPS(t *testing.T) {
 	tests := []struct {
 		protocol string
@@ -106,6 +110,7 @@ func TestIsHTTPS(t *testing.T) {
 	}
 }
 
+// TestParsePortOrDefault covers parse port or default.
 func TestParsePortOrDefault(t *testing.T) {
 	tests := []struct {
 		port        int
@@ -125,6 +130,7 @@ func TestParsePortOrDefault(t *testing.T) {
 	}
 }
 
+// TestParseTLSVersion covers parse tlsversion.
 func TestParseTLSVersion(t *testing.T) {
 	tests := []struct {
 		v       string
@@ -155,6 +161,7 @@ func TestParseTLSVersion(t *testing.T) {
 	}
 }
 
+// TestIsPortAvailable_Available covers is port available available.
 func TestIsPortAvailable_Available(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -173,6 +180,7 @@ func TestIsPortAvailable_Available(t *testing.T) {
 	}
 }
 
+// TestValidateDomain covers validate domain.
 func TestValidateDomain(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -205,6 +213,7 @@ func TestValidateDomain(t *testing.T) {
 	}
 }
 
+// TestHasScheme covers has scheme.
 func TestHasScheme(t *testing.T) {
 	tests := []struct {
 		value string

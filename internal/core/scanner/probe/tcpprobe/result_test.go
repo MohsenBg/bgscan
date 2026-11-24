@@ -29,6 +29,7 @@ func mustEntry(t *testing.T, s string) target.Entry {
 	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
 }
 
+// TestSchema checks schema.
 func TestSchema(t *testing.T) {
 	t.Parallel()
 
@@ -65,6 +66,7 @@ func TestSchema(t *testing.T) {
 	}
 }
 
+// TestTCPResultKey checks tcp result key.
 func TestTCPResultKey(t *testing.T) {
 	t.Parallel()
 
@@ -76,6 +78,7 @@ func TestTCPResultKey(t *testing.T) {
 	}
 }
 
+// TestTCPResultKeyType checks tcp result key type.
 func TestTCPResultKeyType(t *testing.T) {
 	t.Parallel()
 
@@ -86,6 +89,7 @@ func TestTCPResultKeyType(t *testing.T) {
 	}
 }
 
+// TestTCPResultEqual checks tcp result equal.
 func TestTCPResultEqual(t *testing.T) {
 	t.Parallel()
 
@@ -102,6 +106,7 @@ func TestTCPResultEqual(t *testing.T) {
 	}
 }
 
+// TestTCPResultToRecord checks tcp result to record.
 func TestTCPResultToRecord(t *testing.T) {
 	t.Parallel()
 
@@ -160,6 +165,7 @@ func TestTCPResultToRecord(t *testing.T) {
 	}
 }
 
+// TestTCPResultScore checks tcp result score.
 func TestTCPResultScore(t *testing.T) {
 	t.Parallel()
 

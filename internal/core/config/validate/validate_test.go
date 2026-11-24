@@ -9,6 +9,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
+// TestWarningString checks that Warning.String formats the field, the old and new values, and the reason.
 func TestWarningString(t *testing.T) {
 	w := Warning{Field: "testField", OldVal: 10, NewVal: 20, Reason: "out of range"}
 	if got := w.String(); got != "testField: 10 → 20 (out of range)" {
@@ -16,6 +17,7 @@ func TestWarningString(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixInt checks that checkInt rejects out-of-range values and fixInt replaces them with the default.
 func TestCheckAndFixInt(t *testing.T) {
 	tests := []struct {
 		name               string
@@ -46,6 +48,7 @@ func TestCheckAndFixInt(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixUint16 checks that checkUint16 rejects out-of-range values and fixUint16 replaces them with the default.
 func TestCheckAndFixUint16(t *testing.T) {
 	tests := []struct {
 		name               string
@@ -76,6 +79,7 @@ func TestCheckAndFixUint16(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixString checks that checkString rejects empty values and fixString replaces them with the default.
 func TestCheckAndFixString(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -104,6 +108,7 @@ func TestCheckAndFixString(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixStringSlice checks that checkStringSlice rejects empty slices and fixStringSlice replaces them with the default.
 func TestCheckAndFixStringSlice(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -132,6 +137,7 @@ func TestCheckAndFixStringSlice(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixEnum checks that checkEnum rejects values outside the allowed set and fixEnum replaces them with the default.
 func TestCheckAndFixEnum(t *testing.T) {
 	allowed := []string{"a", "b", "c"}
 	tests := []struct {
@@ -161,6 +167,7 @@ func TestCheckAndFixEnum(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixEnumOrder checks that checkEnumOrder rejects a minimum above the maximum and fixEnumOrder resets both to the defaults.
 func TestCheckAndFixEnumOrder(t *testing.T) {
 	allowed := []string{"low", "medium", "high"}
 	tests := []struct {
@@ -193,6 +200,7 @@ func TestCheckAndFixEnumOrder(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixPrefix checks that checkPrefix rejects empty or illegal prefixes and fixPrefix replaces them with the default.
 func TestCheckAndFixPrefix(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -221,6 +229,7 @@ func TestCheckAndFixPrefix(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixDirectoryName checks that checkDirectoryName rejects empty or illegal names and fixDirectoryName replaces them with the default.
 func TestCheckAndFixDirectoryName(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -253,6 +262,7 @@ func TestCheckAndFixDirectoryName(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixHost checks that checkHost rejects empty or malformed hosts and fixHost replaces them with the default.
 func TestCheckAndFixHost(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -283,6 +293,7 @@ func TestCheckAndFixHost(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixSNI checks that checkSNI rejects values with a scheme, path, or port and fixSNI replaces them with the default.
 func TestCheckAndFixSNI(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -314,6 +325,7 @@ func TestCheckAndFixSNI(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixDomain checks that checkDomain rejects empty or invalid domains and fixDomain replaces them with the default.
 func TestCheckAndFixDomain(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -345,6 +357,7 @@ func TestCheckAndFixDomain(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixDurationMS checks that checkDuration rejects out-of-range values and fixDurationMS replaces them with the default.
 func TestCheckAndFixDurationMS(t *testing.T) {
 	minDur := 1 * time.Second
 	maxDur := 5 * time.Second
@@ -382,6 +395,7 @@ func TestCheckAndFixDurationMS(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixStatusCodes checks that checkStatusCodes rejects codes outside 100 to 599 and fixHTTPStatusCodes replaces them with the default.
 func TestCheckAndFixStatusCodes(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -411,6 +425,7 @@ func TestCheckAndFixStatusCodes(t *testing.T) {
 	}
 }
 
+// TestCheckAndFixPubKey checks that checkPubKey rejects keys that are not 64 hex characters and fixPubKey replaces them with the default.
 func TestCheckAndFixPubKey(t *testing.T) {
 	validKey := "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
 	tests := []struct {
@@ -439,6 +454,7 @@ func TestCheckAndFixPubKey(t *testing.T) {
 	}
 }
 
+// TestIsValidDomain checks that isValidDomain accepts domains, IPs, and localhost, and rejects malformed values.
 func TestIsValidDomain(t *testing.T) {
 	tests := []struct {
 		host string
@@ -463,6 +479,7 @@ func TestIsValidDomain(t *testing.T) {
 	}
 }
 
+// TestIsValidHTTPStatusCode checks that isValidHTTPStatusCode accepts only codes from 100 to 599.
 func TestIsValidHTTPStatusCode(t *testing.T) {
 	tests := []struct {
 		code int

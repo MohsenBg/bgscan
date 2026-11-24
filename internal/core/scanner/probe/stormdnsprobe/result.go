@@ -51,14 +51,19 @@ type StormDNSResult struct {
 // Key returns the identity of the probed target with probe index prefix.
 func (r StormDNSResult) Key() string { return r.Entry.Key() }
 
+// KeyType returns target.KindIP, the only kind Run accepts.
 func (r StormDNSResult) KeyType() target.Kind {
 	return target.KindIP
 }
 
+// Equal reports whether r and rs point at the same target.
 func (r StormDNSResult) Equal(rs result.Result) bool {
 	return r.Key() == rs.Key()
 }
 
+// ToRecord converts the result into a slice of strings for storage.
+// The target comes first, in value, port, path, enable form; the
+// measurements follow.
 func (r StormDNSResult) ToRecord() []string {
 	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),

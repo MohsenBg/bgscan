@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestProxyLabel checks the label built from each proxy type and auth method pair.
 func TestProxyLabel(t *testing.T) {
 	tests := []struct {
 		proxyType ResolverProxyType
@@ -24,6 +25,7 @@ func TestProxyLabel(t *testing.T) {
 	}
 }
 
+// TestRenameDNSTunConfigFileUnsupportedProtocol checks that renaming a config of an unknown protocol returns an error.
 func TestRenameDNSTunConfigFileUnsupportedProtocol(t *testing.T) {
 	err := RenameDNSTunConfigFile(DNSTunConfigFile{
 		Protocol: DNSTunProtocol("carrier-pigeon"),
@@ -34,6 +36,7 @@ func TestRenameDNSTunConfigFileUnsupportedProtocol(t *testing.T) {
 	}
 }
 
+// TestDNSTunProtocolConstants checks the string values of the DNSTunProtocol constants.
 func TestDNSTunProtocolConstants(t *testing.T) {
 	want := map[DNSTunProtocol]string{
 		DNSTunProtocolVayDNS:     "vaydns",
@@ -50,6 +53,7 @@ func TestDNSTunProtocolConstants(t *testing.T) {
 	}
 }
 
+// TestConfigFileAliases checks that each protocol config file type is an alias of ConfigFile with its config type.
 func TestConfigFileAliases(t *testing.T) {
 	// Passing an alias value where ConfigFile[C] is expected only
 	// compiles when the alias is identical to the generic type, so

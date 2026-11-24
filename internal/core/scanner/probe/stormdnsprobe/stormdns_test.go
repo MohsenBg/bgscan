@@ -169,12 +169,14 @@ func newTestProbe(t *testing.T, pm portmgr.Manager, svc *fakeStormDNSService) *S
 	return p
 }
 
+// TestNewStormDNSProbe_NilPortManager checks new storm dns probe nil port manager.
 func TestNewStormDNSProbe_NilPortManager(t *testing.T) {
 	if _, err := NewStormDNSProbe(validConfig(), time.Second, nil); err == nil {
 		t.Fatal("expected error for nil port manager")
 	}
 }
 
+// TestNewStormDNSProbe_InvalidConfig checks new storm dns probe invalid config.
 func TestNewStormDNSProbe_InvalidConfig(t *testing.T) {
 	_, err := NewStormDNSProbe(dns.StormDNSConfig{}, time.Second, &fakePortManager{})
 	if err == nil {
@@ -182,6 +184,7 @@ func TestNewStormDNSProbe_InvalidConfig(t *testing.T) {
 	}
 }
 
+// TestNewStormDNSProbe_InvalidQueryType checks new storm dns probe invalid query type.
 func TestNewStormDNSProbe_InvalidQueryType(t *testing.T) {
 	cfg := validConfig()
 	cfg.DNSQueryType = "FTP"
@@ -191,6 +194,7 @@ func TestNewStormDNSProbe_InvalidQueryType(t *testing.T) {
 	}
 }
 
+// TestNewStormDNSProbe_DefaultsServices checks new storm dns probe defaults services.
 func TestNewStormDNSProbe_DefaultsServices(t *testing.T) {
 	got, err := NewStormDNSProbe(validConfig(), time.Second, &fakePortManager{})
 	if err != nil {
@@ -213,6 +217,7 @@ func TestNewStormDNSProbe_DefaultsServices(t *testing.T) {
 	}
 }
 
+// TestRun_ContextCanceled checks run context canceled.
 func TestRun_ContextCanceled(t *testing.T) {
 	p := newTestProbe(t, &fakePortManager{}, &fakeStormDNSService{})
 
@@ -225,6 +230,7 @@ func TestRun_ContextCanceled(t *testing.T) {
 	}
 }
 
+// TestRun_PortManagerFails checks run port manager fails.
 func TestRun_PortManagerFails(t *testing.T) {
 	pm := &fakePortManager{getErr: errors.New("no ports")}
 	p := newTestProbe(t, pm, &fakeStormDNSService{})
@@ -239,6 +245,7 @@ func TestRun_PortManagerFails(t *testing.T) {
 	}
 }
 
+// TestRun_TunnelStartFails checks run tunnel start fails.
 func TestRun_TunnelStartFails(t *testing.T) {
 	pm := &fakePortManager{getPort: 20001}
 	svc := &fakeStormDNSService{runTunnelErr: errors.New("session init failed")}
@@ -250,6 +257,7 @@ func TestRun_TunnelStartFails(t *testing.T) {
 	}
 }
 
+// TestRun_WaitOpenFails checks run wait open fails.
 func TestRun_WaitOpenFails(t *testing.T) {
 	pm := &fakePortManager{
 		getPort:     20002,
@@ -268,6 +276,7 @@ func TestRun_WaitOpenFails(t *testing.T) {
 	}
 }
 
+// TestRun_MeasureLatencyFails checks run measure latency fails.
 func TestRun_MeasureLatencyFails(t *testing.T) {
 	pm := &fakePortManager{getPort: 20003}
 	svc := &fakeStormDNSService{}
@@ -295,6 +304,7 @@ func TestRun_MeasureLatencyFails(t *testing.T) {
 	}
 }
 
+// TestRun_Success checks run success.
 func TestRun_Success(t *testing.T) {
 	const listenPort uint16 = 20110
 
@@ -371,6 +381,7 @@ func TestRun_Success(t *testing.T) {
 	}
 }
 
+// TestDialSOCKS checks dial socks.
 func TestDialSOCKS(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -407,6 +418,7 @@ func TestDialSOCKS(t *testing.T) {
 	}
 }
 
+// TestClose_NoOp checks close no op.
 func TestClose_NoOp(t *testing.T) {
 	p := newTestProbe(t, &fakePortManager{}, &fakeStormDNSService{})
 

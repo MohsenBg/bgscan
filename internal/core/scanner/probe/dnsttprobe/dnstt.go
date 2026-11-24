@@ -1,3 +1,8 @@
+// Package dnsttprobe checks targets by opening a DNSTT tunnel
+// through them. For each target it builds a tunnel that uses the
+// target as its DNS resolver, connects through the tunnel with SSH
+// or SOCKS as the stored DNSTT configuration says, and measures the
+// latency of a plain HTTP request through that connection.
 package dnsttprobe
 
 import (
@@ -30,10 +35,13 @@ type DNSTTProbe struct {
 	tries            int
 }
 
+// Input returns the kind of entry the probe accepts. DNSTT tunnels
+// are built for host entries.
 func (d *DNSTTProbe) Input() target.Kind {
 	return target.KindHost
 }
 
+// Option configures a DNSTTProbe. Options are passed to NewDNSTTProbe.
 type Option func(*DNSTTProbe)
 
 // WithLogger sets the logger for probe lifecycle events (nil-safe).
@@ -43,6 +51,7 @@ func WithLogger(log *logger.Logger) Option {
 	}
 }
 
+// WithDNSTTService sets the DNSTT service the probe uses. A nil service is ignored.
 func WithDNSTTService(service dns.DNSTTService) Option {
 	return func(p *DNSTTProbe) {
 		if service != nil {
@@ -51,6 +60,7 @@ func WithDNSTTService(service dns.DNSTTService) Option {
 	}
 }
 
+// WithSSHService sets the SSH service the probe uses. A nil service is ignored.
 func WithSSHService(service ssh.SSHService) Option {
 	return func(p *DNSTTProbe) {
 		if service != nil {
@@ -59,6 +69,7 @@ func WithSSHService(service ssh.SSHService) Option {
 	}
 }
 
+// WithSocksService sets the SOCKS service the probe uses. A nil service is ignored.
 func WithSocksService(service socks.Service) Option {
 	return func(p *DNSTTProbe) {
 		if service != nil {
@@ -67,6 +78,7 @@ func WithSocksService(service socks.Service) Option {
 	}
 }
 
+// WithSpeedtestService sets the speed test service the probe uses. A nil service is ignored.
 func WithSpeedtestService(service speedtest.Service) Option {
 	return func(p *DNSTTProbe) {
 		if service != nil {
@@ -85,6 +97,10 @@ func WithTries(n int) Option {
 	}
 }
 
+// NewDNSTTProbe creates a DNSTTProbe from a stored DNSTT configuration.
+// It returns an error that joins every configuration problem found
+// when the configuration is invalid. Services that no option sets are
+// created with their default constructors.
 func NewDNSTTProbe(
 	config dns.DNSTTConfig,
 	timeout time.Duration,
@@ -124,19 +140,21 @@ func NewDNSTTProbe(
 	return p, nil
 }
 
+// Schema returns the result schema for DNSTT probe results.
 func (d *DNSTTProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
+// Init does nothing. The probe builds a fresh tunnel for each target
+// in Run, so it has no shared state to set up.
 func (d *DNSTTProbe) Init(context.Context) error {
 	return nil
 }
 
-// Run tests DNSTT connectivity for the entry's address, retrying failed
-// attempts up to the configured tries.
-//
-// Domain targets are refused: a probe needs an address, and nothing resolves
-// names yet.
+// Run tests DNSTT connectivity for the entry's host, retrying failed
+// attempts up to the configured tries. It returns the context error
+// at once when ctx is cancelled, and it returns the last failure,
+// passed through probe.NormalizeErr, after all tries fail.
 func (d *DNSTTProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

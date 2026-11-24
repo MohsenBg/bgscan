@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// TestLoadResult_SendsValidRecords covers load result sends valid records.
 func TestLoadResult_SendsValidRecords(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
@@ -33,6 +34,7 @@ func TestLoadResult_SendsValidRecords(t *testing.T) {
 	}
 }
 
+// TestLoadResult_SkipsInvalidRecords covers load result skips invalid records.
 func TestLoadResult_SkipsInvalidRecords(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\nbad\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
@@ -56,6 +58,7 @@ func TestLoadResult_SkipsInvalidRecords(t *testing.T) {
 	}
 }
 
+// TestLoadResult_NonexistentFile covers load result nonexistent file.
 func TestLoadResult_NonexistentFile(t *testing.T) {
 	schema := validSchema(t)
 	out := make(chan Result, 1)
@@ -66,6 +69,7 @@ func TestLoadResult_NonexistentFile(t *testing.T) {
 	}
 }
 
+// TestCountResultKeys_MatchesCount covers count result keys matches count.
 func TestCountResultKeys_MatchesCount(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
@@ -79,6 +83,7 @@ func TestCountResultKeys_MatchesCount(t *testing.T) {
 	}
 }
 
+// TestCountResultKeys_AliasForCount covers count result keys alias for count.
 func TestCountResultKeys_AliasForCount(t *testing.T) {
 	path := writeTempCSV(t, "10.0.0.1,0.8\n")
 	schema := validSchema(t)
@@ -90,6 +95,7 @@ func TestCountResultKeys_AliasForCount(t *testing.T) {
 	}
 }
 
+// TestLoadAll_WithinLimit covers load all within limit.
 func TestLoadAll_WithinLimit(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n10.0.0.1,0.3\n")
 	schema := validSchema(t)
@@ -103,6 +109,7 @@ func TestLoadAll_WithinLimit(t *testing.T) {
 	}
 }
 
+// TestLoadAll_ExceedsLimit covers load all exceeds limit.
 func TestLoadAll_ExceedsLimit(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n10.0.0.1,0.3\n")
 	schema := validSchema(t)
@@ -116,6 +123,7 @@ func TestLoadAll_ExceedsLimit(t *testing.T) {
 	}
 }
 
+// TestLoadAll_LimitZero covers load all limit zero.
 func TestLoadAll_LimitZero(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n")
 	schema := validSchema(t)
@@ -129,6 +137,7 @@ func TestLoadAll_LimitZero(t *testing.T) {
 	}
 }
 
+// TestLoadAll_LimitOne covers load all limit one.
 func TestLoadAll_LimitOne(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
@@ -145,6 +154,7 @@ func TestLoadAll_LimitOne(t *testing.T) {
 	}
 }
 
+// TestLoadAll_EmptyFile covers load all empty file.
 func TestLoadAll_EmptyFile(t *testing.T) {
 	path := writeTempCSV(t, "")
 	schema := validSchema(t)
@@ -158,6 +168,7 @@ func TestLoadAll_EmptyFile(t *testing.T) {
 	}
 }
 
+// TestLoadAll_NonexistentFile covers load all nonexistent file.
 func TestLoadAll_NonexistentFile(t *testing.T) {
 	schema := validSchema(t)
 
@@ -167,6 +178,7 @@ func TestLoadAll_NonexistentFile(t *testing.T) {
 	}
 }
 
+// TestLoadAll_SkipsInvalidRecords covers load all skips invalid records.
 func TestLoadAll_SkipsInvalidRecords(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\ninvalid\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
@@ -181,6 +193,7 @@ func TestLoadAll_SkipsInvalidRecords(t *testing.T) {
 	}
 }
 
+// TestLoadAll_EOFIsNotError covers load all eofis not error.
 func TestLoadAll_EOFIsNotError(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n")
 	schema := validSchema(t)

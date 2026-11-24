@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// TestPauseController_InitialState covers pause controller initial state.
 func TestPauseController_InitialState(t *testing.T) {
 	pc := NewPauseController()
 	if pc.IsPaused() {
@@ -16,6 +17,7 @@ func TestPauseController_InitialState(t *testing.T) {
 	}
 }
 
+// TestPauseController_PauseResume covers pause controller pause resume.
 func TestPauseController_PauseResume(t *testing.T) {
 	pc := NewPauseController()
 	pc.Pause()
@@ -35,6 +37,7 @@ func TestPauseController_PauseResume(t *testing.T) {
 	}
 }
 
+// TestPauseController_DoublePauseIsNoOp covers pause controller double pause is no op.
 func TestPauseController_DoublePauseIsNoOp(t *testing.T) {
 	pc := NewPauseController()
 	pc.Pause()
@@ -46,6 +49,7 @@ func TestPauseController_DoublePauseIsNoOp(t *testing.T) {
 	pc.Stop()
 }
 
+// TestPauseController_DoubleResumeIsNoOp covers pause controller double resume is no op.
 func TestPauseController_DoubleResumeIsNoOp(t *testing.T) {
 	pc := NewPauseController()
 	pc.Pause()
@@ -53,6 +57,8 @@ func TestPauseController_DoubleResumeIsNoOp(t *testing.T) {
 	pc.Resume()
 }
 
+// TestPauseController_Wait_ReturnsFalseOnContextCancel covers pause controller wait returns false
+// on context cancel.
 func TestPauseController_Wait_ReturnsFalseOnContextCancel(t *testing.T) {
 	pc := NewPauseController()
 	pc.Pause()
@@ -65,6 +71,8 @@ func TestPauseController_Wait_ReturnsFalseOnContextCancel(t *testing.T) {
 	}
 }
 
+// TestPauseController_Wait_ReturnsFalseAfterStop covers pause controller wait returns false after
+// stop.
 func TestPauseController_Wait_ReturnsFalseAfterStop(t *testing.T) {
 	pc := NewPauseController()
 	pc.Pause()
@@ -87,6 +95,8 @@ func TestPauseController_Wait_ReturnsFalseAfterStop(t *testing.T) {
 	}
 }
 
+// TestPauseController_Wait_ReturnsTrueWhenNotPaused covers pause controller wait returns true when
+// not paused.
 func TestPauseController_Wait_ReturnsTrueWhenNotPaused(t *testing.T) {
 	pc := NewPauseController()
 	defer pc.Stop()
@@ -96,6 +106,8 @@ func TestPauseController_Wait_ReturnsTrueWhenNotPaused(t *testing.T) {
 	}
 }
 
+// TestPauseController_Wait_BlocksThenUnblocksOnResume covers pause controller wait blocks then
+// unblocks on resume.
 func TestPauseController_Wait_BlocksThenUnblocksOnResume(t *testing.T) {
 	pc := NewPauseController()
 	pc.Pause()
@@ -119,6 +131,8 @@ func TestPauseController_Wait_BlocksThenUnblocksOnResume(t *testing.T) {
 	pc.Stop()
 }
 
+// TestPauseController_PausedDuration_AccumulatesAcrossCycles covers pause controller paused
+// duration accumulates across cycles.
 func TestPauseController_PausedDuration_AccumulatesAcrossCycles(t *testing.T) {
 	pc := NewPauseController()
 
@@ -134,6 +148,8 @@ func TestPauseController_PausedDuration_AccumulatesAcrossCycles(t *testing.T) {
 	pc.Stop()
 }
 
+// TestPauseController_PausedDuration_IncludesCurrentPause covers pause controller paused duration
+// includes current pause.
 func TestPauseController_PausedDuration_IncludesCurrentPause(t *testing.T) {
 	pc := NewPauseController()
 	pc.Pause()

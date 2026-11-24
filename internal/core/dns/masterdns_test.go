@@ -12,6 +12,7 @@ func validMasterConfig() MasterDNSConfig {
 	return cfg
 }
 
+// TestMasterDNSValidate checks MasterDNSConfig.Validate on valid and invalid configs.
 func TestMasterDNSValidate(t *testing.T) {
 	if errs := validMasterConfig().Validate(); len(errs) != 0 {
 		t.Fatalf("valid config errors = %v", errs)
@@ -24,6 +25,7 @@ func TestMasterDNSValidate(t *testing.T) {
 	}
 }
 
+// TestMasterDNSConfigStoreRoundTrip checks that a MasterDNS config saved to the store loads back unchanged.
 func TestMasterDNSConfigStoreRoundTrip(t *testing.T) {
 	svc := NewMasterDNSService(WithMasterDNSDir(t.TempDir()))
 
@@ -48,6 +50,7 @@ func TestMasterDNSConfigStoreRoundTrip(t *testing.T) {
 	}
 }
 
+// TestMasterDNSRunTunnelArgValidation checks that RunTunnel rejects bad resolver IPs and ports before starting.
 func TestMasterDNSRunTunnelArgValidation(t *testing.T) {
 	svc := NewMasterDNSService(WithMasterDNSDir(t.TempDir()))
 	cfg := validMasterConfig()

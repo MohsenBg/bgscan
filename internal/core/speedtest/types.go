@@ -26,6 +26,8 @@ func (b BitsPerSec) Uint64() uint64 {
 	return uint64(b)
 }
 
+// String formats the speed with the largest unit that keeps the
+// value at or above 1, or in plain bps below 1 Kbps.
 func (b BitsPerSec) String() string {
 	switch {
 	case b >= Gbps:
@@ -46,6 +48,7 @@ type SpeedResult struct {
 	MinSpeed BitsPerSec
 }
 
+// String returns the measured speed in human readable form.
 func (r SpeedResult) String() string {
 	return r.Speed.String()
 }
@@ -176,15 +179,19 @@ type LatencyConfig struct {
 	) (net.Conn, error)
 }
 
+// LatencyResult holds the outcome of a single latency measurement.
 type LatencyResult struct {
 	RTT        time.Duration
 	MaxLatency time.Duration
 }
 
+// String returns the round trip time in human readable form.
 func (r LatencyResult) String() string {
 	return r.RTT.String()
 }
 
+// AboveMaximum reports whether the round trip time passes the
+// configured maximum. It is always false when MaxLatency is zero.
 func (r LatencyResult) AboveMaximum() bool {
 	return r.MaxLatency > 0 && r.RTT > r.MaxLatency
 }
@@ -198,6 +205,7 @@ type UploadConfig struct {
 	Timeout time.Duration
 
 	// MinSpeed causes MeasureUploadSpeed to return an error when the
+	// measured speed falls below it.
 	MinSpeed BitsPerSec
 
 	// ProxyPort is the local SOCKS5 proxy port used when DialContext is nil.

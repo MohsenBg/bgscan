@@ -242,6 +242,7 @@ func ipAddrFrom(ip netip.Addr) net.Addr {
 	return &net.IPAddr{IP: net.IP(ip.AsSlice())}
 }
 
+// TestNew_FailsWhenIPv4Unavailable checks new fails when i pv 4 unavailable.
 func TestNew_FailsWhenIPv4Unavailable(t *testing.T) {
 	_, err := NewICMPProbe(Options{
 		Timeout: time.Second,
@@ -255,6 +256,7 @@ func TestNew_FailsWhenIPv4Unavailable(t *testing.T) {
 	}
 }
 
+// TestNew_IPv6UnavailableIsNonFatal checks new i pv 6 unavailable is non fatal.
 func TestNew_IPv6UnavailableIsNonFatal(t *testing.T) {
 	sock4 := newFakeSocket(icmpProtocol)
 	_, err := NewICMPProbe(Options{
@@ -272,6 +274,7 @@ func TestNew_IPv6UnavailableIsNonFatal(t *testing.T) {
 	}
 }
 
+// TestRun_IPv4_SuccessOnFirstTry checks run i pv 4 success on first try.
 func TestRun_IPv4_SuccessOnFirstTry(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 3}, true)
 
@@ -298,6 +301,7 @@ func TestRun_IPv4_SuccessOnFirstTry(t *testing.T) {
 	}
 }
 
+// TestRun_IPv6_SuccessOnFirstTry checks run i pv 6 success on first try.
 func TestRun_IPv6_SuccessOnFirstTry(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 3}, true)
 
@@ -318,6 +322,7 @@ func TestRun_IPv6_SuccessOnFirstTry(t *testing.T) {
 	}
 }
 
+// TestRun_IPv6_UnavailableReturnsError checks run i pv 6 unavailable returns error.
 func TestRun_IPv6_UnavailableReturnsError(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, false)
 
@@ -331,6 +336,7 @@ func TestRun_IPv6_UnavailableReturnsError(t *testing.T) {
 	}
 }
 
+// TestRun_ExhaustsRetriesReturnsLastError checks run exhausts retries returns last error.
 func TestRun_ExhaustsRetriesReturnsLastError(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 3, Timeout: 5 * time.Millisecond}, true)
 
@@ -350,6 +356,7 @@ func TestRun_ExhaustsRetriesReturnsLastError(t *testing.T) {
 	}
 }
 
+// TestRun_SucceedsOnSecondTry checks run succeeds on second try.
 func TestRun_SucceedsOnSecondTry(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 3, Timeout: 5 * time.Millisecond}, true)
 
@@ -390,6 +397,7 @@ func TestRun_SucceedsOnSecondTry(t *testing.T) {
 	}
 }
 
+// TestRun_CancelledContextBeforeStart checks run cancelled context before start.
 func TestRun_CancelledContextBeforeStart(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 3}, true)
 
@@ -402,6 +410,7 @@ func TestRun_CancelledContextBeforeStart(t *testing.T) {
 	}
 }
 
+// TestRun_CancelledContextDuringPing checks run cancelled context during ping.
 func TestRun_CancelledContextDuringPing(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 3}, true)
 
@@ -424,6 +433,7 @@ func TestRun_CancelledContextDuringPing(t *testing.T) {
 	}
 }
 
+// TestRun_ProbeClosedDuringPing checks run probe closed during ping.
 func TestRun_ProbeClosedDuringPing(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 3}, true)
 
@@ -448,6 +458,7 @@ func TestRun_ProbeClosedDuringPing(t *testing.T) {
 	}
 }
 
+// TestRun_LatencyReflectsClockAdvance checks run latency reflects clock advance.
 func TestRun_LatencyReflectsClockAdvance(t *testing.T) {
 	const advance = 42 * time.Millisecond
 
@@ -487,6 +498,7 @@ func TestRun_LatencyReflectsClockAdvance(t *testing.T) {
 	}
 }
 
+// TestHandlePacket_IPv4_SignalsWaiter checks handle packet i pv 4 signals waiter.
 func TestHandlePacket_IPv4_SignalsWaiter(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, true)
 	p := fx.probe
@@ -512,6 +524,7 @@ func TestHandlePacket_IPv4_SignalsWaiter(t *testing.T) {
 	}
 }
 
+// TestHandlePacket_IPv6_SignalsWaiter checks handle packet i pv 6 signals waiter.
 func TestHandlePacket_IPv6_SignalsWaiter(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, true)
 	p := fx.probe
@@ -537,6 +550,7 @@ func TestHandlePacket_IPv6_SignalsWaiter(t *testing.T) {
 	}
 }
 
+// TestHandlePacket_WrongType_Ignored checks handle packet wrong type ignored.
 func TestHandlePacket_WrongType_Ignored(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, true)
 	p := fx.probe
@@ -562,6 +576,7 @@ func TestHandlePacket_WrongType_Ignored(t *testing.T) {
 	}
 }
 
+// TestHandlePacket_UnknownKey_NoSignal checks handle packet unknown key no signal.
 func TestHandlePacket_UnknownKey_NoSignal(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, true)
 	p := fx.probe
@@ -575,12 +590,14 @@ func TestHandlePacket_UnknownKey_NoSignal(t *testing.T) {
 	p.handlePacket(pkt, icmpProtocol, ipAddrFrom(ipv4Addr()))
 }
 
+// TestHandlePacket_Garbage_Ignored checks handle packet garbage ignored.
 func TestHandlePacket_Garbage_Ignored(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, true)
 	p := fx.probe
 	p.handlePacket([]byte{0xde, 0xad, 0xbe, 0xef}, icmpProtocol, ipAddrFrom(ipv4Addr()))
 }
 
+// TestHandlePacket_AddrMismatch_Dropped checks handle packet addr mismatch dropped.
 func TestHandlePacket_AddrMismatch_Dropped(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, true)
 	p := fx.probe
@@ -609,6 +626,7 @@ func TestHandlePacket_AddrMismatch_Dropped(t *testing.T) {
 	}
 }
 
+// TestMakeKey_Uniqueness checks make key uniqueness.
 func TestMakeKey_Uniqueness(t *testing.T) {
 	cases := [][3]int{
 		{icmpProtocol, 1, 1},
@@ -636,6 +654,7 @@ func TestMakeKey_Uniqueness(t *testing.T) {
 	}
 }
 
+// TestAddrMatches checks addr matches.
 func TestAddrMatches(t *testing.T) {
 	v4 := ipv4Addr()
 	v4other := netip.MustParseAddr("192.0.2.2")
@@ -669,6 +688,7 @@ func TestAddrMatches(t *testing.T) {
 	}
 }
 
+// TestDestination_UDPMode checks destination udp mode.
 func TestDestination_UDPMode(t *testing.T) {
 	ip := netip.MustParseAddr("10.0.0.1")
 	addr := destination(ip, "udp")
@@ -677,6 +697,7 @@ func TestDestination_UDPMode(t *testing.T) {
 	}
 }
 
+// TestDestination_RawMode checks destination raw mode.
 func TestDestination_RawMode(t *testing.T) {
 	ip := netip.MustParseAddr("10.0.0.1")
 	addr := destination(ip, "raw")
@@ -685,6 +706,7 @@ func TestDestination_RawMode(t *testing.T) {
 	}
 }
 
+// TestDestination_IPv4MappedIPv6_Unmapped checks destination i pv 4 mapped i pv 6 unmapped.
 func TestDestination_IPv4MappedIPv6_Unmapped(t *testing.T) {
 	ip := netip.MustParseAddr("::ffff:192.0.2.1")
 	addr := destination(ip, "raw")
@@ -694,6 +716,7 @@ func TestDestination_IPv4MappedIPv6_Unmapped(t *testing.T) {
 	}
 }
 
+// TestClose_Idempotent checks close idempotent.
 func TestClose_Idempotent(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, true)
 
@@ -705,6 +728,7 @@ func TestClose_Idempotent(t *testing.T) {
 	}
 }
 
+// TestClose_ReturnsSocketErrors checks close returns socket errors.
 func TestClose_ReturnsSocketErrors(t *testing.T) {
 	sock4 := newFakeSocket(icmpProtocol)
 	errClose := errors.New("close failed")
@@ -738,6 +762,7 @@ type errOnCloseSocket struct {
 
 func (s *errOnCloseSocket) Close() error { return s.closeErr }
 
+// TestInit_Idempotent checks init idempotent.
 func TestInit_Idempotent(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, true)
 	ctx := t.Context()
@@ -749,6 +774,7 @@ func TestInit_Idempotent(t *testing.T) {
 	}
 }
 
+// TestSequenceNumber_Wraps16Bit checks sequence number wraps 16 bit.
 func TestSequenceNumber_Wraps16Bit(t *testing.T) {
 	fx := newFixture(t, Options{Tries: 1}, true)
 	p := fx.probe

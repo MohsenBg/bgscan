@@ -7,6 +7,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
+// TestICMPConfig checks ValidateICMP and NormalizeICMP on valid and invalid ICMP configs.
 func TestICMPConfig(t *testing.T) {
 	def := config.DefaultICMPConfig(nil)
 

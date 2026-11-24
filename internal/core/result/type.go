@@ -30,10 +30,11 @@ type ResultParser func(record []string) (Result, error)
 type ColumnDef struct {
 	Name       string
 	Width      int        // Display width for formatted output.
-	ColumnType ColumnType // Semantic content type; zero value.
+	ColumnType ColumnType // Semantic content type. The zero value is plain text.
 }
 
-// ColumnType classifies the semantic content of a column. The zero value is plain textt
+// ColumnType classifies the semantic content of a column.
+// The zero value is plain text.
 type ColumnType uint8
 
 const (
@@ -56,6 +57,7 @@ type ResultSchema struct {
 }
 
 // Validate checks that the schema has all required fields.
+// Validate returns an error when Name is empty or Parser is nil.
 func (s ResultSchema) Validate() error {
 	if s.Name == "" {
 		return fmt.Errorf("schema name is required")

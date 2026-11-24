@@ -111,15 +111,15 @@ func (r *ResolverProbe) Init(_ context.Context) error {
 	return nil
 }
 
+// Close is a no-op: the probe holds no shared resources to release.
 func (r *ResolverProbe) Close() error {
 	return nil
 }
 
-// Run validates the resolver at the entry's address, with an optional DPI
-// honesty check first.
-//
-// Domain targets are refused: a probe needs an address, and nothing resolves
-// names yet.
+// Run validates the resolver at the entry's host, with an optional DPI
+// honesty check first. It returns a ResolverResult for the first check
+// type that gets an accepted response code, and returns
+// probe.ErrBadResponse when no check type gets one.
 func (r *ResolverProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	resolver := entry.Host()
 

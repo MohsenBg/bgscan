@@ -1,4 +1,8 @@
 // Package scanner provides the high-level scan orchestration layer.
+// A Scanner owns a list of stages built by its Build methods, runs them
+// through the engine package, and controls the run with Pause, Resume,
+// and Close. Callers add stages before calling Run, and Run may be
+// called only once. Close cancels the scan and waits for Run to return.
 package scanner
 
 import (
@@ -42,29 +46,69 @@ func (s *StageConfig) AddHooks(hooks engine.ScanHooks) *StageConfig {
 }
 
 // Scanner manages a scan pipeline and its lifecycle.
+// Stages are added before Run starts. Run may be called only once, and
+// Close ends the scanner for good.
 type Scanner interface {
+	// Run executes the configured stages and returns the first error
+	// that stops the scan.
 	Run() error
+
+	// Close cancels the scan, waits for Run to return, and releases
+	// shared resources such as the port manager.
 	Close() error
 
+	// GetStages returns a copy of the stages added so far.
 	GetStages() []StageConfig
+
+	// AddStage appends a stage and returns an error once the scanner
+	// has started or is closed.
 	AddStage(StageConfig) error
+
+	// UpdateStageHooks replaces the hooks of the stage at index and
+	// returns an error when index is out of range or the scanner has
+	// started or is closed.
 	UpdateStageHooks(index int, hooks engine.ScanHooks) error
 
+	// Pause pauses workers at the next pause checkpoint.
 	Pause()
+
+	// Resume releases workers held at a pause checkpoint.
 	Resume()
+
+	// IsPaused reports whether the scan is currently paused.
 	IsPaused() bool
+
+	// PausedDuration returns the total time the scan has spent paused.
 	PausedDuration() time.Duration
 
+	// BuildICMPStage builds a stage that probes targets with ICMP.
 	BuildICMPStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+	// BuildTCPStage builds a stage that probes targets with TCP connect checks.
 	BuildTCPStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+	// BuildHTTPStage builds a stage that probes targets with HTTP or HTTP/3 requests.
 	BuildHTTPStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+	// BuildXrayStage builds the stages for an Xray scan of the named
+	// template, with an optional pre-scan stage first.
 	BuildXrayStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+	// BuildResolveStage builds a stage that checks targets as DNS resolvers.
 	BuildResolveStage(context.Context, ...engine.ScanHooks) (StageConfig, error)
+	// BuildDNSTTStage builds the stages for a DNSTT scan using the named
+	// stored configuration, with an optional resolver pre-stage first.
 	BuildDNSTTStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+	// BuildSlipStreamStage builds the stages for a Slipstream scan using the named
+	// stored configuration, with an optional resolver pre-stage first.
 	BuildSlipStreamStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+	// BuildVayDNSStage builds the stages for a VayDNS scan using the named
+	// stored configuration, with an optional resolver pre-stage first.
 	BuildVayDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+	// BuildMasterDNSStage builds the stages for a MasterDNS scan using the named
+	// stored configuration, with an optional resolver pre-stage first.
 	BuildMasterDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+	// BuildStormDNSStage builds the stages for a StormDNS scan using the named
+	// stored configuration, with an optional resolver pre-stage first.
 	BuildStormDNSStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
+	// BuildTheFeedStage builds the stages for a TheFeed scan using the named
+	// stored configuration, with an optional resolver pre-stage first.
 	BuildTheFeedStage(context.Context, string, ...engine.ScanHooks) ([]StageConfig, error)
 }
 
@@ -222,6 +266,9 @@ func withScanRunner(runner scanRunner) ScannerOption {
 }
 
 // NewScanner creates a scanner for the target file at input.
+// It returns an error when ctx is nil or when the configuration, the
+// port manager, or a DNS service fails to set up. The caller owns the
+// returned Scanner and should call Close when done.
 func NewScanner(ctx context.Context, input string, opts ...ScannerOption) (Scanner, error) {
 	if ctx == nil {
 		return nil, errors.New("scanner context cannot be nil")
@@ -327,6 +374,8 @@ func (s *scanner) initDNSServices() error {
 }
 
 // GetStages returns a snapshot of the configured scan stages.
+// The returned slice is a copy, so changing it does not change the
+// scanner.
 func (s *scanner) GetStages() []StageConfig {
 	return slices.Clone(s.stages)
 }
@@ -358,6 +407,8 @@ func (s *scanner) UpdateStageHooks(index int, hooks engine.ScanHooks) error {
 }
 
 // Run executes the configured scan stages.
+// Run returns an error when the scanner is closed, has already run,
+// has no stages, or its context is cancelled before it starts.
 func (s *scanner) Run() error {
 	switch {
 	case s.closed.Load():

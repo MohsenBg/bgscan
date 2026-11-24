@@ -9,6 +9,7 @@ import (
 	"testing"
 )
 
+// TestIsProxyProtocol: only protocols that dial a remote server count as proxies.
 func TestIsProxyProtocol(t *testing.T) {
 	tests := []struct {
 		protocol Protocol
@@ -37,6 +38,7 @@ func TestIsProxyProtocol(t *testing.T) {
 	}
 }
 
+// TestSetOutboundAddress: the scanned address and port land in every address slot of each outbound shape.
 func TestSetOutboundAddress(t *testing.T) {
 	ip := netip.MustParseAddr("8.8.8.8")
 
@@ -158,6 +160,7 @@ func TestSetOutboundAddress(t *testing.T) {
 	}
 }
 
+// TestSetOutboundAddress_Errors: bad addresses and outbound shapes without an address slot return errors.
 func TestSetOutboundAddress_Errors(t *testing.T) {
 	ip := netip.MustParseAddr("8.8.8.8")
 
@@ -223,6 +226,7 @@ func TestSetOutboundAddress_Errors(t *testing.T) {
 	}
 }
 
+// TestRequireReplaceableAddress: a proxy outbound with an address passes, and one without fails.
 func TestRequireReplaceableAddress(t *testing.T) {
 	proxy := map[string]any{"protocol": "vless", "settings": map[string]any{"address": "example.com"}}
 	if err := requireReplaceableAddress(proxy); err != nil {
@@ -235,6 +239,7 @@ func TestRequireReplaceableAddress(t *testing.T) {
 	}
 }
 
+// TestApplyOutboundTemplate: a template file loads with the scanned address applied.
 func TestApplyOutboundTemplate(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -307,6 +312,7 @@ func TestApplyOutboundTemplate(t *testing.T) {
 	}
 }
 
+// TestApplyOutboundTemplate_InvalidIP: a bad address is rejected before the template changes.
 func TestApplyOutboundTemplate_InvalidIP(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "template.json")
@@ -325,6 +331,7 @@ func TestApplyOutboundTemplate_InvalidIP(t *testing.T) {
 	}
 }
 
+// TestApplyOutboundTemplate_InvalidJSON: a template that is not JSON returns an error.
 func TestApplyOutboundTemplate_InvalidJSON(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad.json")
@@ -339,6 +346,7 @@ func TestApplyOutboundTemplate_InvalidJSON(t *testing.T) {
 	}
 }
 
+// TestNormalizeTemplateName: template names become plain file names with a .json suffix.
 func TestNormalizeTemplateName(t *testing.T) {
 	tests := []struct {
 		in   string
@@ -359,6 +367,7 @@ func TestNormalizeTemplateName(t *testing.T) {
 	}
 }
 
+// TestLoadOutboundFileMetadata: metadata reads the protocol, network, and security from a saved template.
 func TestLoadOutboundFileMetadata(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.json")
@@ -395,6 +404,7 @@ func TestLoadOutboundFileMetadata(t *testing.T) {
 	}
 }
 
+// TestSaveOutboundFromFile_Errors: missing, directory, and invalid sources return errors.
 func TestSaveOutboundFromFile_Errors(t *testing.T) {
 	t.Run("missing source", func(t *testing.T) {
 		_, err := SaveOutboundFromFile(nil, filepath.Join(t.TempDir(), "missing.json"), "node")

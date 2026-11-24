@@ -45,6 +45,8 @@ const (
 )
 
 const (
+	// Nested field names use dot notation: the section name, a dot,
+	// then the field name inside that section.
 	FieldResolverCheckTypes   Field = "Resolver.CheckTypes"
 	FieldResolverDomain       Field = "Resolver.Domain"
 	FieldResolverDPITimeout   Field = "Resolver.DPI.Timeout"

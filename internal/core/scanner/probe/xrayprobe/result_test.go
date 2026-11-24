@@ -15,6 +15,7 @@ func entryOf(addr netip.Addr) target.Entry {
 	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
 }
 
+// TestXrayResult_Key covers the xray result key scenario.
 func TestXrayResult_Key(t *testing.T) {
 	r := XrayResult{Entry: entryOf(netip.MustParseAddr("192.168.1.1"))}
 	if got := r.Key(); got != "192.168.1.1/32:0:" {
@@ -22,6 +23,7 @@ func TestXrayResult_Key(t *testing.T) {
 	}
 }
 
+// TestXrayResult_Key_IPv6 covers the xray result key ipv6 scenario.
 func TestXrayResult_Key_IPv6(t *testing.T) {
 	r := XrayResult{Entry: entryOf(netip.MustParseAddr("::1"))}
 	if got := r.Key(); got != "::1/128:0:" {
@@ -29,6 +31,7 @@ func TestXrayResult_Key_IPv6(t *testing.T) {
 	}
 }
 
+// TestXrayResult_KeyType covers the xray result key type scenario.
 func TestXrayResult_KeyType(t *testing.T) {
 	r := XrayResult{}
 	if got := r.KeyType(); got != target.KindIP {
@@ -36,6 +39,7 @@ func TestXrayResult_KeyType(t *testing.T) {
 	}
 }
 
+// TestXrayResult_Equal covers the xray result equal scenario.
 func TestXrayResult_Equal(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -72,6 +76,7 @@ func TestXrayResult_Equal(t *testing.T) {
 	}
 }
 
+// TestXrayResult_ToRecord covers the xray result to record scenario.
 func TestXrayResult_ToRecord(t *testing.T) {
 	r := XrayResult{
 		Entry:    entryOf(netip.MustParseAddr("10.0.0.1")),
@@ -102,6 +107,7 @@ func TestXrayResult_ToRecord(t *testing.T) {
 	}
 }
 
+// TestXrayResult_ToRecord_ZeroValues covers the xray result to record zero values scenario.
 func TestXrayResult_ToRecord_ZeroValues(t *testing.T) {
 	r := XrayResult{
 		Entry:   entryOf(netip.MustParseAddr("1.1.1.1")),
@@ -118,6 +124,7 @@ func TestXrayResult_ToRecord_ZeroValues(t *testing.T) {
 	}
 }
 
+// TestXrayResult_Score covers the xray result score scenario.
 func TestXrayResult_Score(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -224,6 +231,7 @@ func TestXrayResult_Score_Ordering(t *testing.T) {
 	}
 }
 
+// TestParseXrayResult_Valid covers the parse xray result valid scenario.
 func TestParseXrayResult_Valid(t *testing.T) {
 	dl := speedtest.BitsPerSec(100_000_000)
 	ul := speedtest.BitsPerSec(50_000_000)
@@ -260,6 +268,7 @@ func TestParseXrayResult_Valid(t *testing.T) {
 	}
 }
 
+// TestParseXrayResult_LatencyRounded covers the parse xray result latency rounded scenario.
 func TestParseXrayResult_LatencyRounded(t *testing.T) {
 	record := []string{"1.2.3.4/32", "0", "", "1", "42.7ms", "0", "0"}
 
@@ -274,6 +283,7 @@ func TestParseXrayResult_LatencyRounded(t *testing.T) {
 	}
 }
 
+// TestParseXrayResult_LatencyClampedToMinimum covers the parse xray result latency clamped to minimum scenario.
 func TestParseXrayResult_LatencyClampedToMinimum(t *testing.T) {
 	record := []string{"1.2.3.4/32", "0", "", "1", "0s", "0", "0"}
 
@@ -288,6 +298,7 @@ func TestParseXrayResult_LatencyClampedToMinimum(t *testing.T) {
 	}
 }
 
+// TestParseXrayResult_TooFewFields covers the parse xray result too few fields scenario.
 func TestParseXrayResult_TooFewFields(t *testing.T) {
 	_, err := parseXrayResult([]string{"1.2.3.4/32", "0", "", "1", "42ms", "100"})
 	if err == nil {
@@ -295,6 +306,7 @@ func TestParseXrayResult_TooFewFields(t *testing.T) {
 	}
 }
 
+// TestParseXrayResult_EmptyRecord covers the parse xray result empty record scenario.
 func TestParseXrayResult_EmptyRecord(t *testing.T) {
 	_, err := parseXrayResult(nil)
 	if err == nil {
@@ -302,6 +314,7 @@ func TestParseXrayResult_EmptyRecord(t *testing.T) {
 	}
 }
 
+// TestParseXrayResult_InvalidIP covers the parse xray result invalid ip scenario.
 func TestParseXrayResult_InvalidIP(t *testing.T) {
 	_, err := parseXrayResult([]string{"not-an-ip", "0", "", "1", "42ms", "0", "0"})
 	if err == nil {
@@ -309,6 +322,7 @@ func TestParseXrayResult_InvalidIP(t *testing.T) {
 	}
 }
 
+// TestParseXrayResult_InvalidLatency covers the parse xray result invalid latency scenario.
 func TestParseXrayResult_InvalidLatency(t *testing.T) {
 	_, err := parseXrayResult([]string{"1.2.3.4/32", "0", "", "1", "not-a-duration", "0", "0"})
 	if err == nil {
@@ -367,6 +381,7 @@ func TestXrayResult_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestXrayResult_RoundTrip_IPv6 covers the xray result round trip ipv6 scenario.
 func TestXrayResult_RoundTrip_IPv6(t *testing.T) {
 	original := XrayResult{
 		Entry:   entryOf(netip.MustParseAddr("2001:db8::42")),
@@ -385,6 +400,7 @@ func TestXrayResult_RoundTrip_IPv6(t *testing.T) {
 	}
 }
 
+// TestSchema_Fields covers the schema fields scenario.
 func TestSchema_Fields(t *testing.T) {
 	if Schema.Name != "Xray" {
 		t.Errorf("Schema.Name = %q, want %q", Schema.Name, "Xray")
@@ -415,12 +431,14 @@ func TestSchema_Fields(t *testing.T) {
 	}
 }
 
+// TestSchema_ParserNotNil covers the schema parser not nil scenario.
 func TestSchema_ParserNotNil(t *testing.T) {
 	if Schema.Parser == nil {
 		t.Fatal("Schema.Parser is nil")
 	}
 }
 
+// TestSchema_ParserWorks covers the schema parser works scenario.
 func TestSchema_ParserWorks(t *testing.T) {
 	res, err := Schema.Parser([]string{"8.8.8.8/32", "0", "", "1", "15ms", "0", "0"})
 	if err != nil {

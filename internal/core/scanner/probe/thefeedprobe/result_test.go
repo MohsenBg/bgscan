@@ -14,6 +14,7 @@ func entryOf(addr netip.Addr) target.Entry {
 	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
 }
 
+// TestSchemaValidate covers the schema validate scenario.
 func TestSchemaValidate(t *testing.T) {
 	if err := Schema.Validate(); err != nil {
 		t.Fatalf("Schema.Validate() error = %v", err)
@@ -33,6 +34,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 }
 
+// TestTheFeedResult_Methods covers the the feed result methods scenario.
 func TestTheFeedResult_Methods(t *testing.T) {
 	ip := netip.MustParseAddr("2.2.2.2")
 	r := TheFeedResult{
@@ -75,6 +77,7 @@ func TestTheFeedResult_Methods(t *testing.T) {
 	}
 }
 
+// TestTheFeedResult_Score covers the the feed result score scenario.
 func TestTheFeedResult_Score(t *testing.T) {
 	// 1000ms -> score 1.0
 	if got := (TheFeedResult{Latency: time.Second}).Score(); got != 1.0 {
@@ -91,6 +94,7 @@ func TestTheFeedResult_Score(t *testing.T) {
 	}
 }
 
+// TestParseTheFeedResult covers the parse the feed result scenario.
 func TestParseTheFeedResult(t *testing.T) {
 	record := []string{
 		"2.2.2.2/32", "0", "", "1",
@@ -130,12 +134,14 @@ func TestParseTheFeedResult(t *testing.T) {
 	}
 }
 
+// TestParseTheFeedResult_TooShort covers the parse the feed result too short scenario.
 func TestParseTheFeedResult_TooShort(t *testing.T) {
 	if _, err := parseTheFeedResult([]string{"2.2.2.2/32", "0", "", "1"}); err == nil {
 		t.Fatal("expected error for short record")
 	}
 }
 
+// TestParseTheFeedResult_BadIP covers the parse the feed result bad ip scenario.
 func TestParseTheFeedResult_BadIP(t *testing.T) {
 	record := []string{
 		"not-an-ip", "0", "", "1",
@@ -149,6 +155,7 @@ func TestParseTheFeedResult_BadIP(t *testing.T) {
 	}
 }
 
+// TestParseTheFeedResult_BadLatency covers the parse the feed result bad latency scenario.
 func TestParseTheFeedResult_BadLatency(t *testing.T) {
 	record := []string{
 		"2.2.2.2/32", "0", "", "1",
@@ -162,6 +169,7 @@ func TestParseTheFeedResult_BadLatency(t *testing.T) {
 	}
 }
 
+// TestTheFeedResult_RoundTrip covers the the feed result round trip scenario.
 func TestTheFeedResult_RoundTrip(t *testing.T) {
 	want := TheFeedResult{
 		Entry:     entryOf(netip.MustParseAddr("9.9.9.9")),

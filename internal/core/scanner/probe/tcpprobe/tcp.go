@@ -53,6 +53,7 @@ func (p *TCPProbe) Init(_ context.Context) error {
 	return nil
 }
 
+// Input returns target.KindHost, so Run accepts IP and domain targets.
 func (p *TCPProbe) Input() target.Kind {
 	return target.KindHost
 }

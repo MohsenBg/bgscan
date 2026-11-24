@@ -29,6 +29,8 @@ func (k Kind) String() string {
 	}
 }
 
+// Dir returns the directory name that holds lists of this kind, or an
+// empty string for kinds that have no list directory.
 func (k Kind) Dir() string {
 	switch k {
 	case KindIP:
@@ -58,7 +60,10 @@ func New(ip netip.Prefix, enable int) Entry {
 	return Entry{Kind: KindIP, IP: ip, Enable: enable == 1}
 }
 
-func NewEnabled(ip netip.Prefix) Entry  { return New(ip, 1) }
+// NewEnabled builds an enabled IP entry.
+func NewEnabled(ip netip.Prefix) Entry { return New(ip, 1) }
+
+// NewDisabled builds a disabled IP entry.
 func NewDisabled(ip netip.Prefix) Entry { return New(ip, 0) }
 
 // NewDomain builds a domain entry. Only enable == 1 is enabled.
@@ -82,8 +87,8 @@ func (e Entry) Value() string {
 	}
 }
 
-// prefix length. Value is for CSV; Host is for dialing and URLs.
 // Host returns the dialable host, including an optional port and path.
+// Value is for CSV rows; Host is for dialing and URLs.
 func (e Entry) Host() string {
 	var host string
 

@@ -34,10 +34,12 @@ type SlipstreamProbe struct {
 }
 
 // Input implements [probe.Probe].
+// Input returns target.KindIP, the only target kind Run accepts.
 func (s *SlipstreamProbe) Input() target.Kind {
 	return target.KindIP
 }
 
+// Option sets one field of a SlipstreamProbe during construction.
 type Option func(*SlipstreamProbe)
 
 // WithLogger sets the logger for probe lifecycle events (nil-safe).
@@ -47,6 +49,8 @@ func WithLogger(log *logger.Logger) Option {
 	}
 }
 
+// WithSlipstreamService sets the Slipstream service the probe uses.
+// A nil service is ignored, so the default service stays in place.
 func WithSlipstreamService(service dns.SlipstreamService) Option {
 	return func(p *SlipstreamProbe) {
 		if service != nil {
@@ -55,6 +59,8 @@ func WithSlipstreamService(service dns.SlipstreamService) Option {
 	}
 }
 
+// WithSSHService sets the SSH service the probe uses.
+// A nil service is ignored, so the default service stays in place.
 func WithSSHService(service ssh.SSHService) Option {
 	return func(p *SlipstreamProbe) {
 		if service != nil {
@@ -63,6 +69,8 @@ func WithSSHService(service ssh.SSHService) Option {
 	}
 }
 
+// WithSocksService sets the SOCKS service the probe uses.
+// A nil service is ignored, so the default service stays in place.
 func WithSocksService(service socks.Service) Option {
 	return func(p *SlipstreamProbe) {
 		if service != nil {
@@ -71,6 +79,8 @@ func WithSocksService(service socks.Service) Option {
 	}
 }
 
+// WithSpeedtestService sets the speed test service the probe uses.
+// A nil service is ignored, so the default service stays in place.
 func WithSpeedtestService(service speedtest.Service) Option {
 	return func(p *SlipstreamProbe) {
 		if service != nil {
@@ -89,7 +99,10 @@ func WithTries(n int) Option {
 	}
 }
 
-// NewSlipstreamProbe creates a Slipstream tunnel probe.
+// NewSlipstreamProbe creates a SlipstreamProbe with default services,
+// then applies opts. It returns an error when pm is nil, the config
+// fails validation, or the default Slipstream service cannot be
+// created.
 func NewSlipstreamProbe(
 	config dns.SlipstreamConfig,
 	timeout time.Duration,
@@ -139,10 +152,12 @@ func NewSlipstreamProbe(
 	return p, nil
 }
 
+// Schema returns the result schema for Slipstream probes.
 func (s *SlipstreamProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
+// Init is a no-op: the probe starts its tunnel inside Run.
 func (s *SlipstreamProbe) Init(ctx context.Context) error {
 	return nil
 }

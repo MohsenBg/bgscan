@@ -9,6 +9,7 @@ import (
 	"testing"
 )
 
+// TestWriteFileAtomic_CreatesFile covers write file atomic creates file.
 func TestWriteFileAtomic_CreatesFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "nested", "out.csv")
@@ -38,6 +39,7 @@ func TestWriteFileAtomic_CreatesFile(t *testing.T) {
 	assertNoTempFiles(t, dir)
 }
 
+// TestWriteFileAtomic_ReplacesExisting covers write file atomic replaces existing.
 func TestWriteFileAtomic_ReplacesExisting(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "out.csv")
@@ -59,6 +61,7 @@ func TestWriteFileAtomic_ReplacesExisting(t *testing.T) {
 	}
 }
 
+// TestWriteFileAtomic_FunctionErrorKeepsOriginal covers write file atomic function error keeps original.
 func TestWriteFileAtomic_FunctionErrorKeepsOriginal(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "out.csv")
@@ -89,6 +92,7 @@ func TestWriteFileAtomic_FunctionErrorKeepsOriginal(t *testing.T) {
 	assertNoTempFiles(t, dir)
 }
 
+// TestCopyFileAtomic covers copy file atomic.
 func TestCopyFileAtomic(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "src.csv")

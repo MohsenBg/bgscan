@@ -14,6 +14,10 @@ type ICMPConfig struct {
 	OutputPrefix string     `toml:"output_prefix" comment:"Filename prefix for result files."`
 }
 
+// DefaultICMPConfig returns the default ICMP settings for the detected
+// platform and resource tier. When the defaults table has no entry
+// for the detected platform or tier, it logs a warning and falls
+// back to the Desktop platform or the Mid tier.
 func DefaultICMPConfig(log *logger.Logger) ICMPConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())

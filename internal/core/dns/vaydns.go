@@ -131,12 +131,29 @@ func (c VayDNSConfig) Validate() map[Field]error {
 
 // VayDNSService manages VayDNS configurations and tunnels.
 type VayDNSService interface {
+	// SaveConfig validates config and writes it as a new file named
+	// name. It returns an error when the name is already in use or
+	// the config is invalid.
 	SaveConfig(config VayDNSConfig, name string) error
+	// EditConfig validates config and replaces the stored config
+	// named originalName. It returns an error when that config does
+	// not exist or the config is invalid.
 	EditConfig(config VayDNSConfig, originalName string) error
+	// LoadConfig reads and returns the stored config named name.
 	LoadConfig(name string) (VayDNSConfig, error)
+	// GetAllConfigFiles returns every stored config that loads and
+	// validates. Files that fail either check are skipped.
 	GetAllConfigFiles() ([]VayDNSConfigFile, error)
+	// ValidateAllConfigs returns one result for each stored file
+	// that fails to load or validate. Valid files are not included.
 	ValidateAllConfigs() ([]ConfigValidationResult, error)
+	// RenameConfig renames the stored config oldName to newName.
+	// It returns an error when oldName does not exist or newName is
+	// already in use.
 	RenameConfig(oldName, newName string) error
+	// NewTunnel opens a tunnel stream to the resolver at
+	// resolverAddr. The caller closes the returned connection when
+	// done.
 	NewTunnel(ctx context.Context, config VayDNSConfig, resolverAddr string) (net.Conn, error)
 }
 
@@ -156,6 +173,8 @@ func WithVayDNSDir(dir string) VayDNSServiceOption {
 	}
 }
 
+// NewVayDNSService returns a VayDNSService that stores configs in
+// the default VayDNS directory unless an option changes it.
 func NewVayDNSService(options ...VayDNSServiceOption) VayDNSService {
 	service := &vayDNSService{
 		configs: newConfigStore[VayDNSConfig](tunnelConfigDir(vaydnsDir), "VayDNS"),
@@ -168,26 +187,32 @@ func NewVayDNSService(options ...VayDNSServiceOption) VayDNSService {
 	return service
 }
 
+// SaveConfig saves the config through the shared config store.
 func (s *vayDNSService) SaveConfig(config VayDNSConfig, name string) error {
 	return s.configs.SaveConfig(config, name)
 }
 
+// EditConfig replaces the stored config through the shared config store.
 func (s *vayDNSService) EditConfig(config VayDNSConfig, originalName string) error {
 	return s.configs.EditConfig(config, originalName)
 }
 
+// LoadConfig loads the config through the shared config store.
 func (s *vayDNSService) LoadConfig(name string) (VayDNSConfig, error) {
 	return s.configs.LoadConfig(name)
 }
 
+// GetAllConfigFiles lists stored configs through the shared config store.
 func (s *vayDNSService) GetAllConfigFiles() ([]VayDNSConfigFile, error) {
 	return s.configs.GetAllConfigFiles()
 }
 
+// ValidateAllConfigs validates stored configs through the shared config store.
 func (s *vayDNSService) ValidateAllConfigs() ([]ConfigValidationResult, error) {
 	return s.configs.ValidateAllConfigs()
 }
 
+// RenameConfig renames the config through the shared config store.
 func (s *vayDNSService) RenameConfig(oldName, newName string) error {
 	return s.configs.RenameConfig(oldName, newName)
 }
@@ -267,6 +292,8 @@ type tunnelConn struct {
 	tunnel *vaydns.Tunnel
 }
 
+// Close closes the whole tunnel. When the tunnel is nil, Close
+// does nothing and returns nil.
 func (c *tunnelConn) Close() error {
 	if c.tunnel != nil {
 		return c.tunnel.Close()

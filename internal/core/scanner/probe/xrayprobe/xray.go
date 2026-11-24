@@ -23,10 +23,15 @@ const bytesPerKbpsSecond float64 = 1000.0 / 8.0
 
 // XrayService is the probe's view of xray.XrayService.
 type XrayService interface {
+	// GetOutboundTemplateByName returns the named outbound template.
 	GetOutboundTemplateByName(string) (*xray.OutboundFile, error)
+	// GenerateConfig builds a config for addr from an outbound template.
 	GenerateConfig(outbound string, addr string, localPort, remotePort uint16) (*xray.Config, error)
+	// ValidateConfig checks that a config can run.
 	ValidateConfig(context.Context, *xray.Config) error
+	// Start runs an Xray instance from a config.
 	Start(context.Context, *xray.Config) (xray.Instance, error)
+	// CloseShared releases process wide state shared by all instances.
 	CloseShared() error
 }
 
@@ -48,6 +53,7 @@ type XrayProbe struct {
 	minUpload       speedtest.BitsPerSec
 }
 
+// Input returns the target kind the probe accepts.
 func (p *XrayProbe) Input() target.Kind {
 	return target.KindHost
 }
@@ -149,6 +155,7 @@ func NewXrayProbe(
 	return p, nil
 }
 
+// Schema returns the result schema for Xray results.
 func (p *XrayProbe) Schema() result.ResultSchema {
 	return Schema
 }
@@ -176,11 +183,10 @@ func (p *XrayProbe) Init(ctx context.Context) error {
 	return nil
 }
 
-// Run starts a temporary Xray instance for the entry's address and performs
-// the configured connectivity, download, and upload checks.
-//
-// Domain targets are refused: a probe needs an address, and nothing resolves
-// names yet.
+// Run starts a temporary Xray instance for the entry's host and performs
+// the configured connectivity, download, and upload checks. IP entries
+// use their address and other entries use their domain name as the
+// host passed to the Xray config.
 func (p *XrayProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	host := ""
 	if entry.Kind == target.KindIP {

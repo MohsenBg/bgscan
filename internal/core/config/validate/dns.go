@@ -14,6 +14,8 @@ var allowedDNSTransport = []string{
 	"doh",
 }
 
+// DNS resolver limits. NormalizeDNS replaces values outside
+// these bounds with defaults.
 const (
 	// Resolver limits
 	MinDNSResolverWorkers = 1
@@ -29,6 +31,7 @@ const (
 	MaxDNSResolverDPITries = 10
 )
 
+// DNS resolver timeout limits.
 const (
 	MinDNSResolverTimeout = 100 * time.Millisecond
 	MaxDNSResolverTimeout = 30 * time.Second
@@ -37,6 +40,8 @@ const (
 	MaxDNSResolverDPITimeout = 10 * time.Second
 )
 
+// DNS tunneling limits. NormalizeDNS replaces values outside
+// these bounds with defaults.
 const (
 	// DNSTunneling limits
 	MinDNSTunnelingWorkers = 1

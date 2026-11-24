@@ -58,6 +58,7 @@ func validProbeConfig() dns.TheFeedConfig {
 	return cfg
 }
 
+// TestNewTheFeedProbe_InvalidConfig covers the new the feed probe invalid config scenario.
 func TestNewTheFeedProbe_InvalidConfig(t *testing.T) {
 	_, err := NewTheFeedProbe(dns.TheFeedConfig{}, time.Second)
 	if err == nil {
@@ -65,6 +66,7 @@ func TestNewTheFeedProbe_InvalidConfig(t *testing.T) {
 	}
 }
 
+// TestNewTheFeedProbe_DefaultsService covers the new the feed probe defaults service scenario.
 func TestNewTheFeedProbe_DefaultsService(t *testing.T) {
 	p, err := NewTheFeedProbe(validProbeConfig(), time.Second)
 	if err != nil {
@@ -83,6 +85,7 @@ func TestNewTheFeedProbe_DefaultsService(t *testing.T) {
 	}
 }
 
+// TestNewTheFeedProbe_WithService covers the new the feed probe with service scenario.
 func TestNewTheFeedProbe_WithService(t *testing.T) {
 	mock := &mockTheFeedService{}
 	p, err := NewTheFeedProbe(
@@ -100,6 +103,7 @@ func TestNewTheFeedProbe_WithService(t *testing.T) {
 	}
 }
 
+// TestSchema covers the schema scenario.
 func TestSchema(t *testing.T) {
 	p, err := NewTheFeedProbe(validProbeConfig(), time.Second)
 	if err != nil {
@@ -111,6 +115,7 @@ func TestSchema(t *testing.T) {
 	}
 }
 
+// TestInitNoop covers the init noop scenario.
 func TestInitNoop(t *testing.T) {
 	p, err := NewTheFeedProbe(validProbeConfig(), time.Second)
 	if err != nil {
@@ -122,6 +127,7 @@ func TestInitNoop(t *testing.T) {
 	}
 }
 
+// TestCloseNoop covers the close noop scenario.
 func TestCloseNoop(t *testing.T) {
 	p, err := NewTheFeedProbe(validProbeConfig(), time.Second)
 	if err != nil {
@@ -133,6 +139,7 @@ func TestCloseNoop(t *testing.T) {
 	}
 }
 
+// TestRun_ContextAlreadyCanceled covers the run context already canceled scenario.
 func TestRun_ContextAlreadyCanceled(t *testing.T) {
 	mock := &mockTheFeedService{}
 	p, err := NewTheFeedProbe(
@@ -153,6 +160,7 @@ func TestRun_ContextAlreadyCanceled(t *testing.T) {
 	}
 }
 
+// TestRun_ServiceError covers the run service error scenario.
 func TestRun_ServiceError(t *testing.T) {
 	wantErr := errors.New("dns exchange: timeout")
 	mock := &mockTheFeedService{runErr: wantErr}
@@ -181,6 +189,7 @@ func TestRun_ServiceError(t *testing.T) {
 	}
 }
 
+// TestRun_Success covers the run success scenario.
 func TestRun_Success(t *testing.T) {
 	cfg := validProbeConfig()
 	mock := &mockTheFeedService{}
@@ -221,6 +230,7 @@ func TestRun_Success(t *testing.T) {
 	}
 }
 
+// TestRun_PassesConfig covers the run passes config scenario.
 func TestRun_PassesConfig(t *testing.T) {
 	cfg := validProbeConfig()
 	cfg.QueryMode = "double"
@@ -247,6 +257,7 @@ func TestRun_PassesConfig(t *testing.T) {
 	}
 }
 
+// TestRun_RetriesUpToTries covers the run retries up to tries scenario.
 func TestRun_RetriesUpToTries(t *testing.T) {
 	mock := &mockTheFeedService{runErr: errors.New("boom")}
 	p, err := NewTheFeedProbe(
@@ -268,6 +279,7 @@ func TestRun_RetriesUpToTries(t *testing.T) {
 	}
 }
 
+// TestRun_SuccessStopsEarly covers the run success stops early scenario.
 func TestRun_SuccessStopsEarly(t *testing.T) {
 	mock := &mockTheFeedService{}
 	p, err := NewTheFeedProbe(

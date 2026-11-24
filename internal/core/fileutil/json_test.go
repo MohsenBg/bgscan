@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestWriteJSONFile_WritesAndCreatesDirectory covers write jsonfile writes and creates directory.
 func TestWriteJSONFile_WritesAndCreatesDirectory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "config.json")
 
@@ -29,6 +30,7 @@ func TestWriteJSONFile_WritesAndCreatesDirectory(t *testing.T) {
 	}
 }
 
+// TestWriteJSONFile_OverwritesExistingFile covers write jsonfile overwrites existing file.
 func TestWriteJSONFile_OverwritesExistingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 
@@ -50,6 +52,7 @@ func TestWriteJSONFile_OverwritesExistingFile(t *testing.T) {
 	}
 }
 
+// TestReadJSONFile_ReadsJSON covers read jsonfile reads json.
 func TestReadJSONFile_ReadsJSON(t *testing.T) {
 	type data struct {
 		Name string `json:"name"`
@@ -72,6 +75,7 @@ func TestReadJSONFile_ReadsJSON(t *testing.T) {
 	}
 }
 
+// TestReadJSONFile_ReturnsErrorWhenMissing covers read jsonfile returns error when missing.
 func TestReadJSONFile_ReturnsErrorWhenMissing(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "missing.json")
 
@@ -81,6 +85,7 @@ func TestReadJSONFile_ReturnsErrorWhenMissing(t *testing.T) {
 	}
 }
 
+// TestReadJSONFile_ReturnsErrorForInvalidJSON covers read jsonfile returns error for invalid json.
 func TestReadJSONFile_ReturnsErrorForInvalidJSON(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "broken.json")
 
@@ -94,6 +99,7 @@ func TestReadJSONFile_ReturnsErrorForInvalidJSON(t *testing.T) {
 	}
 }
 
+// TestWriteJSONFileIfNotExist_CreatesMissingFile covers write jsonfile if not exist creates missing file.
 func TestWriteJSONFileIfNotExist_CreatesMissingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 
@@ -111,6 +117,7 @@ func TestWriteJSONFileIfNotExist_CreatesMissingFile(t *testing.T) {
 	}
 }
 
+// TestWriteJSONFileIfNotExist_DoesNotOverwrite covers write jsonfile if not exist does not overwrite.
 func TestWriteJSONFileIfNotExist_DoesNotOverwrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 
@@ -132,6 +139,7 @@ func TestWriteJSONFileIfNotExist_DoesNotOverwrite(t *testing.T) {
 	}
 }
 
+// TestReadJSONFileOrDefault_UsesExistingValue covers read jsonfile or default uses existing value.
 func TestReadJSONFileOrDefault_UsesExistingValue(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 
@@ -146,6 +154,7 @@ func TestReadJSONFileOrDefault_UsesExistingValue(t *testing.T) {
 	}
 }
 
+// TestReadJSONFileOrDefault_ReturnsDefaultForMissingFile covers read jsonfile or default returns default for missing file.
 func TestReadJSONFileOrDefault_ReturnsDefaultForMissingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 
@@ -162,6 +171,7 @@ func TestReadJSONFileOrDefault_ReturnsDefaultForMissingFile(t *testing.T) {
 	}
 }
 
+// TestUpdateJSONFile_UpdatesData covers update jsonfile updates data.
 func TestUpdateJSONFile_UpdatesData(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 
@@ -187,6 +197,7 @@ func TestUpdateJSONFile_UpdatesData(t *testing.T) {
 	}
 }
 
+// TestUpdateJSONFile_ReturnsUpdateError covers update jsonfile returns update error.
 func TestUpdateJSONFile_ReturnsUpdateError(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 

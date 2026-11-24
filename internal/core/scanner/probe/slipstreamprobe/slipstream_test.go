@@ -182,6 +182,7 @@ func newTestProbe(t *testing.T, config dns.SlipstreamConfig, pm *fakePortManager
 	return p
 }
 
+// TestNewSlipstreamProbeValidation checks new slipstream probe validation.
 func TestNewSlipstreamProbeValidation(t *testing.T) {
 	slipstreamSvc := &fakeSlipstreamService{}
 	socksSvc := &fakeSocksService{}
@@ -199,6 +200,8 @@ func TestNewSlipstreamProbeValidation(t *testing.T) {
 	}
 }
 
+// TestNewSlipstreamProbeAppliesDefaultTimeoutAndOptions checks new slipstream probe applies
+// default timeout and options.
 func TestNewSlipstreamProbeAppliesDefaultTimeoutAndOptions(t *testing.T) {
 	config := validConfig()
 
@@ -238,6 +241,7 @@ func TestNewSlipstreamProbeAppliesDefaultTimeoutAndOptions(t *testing.T) {
 	}
 }
 
+// TestInitReturnsNil checks init returns nil.
 func TestInitReturnsNil(t *testing.T) {
 	p := newTestProbe(t, validConfig(), &fakePortManager{},
 		&fakeSlipstreamService{}, &fakeSocksService{}, &fakeSpeedtestService{})
@@ -247,6 +251,8 @@ func TestInitReturnsNil(t *testing.T) {
 	}
 }
 
+// TestRunReturnsCanceledContextBeforeAllocatingPort checks run returns canceled context before
+// allocating port.
 func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -265,6 +271,7 @@ func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
 	}
 }
 
+// TestRunReleasesPortWhenAllocationFails checks run releases port when allocation fails.
 func TestRunReleasesPortWhenAllocationFails(t *testing.T) {
 	pm := &fakePortManager{getErr: errors.New("no ports available")}
 	p := newTestProbe(t, validConfig(), pm,
@@ -280,6 +287,7 @@ func TestRunReleasesPortWhenAllocationFails(t *testing.T) {
 	}
 }
 
+// TestRunReleasesPortWhenTunnelFails checks run releases port when tunnel fails.
 func TestRunReleasesPortWhenTunnelFails(t *testing.T) {
 	client := &fakeClient{}
 	pm := &fakePortManager{port: 5000}
@@ -300,6 +308,7 @@ func TestRunReleasesPortWhenTunnelFails(t *testing.T) {
 	}
 }
 
+// TestRunStopsTunnelWhenWaitOpenFails checks run stops tunnel when wait open fails.
 func TestRunStopsTunnelWhenWaitOpenFails(t *testing.T) {
 	client := &fakeClient{}
 	pm := &fakePortManager{port: 6000, waitOpenErr: errors.New("proxy never opened")}
@@ -320,6 +329,8 @@ func TestRunStopsTunnelWhenWaitOpenFails(t *testing.T) {
 	}
 }
 
+// TestRunReturnsContextErrorWhenMeasureLatencyCancelsContext checks run returns context error when
+// measure latency cancels context.
 func TestRunReturnsContextErrorWhenMeasureLatencyCancelsContext(t *testing.T) {
 	ctx := t.Context()
 
@@ -342,6 +353,7 @@ func TestRunReturnsContextErrorWhenMeasureLatencyCancelsContext(t *testing.T) {
 	}
 }
 
+// TestRunSuccess checks run success.
 func TestRunSuccess(t *testing.T) {
 	client := &fakeClient{}
 	pm := &fakePortManager{port: 9000}
@@ -391,6 +403,7 @@ func TestRunSuccess(t *testing.T) {
 	}
 }
 
+// TestClose checks close.
 func TestClose(t *testing.T) {
 	if err := (&SlipstreamProbe{}).Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)

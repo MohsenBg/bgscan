@@ -29,7 +29,7 @@ var Schema = result.ResultSchema{
 
 // VayDNSResult holds the outcome of a single VayDNS tunnel probe.
 //
-// Latency measures only the proxy validation phase—from the first byte sent
+// Latency measures only the proxy validation phase, from the first byte sent
 // through the tunnel until a valid response is received. It excludes the initial
 // tunnel startup overhead to reflect sustained tunnel performance.
 type VayDNSResult struct {
@@ -41,16 +41,22 @@ type VayDNSResult struct {
 	ResolverProxyType dns.ResolverProxyType // Proxy type used to reach the resolver.
 }
 
+// Key returns the identity of the probed target.
 func (r VayDNSResult) Key() string { return r.Entry.Key() }
 
+// KeyType returns the kind of the probed target.
 func (r VayDNSResult) KeyType() target.Kind {
 	return r.Entry.Kind
 }
 
+// Equal reports whether rs has the same key as r.
 func (r VayDNSResult) Equal(rs result.Result) bool {
 	return r.Key() == rs.Key()
 }
 
+// ToRecord converts the VayDNSResult into a slice of strings for storage.
+// The target comes first, in value,port,path,enable form; the measurements
+// follow.
 func (r VayDNSResult) ToRecord() []string {
 	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),

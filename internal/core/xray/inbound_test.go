@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestGetInbound: getInbound builds the localhost SOCKS inbound.
 func TestGetInbound(t *testing.T) {
 	const port uint16 = 10808
 
@@ -26,6 +27,7 @@ func TestGetInbound(t *testing.T) {
 	}
 }
 
+// TestGetInbound_PortVariants: getInbound uses the port it is given.
 func TestGetInbound_PortVariants(t *testing.T) {
 	tests := []struct {
 		name string

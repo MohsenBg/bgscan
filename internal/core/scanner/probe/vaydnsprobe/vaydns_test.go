@@ -95,6 +95,7 @@ func netPipeConn() net.Conn {
 
 // ---- tests -----------------------------------------------------------
 
+// TestNewVayDNSProbe_InvalidConfig covers the new vay dnsprobe invalid config scenario.
 func TestNewVayDNSProbe_InvalidConfig(t *testing.T) {
 	_, err := NewVayDNSProbe(dns.VayDNSConfig{}, time.Second)
 	if err == nil {
@@ -102,6 +103,7 @@ func TestNewVayDNSProbe_InvalidConfig(t *testing.T) {
 	}
 }
 
+// TestNewVayDNSProbe_DefaultsServicesWhenNotProvided covers the new vay dnsprobe defaults services when not provided scenario.
 func TestNewVayDNSProbe_DefaultsServicesWhenNotProvided(t *testing.T) {
 	p, err := NewVayDNSProbe(validConfig(t), time.Second)
 	if err != nil {
@@ -127,6 +129,7 @@ func TestNewVayDNSProbe_DefaultsServicesWhenNotProvided(t *testing.T) {
 	}
 }
 
+// TestRun_ContextAlreadyCanceled covers the run context already canceled scenario.
 func TestRun_ContextAlreadyCanceled(t *testing.T) {
 	cfg := validConfig(t)
 	cfg.ProxyType = dns.ResolverProxySOCKS
@@ -145,6 +148,7 @@ func TestRun_ContextAlreadyCanceled(t *testing.T) {
 	}
 }
 
+// TestRun_TunnelCreationFails covers the run tunnel creation fails scenario.
 func TestRun_TunnelCreationFails(t *testing.T) {
 	cfg := validConfig(t)
 	cfg.ProxyType = dns.ResolverProxySOCKS
@@ -168,6 +172,7 @@ func TestRun_TunnelCreationFails(t *testing.T) {
 	}
 }
 
+// TestRun_UnsupportedProxyType covers the run unsupported proxy type scenario.
 func TestRun_UnsupportedProxyType(t *testing.T) {
 	cfg := validConfig(t)
 	cfg.ProxyType = dns.ResolverProxyType("")
@@ -195,6 +200,7 @@ func TestRun_UnsupportedProxyType(t *testing.T) {
 	}
 }
 
+// TestRun_SOCKS_Success covers the run socks success scenario.
 func TestRun_SOCKS_Success(t *testing.T) {
 	cfg := validConfig(t)
 	cfg.ProxyType = dns.ResolverProxySOCKS
@@ -264,6 +270,7 @@ func TestRun_SOCKS_Success(t *testing.T) {
 	}
 }
 
+// TestRun_SOCKS_KeyAuthRejected covers the run socks key auth rejected scenario.
 func TestRun_SOCKS_KeyAuthRejected(t *testing.T) {
 	cfg := validConfig(t)
 	cfg.ProxyType = dns.ResolverProxySOCKS
@@ -287,6 +294,7 @@ func TestRun_SOCKS_KeyAuthRejected(t *testing.T) {
 	}
 }
 
+// TestRun_SSH_NoAuthRejected covers the run ssh no auth rejected scenario.
 func TestRun_SSH_NoAuthRejected(t *testing.T) {
 	cfg := validConfig(t)
 	cfg.ProxyType = dns.ResolverProxySSH
@@ -310,6 +318,7 @@ func TestRun_SSH_NoAuthRejected(t *testing.T) {
 	}
 }
 
+// TestRun_MeasureLatencyFails covers the run measure latency fails scenario.
 func TestRun_MeasureLatencyFails(t *testing.T) {
 	cfg := validConfig(t)
 	cfg.ProxyType = dns.ResolverProxySOCKS
@@ -349,6 +358,7 @@ func TestRun_MeasureLatencyFails(t *testing.T) {
 	}
 }
 
+// TestClose_NoOp covers the close no op scenario.
 func TestClose_NoOp(t *testing.T) {
 	p, err := NewVayDNSProbe(validConfig(t), time.Second)
 	if err != nil {

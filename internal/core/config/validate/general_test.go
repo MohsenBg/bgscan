@@ -21,6 +21,7 @@ func getValidGeneralConfig() config.GeneralConfig {
 	}
 }
 
+// TestValidateGeneral checks ValidateGeneral on valid and invalid general configs.
 func TestValidateGeneral(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -164,6 +165,7 @@ func TestValidateGeneral(t *testing.T) {
 	}
 }
 
+// TestNormalizeGeneral checks that NormalizeGeneral replaces invalid values with defaults and warns about each fix.
 func TestNormalizeGeneral(t *testing.T) {
 	def := config.DefaultGeneralConfig(nil)
 

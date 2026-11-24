@@ -6,6 +6,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
+// TCP validation limits. NormalizeTCP replaces values outside
+// these bounds with defaults.
 const (
 	MinTCPWorkers = 1
 	MaxTCPWorkers = 5000

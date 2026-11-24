@@ -53,6 +53,7 @@ const (
 	SecurityXTLS    Security = "xtls"
 )
 
+// Shared literal values used in generated configs.
 const (
 	SocksAuthNone = "noauth"
 	LogLevelNone  = "none"
@@ -79,6 +80,7 @@ type Config struct {
 	Outbounds []json.RawMessage `json:"outbounds"`
 }
 
+// LogConfig holds the Xray log settings of a Config.
 type LogConfig struct {
 	LogLevel string `json:"loglevel"`
 }
@@ -93,12 +95,14 @@ type Inbound struct {
 	Sniffing *SniffingConfig `json:"sniffing,omitempty"`
 }
 
+// SocksSettings holds the settings of the local SOCKS inbound.
 type SocksSettings struct {
 	Auth string `json:"auth"`
 	UDP  bool   `json:"udp"`
 	IP   string `json:"ip,omitempty"`
 }
 
+// SniffingConfig holds the traffic sniffing settings of an inbound.
 type SniffingConfig struct {
 	Enabled      bool     `json:"enabled"`
 	DestOverride []string `json:"destOverride,omitempty"`
@@ -127,6 +131,8 @@ var knownOutboundKeys = map[string]struct{}{
 	"mux":            {},
 }
 
+// UnmarshalJSON decodes an outbound and keeps unknown top-level fields
+// in Extra.
 func (o *Outbound) UnmarshalJSON(data []byte) error {
 	type plain Outbound
 
@@ -144,11 +150,16 @@ func (o *Outbound) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON encodes the outbound and merges Extra back into the
+// resulting object.
 func (o Outbound) MarshalJSON() ([]byte, error) {
 	type plain Outbound
 	return marshalWithExtra(plain(o), o.Extra)
 }
 
+// StreamSettings holds the transport settings of an outbound.
+// Transport settings the struct does not model are kept raw, and
+// unknown keys are kept in Extra.
 type StreamSettings struct {
 	Network  Network  `json:"network,omitempty"`
 	Security Security `json:"security,omitempty"`
@@ -181,6 +192,8 @@ var knownStreamKeys = map[string]struct{}{
 	"sockopt":             {},
 }
 
+// UnmarshalJSON decodes stream settings and keeps unknown fields in
+// Extra.
 func (s *StreamSettings) UnmarshalJSON(data []byte) error {
 	type plain StreamSettings
 
@@ -198,11 +211,14 @@ func (s *StreamSettings) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON encodes the stream settings and merges Extra back into
+// the resulting object.
 func (s StreamSettings) MarshalJSON() ([]byte, error) {
 	type plain StreamSettings
 	return marshalWithExtra(plain(s), s.Extra)
 }
 
+// TLSSettings holds the TLS part of an outbound's stream settings.
 type TLSSettings struct {
 	ServerName    string   `json:"serverName,omitempty"`
 	ALPN          []string `json:"alpn,omitempty"`
@@ -220,6 +236,7 @@ var knownTLSKeys = map[string]struct{}{
 	"allowInsecure": {},
 }
 
+// UnmarshalJSON decodes TLS settings and keeps unknown fields in Extra.
 func (t *TLSSettings) UnmarshalJSON(data []byte) error {
 	type plain TLSSettings
 
@@ -237,6 +254,8 @@ func (t *TLSSettings) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON encodes the TLS settings and merges Extra back into the
+// resulting object.
 func (t TLSSettings) MarshalJSON() ([]byte, error) {
 	type plain TLSSettings
 	return marshalWithExtra(plain(t), t.Extra)
@@ -258,6 +277,7 @@ func (o Outbound) Security() Security {
 	return SecurityNone
 }
 
+// IsProxy reports whether the outbound dials a real remote server.
 func (o Outbound) IsProxy() bool {
 	return isProxyProtocol(o.Protocol)
 }

@@ -19,6 +19,7 @@ func validDNSTTConfig() DNSTTConfig {
 	return config
 }
 
+// TestDefaultDNSTTConfig checks the default values returned by DefaultDNSTTConfig.
 func TestDefaultDNSTTConfig(t *testing.T) {
 	config := DefaultDNSTTConfig()
 
@@ -53,6 +54,7 @@ func TestDefaultDNSTTConfig(t *testing.T) {
 	}
 }
 
+// TestDNSTTConfigValidate checks that Validate reports errors for invalid DNSTT fields.
 func TestDNSTTConfigValidate(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -163,6 +165,7 @@ func TestDNSTTConfigValidate(t *testing.T) {
 	}
 }
 
+// TestDNSTTConfigValidateValid checks that a valid DNSTT config passes Validate with no errors.
 func TestDNSTTConfigValidateValid(t *testing.T) {
 	config := validDNSTTConfig()
 
@@ -176,6 +179,7 @@ func TestDNSTTConfigValidateValid(t *testing.T) {
 	}
 }
 
+// TestWithDNSTTDir checks that WithDNSTTDir sets the config directory of the service.
 func TestWithDNSTTDir(t *testing.T) {
 	service := NewDNSTTService()
 
@@ -204,6 +208,7 @@ func TestWithDNSTTDir(t *testing.T) {
 	}
 }
 
+// TestWithDNSTTDirEmpty checks that WithDNSTTDir with an empty value keeps the default directory.
 func TestWithDNSTTDirEmpty(t *testing.T) {
 	service := NewDNSTTService()
 
@@ -221,6 +226,7 @@ func TestWithDNSTTDirEmpty(t *testing.T) {
 	}
 }
 
+// TestDNSTTServiceConfigPath checks the file path the DNSTT service builds for a config name.
 func TestDNSTTServiceConfigPath(t *testing.T) {
 	service := &dnsttService{
 		configs: newConfigStore[DNSTTConfig]("/tmp/dnstt", "DNSTT"),
@@ -263,6 +269,7 @@ func TestDNSTTServiceConfigPath(t *testing.T) {
 	}
 }
 
+// TestDNSTTServiceSaveLoadConfig checks that a DNSTT config saved through the service loads back unchanged.
 func TestDNSTTServiceSaveLoadConfig(t *testing.T) {
 	dir := t.TempDir()
 
@@ -339,6 +346,7 @@ func TestDNSTTServiceSaveLoadConfig(t *testing.T) {
 	}
 }
 
+// TestDNSTTServiceSaveConfigRequiresName checks that SaveConfig rejects an empty config name.
 func TestDNSTTServiceSaveConfigRequiresName(t *testing.T) {
 	service := NewDNSTTService(
 		WithDNSTTDir(t.TempDir()),
@@ -354,6 +362,7 @@ func TestDNSTTServiceSaveConfigRequiresName(t *testing.T) {
 	}
 }
 
+// TestDNSTTServiceSaveConfigValidatesConfig checks that SaveConfig rejects an invalid config.
 func TestDNSTTServiceSaveConfigValidatesConfig(t *testing.T) {
 	service := NewDNSTTService(
 		WithDNSTTDir(t.TempDir()),
@@ -369,6 +378,7 @@ func TestDNSTTServiceSaveConfigValidatesConfig(t *testing.T) {
 	}
 }
 
+// TestDNSTTServiceLoadConfigMissing checks that LoadConfig returns an error for a config that does not exist.
 func TestDNSTTServiceLoadConfigMissing(t *testing.T) {
 	service := NewDNSTTService(
 		WithDNSTTDir(t.TempDir()),
@@ -381,6 +391,7 @@ func TestDNSTTServiceLoadConfigMissing(t *testing.T) {
 	}
 }
 
+// TestDNSTTServiceGetAllConfigFiles checks that GetAllConfigFiles returns the saved DNSTT configs.
 func TestDNSTTServiceGetAllConfigFiles(t *testing.T) {
 	dir := t.TempDir()
 
@@ -421,6 +432,7 @@ func TestDNSTTServiceGetAllConfigFiles(t *testing.T) {
 	}
 }
 
+// TestDNSTTServiceGetAllConfigFilesIgnoresInvalidFiles checks that GetAllConfigFiles skips files that fail to load or validate.
 func TestDNSTTServiceGetAllConfigFilesIgnoresInvalidFiles(t *testing.T) {
 	dir := t.TempDir()
 
@@ -470,6 +482,7 @@ RPS = -1
 	}
 }
 
+// TestNewDNSTTTunnelServer checks that newDNSTTTunnelServer builds a server in DNSTT compatibility mode.
 func TestNewDNSTTTunnelServer(t *testing.T) {
 	config := validDNSTTConfig()
 	config.RPS = 25
@@ -497,6 +510,7 @@ func TestNewDNSTTTunnelServer(t *testing.T) {
 	}
 }
 
+// TestNewDNSTTTunnelServerInvalidConfig checks that newDNSTTTunnelServer rejects an invalid domain or public key.
 func TestNewDNSTTTunnelServerInvalidConfig(t *testing.T) {
 	config := validDNSTTConfig()
 	config.Domain = ""
@@ -510,6 +524,7 @@ func TestNewDNSTTTunnelServerInvalidConfig(t *testing.T) {
 	}
 }
 
+// TestNewDNSTTResolver checks that newVayDNSResolver builds a resolver for the DNSTT settings.
 func TestNewDNSTTResolver(t *testing.T) {
 	config := validDNSTTConfig()
 
@@ -537,6 +552,7 @@ func TestNewDNSTTResolver(t *testing.T) {
 	}
 }
 
+// TestNewDNSTTResolverInvalidFingerprint checks that newVayDNSResolver rejects an unknown TLS fingerprint.
 func TestNewDNSTTResolverInvalidFingerprint(t *testing.T) {
 	config := validDNSTTConfig()
 	config.Fingerprint = "invalid-fingerprint"
@@ -554,6 +570,7 @@ func TestNewDNSTTResolverInvalidFingerprint(t *testing.T) {
 	}
 }
 
+// TestDNSTTServiceEditConfigUpdatesExisting checks that EditConfig replaces the stored DNSTT config.
 func TestDNSTTServiceEditConfigUpdatesExisting(t *testing.T) {
 	dir := t.TempDir()
 
@@ -582,6 +599,7 @@ func TestDNSTTServiceEditConfigUpdatesExisting(t *testing.T) {
 	}
 }
 
+// TestDNSTTServiceEditConfigMissingConfigReturnsError checks that EditConfig fails for a config that does not exist.
 func TestDNSTTServiceEditConfigMissingConfigReturnsError(t *testing.T) {
 	service := NewDNSTTService(
 		WithDNSTTDir(t.TempDir()),

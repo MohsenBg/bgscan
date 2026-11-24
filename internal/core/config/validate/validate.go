@@ -51,9 +51,13 @@ var (
 
 // Warning describes a single field that was auto-fixed during normalization.
 type Warning struct {
-	Field  string
+	// Field is the name of the configuration field that was fixed.
+	Field string
+	// OldVal is the value before normalization.
 	OldVal any
+	// NewVal is the value after normalization.
 	NewVal any
+	// Reason explains why the value was changed.
 	Reason string
 }
 
@@ -256,10 +260,14 @@ func checkPubKey(field, key string) error {
 	return nil
 }
 
+// ErrFieldRequired returns an error that wraps ErrEmpty and states
+// that the named field is required.
 func ErrFieldRequired(field string) error {
 	return fmt.Errorf("%s is required: %w", field, ErrEmpty)
 }
 
+// ErrFieldOutOfRange returns an error that wraps ErrOutOfRange and
+// states the allowed range for the named field.
 func ErrFieldOutOfRange(field string, min, max interface{}) error {
 	return fmt.Errorf("%s must be between %v and %v: %w", field, min, max, ErrOutOfRange)
 }

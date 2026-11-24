@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestStreamCSVStrict_AbortsOnBadRow covers stream csvstrict aborts on bad row.
 func TestStreamCSVStrict_AbortsOnBadRow(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "strict.csv")
 
@@ -28,6 +29,7 @@ func TestStreamCSVStrict_AbortsOnBadRow(t *testing.T) {
 	}
 }
 
+// TestStreamCSVStrict_ReportsPhysicalLine covers stream csvstrict reports physical line.
 func TestStreamCSVStrict_ReportsPhysicalLine(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "strict.csv")
 
@@ -47,6 +49,7 @@ func TestStreamCSVStrict_ReportsPhysicalLine(t *testing.T) {
 	}
 }
 
+// TestStreamCSVStrict_SkipsBlankLines covers stream csvstrict skips blank lines.
 func TestStreamCSVStrict_SkipsBlankLines(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "strict.csv")
 
@@ -74,6 +77,7 @@ func TestStreamCSVStrict_SkipsBlankLines(t *testing.T) {
 	}
 }
 
+// TestStreamCSVWithOffset_HonorsHeader covers stream csvwith offset honors header.
 func TestStreamCSVWithOffset_HonorsHeader(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "indexed.csv")
 

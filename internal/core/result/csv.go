@@ -13,7 +13,9 @@ type ReadResult struct {
 	Skipped uint64 // records that failed to parse
 }
 
-// ReadCSV reads records and converts them using the schema parser.
+// ReadCSV reads records from path and converts them with the schema parser.
+// ReadCSV skips records that fail to parse, counts them in ReadResult.Skipped,
+// and passes each valid result to fn. An error from fn stops the read.
 func ReadCSV(
 	log *logger.Logger,
 	path string,
@@ -37,7 +39,9 @@ func ReadCSV(
 	return res, err
 }
 
-// StreamWriteResults writes results to CSV.
+// StreamWriteResults writes results to path as CSV.
+// StreamWriteResults calls fn with a write function, and fn returns
+// results one at a time instead of building a slice first.
 func StreamWriteResults(
 	path string,
 	fn func(func(Result) error) error,

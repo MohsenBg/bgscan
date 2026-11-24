@@ -29,6 +29,7 @@ func mustEntry(t *testing.T, s string) target.Entry {
 	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
 }
 
+// TestICMPResult_Key checks icmp result key.
 func TestICMPResult_Key(t *testing.T) {
 	t.Parallel()
 
@@ -44,6 +45,7 @@ func TestICMPResult_Key(t *testing.T) {
 	}
 }
 
+// TestICMPResult_KeyType checks icmp result key type.
 func TestICMPResult_KeyType(t *testing.T) {
 	t.Parallel()
 
@@ -55,6 +57,7 @@ func TestICMPResult_KeyType(t *testing.T) {
 	}
 }
 
+// TestICMPResult_Equal checks icmp result equal.
 func TestICMPResult_Equal(t *testing.T) {
 	t.Parallel()
 
@@ -79,6 +82,7 @@ func TestICMPResult_Equal(t *testing.T) {
 	}
 }
 
+// TestICMPResult_ToRecord checks icmp result to record.
 func TestICMPResult_ToRecord(t *testing.T) {
 	t.Parallel()
 
@@ -111,6 +115,7 @@ func TestICMPResult_ToRecord(t *testing.T) {
 	}
 }
 
+// TestICMPResult_ToRecord_DefaultTries checks icmp result to record default tries.
 func TestICMPResult_ToRecord_DefaultTries(t *testing.T) {
 	t.Parallel()
 
@@ -143,6 +148,7 @@ func TestICMPResult_ToRecord_DefaultTries(t *testing.T) {
 	}
 }
 
+// TestICMPResult_Score checks icmp result score.
 func TestICMPResult_Score(t *testing.T) {
 	t.Parallel()
 
@@ -200,6 +206,7 @@ func TestICMPResult_Score(t *testing.T) {
 	}
 }
 
+// TestParseICMPResult_MinimalRecord checks parse icmp result minimal record.
 func TestParseICMPResult_MinimalRecord(t *testing.T) {
 	t.Parallel()
 
@@ -232,6 +239,7 @@ func TestParseICMPResult_MinimalRecord(t *testing.T) {
 	}
 }
 
+// TestParseICMPResult_FullRecord checks parse icmp result full record.
 func TestParseICMPResult_FullRecord(t *testing.T) {
 	t.Parallel()
 
@@ -264,6 +272,8 @@ func TestParseICMPResult_FullRecord(t *testing.T) {
 	}
 }
 
+// TestParseICMPResult_RoundsLatencyToMilliseconds checks parse icmp result rounds latency to
+// milliseconds.
 func TestParseICMPResult_RoundsLatencyToMilliseconds(t *testing.T) {
 	t.Parallel()
 
@@ -281,6 +291,8 @@ func TestParseICMPResult_RoundsLatencyToMilliseconds(t *testing.T) {
 	}
 }
 
+// TestParseICMPResult_MinimumLatencyIsOneMillisecond checks parse icmp result minimum latency is
+// one millisecond.
 func TestParseICMPResult_MinimumLatencyIsOneMillisecond(t *testing.T) {
 	t.Parallel()
 
@@ -298,6 +310,7 @@ func TestParseICMPResult_MinimumLatencyIsOneMillisecond(t *testing.T) {
 	}
 }
 
+// TestParseICMPResult_TriesMinimumIsOne checks parse icmp result tries minimum is one.
 func TestParseICMPResult_TriesMinimumIsOne(t *testing.T) {
 	t.Parallel()
 
@@ -333,6 +346,7 @@ func TestParseICMPResult_TriesMinimumIsOne(t *testing.T) {
 	}
 }
 
+// TestParseICMPResult_InvalidRecordLength checks parse icmp result invalid record length.
 func TestParseICMPResult_InvalidRecordLength(t *testing.T) {
 	t.Parallel()
 
@@ -362,6 +376,7 @@ func TestParseICMPResult_InvalidRecordLength(t *testing.T) {
 	}
 }
 
+// TestParseICMPResult_InvalidLatency checks parse icmp result invalid latency.
 func TestParseICMPResult_InvalidLatency(t *testing.T) {
 	t.Parallel()
 
@@ -373,6 +388,7 @@ func TestParseICMPResult_InvalidLatency(t *testing.T) {
 	}
 }
 
+// TestParseICMPResult_InvalidTries checks parse icmp result invalid tries.
 func TestParseICMPResult_InvalidTries(t *testing.T) {
 	t.Parallel()
 
@@ -384,6 +400,7 @@ func TestParseICMPResult_InvalidTries(t *testing.T) {
 	}
 }
 
+// TestSchema checks schema.
 func TestSchema(t *testing.T) {
 	t.Parallel()
 
@@ -424,6 +441,7 @@ func TestSchema(t *testing.T) {
 	}
 }
 
+// TestSchemaParser checks schema parser.
 func TestSchemaParser(t *testing.T) {
 	t.Parallel()
 
@@ -454,6 +472,7 @@ func TestSchemaParser(t *testing.T) {
 	}
 }
 
+// TestICMPResult_ImplementsResult checks icmp result implements result.
 func TestICMPResult_ImplementsResult(t *testing.T) {
 	t.Parallel()
 

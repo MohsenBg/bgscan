@@ -12,6 +12,7 @@ func validStormConfig() StormDNSConfig {
 	return cfg
 }
 
+// TestStormDNSValidate checks StormDNSConfig.Validate on valid and invalid configs.
 func TestStormDNSValidate(t *testing.T) {
 	if errs := validStormConfig().Validate(); len(errs) != 0 {
 		t.Fatalf("valid config errors = %v", errs)
@@ -36,6 +37,7 @@ func TestStormDNSValidate(t *testing.T) {
 	}
 }
 
+// TestStormDNSConfigStoreRoundTrip checks that a StormDNS config saved to the store loads back unchanged.
 func TestStormDNSConfigStoreRoundTrip(t *testing.T) {
 	svc := NewStormDNSService(WithStormDNSDir(t.TempDir()))
 
@@ -65,6 +67,7 @@ func TestStormDNSConfigStoreRoundTrip(t *testing.T) {
 	}
 }
 
+// TestStormDNSRunTunnelArgValidation checks that RunTunnel rejects bad resolver IPs and ports before starting.
 func TestStormDNSRunTunnelArgValidation(t *testing.T) {
 	svc := NewStormDNSService(WithStormDNSDir(t.TempDir()))
 	cfg := validStormConfig()

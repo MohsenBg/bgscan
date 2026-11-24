@@ -15,6 +15,7 @@ func (d DurationMS) Duration() time.Duration {
 	return time.Duration(d) * time.Millisecond
 }
 
+// SetDuration sets d from a time.Duration, stored as milliseconds.
 func (d *DurationMS) SetDuration(v time.Duration) {
 	*d = DurationMS(v.Milliseconds())
 }

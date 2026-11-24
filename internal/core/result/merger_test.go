@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestMergeResults_EmptyBatch covers merge results empty batch.
 func TestMergeResults_EmptyBatch(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "out.csv")
 	if err := mergeResults(nil, path, validSchema(t), nil); err != nil {
@@ -16,6 +17,7 @@ func TestMergeResults_EmptyBatch(t *testing.T) {
 	}
 }
 
+// TestMergeResults_NewFile covers merge results new file.
 func TestMergeResults_NewFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "out.csv")
 	results := []Result{
@@ -34,6 +36,7 @@ func TestMergeResults_NewFile(t *testing.T) {
 	}
 }
 
+// TestMergeResults_SortedByScore covers merge results sorted by score.
 func TestMergeResults_SortedByScore(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "out.csv")
 	results := []Result{
@@ -53,6 +56,7 @@ func TestMergeResults_SortedByScore(t *testing.T) {
 	}
 }
 
+// TestMergeResults_AtomicReplacement covers merge results atomic replacement.
 func TestMergeResults_AtomicReplacement(t *testing.T) {
 	path := writeTempCSV(t, "a,100\n")
 	delta := []Result{newMockResult("b", 200, "b", "200")}
@@ -65,6 +69,7 @@ func TestMergeResults_AtomicReplacement(t *testing.T) {
 	}
 }
 
+// TestMergeResults_DedupWithinBatch covers merge results dedup within batch.
 func TestMergeResults_DedupWithinBatch(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "out.csv")
 	results := []Result{
@@ -137,6 +142,7 @@ func TestMergeResults_DedupInterleavedWithExistingFile(t *testing.T) {
 	}
 }
 
+// TestMergeResults_ReplaceExistingWithHigherScore covers merge results replace existing with higher score.
 func TestMergeResults_ReplaceExistingWithHigherScore(t *testing.T) {
 	path := writeTempCSV(t, "a,5\n")
 	results := []Result{newMockResult("a", 9, "a", "9")}
@@ -232,6 +238,7 @@ func TestMergeResults_KeepExistingWhenIncomingLower(t *testing.T) {
 	}
 }
 
+// TestMergeResults_LookupOutsideScorePrefix covers merge results lookup outside score prefix.
 func TestMergeResults_LookupOutsideScorePrefix(t *testing.T) {
 	// The matching batch record sits between two other records in score
 	// order, so the positional boundary check of the old implementation

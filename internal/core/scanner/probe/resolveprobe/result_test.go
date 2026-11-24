@@ -25,6 +25,7 @@ func mustAddr(t *testing.T, s string) netip.Addr {
 	return ip
 }
 
+// TestSchema checks schema.
 func TestSchema(t *testing.T) {
 	t.Parallel()
 
@@ -60,6 +61,7 @@ func TestSchema(t *testing.T) {
 	}
 }
 
+// TestResolverResultKey checks resolver result key.
 func TestResolverResultKey(t *testing.T) {
 	t.Parallel()
 
@@ -72,6 +74,7 @@ func TestResolverResultKey(t *testing.T) {
 	}
 }
 
+// TestResolverResultKeyType checks resolver result key type.
 func TestResolverResultKeyType(t *testing.T) {
 	t.Parallel()
 
@@ -82,6 +85,7 @@ func TestResolverResultKeyType(t *testing.T) {
 	}
 }
 
+// TestResolverResultEqual checks resolver result equal.
 func TestResolverResultEqual(t *testing.T) {
 	t.Parallel()
 
@@ -98,6 +102,7 @@ func TestResolverResultEqual(t *testing.T) {
 	}
 }
 
+// TestResolverResultToRecord checks resolver result to record.
 func TestResolverResultToRecord(t *testing.T) {
 	t.Parallel()
 
@@ -151,6 +156,7 @@ func TestResolverResultToRecord(t *testing.T) {
 	}
 }
 
+// TestResolverResultScore checks resolver result score.
 func TestResolverResultScore(t *testing.T) {
 	t.Parallel()
 
@@ -202,6 +208,7 @@ func TestResolverResultScore(t *testing.T) {
 	}
 }
 
+// TestParseResolverResult checks parse resolver result.
 func TestParseResolverResult(t *testing.T) {
 	t.Parallel()
 
@@ -359,6 +366,7 @@ func TestParseResolverResult(t *testing.T) {
 	}
 }
 
+// TestParseResolverResultLegacy checks parse resolver result legacy.
 func TestParseResolverResultLegacy(t *testing.T) {
 	t.Parallel()
 

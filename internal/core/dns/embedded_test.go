@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// TestParseTunnelEndpoint checks that parseTunnelEndpoint accepts a valid IP and port and rejects empty or bad values.
 func TestParseTunnelEndpoint(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -107,6 +108,7 @@ func (c *fakeEmbeddedClient) StopAsyncRuntime() {
 	c.stopped.Store(true)
 }
 
+// TestBootEmbeddedSessionReady checks that the boot wait loop returns once the session reports ready.
 func TestBootEmbeddedSessionReady(t *testing.T) {
 	app := &fakeEmbeddedClient{}
 
@@ -136,6 +138,7 @@ func TestBootEmbeddedSessionReady(t *testing.T) {
 	}
 }
 
+// TestBootEmbeddedRunError checks that the boot wait loop returns the error from a failed client run.
 func TestBootEmbeddedRunError(t *testing.T) {
 	app := &fakeEmbeddedClient{
 		runErr: context.Canceled,
@@ -151,6 +154,7 @@ func TestBootEmbeddedRunError(t *testing.T) {
 	}
 }
 
+// TestBootEmbeddedRunExitsCleanly checks that the boot wait loop reports an error when the client exits before the session is ready.
 func TestBootEmbeddedRunExitsCleanly(t *testing.T) {
 	// A nil runErr still means the runtime stopped before the session
 	// was ready.
@@ -173,6 +177,7 @@ func (c *exitingFakeClient) Run(context.Context) error { return nil }
 
 func (c *exitingFakeClient) StopAsyncRuntime() { c.stopped.Store(true) }
 
+// TestBootEmbeddedContextCanceled checks that the boot wait loop stops when the context is canceled.
 func TestBootEmbeddedContextCanceled(t *testing.T) {
 	app := &fakeEmbeddedClient{}
 

@@ -6,6 +6,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
+// ICMP validation limits. NormalizeICMP replaces values outside
+// these bounds with defaults.
 const (
 	MinICMPWorkers = 1
 	MaxICMPWorkers = 5000

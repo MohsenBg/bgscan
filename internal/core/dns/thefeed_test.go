@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// TestTheFeedConfig_Validate checks TheFeedConfig.Validate on valid and invalid configs.
 func TestTheFeedConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -69,6 +70,7 @@ func TestTheFeedConfig_Validate(t *testing.T) {
 	}
 }
 
+// TestTheFeedService_Defaults checks that NewTheFeedService sets a default resolver when none is given.
 func TestTheFeedService_Defaults(t *testing.T) {
 	svc := NewTheFeedService()
 	if svc == nil {
@@ -89,6 +91,7 @@ func TestTheFeedService_Defaults(t *testing.T) {
 	}
 }
 
+// TestTheFeedProbeResolverNeedsServer checks that RunTunnel returns an error, without crashing, when no TheFeed server answers.
 func TestTheFeedProbeResolverNeedsServer(t *testing.T) {
 	svc := NewTheFeedService()
 

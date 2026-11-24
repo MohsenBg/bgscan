@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// TestNewDurationMS checks that NewDurationMS converts a duration to whole milliseconds.
 func TestNewDurationMS(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -28,6 +29,7 @@ func TestNewDurationMS(t *testing.T) {
 	}
 }
 
+// TestDurationMS_Duration checks that Duration converts milliseconds back to a time.Duration.
 func TestDurationMS_Duration(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -50,6 +52,7 @@ func TestDurationMS_Duration(t *testing.T) {
 	}
 }
 
+// TestDurationMS_SetDuration checks that SetDuration stores a duration as milliseconds.
 func TestDurationMS_SetDuration(t *testing.T) {
 	var d DurationMS
 	d.SetDuration(3 * time.Second)
@@ -63,6 +66,7 @@ func TestDurationMS_SetDuration(t *testing.T) {
 	}
 }
 
+// TestDurationMS_RoundTrip checks that a duration survives conversion to DurationMS and back.
 func TestDurationMS_RoundTrip(t *testing.T) {
 	original := 7 * time.Second
 	d := NewDurationMS(original)
@@ -71,6 +75,7 @@ func TestDurationMS_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestDurationMS_String checks that String formats the stored duration.
 func TestDurationMS_String(t *testing.T) {
 	tests := []struct {
 		input DurationMS
@@ -92,6 +97,7 @@ func TestDurationMS_String(t *testing.T) {
 	}
 }
 
+// TestConnectivityTest_String checks that String returns the label of each connectivity test value.
 func TestConnectivityTest_String(t *testing.T) {
 	tests := []struct {
 		input ConnectivityTest
@@ -114,6 +120,7 @@ func TestConnectivityTest_String(t *testing.T) {
 	}
 }
 
+// TestConnectivityTest_IsValid checks that IsValid accepts the defined values and rejects others.
 func TestConnectivityTest_IsValid(t *testing.T) {
 	valid := []ConnectivityTest{ConnectivityOnly, DownloadSpeedOnly, UploadSpeedOnly, Both}
 	for _, v := range valid {
@@ -130,8 +137,9 @@ func TestConnectivityTest_IsValid(t *testing.T) {
 	}
 }
 
+// TestConnectivityTest_Constants checks that the ConnectivityTest constants keep their defined values and order.
 func TestConnectivityTest_Constants(t *testing.T) {
-	// Ensure iota order hasn't shifted — these values matter for TOML serialization.
+	// Ensure iota order hasn't shifted. These values matter for TOML serialization.
 	if ConnectivityOnly != 0 {
 		t.Errorf("ConnectivityOnly = %d, want 0", ConnectivityOnly)
 	}

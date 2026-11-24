@@ -21,7 +21,11 @@ import (
 
 // XrayService builds scan configs and runs them on the embedded Xray core.
 type XrayService interface {
+	// Version returns the version of the embedded Xray core.
 	Version() string
+
+	// GetOutboundTemplateByName returns the metadata of the saved
+	// outbound template with the given name.
 	GetOutboundTemplateByName(name string) (*OutboundFile, error)
 
 	// GenerateConfig pairs an outbound template with a local SOCKS inbound.
@@ -29,19 +33,29 @@ type XrayService interface {
 	// port field, or the host:port endpoint for WireGuard); pass 0 to keep the
 	// template's own port. localPort is the SOCKS listener port.
 	GenerateConfig(outbound string, addr string, localPort, remotePort uint16) (*Config, error)
+
+	// ValidateConfig checks a config by loading it into the Xray core
+	// and building an instance, which it closes before returning.
 	ValidateConfig(ctx context.Context, config *Config) error
+
+	// Start starts a config on the Xray core and returns the running
+	// instance. The caller closes the instance.
 	Start(ctx context.Context, config *Config) (Instance, error)
 
 	// CloseShared releases process-global transport state shared by all instances.
 	CloseShared() error
 }
 
+// Instance is a running Xray instance.
 type Instance interface {
+	// Close stops the instance and releases its resources.
 	Close() error
 }
 
 type xrayService struct{}
 
+// ServiceOption applies a process-wide setting when a service is
+// created with NewXrayService.
 type ServiceOption func()
 
 // WithScanTuning installs scanner-friendly transport limits process-wide.
@@ -50,6 +64,7 @@ func WithScanTuning(t shared.ScanTuning) ServiceOption {
 	return func() { shared.ApplyScanTuning(t) }
 }
 
+// NewXrayService returns an XrayService and applies opts in order.
 func NewXrayService(opts ...ServiceOption) XrayService {
 	for _, opt := range opts {
 		opt()

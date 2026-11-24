@@ -19,6 +19,7 @@ func defaultScannerConfig() config.ScannerConfig {
 	}
 }
 
+// TestAllWarnings_HasWarnings checks that HasWarnings reports warnings from any section.
 func TestAllWarnings_HasWarnings(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -88,6 +89,7 @@ func TestAllWarnings_HasWarnings(t *testing.T) {
 	}
 }
 
+// TestAllErrors_HasErrors checks that HasErrors reports errors from any section.
 func TestAllErrors_HasErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -157,6 +159,7 @@ func TestAllErrors_HasErrors(t *testing.T) {
 	}
 }
 
+// TestNormalizeAll_DefaultConfigHasNoWarnings checks that normalizing the default config produces no warnings.
 func TestNormalizeAll_DefaultConfigHasNoWarnings(t *testing.T) {
 	cfg := defaultScannerConfig()
 
@@ -167,6 +170,7 @@ func TestNormalizeAll_DefaultConfigHasNoWarnings(t *testing.T) {
 	}
 }
 
+// TestValidateAll_DefaultConfigHasNoErrors checks that the default config passes ValidateAll with no errors.
 func TestValidateAll_DefaultConfigHasNoErrors(t *testing.T) {
 	cfg := defaultScannerConfig()
 

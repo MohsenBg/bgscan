@@ -19,6 +19,7 @@ func mustEntry(t *testing.T, s string) target.Entry {
 	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
 }
 
+// TestVayDNSResult_ToRecord covers the vay dnsresult to record scenario.
 func TestVayDNSResult_ToRecord(t *testing.T) {
 	r := VayDNSResult{
 		Entry:             mustEntry(t, "1.2.3.4"),
@@ -54,6 +55,7 @@ func TestVayDNSResult_ToRecord(t *testing.T) {
 	}
 }
 
+// TestVayDNSResult_Score covers the vay dnsresult score scenario.
 func TestVayDNSResult_Score(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -103,6 +105,7 @@ func TestVayDNSResult_Score(t *testing.T) {
 	}
 }
 
+// TestVayDNSResult_Key covers the vay dnsresult key scenario.
 func TestVayDNSResult_Key(t *testing.T) {
 	entry := mustEntry(t, "2001:db8::1")
 	r := VayDNSResult{
@@ -114,6 +117,7 @@ func TestVayDNSResult_Key(t *testing.T) {
 	}
 }
 
+// TestVayDNSResult_KeyType covers the vay dnsresult key type scenario.
 func TestVayDNSResult_KeyType(t *testing.T) {
 	r := VayDNSResult{}
 
@@ -122,6 +126,7 @@ func TestVayDNSResult_KeyType(t *testing.T) {
 	}
 }
 
+// TestVayDNSResult_Equal covers the vay dnsresult equal scenario.
 func TestVayDNSResult_Equal(t *testing.T) {
 	r := VayDNSResult{
 		Entry: mustEntry(t, "1.2.3.4"),
@@ -157,6 +162,7 @@ func TestVayDNSResult_Equal(t *testing.T) {
 	}
 }
 
+// TestParseVayDNSResult covers the parse vay dnsresult scenario.
 func TestParseVayDNSResult(t *testing.T) {
 	tests := []struct {
 		name      string

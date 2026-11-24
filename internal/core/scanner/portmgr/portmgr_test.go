@@ -25,6 +25,7 @@ func newTestManager(t *testing.T, startPort, count uint16) *manager {
 	return m
 }
 
+// TestGenerateInstanceRange covers generate instance range.
 func TestGenerateInstanceRange(t *testing.T) {
 	t.Parallel()
 
@@ -45,6 +46,7 @@ func TestGenerateInstanceRange(t *testing.T) {
 	}
 }
 
+// TestNewRejectsZeroCount covers new rejects zero count.
 func TestNewRejectsZeroCount(t *testing.T) {
 	t.Parallel()
 
@@ -54,6 +56,7 @@ func TestNewRejectsZeroCount(t *testing.T) {
 	}
 }
 
+// TestGetReturnsSequentialPorts covers get returns sequential ports.
 func TestGetReturnsSequentialPorts(t *testing.T) {
 	t.Parallel()
 
@@ -79,6 +82,7 @@ func TestGetReturnsSequentialPorts(t *testing.T) {
 	}
 }
 
+// TestGetContextCanceled covers get context canceled.
 func TestGetContextCanceled(t *testing.T) {
 	t.Parallel()
 
@@ -103,6 +107,7 @@ func TestGetContextCanceled(t *testing.T) {
 	}
 }
 
+// TestGetClosed covers get closed.
 func TestGetClosed(t *testing.T) {
 	t.Parallel()
 
@@ -115,6 +120,7 @@ func TestGetClosed(t *testing.T) {
 	}
 }
 
+// TestGetSkipsUnavailablePorts covers get skips unavailable ports.
 func TestGetSkipsUnavailablePorts(t *testing.T) {
 	t.Parallel()
 
@@ -135,6 +141,7 @@ func TestGetSkipsUnavailablePorts(t *testing.T) {
 	}
 }
 
+// TestReleaseMakesPortAvailable covers release makes port available.
 func TestReleaseMakesPortAvailable(t *testing.T) {
 	t.Parallel()
 
@@ -164,6 +171,7 @@ func TestReleaseMakesPortAvailable(t *testing.T) {
 	}
 }
 
+// TestReleaseAfterClose covers release after close.
 func TestReleaseAfterClose(t *testing.T) {
 	t.Parallel()
 
@@ -174,6 +182,7 @@ func TestReleaseAfterClose(t *testing.T) {
 	m.Release(30000)
 }
 
+// TestCloseIsIdempotent covers close is idempotent.
 func TestCloseIsIdempotent(t *testing.T) {
 	t.Parallel()
 
@@ -183,6 +192,7 @@ func TestCloseIsIdempotent(t *testing.T) {
 	m.Close()
 }
 
+// TestPortAvailable covers port available.
 func TestPortAvailable(t *testing.T) {
 	t.Parallel()
 
@@ -210,6 +220,7 @@ func TestPortAvailable(t *testing.T) {
 	}
 }
 
+// TestWaitOpenSuccess covers wait open success.
 func TestWaitOpenSuccess(t *testing.T) {
 	t.Parallel()
 
@@ -230,6 +241,7 @@ func TestWaitOpenSuccess(t *testing.T) {
 	}
 }
 
+// TestWaitOpenTimeout covers wait open timeout.
 func TestWaitOpenTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -253,6 +265,7 @@ func TestWaitOpenTimeout(t *testing.T) {
 	}
 }
 
+// TestRandomBase covers random base.
 func TestRandomBase(t *testing.T) {
 	t.Parallel()
 

@@ -17,7 +17,10 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/scanner/probe/xrayprobe"
 )
 
-// Init registers all built-in probe result schemas with the global registry.
+// Init registers all built-in probe result schemas with the global
+// registry. It returns an error when a schema fails validation or a
+// schema for the same directory is already registered, so callers
+// should run it once at startup.
 func Init() error {
 	if err := result.DefaultRegistry.Register(icmpprobe.Schema); err != nil {
 		return err

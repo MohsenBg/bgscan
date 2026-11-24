@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// TestResultSchema_Validate covers result schema validate.
 func TestResultSchema_Validate(t *testing.T) {
 	validParser := func([]string) (Result, error) {
 		return nil, nil
@@ -49,6 +50,7 @@ func TestResultSchema_Validate(t *testing.T) {
 	}
 }
 
+// TestResultFile_SizeString covers result file size string.
 func TestResultFile_SizeString(t *testing.T) {
 	tests := []struct {
 		sizeBytes int64
@@ -74,6 +76,7 @@ func TestResultFile_SizeString(t *testing.T) {
 	}
 }
 
+// TestMockResult_ImplementsResult covers mock result implements result.
 func TestMockResult_ImplementsResult(t *testing.T) {
 	var _ Result = newMockResult("1.2.3.4", 0.9, "1.2.3.4", "0.9")
 }

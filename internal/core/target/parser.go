@@ -52,6 +52,8 @@ func StreamCIDR(ctx context.Context, row Entry, limit uint64, count *uint64, out
 	return nil
 }
 
+// ParseRecord parses one stored target list row, which always has four
+// fields: value, port, path, and enable.
 func ParseRecord(rec []string) (Entry, error) {
 	if len(rec) < 4 {
 		return Entry{}, fmt.Errorf("invalid record length: expected at least 4 fields, got %d", len(rec))

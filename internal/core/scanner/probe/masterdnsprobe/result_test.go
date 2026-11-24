@@ -16,6 +16,7 @@ func entryOf(addr netip.Addr) target.Entry {
 	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
 }
 
+// TestMasterDNSResult_KeyAndType checks master dns result key and type.
 func TestMasterDNSResult_KeyAndType(t *testing.T) {
 	r := MasterDNSResult{Entry: entryOf(netip.MustParseAddr("1.2.3.4"))}
 
@@ -27,6 +28,7 @@ func TestMasterDNSResult_KeyAndType(t *testing.T) {
 	}
 }
 
+// TestMasterDNSResult_Equal checks master dns result equal.
 func TestMasterDNSResult_Equal(t *testing.T) {
 	base := MasterDNSResult{Entry: entryOf(netip.MustParseAddr("8.8.8.8"))}
 
@@ -38,6 +40,7 @@ func TestMasterDNSResult_Equal(t *testing.T) {
 	}
 }
 
+// TestMasterDNSResult_ToRecord checks master dns result to record.
 func TestMasterDNSResult_ToRecord(t *testing.T) {
 	r := MasterDNSResult{
 		Entry:   entryOf(netip.MustParseAddr("2001:db8::1")),
@@ -53,6 +56,7 @@ func TestMasterDNSResult_ToRecord(t *testing.T) {
 	}
 }
 
+// TestMasterDNSResult_Score checks master dns result score.
 func TestMasterDNSResult_Score(t *testing.T) {
 	tests := []struct {
 		latency time.Duration
@@ -71,6 +75,7 @@ func TestMasterDNSResult_Score(t *testing.T) {
 	}
 }
 
+// TestParseMasterDNSResult checks parse master dns result.
 func TestParseMasterDNSResult(t *testing.T) {
 	ip := "1.2.3.4/32"
 
@@ -149,6 +154,7 @@ func TestParseMasterDNSResult(t *testing.T) {
 	}
 }
 
+// TestMasterDNSResult_ParseRoundTrip checks master dns result parse round trip.
 func TestMasterDNSResult_ParseRoundTrip(t *testing.T) {
 	original := MasterDNSResult{
 		Entry:   entryOf(netip.MustParseAddr("5.6.7.8")),

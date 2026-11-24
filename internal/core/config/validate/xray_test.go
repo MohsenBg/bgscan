@@ -7,6 +7,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
+// TestXrayConfig checks ValidateXray and NormalizeXray on valid and invalid Xray configs.
 func TestXrayConfig(t *testing.T) {
 	def := config.DefaultXrayConfig(nil)
 

@@ -1,4 +1,9 @@
 // Package probe defines the core interface for all active scanning primitives.
+// Each probe package under this one checks one protocol or tunnel type
+// and reports its outcome as a result.Result. The engine calls Init
+// once, then Run for each target, possibly from several goroutines at
+// once, then Close once. Implementations must be safe for concurrent
+// Run calls.
 package probe
 
 import (
@@ -15,6 +20,8 @@ type Probe interface {
 	// state. Implementations that require no initialization may return nil.
 	Init(ctx context.Context) error
 
+	// Input returns the kind of target entry the probe accepts, such
+	// as IP addresses only or hosts that may be domains.
 	Input() target.Kind
 
 	// Run probes one target row. It must honor ctx for cancellation, return

@@ -14,6 +14,8 @@ var allowedPreScanTypes = []string{
 	"http",
 }
 
+// Xray validation limits. NormalizeXray replaces values outside
+// these bounds with defaults.
 const (
 	MinXrayWorkers = 1
 	MaxXrayWorkers = 500

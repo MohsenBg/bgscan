@@ -57,6 +57,7 @@ func portFromAddr(t *testing.T, addr string) uint16 {
 	return uint16(n)
 }
 
+// TestQuery_Normalize_Defaults checks that normalize fills unset query fields with the defaults.
 func TestQuery_Normalize_Defaults(t *testing.T) {
 	q := Query{}
 	q.normalize()
@@ -78,6 +79,7 @@ func TestQuery_Normalize_Defaults(t *testing.T) {
 	}
 }
 
+// TestQuery_Normalize_ExplicitValuesUnchanged checks that normalize keeps values the caller set.
 func TestQuery_Normalize_ExplicitValuesUnchanged(t *testing.T) {
 	q := Query{Timeout: 500 * time.Millisecond, Port: 5353, RecordType: TypeMX, Transport: ResolverTypeTCP, EDNSBufSize: 4096}
 	q.normalize()
@@ -99,6 +101,7 @@ func TestQuery_Normalize_ExplicitValuesUnchanged(t *testing.T) {
 	}
 }
 
+// TestQuery_Normalize_BUG_ShortTimeoutSilentlyReplaced documents that a timeout below 50ms is silently replaced with the default.
 func TestQuery_Normalize_BUG_ShortTimeoutSilentlyReplaced(t *testing.T) {
 	q := Query{Timeout: 10 * time.Millisecond}
 	q.normalize()
@@ -112,6 +115,7 @@ func TestQuery_Normalize_BUG_ShortTimeoutSilentlyReplaced(t *testing.T) {
 	}
 }
 
+// TestQuery_Normalize_EDNSBufSizeTooSmall checks that an EDNS buffer size below 512 is raised to the default.
 func TestQuery_Normalize_EDNSBufSizeTooSmall(t *testing.T) {
 	q := Query{EDNSBufSize: 100}
 	q.normalize()
@@ -120,6 +124,7 @@ func TestQuery_Normalize_EDNSBufSizeTooSmall(t *testing.T) {
 	}
 }
 
+// TestQuery_Normalize_EDNSBufSizeExactly512 checks that an EDNS buffer size of exactly 512 is kept.
 func TestQuery_Normalize_EDNSBufSizeExactly512(t *testing.T) {
 	q := Query{EDNSBufSize: 512}
 	q.normalize()
@@ -128,6 +133,7 @@ func TestQuery_Normalize_EDNSBufSizeExactly512(t *testing.T) {
 	}
 }
 
+// TestQuery_BuildQuery_BasicA checks that buildQuery builds a plain A record question.
 func TestQuery_BuildQuery_BasicA(t *testing.T) {
 	q := Query{Domain: "example.com", RecordType: TypeA, RecursionDesired: true}
 	msg := q.buildQuery()
@@ -145,6 +151,7 @@ func TestQuery_BuildQuery_BasicA(t *testing.T) {
 	}
 }
 
+// TestQuery_BuildQuery_WithEDNS checks that buildQuery adds EDNS when a buffer size is set.
 func TestQuery_BuildQuery_WithEDNS(t *testing.T) {
 	q := Query{Domain: "example.com", RecordType: TypeA, EDNSBufSize: 1232}
 	msg := q.buildQuery()
@@ -158,6 +165,7 @@ func TestQuery_BuildQuery_WithEDNS(t *testing.T) {
 	}
 }
 
+// TestQuery_BuildQuery_DomainFQDN checks that buildQuery turns the domain into a fully qualified name.
 func TestQuery_BuildQuery_DomainFQDN(t *testing.T) {
 	q := Query{Domain: "example.com", RecordType: TypeA}
 	msg := q.buildQuery()
@@ -166,6 +174,7 @@ func TestQuery_BuildQuery_DomainFQDN(t *testing.T) {
 	}
 }
 
+// TestQuery_BuildQuery_AllRecordTypes checks that buildQuery maps every record type to its DNS query type.
 func TestQuery_BuildQuery_AllRecordTypes(t *testing.T) {
 	tests := []struct {
 		rt   RecordType
@@ -190,6 +199,7 @@ func TestQuery_BuildQuery_AllRecordTypes(t *testing.T) {
 	}
 }
 
+// TestResolver_Query_SuccessfulAQuery checks that Query returns the answer from a test DNS server.
 func TestResolver_Query_SuccessfulAQuery(t *testing.T) {
 	addr, stop := testDNSServer(t)
 	defer stop()
@@ -221,6 +231,7 @@ func TestResolver_Query_SuccessfulAQuery(t *testing.T) {
 	}
 }
 
+// TestResolver_Query_CancelledContext checks that Query returns an error when the context is canceled.
 func TestResolver_Query_CancelledContext(t *testing.T) {
 	addr, stop := testDNSServer(t)
 	defer stop()
@@ -241,6 +252,7 @@ func TestResolver_Query_CancelledContext(t *testing.T) {
 	}
 }
 
+// TestResolver_Query_UnreachableResolver checks that Query returns an error when the resolver cannot be reached.
 func TestResolver_Query_UnreachableResolver(t *testing.T) {
 	q := Query{Resolver: "127.0.0.1", Port: 1, Domain: "example.com", RecordType: TypeA, Transport: ResolverTypeUDP, Timeout: 200 * time.Millisecond}
 	resolver := NewResolver()
@@ -250,6 +262,7 @@ func TestResolver_Query_UnreachableResolver(t *testing.T) {
 	}
 }
 
+// TestResolver_Query_DefaultsApplied checks that Query applies the default port, transport, and timeout.
 func TestResolver_Query_DefaultsApplied(t *testing.T) {
 	addr, stop := testDNSServer(t)
 	defer stop()
@@ -270,6 +283,7 @@ func TestResolver_Query_DefaultsApplied(t *testing.T) {
 	}
 }
 
+// TestQuery_Address checks that address joins the resolver and port.
 func TestQuery_Address(t *testing.T) {
 	tests := []struct {
 		resolver string
@@ -289,6 +303,7 @@ func TestQuery_Address(t *testing.T) {
 	}
 }
 
+// TestQuery_HasEDNS_WithOPT checks that a built query with EDNS reports an OPT record.
 func TestQuery_HasEDNS_WithOPT(t *testing.T) {
 	q := Query{Domain: "example.com", RecordType: TypeA, EDNSBufSize: 1232}
 	if q.buildQuery().IsEdns0() == nil {
@@ -296,6 +311,7 @@ func TestQuery_HasEDNS_WithOPT(t *testing.T) {
 	}
 }
 
+// TestQuery_HasEDNS_WithoutOPT checks that a built query without EDNS has no OPT record.
 func TestQuery_HasEDNS_WithoutOPT(t *testing.T) {
 	q := Query{Domain: "example.com", RecordType: TypeA}
 	if q.buildQuery().IsEdns0() != nil {
@@ -303,6 +319,7 @@ func TestQuery_HasEDNS_WithoutOPT(t *testing.T) {
 	}
 }
 
+// TestTransportNetwork checks that transportNetwork maps each resolver type to its network name.
 func TestTransportNetwork(t *testing.T) {
 	tests := []struct {
 		transport ResolverType
@@ -321,6 +338,7 @@ func TestTransportNetwork(t *testing.T) {
 	}
 }
 
+// TestDefaultConstants checks the values of the query default constants.
 func TestDefaultConstants(t *testing.T) {
 	if DefaultEDNSBufSize < 512 {
 		t.Errorf("DefaultEDNSBufSize=%d is below the minimum safe EDNS size of 512", DefaultEDNSBufSize)

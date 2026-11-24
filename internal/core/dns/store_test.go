@@ -28,6 +28,7 @@ func newFakeStore(t *testing.T) configStore[fakeStoreConfig] {
 	return newConfigStore[fakeStoreConfig](t.TempDir(), "Fake")
 }
 
+// TestConfigStoreSaveLoadRoundTrip checks that a config saved to the store loads back unchanged.
 func TestConfigStoreSaveLoadRoundTrip(t *testing.T) {
 	store := newFakeStore(t)
 
@@ -47,6 +48,7 @@ func TestConfigStoreSaveLoadRoundTrip(t *testing.T) {
 	}
 }
 
+// TestConfigStoreSaveErrors checks that SaveConfig rejects empty names, invalid configs, and duplicate names.
 func TestConfigStoreSaveErrors(t *testing.T) {
 	store := newFakeStore(t)
 	valid := fakeStoreConfig{Valid: true, Domain: "example.com"}
@@ -79,6 +81,7 @@ func TestConfigStoreSaveErrors(t *testing.T) {
 	}
 }
 
+// TestConfigStoreEdit checks that EditConfig updates an existing config and fails for a missing one.
 func TestConfigStoreEdit(t *testing.T) {
 	store := newFakeStore(t)
 	config := fakeStoreConfig{Valid: true, Domain: "first.com"}
@@ -114,6 +117,7 @@ func TestConfigStoreEdit(t *testing.T) {
 	}
 }
 
+// TestConfigStoreGetAllConfigFiles checks that GetAllConfigFiles returns the valid stored configs.
 func TestConfigStoreGetAllConfigFiles(t *testing.T) {
 	dir := t.TempDir()
 	store := newConfigStore[fakeStoreConfig](dir, "Fake")
@@ -174,6 +178,7 @@ func TestConfigStoreGetAllConfigFiles(t *testing.T) {
 	}
 }
 
+// TestConfigStoreGetAllConfigFilesEmptyDir checks that GetAllConfigFiles on an empty directory returns no files and no error.
 func TestConfigStoreGetAllConfigFilesEmptyDir(t *testing.T) {
 	store := newFakeStore(t)
 
@@ -187,6 +192,7 @@ func TestConfigStoreGetAllConfigFilesEmptyDir(t *testing.T) {
 	}
 }
 
+// TestConfigStoreValidateAllConfigs checks that ValidateAllConfigs reports the files that fail validation.
 func TestConfigStoreValidateAllConfigs(t *testing.T) {
 	dir := t.TempDir()
 	store := newConfigStore[fakeStoreConfig](dir, "Fake")
@@ -247,6 +253,7 @@ func TestConfigStoreValidateAllConfigs(t *testing.T) {
 	}
 }
 
+// TestConfigStoreRenameConfig checks that RenameConfig moves a config to the new name.
 func TestConfigStoreRenameConfig(t *testing.T) {
 	store := newFakeStore(t)
 	config := fakeStoreConfig{Valid: true, Domain: "example.com"}
@@ -282,6 +289,7 @@ func TestConfigStoreRenameConfig(t *testing.T) {
 	}
 }
 
+// TestTunnelConfigDir checks that tunnelConfigDir joins the tunnel base directory and the protocol name.
 func TestTunnelConfigDir(t *testing.T) {
 	got := tunnelConfigDir("someproto")
 
@@ -291,6 +299,7 @@ func TestTunnelConfigDir(t *testing.T) {
 	}
 }
 
+// TestConfigStoreRejectsTraversalNames checks that the store rejects names with path separators or dot segments.
 func TestConfigStoreRejectsTraversalNames(t *testing.T) {
 	store := newFakeStore(t)
 	valid := fakeStoreConfig{Valid: true, Domain: "example.com"}
@@ -332,6 +341,7 @@ func TestConfigStoreRejectsTraversalNames(t *testing.T) {
 	}
 }
 
+// TestConfigStoreWritesSecretFileWith0600 checks that saved config files have 0600 permissions.
 func TestConfigStoreWritesSecretFileWith0600(t *testing.T) {
 	store := newFakeStore(t)
 	cfg := fakeStoreConfig{Valid: true, Domain: "example.com"}

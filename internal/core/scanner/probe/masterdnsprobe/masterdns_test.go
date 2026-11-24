@@ -177,6 +177,7 @@ func TestNewMasterDNSProbe_NilPortManager(t *testing.T) {
 	}
 }
 
+// TestNewMasterDNSProbe_InvalidConfig checks new master dns probe invalid config.
 func TestNewMasterDNSProbe_InvalidConfig(t *testing.T) {
 	_, err := NewMasterDNSProbe(dns.MasterDNSConfig{}, time.Second, &fakePortManager{})
 	if err == nil {
@@ -184,6 +185,7 @@ func TestNewMasterDNSProbe_InvalidConfig(t *testing.T) {
 	}
 }
 
+// TestNewMasterDNSProbe_DefaultsServices checks new master dns probe defaults services.
 func TestNewMasterDNSProbe_DefaultsServices(t *testing.T) {
 	got, err := NewMasterDNSProbe(validConfig(), time.Second, &fakePortManager{})
 	if err != nil {
@@ -206,6 +208,7 @@ func TestNewMasterDNSProbe_DefaultsServices(t *testing.T) {
 	}
 }
 
+// TestRun_ContextCanceled checks run context canceled.
 func TestRun_ContextCanceled(t *testing.T) {
 	p := newTestProbe(t, &fakePortManager{}, &fakeMasterDNSService{})
 
@@ -218,6 +221,7 @@ func TestRun_ContextCanceled(t *testing.T) {
 	}
 }
 
+// TestRun_PortManagerFails checks run port manager fails.
 func TestRun_PortManagerFails(t *testing.T) {
 	pm := &fakePortManager{getErr: errors.New("no ports")}
 	p := newTestProbe(t, pm, &fakeMasterDNSService{})
@@ -232,6 +236,7 @@ func TestRun_PortManagerFails(t *testing.T) {
 	}
 }
 
+// TestRun_TunnelStartFails checks run tunnel start fails.
 func TestRun_TunnelStartFails(t *testing.T) {
 	pm := &fakePortManager{getPort: 20001}
 	svc := &fakeMasterDNSService{runTunnelErr: errors.New("session init failed")}
@@ -243,6 +248,7 @@ func TestRun_TunnelStartFails(t *testing.T) {
 	}
 }
 
+// TestRun_WaitOpenFails checks run wait open fails.
 func TestRun_WaitOpenFails(t *testing.T) {
 	pm := &fakePortManager{
 		getPort:     20002,
@@ -261,6 +267,7 @@ func TestRun_WaitOpenFails(t *testing.T) {
 	}
 }
 
+// TestRun_MeasureLatencyFails checks run measure latency fails.
 func TestRun_MeasureLatencyFails(t *testing.T) {
 	pm := &fakePortManager{getPort: 20003}
 	svc := &fakeMasterDNSService{}
@@ -288,6 +295,7 @@ func TestRun_MeasureLatencyFails(t *testing.T) {
 	}
 }
 
+// TestRun_Success checks run success.
 func TestRun_Success(t *testing.T) {
 	const listenPort uint16 = 20010
 
@@ -364,6 +372,7 @@ func TestRun_Success(t *testing.T) {
 	}
 }
 
+// TestDialSOCKS checks dial socks.
 func TestDialSOCKS(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -400,6 +409,7 @@ func TestDialSOCKS(t *testing.T) {
 	}
 }
 
+// TestClose_NoOp checks close no op.
 func TestClose_NoOp(t *testing.T) {
 	p := newTestProbe(t, &fakePortManager{}, &fakeMasterDNSService{})
 

@@ -27,6 +27,7 @@ func validVayDNSConfig() VayDNSConfig {
 	}
 }
 
+// TestNormalizeConfigName checks that normalizeConfigName strips a .toml extension in any case and keeps other names as they are.
 func TestNormalizeConfigName(t *testing.T) {
 	tests := []struct {
 		name string
@@ -84,6 +85,7 @@ func TestNormalizeConfigName(t *testing.T) {
 	}
 }
 
+// TestConfigPath checks the paths configPath builds and the names it rejects.
 func TestConfigPath(t *testing.T) {
 	service := &vayDNSService{
 		configs: newConfigStore[VayDNSConfig]("/tmp/vaydns", "VayDNS"),
@@ -133,6 +135,7 @@ func TestConfigPath(t *testing.T) {
 	}
 }
 
+// TestWithVayDNSDir checks that WithVayDNSDir sets the config directory of the service.
 func TestWithVayDNSDir(t *testing.T) {
 	service := &vayDNSService{
 		configs: newConfigStore[VayDNSConfig]("/original", "VayDNS"),
@@ -149,6 +152,7 @@ func TestWithVayDNSDir(t *testing.T) {
 	}
 }
 
+// TestWithVayDNSDirEmpty checks that WithVayDNSDir with an empty value keeps the default directory.
 func TestWithVayDNSDirEmpty(t *testing.T) {
 	service := &vayDNSService{
 		configs: newConfigStore[VayDNSConfig]("/original", "VayDNS"),
@@ -165,6 +169,7 @@ func TestWithVayDNSDirEmpty(t *testing.T) {
 	}
 }
 
+// TestNewVayDNSService checks that NewVayDNSService returns a service with the default config directory.
 func TestNewVayDNSService(t *testing.T) {
 	service := NewVayDNSService(
 		WithVayDNSDir("/custom/vaydns"),
@@ -191,6 +196,7 @@ func TestNewVayDNSService(t *testing.T) {
 	}
 }
 
+// TestSaveConfigAndLoadConfig checks that a VayDNS config saved through the service loads back unchanged.
 func TestSaveConfigAndLoadConfig(t *testing.T) {
 	dir := t.TempDir()
 
@@ -235,6 +241,7 @@ func TestSaveConfigAndLoadConfig(t *testing.T) {
 	}
 }
 
+// TestSaveConfigWithExtension checks that SaveConfig accepts a name that already ends in .toml.
 func TestSaveConfigWithExtension(t *testing.T) {
 	dir := t.TempDir()
 
@@ -276,6 +283,7 @@ func TestSaveConfigWithExtension(t *testing.T) {
 	}
 }
 
+// TestLoadConfigNotFound checks that LoadConfig returns an error for a missing config.
 func TestLoadConfigNotFound(t *testing.T) {
 	service := NewVayDNSService(
 		WithVayDNSDir(t.TempDir()),
@@ -295,6 +303,7 @@ func TestLoadConfigNotFound(t *testing.T) {
 	}
 }
 
+// TestLoadConfigInvalidTOML checks that LoadConfig returns an error for a file that is not valid TOML.
 func TestLoadConfigInvalidTOML(t *testing.T) {
 	dir := t.TempDir()
 
@@ -327,6 +336,7 @@ this is not valid TOML
 	}
 }
 
+// TestSaveConfigCreatesExpectedFile checks that SaveConfig creates the expected .toml file on disk.
 func TestSaveConfigCreatesExpectedFile(t *testing.T) {
 	dir := t.TempDir()
 
@@ -358,6 +368,7 @@ func TestSaveConfigCreatesExpectedFile(t *testing.T) {
 	}
 }
 
+// TestEditConfigUpdatesExisting checks that EditConfig replaces the stored VayDNS config.
 func TestEditConfigUpdatesExisting(t *testing.T) {
 	dir := t.TempDir()
 
@@ -387,6 +398,7 @@ func TestEditConfigUpdatesExisting(t *testing.T) {
 	}
 }
 
+// TestEditConfigMissingConfigReturnsError checks that EditConfig fails for a config that does not exist.
 func TestEditConfigMissingConfigReturnsError(t *testing.T) {
 	service := NewVayDNSService(
 		WithVayDNSDir(t.TempDir()),
@@ -408,6 +420,7 @@ func validEditableVayDNSConfig() VayDNSConfig {
 	return config
 }
 
+// TestGetAllConfigFiles checks that GetAllConfigFiles returns the saved configs.
 func TestGetAllConfigFiles(t *testing.T) {
 	dir := t.TempDir()
 
@@ -477,6 +490,7 @@ func TestGetAllConfigFiles(t *testing.T) {
 	}
 }
 
+// TestGetAllConfigFilesUsesConfiguredDirectory checks that GetAllConfigFiles reads from the directory set by WithVayDNSDir.
 func TestGetAllConfigFilesUsesConfiguredDirectory(t *testing.T) {
 	dir := t.TempDir()
 
@@ -511,6 +525,7 @@ func TestGetAllConfigFilesUsesConfiguredDirectory(t *testing.T) {
 	}
 }
 
+// TestGetAllConfigFilesEmptyDirectory checks that GetAllConfigFiles on an empty directory returns no files and no error.
 func TestGetAllConfigFilesEmptyDirectory(t *testing.T) {
 	service := NewVayDNSService(
 		WithVayDNSDir(t.TempDir()),
@@ -529,6 +544,7 @@ func TestGetAllConfigFilesEmptyDirectory(t *testing.T) {
 	}
 }
 
+// TestGetAllConfigFilesMissingDirectory checks that GetAllConfigFiles creates a missing directory and returns no files.
 func TestGetAllConfigFilesMissingDirectory(t *testing.T) {
 	service := NewVayDNSService(
 		WithVayDNSDir(filepath.Join(t.TempDir(), "missing")),
@@ -544,6 +560,7 @@ func TestGetAllConfigFilesMissingDirectory(t *testing.T) {
 	}
 }
 
+// TestParseClientHelloID checks that parseClientHelloID resolves a known fingerprint label.
 func TestParseClientHelloID(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -593,6 +610,7 @@ func TestParseClientHelloID(t *testing.T) {
 	}
 }
 
+// TestParseClientHelloIDKnownFingerprints checks that parseClientHelloID resolves every label the vaydns library lists.
 func TestParseClientHelloIDKnownFingerprints(t *testing.T) {
 	clients := vaydns.UTLSClientHelloIDMap()
 
@@ -627,6 +645,7 @@ func TestParseClientHelloIDKnownFingerprints(t *testing.T) {
 	}
 }
 
+// TestParseClientHelloIDCaseInsensitive checks that parseClientHelloID ignores letter case and spaces.
 func TestParseClientHelloIDCaseInsensitive(t *testing.T) {
 	clients := vaydns.UTLSClientHelloIDMap()
 
@@ -663,6 +682,7 @@ func TestParseClientHelloIDCaseInsensitive(t *testing.T) {
 	}
 }
 
+// TestParseClientHelloIDError checks that parseClientHelloID returns an error for an unknown label.
 func TestParseClientHelloIDError(t *testing.T) {
 	const fingerprint = "invalid-fingerprint"
 
@@ -680,6 +700,7 @@ func TestParseClientHelloIDError(t *testing.T) {
 	}
 }
 
+// TestRenameConfig checks that RenameConfig moves a config to the new name.
 func TestRenameConfig(t *testing.T) {
 	dir := t.TempDir()
 
@@ -704,6 +725,7 @@ func TestRenameConfig(t *testing.T) {
 	}
 }
 
+// TestEditConfigThenRename checks that an edited config keeps its new values after a rename.
 func TestEditConfigThenRename(t *testing.T) {
 	dir := t.TempDir()
 
@@ -736,6 +758,7 @@ func TestEditConfigThenRename(t *testing.T) {
 	}
 }
 
+// TestRenameConfigDestinationAlreadyExists checks that RenameConfig fails when the new name is already in use.
 func TestRenameConfigDestinationAlreadyExists(t *testing.T) {
 	dir := t.TempDir()
 
@@ -763,6 +786,7 @@ func TestRenameConfigDestinationAlreadyExists(t *testing.T) {
 	}
 }
 
+// TestValidatePrivateKey checks validatePrivateKey on valid, malformed, and empty keys.
 func TestValidatePrivateKey(t *testing.T) {
 	if err := validatePrivateKey(""); err == nil {
 		t.Fatal("validatePrivateKey() error = nil, want error for empty key")
@@ -773,6 +797,7 @@ func TestValidatePrivateKey(t *testing.T) {
 	}
 }
 
+// TestVayDNSClientIDSizeRange checks the client ID size bounds enforced by VayDNSConfig.Validate.
 func TestVayDNSClientIDSizeRange(t *testing.T) {
 	config := validVayDNSConfig()
 	config.PubKey = "cd6d78e954f48f62cb74cdcf8a2459d3d39786a7e11fc4f74c04bca86371f748"

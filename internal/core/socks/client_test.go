@@ -169,6 +169,7 @@ func dialTest(t *testing.T, addr string) net.Conn {
 	return conn
 }
 
+// TestConnectNoAuth covers the connect no auth scenario.
 func TestConnectNoAuth(t *testing.T) {
 	server := &fakeSOCKSServer{}
 	addr := serveFakeSOCKS(t, server)
@@ -211,6 +212,7 @@ func TestConnectNoAuth(t *testing.T) {
 	}
 }
 
+// TestConnectUsernamePasswordAuth covers the connect username password auth scenario.
 func TestConnectUsernamePasswordAuth(t *testing.T) {
 	server := &fakeSOCKSServer{}
 	addr := serveFakeSOCKS(t, server)
@@ -250,6 +252,7 @@ func TestConnectUsernamePasswordAuth(t *testing.T) {
 	}
 }
 
+// TestConnectAuthRejected covers the connect auth rejected scenario.
 func TestConnectAuthRejected(t *testing.T) {
 	server := &fakeSOCKSServer{
 		// Server accepts no auth method; client offers username/password.
@@ -270,6 +273,7 @@ func TestConnectAuthRejected(t *testing.T) {
 	}
 }
 
+// TestConnectWrongCredentialsRejected covers the connect wrong credentials rejected scenario.
 func TestConnectWrongCredentialsRejected(t *testing.T) {
 	server := &fakeSOCKSServer{}
 	addr := serveFakeSOCKS(t, server)
@@ -286,6 +290,7 @@ func TestConnectWrongCredentialsRejected(t *testing.T) {
 	}
 }
 
+// TestConnectServerRejectsCommand covers the connect server rejects command scenario.
 func TestConnectServerRejectsCommand(t *testing.T) {
 	server := &fakeSOCKSServer{}
 	// 0x07 = command not supported in the CONNECT reply.
@@ -304,6 +309,7 @@ func TestConnectServerRejectsCommand(t *testing.T) {
 	}
 }
 
+// TestConnectInvalidTargetPort covers the connect invalid target port scenario.
 func TestConnectInvalidTargetPort(t *testing.T) {
 	server := &fakeSOCKSServer{}
 	addr := serveFakeSOCKS(t, server)
@@ -320,6 +326,7 @@ func TestConnectInvalidTargetPort(t *testing.T) {
 	}
 }
 
+// TestEncodeAddressIPv6 covers the encode address ipv6 scenario.
 func TestEncodeAddressIPv6(t *testing.T) {
 	atyp, data, err := encodeAddress("2001:db8::1")
 	if err != nil {
@@ -334,6 +341,7 @@ func TestEncodeAddressIPv6(t *testing.T) {
 	}
 }
 
+// TestEncodeAddressDomainTooLong covers the encode address domain too long scenario.
 func TestEncodeAddressDomainTooLong(t *testing.T) {
 	long := strings.Repeat("a", 256)
 	if _, _, err := encodeAddress(long); err == nil {

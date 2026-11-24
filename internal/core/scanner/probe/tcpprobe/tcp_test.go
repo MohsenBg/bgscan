@@ -69,6 +69,7 @@ func acceptLoop(t *testing.T, ln net.Listener, stop <-chan struct{}) {
 	}()
 }
 
+// TestNewTCPProbeValidPort checks new tcp probe valid port.
 func TestNewTCPProbeValidPort(t *testing.T) {
 	t.Parallel()
 
@@ -93,6 +94,7 @@ func TestNewTCPProbeValidPort(t *testing.T) {
 	}
 }
 
+// TestNewTCPProbeInvalidPortFallsBackTo80 checks new tcp probe invalid port falls back to 80.
 func TestNewTCPProbeInvalidPortFallsBackTo80(t *testing.T) {
 	t.Parallel()
 
@@ -108,6 +110,7 @@ func TestNewTCPProbeInvalidPortFallsBackTo80(t *testing.T) {
 	}
 }
 
+// TestTCPProbeSchema checks tcp probe schema.
 func TestTCPProbeSchema(t *testing.T) {
 	t.Parallel()
 
@@ -128,6 +131,7 @@ func TestTCPProbeSchema(t *testing.T) {
 	}
 }
 
+// TestTCPProbeInitNoOp checks tcp probe init no op.
 func TestTCPProbeInitNoOp(t *testing.T) {
 	t.Parallel()
 
@@ -138,6 +142,7 @@ func TestTCPProbeInitNoOp(t *testing.T) {
 	}
 }
 
+// TestTCPProbeCloseNoOp checks tcp probe close no op.
 func TestTCPProbeCloseNoOp(t *testing.T) {
 	t.Parallel()
 
@@ -148,6 +153,7 @@ func TestTCPProbeCloseNoOp(t *testing.T) {
 	}
 }
 
+// TestTCPProbeRunContextCanceled checks tcp probe run context canceled.
 func TestTCPProbeRunContextCanceled(t *testing.T) {
 	t.Parallel()
 
@@ -167,6 +173,7 @@ func TestTCPProbeRunContextCanceled(t *testing.T) {
 	}
 }
 
+// TestTCPProbeRunSuccess checks tcp probe run success.
 func TestTCPProbeRunSuccess(t *testing.T) {
 	t.Parallel()
 
@@ -239,6 +246,7 @@ func TestTCPProbeRunConnectionRefusedFailsFast(t *testing.T) {
 	}
 }
 
+// TestTCPProbeImplementsProbeInterface checks tcp probe implements probe interface.
 func TestTCPProbeImplementsProbeInterface(t *testing.T) {
 	t.Parallel()
 
@@ -264,6 +272,7 @@ func (nonTimeoutNetError) Error() string   { return "non-timeout" }
 func (nonTimeoutNetError) Timeout() bool   { return false }
 func (nonTimeoutNetError) Temporary() bool { return true }
 
+// TestIsTimeout checks is timeout.
 func TestIsTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -280,6 +289,7 @@ func TestIsTimeout(t *testing.T) {
 	}
 }
 
+// TestNewTCPProbePortOverflowFallsBackTo80 checks new tcp probe port overflow falls back to 80.
 func TestNewTCPProbePortOverflowFallsBackTo80(t *testing.T) {
 	t.Parallel()
 

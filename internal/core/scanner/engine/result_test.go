@@ -6,6 +6,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/result"
 )
 
+// TestResultSchema_Validate covers result schema validate.
 func TestResultSchema_Validate(t *testing.T) {
 	parser := func([]string) (result.Result, error) { return nil, nil }
 
@@ -25,6 +26,7 @@ func TestResultSchema_Validate(t *testing.T) {
 	}
 }
 
+// TestResultFile_SizeString covers result file size string.
 func TestResultFile_SizeString(t *testing.T) {
 	cases := []struct {
 		bytes int64

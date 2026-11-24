@@ -11,6 +11,7 @@ import (
 
 // --- statusFilter ---
 
+// TestNewStatusFilter_Empty covers new status filter empty.
 func TestNewStatusFilter_Empty(t *testing.T) {
 	f := newStatusFilter(nil, totalHTTPStatusCodes)
 	if len(f.accepted) != 0 {
@@ -31,6 +32,7 @@ func TestNewStatusFilter_CoversAll(t *testing.T) {
 	}
 }
 
+// TestNewStatusFilter_Subset covers new status filter subset.
 func TestNewStatusFilter_Subset(t *testing.T) {
 	f := newStatusFilter([]int{200, 301, 404}, totalHTTPStatusCodes)
 	if len(f.accepted) != 3 {
@@ -43,6 +45,7 @@ func TestNewStatusFilter_Subset(t *testing.T) {
 	}
 }
 
+// TestStatusFilter_IsAccepted covers status filter is accepted.
 func TestStatusFilter_IsAccepted(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -71,12 +74,14 @@ func TestStatusFilter_IsAccepted(t *testing.T) {
 
 // --- newTLSConfig ---
 
+// TestNewTLSConfig_NoTLS covers new TLS config no TLS.
 func TestNewTLSConfig_NoTLS(t *testing.T) {
 	if cfg := newTLSConfig(Settings{UseTLS: false}, ""); cfg != nil {
 		t.Errorf("expected nil for non-TLS settings, got %+v", cfg)
 	}
 }
 
+// TestNewTLSConfig_WithTLS covers new TLS config with TLS.
 func TestNewTLSConfig_WithTLS(t *testing.T) {
 	s := Settings{
 		UseTLS:        true,
@@ -103,6 +108,7 @@ func TestNewTLSConfig_WithTLS(t *testing.T) {
 	}
 }
 
+// TestNewTLSConfig_NoSkipVerify covers new TLS config no skip verify.
 func TestNewTLSConfig_NoSkipVerify(t *testing.T) {
 	cfg := newTLSConfig(Settings{UseTLS: true}, "secure.io")
 	if cfg.InsecureSkipVerify {
@@ -115,6 +121,7 @@ func TestNewTLSConfig_NoSkipVerify(t *testing.T) {
 
 // --- defaultPort ---
 
+// TestDefaultPort covers default port.
 func TestDefaultPort(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -202,6 +209,7 @@ func TestResolveHTTPVersion(t *testing.T) {
 
 // --- resolveTLSVersions ---
 
+// TestResolveTLSVersions_Valid covers resolve TLS versions valid.
 func TestResolveTLSVersions_Valid(t *testing.T) {
 	cfg := config.HTTPConfig{
 		MinTLSVersion: "tls1.2",
@@ -220,6 +228,7 @@ func TestResolveTLSVersions_Valid(t *testing.T) {
 	}
 }
 
+// TestResolveTLSVersions_Equal covers resolve TLS versions equal.
 func TestResolveTLSVersions_Equal(t *testing.T) {
 	cfg := config.HTTPConfig{
 		MinTLSVersion: "tls1.2",
@@ -249,6 +258,7 @@ func TestResolveTLSVersions_MinGreaterThanMax(t *testing.T) {
 	}
 }
 
+// TestResolveTLSVersions_InvalidMin covers resolve TLS versions invalid min.
 func TestResolveTLSVersions_InvalidMin(t *testing.T) {
 	cfg := config.HTTPConfig{
 		MinTLSVersion: "ssl3.0",
@@ -261,6 +271,7 @@ func TestResolveTLSVersions_InvalidMin(t *testing.T) {
 	}
 }
 
+// TestResolveTLSVersions_InvalidMax covers resolve TLS versions invalid max.
 func TestResolveTLSVersions_InvalidMax(t *testing.T) {
 	cfg := config.HTTPConfig{
 		MinTLSVersion: "tls1.2",
@@ -275,6 +286,7 @@ func TestResolveTLSVersions_InvalidMax(t *testing.T) {
 
 // --- NewSettings ---
 
+// TestNewSettings_HTTPS covers new settings HTTPS.
 func TestNewSettings_HTTPS(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "example.com",
@@ -315,6 +327,7 @@ func TestNewSettings_HTTPS(t *testing.T) {
 	}
 }
 
+// TestNewSettings_HTTP covers new settings HTTP.
 func TestNewSettings_HTTP(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "plain.io",
@@ -349,6 +362,7 @@ func TestNewSettings_HTTP(t *testing.T) {
 	}
 }
 
+// TestNewSettings_DefaultPort_HTTPS covers new settings default port HTTPS.
 func TestNewSettings_DefaultPort_HTTPS(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "secure.io",
@@ -369,6 +383,7 @@ func TestNewSettings_DefaultPort_HTTPS(t *testing.T) {
 	}
 }
 
+// TestNewSettings_DefaultPort_HTTP covers new settings default port HTTP.
 func TestNewSettings_DefaultPort_HTTP(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "plain.io",
@@ -388,6 +403,7 @@ func TestNewSettings_DefaultPort_HTTP(t *testing.T) {
 	}
 }
 
+// TestNewSettings_InvalidPort covers new settings invalid port.
 func TestNewSettings_InvalidPort(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "example.com",
@@ -404,6 +420,7 @@ func TestNewSettings_InvalidPort(t *testing.T) {
 	}
 }
 
+// TestNewSettings_InvalidTLSVersions covers new settings invalid TLS versions.
 func TestNewSettings_InvalidTLSVersions(t *testing.T) {
 	cfg := config.HTTPConfig{
 		Host:          "example.com",
@@ -422,6 +439,7 @@ func TestNewSettings_InvalidTLSVersions(t *testing.T) {
 
 // --- resolvePort ---
 
+// TestSettings_ResolvePort covers settings resolve port.
 func TestSettings_ResolvePort(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -460,6 +478,7 @@ func TestSettings_ResolvePort(t *testing.T) {
 
 // --- isHTTPS ---
 
+// TestIsHTTPS covers is HTTPS.
 func TestIsHTTPS(t *testing.T) {
 	tests := []struct {
 		protocol string

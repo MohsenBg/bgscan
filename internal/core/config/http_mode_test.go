@@ -2,6 +2,7 @@ package config
 
 import "testing"
 
+// TestParseHTTPMode checks that ParseHTTPMode accepts valid modes in any case, defaults empty input to host mode, and rejects unknown modes.
 func TestParseHTTPMode(t *testing.T) {
 	tests := []struct {
 		in      string

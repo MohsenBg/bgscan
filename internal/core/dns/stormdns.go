@@ -77,6 +77,8 @@ func DefaultStormDNSConfig() StormDNSConfig {
 	}
 }
 
+// Validate returns all validation errors for c, keyed by
+// configuration field. The map is empty when the config is valid.
 func (c StormDNSConfig) Validate() map[Field]error {
 	errs := make(map[Field]error)
 
@@ -145,12 +147,30 @@ func (c StormDNSConfig) Validate() map[Field]error {
 
 // StormDNSService manages StormDNS configurations and tunnels.
 type StormDNSService interface {
+	// SaveConfig validates config and writes it as a new file named
+	// name. It returns an error when the name is already in use or
+	// the config is invalid.
 	SaveConfig(config StormDNSConfig, name string) error
+	// EditConfig validates config and replaces the stored config
+	// named originalName. It returns an error when that config does
+	// not exist or the config is invalid.
 	EditConfig(config StormDNSConfig, originalName string) error
+	// LoadConfig reads and returns the stored config named name.
 	LoadConfig(name string) (StormDNSConfig, error)
+	// GetAllConfigFiles returns every stored config that loads and
+	// validates. Files that fail either check are skipped.
 	GetAllConfigFiles() ([]StormDNSConfigFile, error)
+	// ValidateAllConfigs returns one result for each stored file
+	// that fails to load or validate. Valid files are not included.
 	ValidateAllConfigs() ([]ConfigValidationResult, error)
+	// RenameConfig renames the stored config oldName to newName.
+	// It returns an error when oldName does not exist or newName is
+	// already in use.
 	RenameConfig(oldName, newName string) error
+	// RunTunnel starts an in-process StormDNS client for the
+	// resolver at resolverIP, with a local SOCKS5 listener on
+	// listenPort. The caller closes the returned value to stop the
+	// tunnel.
 	RunTunnel(
 		ctx context.Context,
 		config StormDNSConfig,
@@ -175,6 +195,10 @@ func WithStormDNSDir(dir string) StormDNSServiceOption {
 	}
 }
 
+// NewStormDNSService returns a StormDNSService that stores
+// configs in the default StormDNS directory unless an option
+// changes it. It also silences the embedded StormDNS client
+// logger.
 func NewStormDNSService(options ...StormDNSServiceOption) StormDNSService {
 	service := &stormDNSService{
 		configs: newConfigStore[StormDNSConfig](tunnelConfigDir(stormdnsDir), "StormDNS"),
@@ -188,26 +212,32 @@ func NewStormDNSService(options ...StormDNSServiceOption) StormDNSService {
 	return service
 }
 
+// SaveConfig saves the config through the shared config store.
 func (s *stormDNSService) SaveConfig(config StormDNSConfig, name string) error {
 	return s.configs.SaveConfig(config, name)
 }
 
+// EditConfig replaces the stored config through the shared config store.
 func (s *stormDNSService) EditConfig(config StormDNSConfig, originalName string) error {
 	return s.configs.EditConfig(config, originalName)
 }
 
+// LoadConfig loads the config through the shared config store.
 func (s *stormDNSService) LoadConfig(name string) (StormDNSConfig, error) {
 	return s.configs.LoadConfig(name)
 }
 
+// GetAllConfigFiles lists stored configs through the shared config store.
 func (s *stormDNSService) GetAllConfigFiles() ([]StormDNSConfigFile, error) {
 	return s.configs.GetAllConfigFiles()
 }
 
+// ValidateAllConfigs validates stored configs through the shared config store.
 func (s *stormDNSService) ValidateAllConfigs() ([]ConfigValidationResult, error) {
 	return s.configs.ValidateAllConfigs()
 }
 
+// RenameConfig renames the config through the shared config store.
 func (s *stormDNSService) RenameConfig(oldName, newName string) error {
 	return s.configs.RenameConfig(oldName, newName)
 }

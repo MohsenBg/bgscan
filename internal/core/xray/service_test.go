@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// TestServiceVersion_NonEmpty: the service reports the embedded core version.
 func TestServiceVersion_NonEmpty(t *testing.T) {
 	svc := NewXrayService()
 
@@ -16,6 +17,7 @@ func TestServiceVersion_NonEmpty(t *testing.T) {
 	}
 }
 
+// TestGenerateConfig_InvalidIP: an empty address is rejected.
 func TestGenerateConfig_InvalidIP(t *testing.T) {
 	svc := NewXrayService()
 
@@ -24,6 +26,7 @@ func TestGenerateConfig_InvalidIP(t *testing.T) {
 	}
 }
 
+// TestGenerateConfig_MissingTemplate: an unknown template name returns an error.
 func TestGenerateConfig_MissingTemplate(t *testing.T) {
 	svc := NewXrayService()
 
@@ -33,6 +36,7 @@ func TestGenerateConfig_MissingTemplate(t *testing.T) {
 	}
 }
 
+// TestValidateConfig_Nil: a nil config is rejected.
 func TestValidateConfig_Nil(t *testing.T) {
 	svc := NewXrayService()
 
@@ -41,6 +45,7 @@ func TestValidateConfig_Nil(t *testing.T) {
 	}
 }
 
+// TestValidateConfig_NoInboundsOrOutbounds: a config with neither inbounds nor outbounds is rejected.
 func TestValidateConfig_NoInboundsOrOutbounds(t *testing.T) {
 	svc := NewXrayService()
 
@@ -49,6 +54,7 @@ func TestValidateConfig_NoInboundsOrOutbounds(t *testing.T) {
 	}
 }
 
+// TestValidateConfig_NoOutbounds: a config without outbounds is rejected.
 func TestValidateConfig_NoOutbounds(t *testing.T) {
 	svc := NewXrayService()
 
@@ -58,6 +64,7 @@ func TestValidateConfig_NoOutbounds(t *testing.T) {
 	}
 }
 
+// TestStart_NilConfig: Start rejects a nil config.
 func TestStart_NilConfig(t *testing.T) {
 	svc := NewXrayService()
 
@@ -66,6 +73,7 @@ func TestStart_NilConfig(t *testing.T) {
 	}
 }
 
+// TestStart_CanceledContext: Start fails on an already cancelled context.
 func TestStart_CanceledContext(t *testing.T) {
 	svc := NewXrayService()
 

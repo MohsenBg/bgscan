@@ -10,21 +10,32 @@ import (
 	"time"
 )
 
+// Config holds the credentials for one SOCKS5 connection.
+// An empty User selects no authentication.
 type Config struct {
 	User     string
 	Password string
 }
 
+// Service is the SOCKS5 client interface used by probes.
 type Service interface {
+	// Connect authenticates over conn and issues a SOCKS5 CONNECT
+	// request for target, which is a host and port pair. On success
+	// it returns conn, ready for traffic to target. When ctx has a
+	// deadline, Connect applies it to conn for the handshake and
+	// clears it before returning.
 	Connect(ctx context.Context, conn net.Conn, target string, config Config) (net.Conn, error)
 }
 
 type service struct{}
 
+// NewService returns a Service that speaks SOCKS5 directly over
+// the connection passed to Connect.
 func NewService() Service {
 	return &service{}
 }
 
+// Connect implements Service.
 func (s *service) Connect(
 	ctx context.Context,
 	conn net.Conn,

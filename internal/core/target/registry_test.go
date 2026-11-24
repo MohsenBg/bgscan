@@ -55,6 +55,7 @@ func targetDir(base string, kind Kind) string {
 	}
 }
 
+// TestResolveTargetFilePath: a bare list name resolves into the right directory for its kind.
 func TestResolveTargetFilePath(t *testing.T) {
 	base := setBaseDir(t)
 
@@ -80,6 +81,7 @@ func TestResolveTargetFilePath(t *testing.T) {
 	}
 }
 
+// TestTargetFileExists: TargetFileExists reports true only for lists on disk.
 func TestTargetFileExists(t *testing.T) {
 	base := setBaseDir(t)
 
@@ -100,6 +102,7 @@ func TestTargetFileExists(t *testing.T) {
 	}
 }
 
+// TestGetTargetFileInfo_ByName: file info loads from a bare list name.
 func TestGetTargetFileInfo_ByName(t *testing.T) {
 	base := setBaseDir(t)
 
@@ -125,6 +128,7 @@ func TestGetTargetFileInfo_ByName(t *testing.T) {
 	}
 }
 
+// TestGetTargetFileInfo_DomainByName: file info loads for a domain list from a bare name.
 func TestGetTargetFileInfo_DomainByName(t *testing.T) {
 	base := setBaseDir(t)
 
@@ -144,6 +148,7 @@ func TestGetTargetFileInfo_DomainByName(t *testing.T) {
 	}
 }
 
+// TestGetTargetFileInfo_ByFilenameWithExt: file info loads from a name that already ends in .csv.
 func TestGetTargetFileInfo_ByFilenameWithExt(t *testing.T) {
 	base := setBaseDir(t)
 
@@ -163,6 +168,7 @@ func TestGetTargetFileInfo_ByFilenameWithExt(t *testing.T) {
 	}
 }
 
+// TestGetTargetFileInfo_ByAbsolutePath: file info loads from an absolute path.
 func TestGetTargetFileInfo_ByAbsolutePath(t *testing.T) {
 	base := setBaseDir(t)
 
@@ -182,6 +188,7 @@ func TestGetTargetFileInfo_ByAbsolutePath(t *testing.T) {
 	}
 }
 
+// TestGetTargetFileInfo_NotFound: a missing list returns an error that wraps ErrTargetFileNotFound.
 func TestGetTargetFileInfo_NotFound(t *testing.T) {
 	setBaseDir(t)
 
@@ -191,6 +198,7 @@ func TestGetTargetFileInfo_NotFound(t *testing.T) {
 	}
 }
 
+// TestGetTargetFileInfo_NotRegularFile: a directory in place of a list file is rejected.
 func TestGetTargetFileInfo_NotRegularFile(t *testing.T) {
 	base := setBaseDir(t)
 
@@ -205,6 +213,7 @@ func TestGetTargetFileInfo_NotRegularFile(t *testing.T) {
 	}
 }
 
+// TestListFiles_SortsNewestFirstAndFiltersCSV: ListFiles returns CSV lists only, newest first.
 func TestListFiles_SortsNewestFirstAndFiltersCSV(t *testing.T) {
 	base := setBaseDir(t)
 
@@ -254,6 +263,7 @@ func TestListFiles_SortsNewestFirstAndFiltersCSV(t *testing.T) {
 	}
 }
 
+// TestListFiles_MissingDirectories: ListFiles returns an empty result when no list directory exists.
 func TestListFiles_MissingDirectories(t *testing.T) {
 	setBaseDir(t)
 
@@ -266,6 +276,7 @@ func TestListFiles_MissingDirectories(t *testing.T) {
 	}
 }
 
+// TestResolveTargetFilePathRejectsInvalidNames: names with path separators or parent parts are rejected.
 func TestResolveTargetFilePathRejectsInvalidNames(t *testing.T) {
 	setBaseDir(t)
 
@@ -290,6 +301,7 @@ func TestResolveTargetFilePathRejectsInvalidNames(t *testing.T) {
 	}
 }
 
+// TestResolveTargetFilePathAcceptsValidNames: plain list names are accepted.
 func TestResolveTargetFilePathAcceptsValidNames(t *testing.T) {
 	base := setBaseDir(t)
 
@@ -314,6 +326,7 @@ func TestResolveTargetFilePathAcceptsValidNames(t *testing.T) {
 	}
 }
 
+// TestGetTargetFileInfoAcceptsAbsolutePath: an absolute path bypasses list name checks.
 func TestGetTargetFileInfoAcceptsAbsolutePath(t *testing.T) {
 	base := setBaseDir(t)
 

@@ -145,6 +145,7 @@ func NewWriter(ctx context.Context, opts WriterOptions) (Writer, error) {
 
 // --- Lifecycle ---
 
+// Start starts the writer background loop.
 func (w *writer) Start() error {
 	w.startOnce.Do(func() {
 		w.startErr = w.doStart()
@@ -163,6 +164,7 @@ func (w *writer) doStart() error {
 	return nil
 }
 
+// Write queues one result for the background loop.
 func (w *writer) Write(r Result) error {
 	if !w.started.Load() {
 		w.statDropped.Add(1)
@@ -190,6 +192,7 @@ func (w *writer) Write(r Result) error {
 	}
 }
 
+// Close drains and flushes queued results, then stops the loop.
 func (w *writer) Close() error {
 	w.closeOnce.Do(func() {
 		// Prevent new writes, then close the channel so the loop drains.
@@ -365,6 +368,7 @@ func (w *writer) flushError() error {
 
 // --- Accessors ---
 
+// GetResultPath returns the result file path, or an empty string.
 func (w *writer) GetResultPath() string {
 	if !w.started.Load() {
 		return ""
@@ -379,6 +383,7 @@ func (w *writer) GetResultPath() string {
 	return ""
 }
 
+// Stats returns a snapshot of the writer counters.
 func (w *writer) Stats() WriterStats {
 	return WriterStats{
 		Written: w.statWritten.Load(),

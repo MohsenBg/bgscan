@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestCSV_RoundTrip: entries written with WriteCSV read back unchanged with ReadCSV.
 func TestCSV_RoundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -67,6 +68,7 @@ func TestCSV_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestCSV_Read_NormalizesMaskedPrefix: reading a row masks its prefix before it reaches the callback.
 func TestCSV_Read_NormalizesMaskedPrefix(t *testing.T) {
 	t.Parallel()
 

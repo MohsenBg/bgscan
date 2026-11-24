@@ -57,6 +57,7 @@ func validSlipstreamConfig() SlipstreamConfig {
 	}
 }
 
+// TestDefaultSlipstreamConfig checks the default values returned by DefaultSlipstreamConfig.
 func TestDefaultSlipstreamConfig(t *testing.T) {
 	config := DefaultSlipstreamConfig()
 
@@ -89,6 +90,7 @@ func TestDefaultSlipstreamConfig(t *testing.T) {
 	}
 }
 
+// TestSlipstreamConfigValidate checks SlipstreamConfig.Validate on valid and invalid configs.
 func TestSlipstreamConfigValidate(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -201,6 +203,7 @@ func TestSlipstreamConfigValidate(t *testing.T) {
 	}
 }
 
+// TestDNSResolutionIsValid checks that IsValid accepts the known modes and the empty value.
 func TestDNSResolutionIsValid(t *testing.T) {
 	for _, valid := range []DNSResolution{"", DNSResolutionRecursive, DNSResolutionAuthoritative} {
 		if !valid.IsValid() {
@@ -213,6 +216,7 @@ func TestDNSResolutionIsValid(t *testing.T) {
 	}
 }
 
+// TestCongestionControlIsValid checks that IsValid accepts the known algorithms and the empty value.
 func TestCongestionControlIsValid(t *testing.T) {
 	for _, valid := range []CongestionControl{"", CongestionControlBBR, CongestionControlCubic} {
 		if !valid.IsValid() {
@@ -225,6 +229,7 @@ func TestCongestionControlIsValid(t *testing.T) {
 	}
 }
 
+// TestDNSResolutionLibValue checks that libValue maps each mode to the library value, with recursive as the fallback.
 func TestDNSResolutionLibValue(t *testing.T) {
 	if got := DNSResolutionAuthoritative.libValue(); got != ffislipstream.ModeAuthoritative {
 		t.Errorf("authoritative libValue = %v, want %v", got, ffislipstream.ModeAuthoritative)
@@ -239,6 +244,7 @@ func TestDNSResolutionLibValue(t *testing.T) {
 	}
 }
 
+// TestNewSlipstreamService checks that NewSlipstreamService builds a service with the injected starter.
 func TestNewSlipstreamService(t *testing.T) {
 	starter := &fakeStarter{}
 
@@ -255,6 +261,7 @@ func TestNewSlipstreamService(t *testing.T) {
 	}
 }
 
+// TestNewSlipstreamServiceNilStarter checks that a nil starter option is ignored.
 func TestNewSlipstreamServiceNilStarter(t *testing.T) {
 	starter := &fakeStarter{}
 
@@ -269,6 +276,7 @@ func TestNewSlipstreamServiceNilStarter(t *testing.T) {
 	}
 }
 
+// TestRunTunnel checks that RunTunnel starts a client with the values from the config.
 func TestRunTunnel(t *testing.T) {
 	starter := &fakeStarter{}
 
@@ -335,6 +343,7 @@ func TestRunTunnel(t *testing.T) {
 	}
 }
 
+// TestRunTunnelKeepAliveOverride checks that a non-zero keepAlive argument overrides the config value.
 func TestRunTunnelKeepAliveOverride(t *testing.T) {
 	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
@@ -358,6 +367,7 @@ func TestRunTunnelKeepAliveOverride(t *testing.T) {
 	}
 }
 
+// TestRunTunnelIPv6ListenHost checks that RunTunnel handles an IPv6 resolver address.
 func TestRunTunnelIPv6ListenHost(t *testing.T) {
 	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
@@ -378,6 +388,7 @@ func TestRunTunnelIPv6ListenHost(t *testing.T) {
 	}
 }
 
+// TestRunTunnelWithCert checks that RunTunnel passes the config certificate path to the library.
 func TestRunTunnelWithCert(t *testing.T) {
 	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
@@ -401,6 +412,7 @@ func TestRunTunnelWithCert(t *testing.T) {
 	}
 }
 
+// TestRunTunnelAuthoritativeAndGSO checks that RunTunnel passes the authoritative mode and GSO setting to the library.
 func TestRunTunnelAuthoritativeAndGSO(t *testing.T) {
 	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
@@ -434,6 +446,7 @@ func TestRunTunnelAuthoritativeAndGSO(t *testing.T) {
 	}
 }
 
+// TestRunTunnelCustomDNSPort checks that RunTunnel uses the resolver port from the config.
 func TestRunTunnelCustomDNSPort(t *testing.T) {
 	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
@@ -461,6 +474,7 @@ func TestRunTunnelCustomDNSPort(t *testing.T) {
 	}
 }
 
+// TestRunTunnelInvalidConfig checks that RunTunnel rejects an invalid config.
 func TestRunTunnelInvalidConfig(t *testing.T) {
 	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
@@ -483,6 +497,7 @@ func TestRunTunnelInvalidConfig(t *testing.T) {
 	}
 }
 
+// TestRunTunnelInvalidResolverIP checks that RunTunnel rejects an unparsable resolver IP.
 func TestRunTunnelInvalidResolverIP(t *testing.T) {
 	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
@@ -503,6 +518,7 @@ func TestRunTunnelInvalidResolverIP(t *testing.T) {
 	}
 }
 
+// TestRunTunnelZeroListenPort checks that RunTunnel rejects a zero listen port.
 func TestRunTunnelZeroListenPort(t *testing.T) {
 	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
@@ -523,6 +539,7 @@ func TestRunTunnelZeroListenPort(t *testing.T) {
 	}
 }
 
+// TestRunTunnelStarterError checks that RunTunnel returns the error from the tunnel starter.
 func TestRunTunnelStarterError(t *testing.T) {
 	sentinel := errors.New("start failed")
 
@@ -552,6 +569,7 @@ func TestRunTunnelStarterError(t *testing.T) {
 	}
 }
 
+// TestRunTunnelCanceledContext checks that RunTunnel returns an error for a canceled context.
 func TestRunTunnelCanceledContext(t *testing.T) {
 	starter := &fakeStarter{}
 	service := newTestSlipstreamService(t, starter)
@@ -575,6 +593,7 @@ func TestRunTunnelCanceledContext(t *testing.T) {
 	}
 }
 
+// TestRunTunnelNilLib checks that RunTunnel returns an error when no library is loaded.
 func TestRunTunnelNilLib(t *testing.T) {
 	service := &slipstreamService{
 		configs: newConfigStore[SlipstreamConfig](t.TempDir(), "Slipstream"),
@@ -593,6 +612,7 @@ func TestRunTunnelNilLib(t *testing.T) {
 	}
 }
 
+// TestLibConfig checks that LibConfig converts a SlipstreamConfig to the library config.
 func TestLibConfig(t *testing.T) {
 	config := validSlipstreamConfig()
 	config.ResolverPort = 5353
@@ -626,6 +646,7 @@ func TestLibConfig(t *testing.T) {
 	}
 }
 
+// TestLibConfigNil checks that LibConfig on a nil config returns an empty library config.
 func TestLibConfigNil(t *testing.T) {
 	var config *SlipstreamConfig
 
@@ -641,6 +662,7 @@ func TestLibConfigNil(t *testing.T) {
 	}
 }
 
+// TestSaveAndLoadConfig checks that a Slipstream config saved through the service loads back unchanged.
 func TestSaveAndLoadConfig(t *testing.T) {
 	dir := resolvedSlipstreamDir(t)
 
@@ -691,6 +713,7 @@ func TestSaveAndLoadConfig(t *testing.T) {
 	}
 }
 
+// TestSaveConfigEmptyName checks that SaveConfig rejects an empty name.
 func TestSaveConfigEmptyName(t *testing.T) {
 	service := newTestSlipstreamService(
 		t,
@@ -706,6 +729,7 @@ func TestSaveConfigEmptyName(t *testing.T) {
 	}
 }
 
+// TestSaveConfigWhitespaceName checks that SaveConfig rejects a name of only spaces.
 func TestSaveConfigWhitespaceName(t *testing.T) {
 	service := newTestSlipstreamService(
 		t,
@@ -721,6 +745,7 @@ func TestSaveConfigWhitespaceName(t *testing.T) {
 	}
 }
 
+// TestSaveConfigInvalidConfig checks that SaveConfig rejects an invalid Slipstream config.
 func TestSaveConfigInvalidConfig(t *testing.T) {
 	service := newTestSlipstreamService(
 		t,
@@ -736,6 +761,7 @@ func TestSaveConfigInvalidConfig(t *testing.T) {
 	}
 }
 
+// TestSlipstreamLoadConfigNotFound checks that LoadConfig returns an error for a missing Slipstream config.
 func TestSlipstreamLoadConfigNotFound(t *testing.T) {
 	service := newTestSlipstreamService(
 		t,
@@ -750,6 +776,7 @@ func TestSlipstreamLoadConfigNotFound(t *testing.T) {
 	}
 }
 
+// TestSlipstreamGetAllConfigFiles checks that GetAllConfigFiles returns the saved Slipstream configs.
 func TestSlipstreamGetAllConfigFiles(t *testing.T) {
 	service := newTestSlipstreamService(t, &fakeStarter{})
 
@@ -781,6 +808,7 @@ func TestSlipstreamGetAllConfigFiles(t *testing.T) {
 	}
 }
 
+// TestGetAllConfigFilesIgnoresNonTOML checks that GetAllConfigFiles skips files without a .toml extension.
 func TestGetAllConfigFilesIgnoresNonTOML(t *testing.T) {
 	dir := resolvedSlipstreamDir(t)
 
@@ -821,6 +849,7 @@ func TestGetAllConfigFilesIgnoresNonTOML(t *testing.T) {
 	}
 }
 
+// TestConfigPathNormalizesExtension checks that configPath strips a .toml extension from the name before adding it back.
 func TestConfigPathNormalizesExtension(t *testing.T) {
 	service := &slipstreamService{
 		configs: newConfigStore[SlipstreamConfig]("/cfg", "Slipstream"),
@@ -841,6 +870,7 @@ func TestConfigPathNormalizesExtension(t *testing.T) {
 	}
 }
 
+// TestConfigPathAddsExtension checks that configPath adds the .toml extension to a bare name.
 func TestConfigPathAddsExtension(t *testing.T) {
 	service := &slipstreamService{
 		configs: newConfigStore[SlipstreamConfig]("/cfg", "Slipstream"),
@@ -876,6 +906,7 @@ func resolvedSlipstreamDir(t *testing.T) string {
 	return dir
 }
 
+// TestSlipstreamEditConfigUpdatesExisting checks that EditConfig replaces the stored Slipstream config.
 func TestSlipstreamEditConfigUpdatesExisting(t *testing.T) {
 	service := newTestSlipstreamService(t, &fakeStarter{})
 
@@ -900,6 +931,7 @@ func TestSlipstreamEditConfigUpdatesExisting(t *testing.T) {
 	}
 }
 
+// TestSlipstreamEditConfigMissingConfigReturnsError checks that EditConfig fails for a config that does not exist.
 func TestSlipstreamEditConfigMissingConfigReturnsError(t *testing.T) {
 	service := newTestSlipstreamService(t, &fakeStarter{})
 

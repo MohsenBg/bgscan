@@ -43,6 +43,8 @@ var allowedHTTPVersions = []string{
 	"http3",
 }
 
+// HTTP validation limits. NormalizeHTTP replaces values outside
+// these bounds with defaults.
 const (
 	MinHTTPWorkers = 1
 	MaxHTTPWorkers = 1000

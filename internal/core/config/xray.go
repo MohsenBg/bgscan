@@ -20,6 +20,10 @@ type XrayConfig struct {
 	DialMaxAttempts      int              `toml:"dial_max_attempts" comment:"Dial attempts per outbound dispatch. Range: 1-10."`
 }
 
+// DefaultXrayConfig returns the default Xray settings for the detected
+// platform and resource tier. When the defaults table has no entry
+// for the detected platform or tier, it logs a warning and falls
+// back to the Desktop platform or the Mid tier.
 func DefaultXrayConfig(log *logger.Logger) XrayConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())

@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// TestRunScanWithChain_EmptyStages covers run scan with chain empty stages.
 func TestRunScanWithChain_EmptyStages(t *testing.T) {
 	err := RunScanWithChain(context.Background(), "", ChainConfig{})
 	if err == nil {
@@ -15,6 +16,7 @@ func TestRunScanWithChain_EmptyStages(t *testing.T) {
 	}
 }
 
+// TestRunScanWithChain_Sequential_TwoStages covers run scan with chain sequential two stages.
 func TestRunScanWithChain_Sequential_TwoStages(t *testing.T) {
 	ips := []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}
 	stage1Path := ipFile(t, ips...)
@@ -56,6 +58,8 @@ func TestRunScanWithChain_Sequential_TwoStages(t *testing.T) {
 	}
 }
 
+// TestRunScanWithChain_Sequential_SkipsOnEmptyIntermediate covers run scan with chain sequential
+// skips on empty intermediate.
 func TestRunScanWithChain_Sequential_SkipsOnEmptyIntermediate(t *testing.T) {
 	emptyPath := ipFile(t)
 	stage1Input := ipFile(t, "1.2.3.4")
@@ -80,6 +84,7 @@ func TestRunScanWithChain_Sequential_SkipsOnEmptyIntermediate(t *testing.T) {
 	}
 }
 
+// TestRunScanWithChain_Streaming_TwoStages covers run scan with chain streaming two stages.
 func TestRunScanWithChain_Streaming_TwoStages(t *testing.T) {
 	ips := make([]string, 10)
 	for i := range ips {
@@ -129,6 +134,8 @@ func TestRunScanWithChain_Streaming_TwoStages(t *testing.T) {
 	}
 }
 
+// TestRunScanWithChain_Streaming_ContextCancellation covers run scan with chain streaming context
+// cancellation.
 func TestRunScanWithChain_Streaming_ContextCancellation(t *testing.T) {
 	ips := make([]string, 200)
 	for i := range ips {
@@ -163,6 +170,7 @@ func TestRunScanWithChain_Streaming_ContextCancellation(t *testing.T) {
 	}
 }
 
+// TestRunScanWithChain_Batch_TwoStages covers run scan with chain batch two stages.
 func TestRunScanWithChain_Batch_TwoStages(t *testing.T) {
 	ips := make([]string, 15)
 	for i := range ips {
@@ -204,6 +212,7 @@ func TestRunScanWithChain_Batch_TwoStages(t *testing.T) {
 	}
 }
 
+// TestRunScanWithChain_Batch_FiltersProperly covers run scan with chain batch filters properly.
 func TestRunScanWithChain_Batch_FiltersProperly(t *testing.T) {
 	ips := []string{"10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4"}
 	path := ipFile(t, ips...)

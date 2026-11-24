@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// TestStreamCIDR covers stream cidr.
 func TestStreamCIDR(t *testing.T) {
 	ctx := context.Background()
 
@@ -84,6 +85,7 @@ func TestStreamCIDR(t *testing.T) {
 	}
 }
 
+// TestLoopback covers loopback.
 func TestLoopback(t *testing.T) {
 	v4 := netip.MustParseAddr("1.2.3.4")
 	if got := Loopback(v4); got.String() != "127.0.0.1" {
@@ -101,6 +103,7 @@ func TestLoopback(t *testing.T) {
 	}
 }
 
+// TestParseIPOrCIDR covers parse ipor cidr.
 func TestParseIPOrCIDR(t *testing.T) {
 	tests := []struct {
 		raw    string

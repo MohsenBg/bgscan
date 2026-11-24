@@ -16,6 +16,7 @@ func entryOf(addr netip.Addr) target.Entry {
 	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
 }
 
+// TestStormDNSResult_KeyAndType checks storm dns result key and type.
 func TestStormDNSResult_KeyAndType(t *testing.T) {
 	r := StormDNSResult{Entry: entryOf(netip.MustParseAddr("1.2.3.4"))}
 
@@ -27,6 +28,7 @@ func TestStormDNSResult_KeyAndType(t *testing.T) {
 	}
 }
 
+// TestStormDNSResult_Equal checks storm dns result equal.
 func TestStormDNSResult_Equal(t *testing.T) {
 	base := StormDNSResult{Entry: entryOf(netip.MustParseAddr("8.8.8.8"))}
 
@@ -38,6 +40,7 @@ func TestStormDNSResult_Equal(t *testing.T) {
 	}
 }
 
+// TestStormDNSResult_ToRecord checks storm dns result to record.
 func TestStormDNSResult_ToRecord(t *testing.T) {
 	r := StormDNSResult{
 		Entry:     entryOf(netip.MustParseAddr("2001:db8::1")),
@@ -54,6 +57,7 @@ func TestStormDNSResult_ToRecord(t *testing.T) {
 	}
 }
 
+// TestStormDNSResult_Score checks storm dns result score.
 func TestStormDNSResult_Score(t *testing.T) {
 	tests := []struct {
 		latency time.Duration
@@ -72,6 +76,7 @@ func TestStormDNSResult_Score(t *testing.T) {
 	}
 }
 
+// TestNormalizeQueryType checks normalize query type.
 func TestNormalizeQueryType(t *testing.T) {
 	tests := []struct {
 		input string
@@ -92,6 +97,7 @@ func TestNormalizeQueryType(t *testing.T) {
 	}
 }
 
+// TestParseStormDNSResult checks parse storm dns result.
 func TestParseStormDNSResult(t *testing.T) {
 	ip := "1.2.3.4/32"
 
@@ -178,6 +184,7 @@ func TestParseStormDNSResult(t *testing.T) {
 	}
 }
 
+// TestStormDNSResult_ParseRoundTrip checks storm dns result parse round trip.
 func TestStormDNSResult_ParseRoundTrip(t *testing.T) {
 	original := StormDNSResult{
 		Entry:     entryOf(netip.MustParseAddr("5.6.7.8")),

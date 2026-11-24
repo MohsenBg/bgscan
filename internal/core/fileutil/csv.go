@@ -24,7 +24,7 @@ type CSVConfig struct {
 	TrimLeadingSpace bool
 	Comma            rune
 	FieldsPerRecord  int
-	BufferSize       int
+	BufferSize       int // Read and write buffer size in bytes. Zero or less uses 64KB, and the value is clamped to 4KB to 4MB.
 }
 
 func applyReaderConfig(r *csv.Reader, cfg CSVConfig) {

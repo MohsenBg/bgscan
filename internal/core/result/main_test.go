@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestMain sets up shared state for the package tests.
 func TestMain(m *testing.M) {
 	dir, err := os.MkdirTemp("", "result-test-*")
 	if err != nil {

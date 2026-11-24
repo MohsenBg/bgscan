@@ -42,21 +42,26 @@ var Schema = result.ResultSchema{
 type MasterDNSResult struct {
 	Entry   target.Entry // The row that produced this result.
 	Latency time.Duration
-	Port    uint16        // Local SOCKS5 port allocated for this run.
+	Port    uint16        // Resolver port from the tunnel config.
 	Enc     dns.EncMethod // Data encryption method of the tunnel.
 }
 
 // Key returns the identity of the probed target with probe index prefix.
 func (r MasterDNSResult) Key() string { return r.Entry.Key() }
 
+// KeyType returns the kind of the result's target entry.
 func (r MasterDNSResult) KeyType() target.Kind {
 	return r.Entry.Kind
 }
 
+// Equal reports whether r and rs point at the same target.
 func (r MasterDNSResult) Equal(rs result.Result) bool {
 	return r.Key() == rs.Key()
 }
 
+// ToRecord converts the result into a slice of strings for storage.
+// The target comes first, in value, port, path, enable form; the
+// measurements follow.
 func (r MasterDNSResult) ToRecord() []string {
 	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),

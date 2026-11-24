@@ -77,6 +77,7 @@ func defaultH3Request() Request {
 
 // --- NewHTTP3Probe ---
 
+// TestNewHTTP3Probe_Success covers new HTTP3 probe success.
 func TestNewHTTP3Probe_Success(t *testing.T) {
 	p, err := NewHTTP3Probe(
 		Settings{Timeout: 5 * time.Second},
@@ -92,6 +93,7 @@ func TestNewHTTP3Probe_Success(t *testing.T) {
 	}
 }
 
+// TestNewHTTP3Probe_WithCodes covers new HTTP3 probe with codes.
 func TestNewHTTP3Probe_WithCodes(t *testing.T) {
 	p, err := NewHTTP3Probe(
 		Settings{Timeout: 5 * time.Second},
@@ -114,6 +116,7 @@ func TestNewHTTP3Probe_WithCodes(t *testing.T) {
 
 // --- Init / Close ---
 
+// TestHTTP3Probe_Init covers HTTP3 probe init.
 func TestHTTP3Probe_Init(t *testing.T) {
 	p := &HTTP3Probe{}
 	if err := p.Init(context.Background()); err != nil {
@@ -121,6 +124,7 @@ func TestHTTP3Probe_Init(t *testing.T) {
 	}
 }
 
+// TestHTTP3Probe_Close_Success covers HTTP3 probe close success.
 func TestHTTP3Probe_Close_Success(t *testing.T) {
 	m := &mockRoundTripCloser{}
 	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
@@ -133,6 +137,7 @@ func TestHTTP3Probe_Close_Success(t *testing.T) {
 	}
 }
 
+// TestHTTP3Probe_Close_Error covers HTTP3 probe close error.
 func TestHTTP3Probe_Close_Error(t *testing.T) {
 	m := &mockRoundTripCloser{closeErr: errors.New("quic shutdown failed")}
 	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
@@ -149,6 +154,7 @@ func TestHTTP3Probe_Close_Error(t *testing.T) {
 
 // --- Schema ---
 
+// TestHTTP3Probe_Schema covers HTTP3 probe schema.
 func TestHTTP3Probe_Schema(t *testing.T) {
 	p := &HTTP3Probe{}
 	s := p.Schema()
@@ -163,6 +169,7 @@ func TestHTTP3Probe_Schema(t *testing.T) {
 
 // --- Run: success ---
 
+// TestHTTP3Run_Success_200 covers HTTP3 run success 200.
 func TestHTTP3Run_Success_200(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
 	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
@@ -191,6 +198,7 @@ func TestHTTP3Run_Success_200(t *testing.T) {
 	}
 }
 
+// TestHTTP3Run_Success_204 covers HTTP3 run success 204.
 func TestHTTP3Run_Success_204(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(204, "HTTP/3.0")}
 	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
@@ -206,6 +214,7 @@ func TestHTTP3Run_Success_204(t *testing.T) {
 	}
 }
 
+// TestHTTP3Run_WithFilter_Accepted covers HTTP3 run with filter accepted.
 func TestHTTP3Run_WithFilter_Accepted(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(301, "HTTP/3.0")}
 	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, []int{301, 302})
@@ -223,6 +232,7 @@ func TestHTTP3Run_WithFilter_Accepted(t *testing.T) {
 
 // --- Run: request properties ---
 
+// TestHTTP3Run_UsesHEADMethod covers HTTP3 run uses HEAD method.
 func TestHTTP3Run_UsesHEADMethod(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
 	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
@@ -309,6 +319,7 @@ func TestHTTP3Run_IPv6(t *testing.T) {
 
 // --- Run: failures ---
 
+// TestHTTP3Run_ContextCancelled covers HTTP3 run context cancelled.
 func TestHTTP3Run_ContextCancelled(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
 	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
@@ -325,6 +336,7 @@ func TestHTTP3Run_ContextCancelled(t *testing.T) {
 	}
 }
 
+// TestHTTP3Run_TransportError covers HTTP3 run transport error.
 func TestHTTP3Run_TransportError(t *testing.T) {
 	m := &mockRoundTripCloser{roundErr: errors.New("QUIC handshake failed")}
 	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)
@@ -339,6 +351,7 @@ func TestHTTP3Run_TransportError(t *testing.T) {
 	}
 }
 
+// TestHTTP3Run_StatusNotAccepted covers HTTP3 run status not accepted.
 func TestHTTP3Run_StatusNotAccepted(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(503, "HTTP/3.0")}
 	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, []int{200})
@@ -356,6 +369,7 @@ func TestHTTP3Run_StatusNotAccepted(t *testing.T) {
 	}
 }
 
+// TestHTTP3Run_InvalidURL covers HTTP3 run invalid URL.
 func TestHTTP3Run_InvalidURL(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
 
@@ -375,6 +389,7 @@ func TestHTTP3Run_InvalidURL(t *testing.T) {
 
 // --- Run: result interface ---
 
+// TestHTTP3Run_ResultInterface covers HTTP3 run result interface.
 func TestHTTP3Run_ResultInterface(t *testing.T) {
 	m := &mockRoundTripCloser{resp: mockResponse(200, "HTTP/3.0")}
 	p := newTestHTTP3Probe(m, staticMode{req: defaultH3Request()}, nil)

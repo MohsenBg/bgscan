@@ -33,10 +33,12 @@ type StormDNSProbe struct {
 	tries           int
 }
 
+// Input returns target.KindIP, the only target kind Run accepts.
 func (p *StormDNSProbe) Input() target.Kind {
 	return target.KindIP
 }
 
+// Option sets one field of a StormDNSProbe during construction.
 type Option func(*StormDNSProbe)
 
 // WithLogger sets the logger for probe lifecycle events (nil-safe).
@@ -46,6 +48,8 @@ func WithLogger(log *logger.Logger) Option {
 	}
 }
 
+// WithStormDNSService sets the StormDNS service the probe uses.
+// A nil service is ignored, so the default service stays in place.
 func WithStormDNSService(service dns.StormDNSService) Option {
 	return func(p *StormDNSProbe) {
 		if service != nil {
@@ -54,6 +58,8 @@ func WithStormDNSService(service dns.StormDNSService) Option {
 	}
 }
 
+// WithSocksService sets the SOCKS service the probe uses.
+// A nil service is ignored, so the default service stays in place.
 func WithSocksService(service socks.Service) Option {
 	return func(p *StormDNSProbe) {
 		if service != nil {
@@ -62,6 +68,8 @@ func WithSocksService(service socks.Service) Option {
 	}
 }
 
+// WithSpeedtestService sets the speed test service the probe uses.
+// A nil service is ignored, so the default service stays in place.
 func WithSpeedtestService(service speedtest.Service) Option {
 	return func(p *StormDNSProbe) {
 		if service != nil {
@@ -80,6 +88,9 @@ func WithTries(n int) Option {
 	}
 }
 
+// NewStormDNSProbe creates a StormDNSProbe with default services, then
+// applies opts. It returns an error when pm is nil or the config
+// fails validation.
 func NewStormDNSProbe(
 	config dns.StormDNSConfig,
 	timeout time.Duration,
@@ -118,10 +129,12 @@ func NewStormDNSProbe(
 	return p, nil
 }
 
+// Schema returns the result schema for StormDNS probes.
 func (p *StormDNSProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
+// Init is a no-op: the probe starts its tunnel inside Run.
 func (p *StormDNSProbe) Init(context.Context) error {
 	return nil
 }

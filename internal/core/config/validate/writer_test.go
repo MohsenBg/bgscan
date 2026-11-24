@@ -7,6 +7,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
+// TestWriterConfig checks ValidateWriter and NormalizeWriter on valid and invalid writer configs.
 func TestWriterConfig(t *testing.T) {
 	def := config.DefaultWriterConfig(nil)
 

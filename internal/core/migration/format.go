@@ -14,6 +14,9 @@ import (
 const FormatMarker = ".format"
 
 // ReadVersion returns the layout version recorded in dir.
+// ReadVersion reports found as false with no error when dir has no
+// marker file. It returns an error when dir is empty, the marker is
+// empty or malformed, or the stored version is below 1.
 func ReadVersion(dir string) (version int, found bool, err error) {
 	if dir == "" {
 		return 0, false, fmt.Errorf("read format marker: directory is required")
@@ -46,6 +49,8 @@ func ReadVersion(dir string) (version int, found bool, err error) {
 }
 
 // WriteVersion records version in dir, creating the directory if needed.
+// WriteVersion returns an error when dir is empty or version is below 1.
+// The marker file is written with an atomic replace.
 func WriteVersion(dir string, version int) error {
 	if dir == "" {
 		return fmt.Errorf("write format marker: directory is required")

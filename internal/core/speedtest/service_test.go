@@ -56,6 +56,7 @@ func requireErrorContains(t *testing.T, err error, substrings ...string) {
 	}
 }
 
+// TestMeasureDownloadSpeed_SetupFailed covers the measure download speed setup failed scenario.
 func TestMeasureDownloadSpeed_SetupFailed(t *testing.T) {
 	svc := newTestService(func(cfg httpClientConfig) (*http.Client, error) {
 		if cfg.ProxyPort != 1080 {
@@ -75,6 +76,7 @@ func TestMeasureDownloadSpeed_SetupFailed(t *testing.T) {
 	requireErrorContains(t, err, "download probe setup failed", "factory boom")
 }
 
+// TestMeasureDownloadSpeed_PassesDialContext covers the measure download speed passes dial context scenario.
 func TestMeasureDownloadSpeed_PassesDialContext(t *testing.T) {
 	dialContext := func(context.Context, string, string) (net.Conn, error) {
 		return nil, errors.New("dial boom")
@@ -97,6 +99,7 @@ func TestMeasureDownloadSpeed_PassesDialContext(t *testing.T) {
 	requireErrorContains(t, err, "download probe setup failed", "factory boom")
 }
 
+// TestMeasureDownloadSpeed_RequestBuildFailed covers the measure download speed request build failed scenario.
 func TestMeasureDownloadSpeed_RequestBuildFailed(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{}, nil
@@ -110,6 +113,7 @@ func TestMeasureDownloadSpeed_RequestBuildFailed(t *testing.T) {
 	requireErrorContains(t, err, "download probe request build failed")
 }
 
+// TestMeasureDownloadSpeed_RequestFailed covers the measure download speed request failed scenario.
 func TestMeasureDownloadSpeed_RequestFailed(t *testing.T) {
 	svc := newTestService(func(cfg httpClientConfig) (*http.Client, error) {
 		if cfg.ProxyPort != 1080 {
@@ -136,6 +140,7 @@ func TestMeasureDownloadSpeed_RequestFailed(t *testing.T) {
 	requireErrorContains(t, err, "download probe failed", "network down")
 }
 
+// TestMeasureDownloadSpeed_BodyReadFailed covers the measure download speed body read failed scenario.
 func TestMeasureDownloadSpeed_BodyReadFailed(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{
@@ -161,6 +166,7 @@ func TestMeasureDownloadSpeed_BodyReadFailed(t *testing.T) {
 	requireErrorContains(t, err, "download probe body read failed", "read boom")
 }
 
+// TestMeasureDownloadSpeed_CanceledDuringSetup covers the measure download speed canceled during setup scenario.
 func TestMeasureDownloadSpeed_CanceledDuringSetup(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{
@@ -188,6 +194,7 @@ func TestMeasureDownloadSpeed_CanceledDuringSetup(t *testing.T) {
 	}
 }
 
+// TestMeasureDownloadSpeed_TimeoutInterruptsStalledBody covers the measure download speed timeout interrupts stalled body scenario.
 func TestMeasureDownloadSpeed_TimeoutInterruptsStalledBody(t *testing.T) {
 	body := newBlockingReadCloser()
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
@@ -219,6 +226,7 @@ func TestMeasureDownloadSpeed_TimeoutInterruptsStalledBody(t *testing.T) {
 	}
 }
 
+// TestMeasureDownloadSpeed_NoData covers the measure download speed no data scenario.
 func TestMeasureDownloadSpeed_NoData(t *testing.T) {
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
@@ -241,6 +249,7 @@ func TestMeasureDownloadSpeed_NoData(t *testing.T) {
 	requireErrorContains(t, err, "download probe returned no data")
 }
 
+// TestMeasureDownloadSpeed_Success covers the measure download speed success scenario.
 func TestMeasureDownloadSpeed_Success(t *testing.T) {
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	svc := newTestService(func(cfg httpClientConfig) (*http.Client, error) {
@@ -281,6 +290,7 @@ func TestMeasureDownloadSpeed_Success(t *testing.T) {
 	}
 }
 
+// TestMeasureDownloadSpeed_BelowMinimum covers the measure download speed below minimum scenario.
 func TestMeasureDownloadSpeed_BelowMinimum(t *testing.T) {
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
@@ -314,6 +324,7 @@ func TestMeasureDownloadSpeed_BelowMinimum(t *testing.T) {
 	}
 }
 
+// TestMeasureDownloadSpeed_RejectsNonPositiveBytes covers the measure download speed rejects non positive bytes scenario.
 func TestMeasureDownloadSpeed_RejectsNonPositiveBytes(t *testing.T) {
 	for _, bytes := range []int64{0, -1} {
 		t.Run("bytes", func(t *testing.T) {
@@ -330,6 +341,7 @@ func TestMeasureDownloadSpeed_RejectsNonPositiveBytes(t *testing.T) {
 	}
 }
 
+// TestMeasureUploadSpeed_SetupFailed covers the measure upload speed setup failed scenario.
 func TestMeasureUploadSpeed_SetupFailed(t *testing.T) {
 	svc := newTestService(func(cfg httpClientConfig) (*http.Client, error) {
 		if cfg.ProxyPort != 1080 {
@@ -346,6 +358,7 @@ func TestMeasureUploadSpeed_SetupFailed(t *testing.T) {
 	requireErrorContains(t, err, "upload probe setup failed", "factory boom")
 }
 
+// TestMeasureUploadSpeed_PassesDialContext covers the measure upload speed passes dial context scenario.
 func TestMeasureUploadSpeed_PassesDialContext(t *testing.T) {
 	dialContext := func(context.Context, string, string) (net.Conn, error) {
 		return nil, errors.New("dial boom")
@@ -368,6 +381,7 @@ func TestMeasureUploadSpeed_PassesDialContext(t *testing.T) {
 	requireErrorContains(t, err, "upload probe setup failed", "factory boom")
 }
 
+// TestMeasureUploadSpeed_RequestBuildFailed covers the measure upload speed request build failed scenario.
 func TestMeasureUploadSpeed_RequestBuildFailed(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{}, nil
@@ -382,6 +396,7 @@ func TestMeasureUploadSpeed_RequestBuildFailed(t *testing.T) {
 	requireErrorContains(t, err, "upload probe request build failed")
 }
 
+// TestMeasureUploadSpeed_RequestFailed covers the measure upload speed request failed scenario.
 func TestMeasureUploadSpeed_RequestFailed(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{
@@ -411,6 +426,7 @@ func TestMeasureUploadSpeed_RequestFailed(t *testing.T) {
 	requireErrorContains(t, err, "upload probe failed", "network down")
 }
 
+// TestMeasureUploadSpeed_TimeoutInterruptsRequest covers the measure upload speed timeout interrupts request scenario.
 func TestMeasureUploadSpeed_TimeoutInterruptsRequest(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{
@@ -433,6 +449,7 @@ func TestMeasureUploadSpeed_TimeoutInterruptsRequest(t *testing.T) {
 	requireErrorContains(t, err, "upload probe timed out after")
 }
 
+// TestMeasureUploadSpeed_ResponseReadFailed covers the measure upload speed response read failed scenario.
 func TestMeasureUploadSpeed_ResponseReadFailed(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{
@@ -458,6 +475,7 @@ func TestMeasureUploadSpeed_ResponseReadFailed(t *testing.T) {
 	requireErrorContains(t, err, "upload probe response read failed", "read boom")
 }
 
+// TestMeasureUploadSpeed_TimeoutInterruptsStalledBody covers the measure upload speed timeout interrupts stalled body scenario.
 func TestMeasureUploadSpeed_TimeoutInterruptsStalledBody(t *testing.T) {
 	body := newBlockingReadCloser()
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
@@ -484,6 +502,7 @@ func TestMeasureUploadSpeed_TimeoutInterruptsStalledBody(t *testing.T) {
 	requireErrorContains(t, err, "upload probe timed out after")
 }
 
+// TestMeasureUploadSpeed_Success covers the measure upload speed success scenario.
 func TestMeasureUploadSpeed_Success(t *testing.T) {
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	svc := newTestService(func(cfg httpClientConfig) (*http.Client, error) {
@@ -525,6 +544,7 @@ func TestMeasureUploadSpeed_Success(t *testing.T) {
 	}
 }
 
+// TestMeasureUploadSpeed_BelowMinimum covers the measure upload speed below minimum scenario.
 func TestMeasureUploadSpeed_BelowMinimum(t *testing.T) {
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
@@ -558,6 +578,7 @@ func TestMeasureUploadSpeed_BelowMinimum(t *testing.T) {
 	}
 }
 
+// TestMeasureUploadSpeed_RejectsNonPositiveBytes covers the measure upload speed rejects non positive bytes scenario.
 func TestMeasureUploadSpeed_RejectsNonPositiveBytes(t *testing.T) {
 	for _, bytes := range []int64{0, -1} {
 		t.Run("bytes", func(t *testing.T) {
@@ -574,6 +595,7 @@ func TestMeasureUploadSpeed_RejectsNonPositiveBytes(t *testing.T) {
 	}
 }
 
+// TestLatencyResult_String covers the latency result string scenario.
 func TestLatencyResult_String(t *testing.T) {
 	r := LatencyResult{RTT: 42 * time.Millisecond}
 	if got, want := r.String(), "42ms"; got != want {
@@ -581,6 +603,7 @@ func TestLatencyResult_String(t *testing.T) {
 	}
 }
 
+// TestLatencyResult_AboveMaximum covers the latency result above maximum scenario.
 func TestLatencyResult_AboveMaximum(t *testing.T) {
 	tests := []struct {
 		name string
@@ -602,6 +625,7 @@ func TestLatencyResult_AboveMaximum(t *testing.T) {
 	}
 }
 
+// TestMeasureLatency_SetupFailed covers the measure latency setup failed scenario.
 func TestMeasureLatency_SetupFailed(t *testing.T) {
 	svc := newTestService(func(cfg httpClientConfig) (*http.Client, error) {
 		if cfg.ProxyPort != 1080 {
@@ -617,6 +641,7 @@ func TestMeasureLatency_SetupFailed(t *testing.T) {
 	requireErrorContains(t, err, "latency probe setup failed", "factory boom")
 }
 
+// TestMeasureLatency_RequestBuildFailed covers the measure latency request build failed scenario.
 func TestMeasureLatency_RequestBuildFailed(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{}, nil
@@ -629,6 +654,7 @@ func TestMeasureLatency_RequestBuildFailed(t *testing.T) {
 	requireErrorContains(t, err, "latency probe request build failed")
 }
 
+// TestMeasureLatency_RequestFailed covers the measure latency request failed scenario.
 func TestMeasureLatency_RequestFailed(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{
@@ -649,6 +675,7 @@ func TestMeasureLatency_RequestFailed(t *testing.T) {
 	requireErrorContains(t, err, "latency probe failed", "network down")
 }
 
+// TestMeasureLatency_Timeout covers the measure latency timeout scenario.
 func TestMeasureLatency_Timeout(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{
@@ -670,6 +697,7 @@ func TestMeasureLatency_Timeout(t *testing.T) {
 	requireErrorContains(t, err, "latency probe timed out after")
 }
 
+// TestMeasureLatency_Success covers the measure latency success scenario.
 func TestMeasureLatency_Success(t *testing.T) {
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
@@ -697,6 +725,7 @@ func TestMeasureLatency_Success(t *testing.T) {
 	}
 }
 
+// TestMeasureLatency_AcceptsNoContent covers the measure latency accepts no content scenario.
 func TestMeasureLatency_AcceptsNoContent(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{
@@ -718,6 +747,7 @@ func TestMeasureLatency_AcceptsNoContent(t *testing.T) {
 	}
 }
 
+// TestMeasureLatency_UnexpectedStatus covers the measure latency unexpected status scenario.
 func TestMeasureLatency_UnexpectedStatus(t *testing.T) {
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
 		return &http.Client{
@@ -739,6 +769,7 @@ func TestMeasureLatency_UnexpectedStatus(t *testing.T) {
 	requireErrorContains(t, err, "latency probe unexpected status")
 }
 
+// TestMeasureLatency_AboveMaximum covers the measure latency above maximum scenario.
 func TestMeasureLatency_AboveMaximum(t *testing.T) {
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
@@ -770,6 +801,7 @@ func TestMeasureLatency_AboveMaximum(t *testing.T) {
 	}
 }
 
+// TestMeasureLatency_DefaultURL covers the measure latency default url scenario.
 func TestMeasureLatency_DefaultURL(t *testing.T) {
 	var gotURL string
 	svc := newTestService(func(httpClientConfig) (*http.Client, error) {
@@ -796,6 +828,7 @@ func TestMeasureLatency_DefaultURL(t *testing.T) {
 	}
 }
 
+// TestMeasureLatency_CustomDialContext covers the measure latency custom dial context scenario.
 func TestMeasureLatency_CustomDialContext(t *testing.T) {
 	var called bool
 	dialContext := func(context.Context, string, string) (net.Conn, error) {

@@ -34,6 +34,10 @@ const (
 // Settings contains probe configuration shared across all targets.
 // It is built once from config and remains immutable during a scan.
 // Target-specific settings belong in Request (see mode.go).
+// MinTLSVersion and MaxTLSVersion hold TLS version numbers as defined
+// in crypto/tls, and zero leaves that end of the range at the Go
+// default. Fingerprint names a uTLS client fingerprint, and an empty
+// Fingerprint uses the standard TLS stack.
 type Settings struct {
 	Timeout       time.Duration
 	Version       HTTPVersion
@@ -83,9 +87,9 @@ func (s Settings) scheme() string {
 	return "http"
 }
 
-// resolvePort picks the port to probe for an entry.
-// Today it always returns the configured default. When the "dynamic port"
-// setting is added, only this function changes.
+// resolvePort picks the port to probe for an entry. With dynamic
+// ports enabled, a nonzero entry port wins. Otherwise the configured
+// default port is used.
 func (s Settings) resolvePort(e target.Entry) uint16 {
 	if s.DynamicPort && e.Port != 0 {
 		return e.Port

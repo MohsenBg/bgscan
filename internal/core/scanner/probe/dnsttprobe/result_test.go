@@ -26,6 +26,7 @@ func mustAddr(t *testing.T, s string) netip.Addr {
 	return addr
 }
 
+// TestDNSTTResult_Key covers DNSTT result key.
 func TestDNSTTResult_Key(t *testing.T) {
 	t.Parallel()
 
@@ -41,6 +42,7 @@ func TestDNSTTResult_Key(t *testing.T) {
 	}
 }
 
+// TestDNSTTResult_KeyType covers DNSTT result key type.
 func TestDNSTTResult_KeyType(t *testing.T) {
 	t.Parallel()
 
@@ -52,6 +54,7 @@ func TestDNSTTResult_KeyType(t *testing.T) {
 	}
 }
 
+// TestDNSTTResult_Equal covers DNSTT result equal.
 func TestDNSTTResult_Equal(t *testing.T) {
 	t.Parallel()
 
@@ -103,6 +106,7 @@ func TestDNSTTResult_Equal(t *testing.T) {
 	}
 }
 
+// TestDNSTTResult_ToRecord covers DNSTT result to record.
 func TestDNSTTResult_ToRecord(t *testing.T) {
 	t.Parallel()
 
@@ -128,6 +132,7 @@ func TestDNSTTResult_ToRecord(t *testing.T) {
 	}
 }
 
+// TestDNSTTResult_Score covers DNSTT result score.
 func TestDNSTTResult_Score(t *testing.T) {
 	t.Parallel()
 
@@ -178,6 +183,8 @@ func TestDNSTTResult_Score(t *testing.T) {
 	}
 }
 
+// TestParseDNSTTResult_BackwardCompatibleOldFormat covers parsing the DNSTT result backward
+// compatible old format.
 func TestParseDNSTTResult_BackwardCompatibleOldFormat(t *testing.T) {
 	t.Parallel()
 
@@ -193,6 +200,7 @@ func TestParseDNSTTResult_BackwardCompatibleOldFormat(t *testing.T) {
 	}
 }
 
+// TestParseDNSTTResult_NewFormat covers parsing the DNSTT result new format.
 func TestParseDNSTTResult_NewFormat(t *testing.T) {
 	t.Parallel()
 
@@ -236,6 +244,7 @@ func TestParseDNSTTResult_NewFormat(t *testing.T) {
 	}
 }
 
+// TestParseDNSTTResult_IPv6 covers parsing the DNSTT result I pv6.
 func TestParseDNSTTResult_IPv6(t *testing.T) {
 	t.Parallel()
 
@@ -272,6 +281,7 @@ func TestParseDNSTTResult_IPv6(t *testing.T) {
 	}
 }
 
+// TestParseDNSTTResult_Errors covers parsing the DNSTT result errors.
 func TestParseDNSTTResult_Errors(t *testing.T) {
 	t.Parallel()
 
@@ -334,6 +344,7 @@ func TestParseDNSTTResult_Errors(t *testing.T) {
 	}
 }
 
+// TestSchema_Metadata covers schema metadata.
 func TestSchema_Metadata(t *testing.T) {
 	t.Parallel()
 
@@ -361,6 +372,7 @@ func TestSchema_Metadata(t *testing.T) {
 	}
 }
 
+// TestSchema_Parser covers schema parser.
 func TestSchema_Parser(t *testing.T) {
 	t.Parallel()
 

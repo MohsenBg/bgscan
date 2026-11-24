@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestListFiles_ReturnsFilesInDirectory covers list files returns files in directory.
 func TestListFiles_ReturnsFilesInDirectory(t *testing.T) {
 	dir := t.TempDir()
 
@@ -45,6 +46,7 @@ func TestListFiles_ReturnsFilesInDirectory(t *testing.T) {
 	}
 }
 
+// TestListFiles_ReturnsAbsolutePaths covers list files returns absolute paths.
 func TestListFiles_ReturnsAbsolutePaths(t *testing.T) {
 	dir := t.TempDir()
 
@@ -67,6 +69,7 @@ func TestListFiles_ReturnsAbsolutePaths(t *testing.T) {
 	}
 }
 
+// TestListFiles_SkipsDirectories covers list files skips directories.
 func TestListFiles_SkipsDirectories(t *testing.T) {
 	dir := t.TempDir()
 
@@ -100,6 +103,7 @@ func TestListFiles_SkipsDirectories(t *testing.T) {
 	}
 }
 
+// TestListFiles_Filter covers list files filter.
 func TestListFiles_Filter(t *testing.T) {
 	dir := t.TempDir()
 
@@ -131,6 +135,7 @@ func TestListFiles_Filter(t *testing.T) {
 	}
 }
 
+// TestListFiles_NilFilterReturnsEverything covers list files nil filter returns everything.
 func TestListFiles_NilFilterReturnsEverything(t *testing.T) {
 	dir := t.TempDir()
 
@@ -150,6 +155,7 @@ func TestListFiles_NilFilterReturnsEverything(t *testing.T) {
 	}
 }
 
+// TestListFiles_EmptyDirectory covers list files empty directory.
 func TestListFiles_EmptyDirectory(t *testing.T) {
 	dir := t.TempDir()
 
@@ -166,6 +172,7 @@ func TestListFiles_EmptyDirectory(t *testing.T) {
 	}
 }
 
+// TestListFiles_ReturnsErrorForMissingDirectory covers list files returns error for missing directory.
 func TestListFiles_ReturnsErrorForMissingDirectory(t *testing.T) {
 	dir := filepath.Join(
 		t.TempDir(),
@@ -185,6 +192,7 @@ func TestListFiles_ReturnsErrorForMissingDirectory(t *testing.T) {
 	}
 }
 
+// TestListFiles_FilterReceivesFileInfo covers list files filter receives file info.
 func TestListFiles_FilterReceivesFileInfo(t *testing.T) {
 	dir := t.TempDir()
 

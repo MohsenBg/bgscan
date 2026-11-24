@@ -39,6 +39,7 @@ func newFakeEnv() *fakeEnv {
 	}
 }
 
+// TestDetectPlatform checks that DetectPlatform classifies systems from fake environment data.
 func TestDetectPlatform(t *testing.T) {
 	tests := []struct {
 		name string
@@ -152,6 +153,7 @@ func TestDetectPlatform(t *testing.T) {
 	}
 }
 
+// TestDetectPlatformNilOptions checks that DetectPlatform works when an option is nil.
 func TestDetectPlatformNilOptions(t *testing.T) {
 	got := DetectPlatform(
 		WithGOOS("android"),
@@ -163,6 +165,7 @@ func TestDetectPlatformNilOptions(t *testing.T) {
 	}
 }
 
+// TestIsTermux checks that isTermux detects Termux from its environment markers.
 func TestIsTermux(t *testing.T) {
 	tests := []struct {
 		name string
@@ -203,6 +206,7 @@ func TestIsTermux(t *testing.T) {
 	}
 }
 
+// TestIsServer checks that isServer detects headless Linux systems from fake environment data.
 func TestIsServer(t *testing.T) {
 	tests := []struct {
 		name string
@@ -273,6 +277,7 @@ func TestIsServer(t *testing.T) {
 	}
 }
 
+// TestSelectTier checks that SelectTier picks the tier that matches the given resources.
 func TestSelectTier(t *testing.T) {
 	tests := []struct {
 		name string
@@ -330,6 +335,7 @@ func TestSelectTier(t *testing.T) {
 	}
 }
 
+// TestIsServerSystemdRequiresExactValue checks that isServer counts only the exact value systemd as a server marker.
 func TestIsServerSystemdRequiresExactValue(t *testing.T) {
 	env := newFakeEnv()
 	env.files["/proc/1/comm"] = []byte("systemd-user\n")
@@ -339,6 +345,7 @@ func TestIsServerSystemdRequiresExactValue(t *testing.T) {
 	}
 }
 
+// TestFakeEnvMissingFile checks that the fake environment reports an error for files it does not contain.
 func TestFakeEnvMissingFile(t *testing.T) {
 	env := newFakeEnv()
 

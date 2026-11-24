@@ -24,6 +24,8 @@ type Query struct {
 	Timeout          time.Duration
 }
 
+// Defaults applied to a Query when the caller leaves a field unset
+// or below its minimum.
 const (
 	DefaultEDNSBufSize uint16        = 1234
 	DefaultTimeout     time.Duration = 2 * time.Second
@@ -34,6 +36,8 @@ const (
 
 // Resolver executes DNS queries.
 type Resolver interface {
+	// Query sends one DNS query and returns the response. It
+	// returns an error when the exchange fails or ctx is done.
 	Query(ctx context.Context, q Query) (*Msg, error)
 }
 
@@ -44,6 +48,9 @@ func NewResolver() Resolver {
 	return &defaultResolver{}
 }
 
+// Query fills in defaults for unset fields, then sends the query
+// with the transport named in q. A truncated UDP response is
+// retried over TCP.
 func (r *defaultResolver) Query(ctx context.Context, q Query) (*Msg, error) {
 	q.normalize()
 

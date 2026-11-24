@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// TestParsePipelineMode covers parse pipeline mode.
 func TestParsePipelineMode(t *testing.T) {
 	cases := []struct {
 		input string

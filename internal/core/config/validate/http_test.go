@@ -7,6 +7,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
+// TestHTTPConfig checks ValidateHTTP and NormalizeHTTP on valid and invalid HTTP configs.
 func TestHTTPConfig(t *testing.T) {
 	def := config.DefaultHTTPConfig(nil)
 

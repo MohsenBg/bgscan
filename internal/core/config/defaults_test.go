@@ -10,6 +10,7 @@ var (
 	allTiers     = []Tier{Low, Mid, High}
 )
 
+// TestGeneralDefaultsComplete checks that the general defaults table has an entry for every platform and tier.
 func TestGeneralDefaultsComplete(t *testing.T) {
 	for _, p := range allPlatforms {
 		for _, tr := range allTiers {
@@ -20,6 +21,7 @@ func TestGeneralDefaultsComplete(t *testing.T) {
 	}
 }
 
+// TestWriterDefaultsComplete checks that the writer defaults table has an entry for every platform and tier.
 func TestWriterDefaultsComplete(t *testing.T) {
 	for _, p := range allPlatforms {
 		for _, tr := range allTiers {
@@ -30,6 +32,7 @@ func TestWriterDefaultsComplete(t *testing.T) {
 	}
 }
 
+// TestICMPDefaultsComplete checks that the ICMP defaults table has an entry for every platform and tier.
 func TestICMPDefaultsComplete(t *testing.T) {
 	for _, p := range allPlatforms {
 		for _, tr := range allTiers {
@@ -40,6 +43,7 @@ func TestICMPDefaultsComplete(t *testing.T) {
 	}
 }
 
+// TestTCPDefaultsComplete checks that the TCP defaults table has an entry for every platform and tier.
 func TestTCPDefaultsComplete(t *testing.T) {
 	for _, p := range allPlatforms {
 		for _, tr := range allTiers {
@@ -50,6 +54,7 @@ func TestTCPDefaultsComplete(t *testing.T) {
 	}
 }
 
+// TestHTTPDefaultsComplete checks that the HTTP defaults table has an entry for every platform and tier.
 func TestHTTPDefaultsComplete(t *testing.T) {
 	for _, p := range allPlatforms {
 		for _, tr := range allTiers {
@@ -60,6 +65,7 @@ func TestHTTPDefaultsComplete(t *testing.T) {
 	}
 }
 
+// TestXrayDefaultsComplete checks that the Xray defaults table has an entry for every platform and tier.
 func TestXrayDefaultsComplete(t *testing.T) {
 	for _, p := range allPlatforms {
 		for _, tr := range allTiers {
@@ -70,6 +76,7 @@ func TestXrayDefaultsComplete(t *testing.T) {
 	}
 }
 
+// TestDNSDefaultsComplete checks that the DNS defaults table has an entry for every platform and tier.
 func TestDNSDefaultsComplete(t *testing.T) {
 	for _, p := range allPlatforms {
 		for _, tr := range allTiers {
@@ -80,6 +87,7 @@ func TestDNSDefaultsComplete(t *testing.T) {
 	}
 }
 
+// TestGeneralDefaultsServerHighValues checks the general default values for a high tier server.
 func TestGeneralDefaultsServerHighValues(t *testing.T) {
 	cfg := generalDefaults[Server][High]
 
@@ -106,6 +114,7 @@ func TestGeneralDefaultsServerHighValues(t *testing.T) {
 	}
 }
 
+// TestWriterDefaultsDesktopMidValues checks the writer default values for a mid tier desktop.
 func TestWriterDefaultsDesktopMidValues(t *testing.T) {
 	cfg := writerDefaults[Desktop][Mid]
 
@@ -123,6 +132,7 @@ func TestWriterDefaultsDesktopMidValues(t *testing.T) {
 	}
 }
 
+// TestICMPDefaultsServerMidValues checks the ICMP default values for a mid tier server.
 func TestICMPDefaultsServerMidValues(t *testing.T) {
 	cfg := icmpDefaults[Server][Mid]
 
@@ -140,6 +150,7 @@ func TestICMPDefaultsServerMidValues(t *testing.T) {
 	}
 }
 
+// TestTCPDefaultsDesktopMidValues checks the TCP default values for a mid tier desktop.
 func TestTCPDefaultsDesktopMidValues(t *testing.T) {
 	cfg := tcpDefaults[Desktop][Mid]
 
@@ -154,6 +165,7 @@ func TestTCPDefaultsDesktopMidValues(t *testing.T) {
 	}
 }
 
+// TestHTTPDefaultsFixedFieldsConsistentAcrossTable checks that the fixed HTTP fields match in every table entry.
 func TestHTTPDefaultsFixedFieldsConsistentAcrossTable(t *testing.T) {
 	// Fields that should be identical across every platform/tier, since
 	// httpBase() only varies Workers/Timeout per entry.
@@ -191,6 +203,7 @@ func TestHTTPDefaultsFixedFieldsConsistentAcrossTable(t *testing.T) {
 	}
 }
 
+// TestHTTPDefaultsDesktopMidValues checks the HTTP default values for a mid tier desktop.
 func TestHTTPDefaultsDesktopMidValues(t *testing.T) {
 	cfg := httpDefaults[Desktop][Mid]
 
@@ -202,6 +215,7 @@ func TestHTTPDefaultsDesktopMidValues(t *testing.T) {
 	}
 }
 
+// TestXrayDefaultsDesktopMidValues checks the Xray default values for a mid tier desktop.
 func TestXrayDefaultsDesktopMidValues(t *testing.T) {
 	cfg := xrayDefaults[Desktop][Mid]
 
@@ -225,6 +239,7 @@ func TestXrayDefaultsDesktopMidValues(t *testing.T) {
 	}
 }
 
+// TestDNSDefaultsDesktopMidValues checks the DNS default values for a mid tier desktop.
 func TestDNSDefaultsDesktopMidValues(t *testing.T) {
 	cfg := dnsDefaults[Desktop][Mid]
 	r := cfg.Resolver
@@ -275,6 +290,7 @@ func TestDNSDefaultsDesktopMidValues(t *testing.T) {
 	}
 }
 
+// TestHTTPDefaultsSlicesAreIndependent checks that slices in the HTTP defaults are not shared between entries.
 func TestHTTPDefaultsSlicesAreIndependent(t *testing.T) {
 	a := httpDefaults[Desktop][Low]
 	b := httpDefaults[Desktop][Mid]
@@ -284,6 +300,7 @@ func TestHTTPDefaultsSlicesAreIndependent(t *testing.T) {
 	}
 }
 
+// TestDNSDefaultsSlicesAreIndependent checks that slices in the DNS defaults are not shared between entries.
 func TestDNSDefaultsSlicesAreIndependent(t *testing.T) {
 	a := dnsDefaults[Desktop][Low].Resolver
 	b := dnsDefaults[Desktop][Mid].Resolver
@@ -296,6 +313,7 @@ func TestDNSDefaultsSlicesAreIndependent(t *testing.T) {
 // ---- Smoke tests: Default*Config() must not panic and must return a
 // valid (non-zero) entry from *some* row of its table, on any machine ----
 
+// TestDefaultConfigsDoNotPanicAndAreNonZero checks that every Default function returns a non-zero config without panicking.
 func TestDefaultConfigsDoNotPanicAndAreNonZero(t *testing.T) {
 	g := DefaultGeneralConfig(nil)
 	if g.MaxIPsPerStage == 0 || g.BatchSize == 0 {
@@ -333,6 +351,7 @@ func TestDefaultConfigsDoNotPanicAndAreNonZero(t *testing.T) {
 	}
 }
 
+// TestDefaultConfigsReturnIndependentSlices checks that default configs return independent slices.
 func TestDefaultConfigsReturnIndependentSlices(t *testing.T) {
 	a := DefaultHTTPConfig(nil)
 	b := DefaultHTTPConfig(nil)

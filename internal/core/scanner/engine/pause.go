@@ -8,12 +8,31 @@ import (
 )
 
 // PauseController manages pause, resume, and shutdown state for background tasks.
+// Implementations must be safe for concurrent use. Workers call Wait at
+// a checkpoint and proceed only when it returns true.
 type PauseController interface {
+	// Pause marks the controller paused. Workers block in Wait until
+	// Resume or Stop is called.
 	Pause()
+
+	// Resume clears the paused state and releases workers blocked in
+	// Wait.
 	Resume()
+
+	// Stop releases workers blocked in Wait for good. Wait returns
+	// false after Stop, even if Resume is called later.
 	Stop()
+
+	// IsPaused reports whether the controller is currently paused.
 	IsPaused() bool
+
+	// PausedDuration returns the total time spent paused, including
+	// a pause that is still in progress.
 	PausedDuration() time.Duration
+
+	// Wait blocks while the controller is paused and reports whether
+	// the caller may proceed. It returns false when ctx is cancelled
+	// or the controller is stopped.
 	Wait(context.Context) bool
 }
 

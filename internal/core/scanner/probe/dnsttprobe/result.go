@@ -29,9 +29,9 @@ var Schema = result.ResultSchema{
 
 // DNSTTResult holds the outcome of a single DNSTT tunnel probe.
 //
-// Latency measures only the proxy validation phase—from the first byte sent
-// through the tunnel until a valid response is received. It excludes the initial
-// tunnel startup overhead to reflect sustained tunnel performance.
+// Latency measures only the proxy validation phase, from the first
+// byte sent through the tunnel until a valid response is received.
+// It excludes the initial tunnel startup overhead.
 type DNSTTResult struct {
 	Entry             target.Entry // The row that produced this result.
 	Latency           time.Duration
@@ -44,14 +44,18 @@ type DNSTTResult struct {
 // Key returns the identity of the probed target with probe index prefix.
 func (r DNSTTResult) Key() string { return "0:" + r.Entry.Key() }
 
+// KeyType returns the kind of the entry that produced this result.
 func (r DNSTTResult) KeyType() target.Kind {
 	return r.Entry.Kind
 }
 
+// Equal reports whether rs has the same key as r.
 func (r DNSTTResult) Equal(rs result.Result) bool {
 	return r.Key() == rs.Key()
 }
 
+// ToRecord returns the result as a record row. The target comes
+// first, in value, port, path, enable form. The measurements follow.
 func (r DNSTTResult) ToRecord() []string {
 	return append(r.Entry.EncodeCSV(),
 		result.FormatDuration(r.Latency),

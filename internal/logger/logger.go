@@ -1,4 +1,8 @@
 // Package logger provides file loggers for bgscan.
+//
+// Each Logger writes leveled lines to one rotating file. Loggers made
+// with With share the file and the level dial of their parent. Live
+// viewers can subscribe to new lines as they are written.
 package logger
 
 import (
@@ -15,7 +19,8 @@ import (
 )
 
 const (
-	// LogDir is the subdirectory
+	// LogDir is the name of the directory that holds log files, below
+	// the base path.
 	LogDir = "logs"
 
 	sessionStart = "[session] started"

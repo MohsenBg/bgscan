@@ -1,4 +1,8 @@
 // Package engine provides the scan execution engine.
+// It runs one stage or a chain of stages over a target file, with a
+// worker pool per stage, optional pause support, rate limiting, and
+// progress hooks. ChainConfig picks the pipeline mode: stages run one
+// after another, stream targets to each other, or move in batches.
 package engine
 
 import (
@@ -27,6 +31,13 @@ const (
 )
 
 // ChainConfig configures a multi-stage scan pipeline.
+// MaxBuffer is the channel buffer size between stages in streaming
+// mode, and BatchSize is the number of targets per batch in batch
+// mode. Values at or below zero for either field use a default size.
+// MaxSuccessfulIPs stops the scan once the final stage has that many
+// successes, and zero means no limit. When IgnoreWriterError is false,
+// a result writer error stops the scan. When it is true, the scan
+// keeps running despite writer failures.
 type ChainConfig struct {
 	Mode              PipelineMode
 	MaxBuffer         int

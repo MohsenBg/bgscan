@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestGetCurrentPath_ReturnsAbsolutePath covers get current path returns absolute path.
 func TestGetCurrentPath_ReturnsAbsolutePath(t *testing.T) {
 	path, err := GetCurrentPath()
 	if err != nil {
@@ -24,6 +25,7 @@ func TestGetCurrentPath_ReturnsAbsolutePath(t *testing.T) {
 	}
 }
 
+// TestFileExists_ReturnsTrueForFile covers file exists returns true for file.
 func TestFileExists_ReturnsTrueForFile(t *testing.T) {
 	path := filepath.Join(
 		t.TempDir(),
@@ -46,6 +48,7 @@ func TestFileExists_ReturnsTrueForFile(t *testing.T) {
 	}
 }
 
+// TestFileExists_ReturnsFalseForMissingFile covers file exists returns false for missing file.
 func TestFileExists_ReturnsFalseForMissingFile(t *testing.T) {
 	path := filepath.Join(
 		t.TempDir(),
@@ -59,6 +62,7 @@ func TestFileExists_ReturnsFalseForMissingFile(t *testing.T) {
 	}
 }
 
+// TestFileExists_ReturnsFalseForDirectory covers file exists returns false for directory.
 func TestFileExists_ReturnsFalseForDirectory(t *testing.T) {
 	dir := t.TempDir()
 
@@ -69,6 +73,7 @@ func TestFileExists_ReturnsFalseForDirectory(t *testing.T) {
 	}
 }
 
+// TestStripExt_RemovesExtension covers strip ext removes extension.
 func TestStripExt_RemovesExtension(t *testing.T) {
 	tests := []struct {
 		name string
@@ -108,6 +113,7 @@ func TestStripExt_RemovesExtension(t *testing.T) {
 	}
 }
 
+// TestHasExt_CaseInsensitive covers has ext case insensitive.
 func TestHasExt_CaseInsensitive(t *testing.T) {
 	tests := []struct {
 		name string
@@ -159,6 +165,7 @@ func TestHasExt_CaseInsensitive(t *testing.T) {
 	}
 }
 
+// TestEnsureParentDir_CreatesMissingParents covers ensure parent dir creates missing parents.
 func TestEnsureParentDir_CreatesMissingParents(t *testing.T) {
 	path := filepath.Join(
 		t.TempDir(),
@@ -189,6 +196,7 @@ func TestEnsureParentDir_CreatesMissingParents(t *testing.T) {
 	}
 }
 
+// TestEnsureParentDir_BareNameIsNoOp covers ensure parent dir bare name is no op.
 func TestEnsureParentDir_BareNameIsNoOp(t *testing.T) {
 	err := EnsureParentDir("file.txt")
 	if err != nil {
@@ -199,6 +207,7 @@ func TestEnsureParentDir_BareNameIsNoOp(t *testing.T) {
 	}
 }
 
+// TestGetOrCreateBaseDir_CreatesMissingDirectory covers get or create base dir creates missing directory.
 func TestGetOrCreateBaseDir_CreatesMissingDirectory(t *testing.T) {
 	path := filepath.Join(
 		t.TempDir(),
@@ -233,6 +242,7 @@ func TestGetOrCreateBaseDir_CreatesMissingDirectory(t *testing.T) {
 	}
 }
 
+// TestGetOrCreateBaseDir_ReturnsExistingDirectory covers get or create base dir returns existing directory.
 func TestGetOrCreateBaseDir_ReturnsExistingDirectory(t *testing.T) {
 	dir := t.TempDir()
 
@@ -255,6 +265,7 @@ func TestGetOrCreateBaseDir_ReturnsExistingDirectory(t *testing.T) {
 	}
 }
 
+// TestGetOrCreateBaseDir_ReturnsErrorWhenPathIsFile covers get or create base dir returns error when path is file.
 func TestGetOrCreateBaseDir_ReturnsErrorWhenPathIsFile(t *testing.T) {
 	file := filepath.Join(
 		t.TempDir(),
@@ -279,6 +290,7 @@ func TestGetOrCreateBaseDir_ReturnsErrorWhenPathIsFile(t *testing.T) {
 	}
 }
 
+// TestGetOrCreateBaseDir_ConvertsRelativePath covers get or create base dir converts relative path.
 func TestGetOrCreateBaseDir_ConvertsRelativePath(t *testing.T) {
 	base := t.TempDir()
 
@@ -308,6 +320,7 @@ func TestGetOrCreateBaseDir_ConvertsRelativePath(t *testing.T) {
 	}
 }
 
+// TestRemoveFile_MissingIsSuccess covers remove file missing is success.
 func TestRemoveFile_MissingIsSuccess(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "missing.csv")
 

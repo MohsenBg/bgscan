@@ -143,6 +143,7 @@ func newTestProbe(mode config.ConnectivityTest) (*XrayProbe, *fakePortManager, *
 	return p, pm, service, speed
 }
 
+// TestNewXrayProbeValidation covers the new xray probe validation scenario.
 func TestNewXrayProbeValidation(t *testing.T) {
 	service := &fakeXrayService{}
 
@@ -159,6 +160,7 @@ func TestNewXrayProbeValidation(t *testing.T) {
 	}
 }
 
+// TestNewXrayProbeRejectsUnknownTemplate covers the new xray probe rejects unknown template scenario.
 func TestNewXrayProbeRejectsUnknownTemplate(t *testing.T) {
 	service := &fakeXrayService{templateErr: errors.New("not found")}
 
@@ -177,6 +179,7 @@ func TestNewXrayProbeRejectsUnknownTemplate(t *testing.T) {
 	}
 }
 
+// TestNewXrayProbeAppliesOptionsAndCalculatesTransferSizes covers the new xray probe applies options and calculates transfer sizes scenario.
 func TestNewXrayProbeAppliesOptionsAndCalculatesTransferSizes(t *testing.T) {
 	cfg := validConfig()
 	cfg.Timeout = config.NewDurationMS(10 * time.Second)
@@ -215,6 +218,7 @@ func TestNewXrayProbeAppliesOptionsAndCalculatesTransferSizes(t *testing.T) {
 	}
 }
 
+// TestInitValidatesTemplate covers the init validates template scenario.
 func TestInitValidatesTemplate(t *testing.T) {
 	p, pm, _, _ := newTestProbe(config.ConnectivityOnly)
 
@@ -227,6 +231,7 @@ func TestInitValidatesTemplate(t *testing.T) {
 	}
 }
 
+// TestRunReturnsCanceledContextBeforeAllocatingPort covers the run returns canceled context before allocating port scenario.
 func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -243,6 +248,7 @@ func TestRunReturnsCanceledContextBeforeAllocatingPort(t *testing.T) {
 	}
 }
 
+// TestRunReleasesPortWhenConfigGenerationFails covers the run releases port when config generation fails scenario.
 func TestRunReleasesPortWhenConfigGenerationFails(t *testing.T) {
 	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 	service.generateErr = errors.New("generation failed")
@@ -257,6 +263,7 @@ func TestRunReleasesPortWhenConfigGenerationFails(t *testing.T) {
 	}
 }
 
+// TestRunReleasesPortWhenStartFails covers the run releases port when start fails scenario.
 func TestRunReleasesPortWhenStartFails(t *testing.T) {
 	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 	service.startErr = errors.New("start failed")
@@ -271,6 +278,7 @@ func TestRunReleasesPortWhenStartFails(t *testing.T) {
 	}
 }
 
+// TestInitFailsOnValidationError covers the init fails on validation error scenario.
 func TestInitFailsOnValidationError(t *testing.T) {
 	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 	service.validateErr = errors.New("invalid config")
@@ -285,6 +293,7 @@ func TestInitFailsOnValidationError(t *testing.T) {
 	}
 }
 
+// TestRunClosesInstanceAfterWaitOpenFailure covers the run closes instance after wait open failure scenario.
 func TestRunClosesInstanceAfterWaitOpenFailure(t *testing.T) {
 	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 	pm.waitOpenErr = errors.New("proxy did not open")
@@ -303,6 +312,7 @@ func TestRunClosesInstanceAfterWaitOpenFailure(t *testing.T) {
 	}
 }
 
+// TestRunConnectivityOnly covers the run connectivity only scenario.
 func TestRunConnectivityOnly(t *testing.T) {
 	p, pm, service, _ := newTestProbe(config.ConnectivityOnly)
 
@@ -329,6 +339,7 @@ func TestRunConnectivityOnly(t *testing.T) {
 	}
 }
 
+// TestRunBoth covers the run both scenario.
 func TestRunBoth(t *testing.T) {
 	p, _, _, _ := newTestProbe(config.Both)
 
@@ -348,6 +359,7 @@ func TestRunBoth(t *testing.T) {
 	}
 }
 
+// TestRunReturnsSpeedTestError covers the run returns speed test error scenario.
 func TestRunReturnsSpeedTestError(t *testing.T) {
 	p, _, _, speed := newTestProbe(config.DownloadSpeedOnly)
 	speed.downloadErr = errors.New("speed below minimum")
@@ -362,6 +374,7 @@ func TestRunReturnsSpeedTestError(t *testing.T) {
 	}
 }
 
+// TestClose covers the close scenario.
 func TestClose(t *testing.T) {
 	if err := (&XrayProbe{}).Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)

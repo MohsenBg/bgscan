@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestReadCSV_ValidRecords covers read csv valid records.
 func TestReadCSV_ValidRecords(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
@@ -36,6 +37,7 @@ func TestReadCSV_ValidRecords(t *testing.T) {
 	}
 }
 
+// TestReadCSV_SkipsParseErrors covers read csv skips parse errors.
 func TestReadCSV_SkipsParseErrors(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\nbad_line\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
@@ -56,6 +58,7 @@ func TestReadCSV_SkipsParseErrors(t *testing.T) {
 	}
 }
 
+// TestReadCSV_CallbackError_StopsIteration covers read csv callback error stops iteration.
 func TestReadCSV_CallbackError_StopsIteration(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n10.0.0.1,0.3\n")
 	schema := validSchema(t)
@@ -76,6 +79,7 @@ func TestReadCSV_CallbackError_StopsIteration(t *testing.T) {
 	}
 }
 
+// TestReadCSV_EmptyFile covers read csv empty file.
 func TestReadCSV_EmptyFile(t *testing.T) {
 	path := writeTempCSV(t, "")
 	schema := validSchema(t)
@@ -96,6 +100,7 @@ func TestReadCSV_EmptyFile(t *testing.T) {
 	}
 }
 
+// TestReadCSV_NonexistentFile covers read csv nonexistent file.
 func TestReadCSV_NonexistentFile(t *testing.T) {
 	schema := validSchema(t)
 	_, err := ReadCSV(nil, "/nonexistent/path.csv", schema, func(r Result) error {
@@ -106,6 +111,7 @@ func TestReadCSV_NonexistentFile(t *testing.T) {
 	}
 }
 
+// TestReadCSV_SingleFieldLine covers read csv single field line.
 func TestReadCSV_SingleFieldLine(t *testing.T) {
 	// Parser expects 2 fields; single field should be skipped.
 	path := writeTempCSV(t, "1.2.3.4\n")
@@ -127,6 +133,7 @@ func TestReadCSV_SingleFieldLine(t *testing.T) {
 	}
 }
 
+// TestReadCSV_EmptyLines covers read csv empty lines.
 func TestReadCSV_EmptyLines(t *testing.T) {
 	path := writeTempCSV(t, "\n\n\n")
 	schema := validSchema(t)
@@ -188,6 +195,7 @@ func TestStreamWriteResults_WritesCSV(t *testing.T) {
 	}
 }
 
+// TestStreamWriteResults_Empty covers stream write results empty.
 func TestStreamWriteResults_Empty(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "out.csv")
@@ -209,6 +217,7 @@ func TestStreamWriteResults_Empty(t *testing.T) {
 	}
 }
 
+// TestStreamWriteResults_EmitError covers stream write results emit error.
 func TestStreamWriteResults_EmitError(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "out.csv")
@@ -221,6 +230,7 @@ func TestStreamWriteResults_EmitError(t *testing.T) {
 	}
 }
 
+// TestStreamWriteResults_NonexistentDir covers stream write results nonexistent dir.
 func TestStreamWriteResults_NonexistentDir(t *testing.T) {
 	path := "/nonexistent/deeply/nested/dir/out.csv"
 
@@ -232,6 +242,7 @@ func TestStreamWriteResults_NonexistentDir(t *testing.T) {
 	}
 }
 
+// TestStreamWriteResults_PreservesRecordOrder covers stream write results preserves record order.
 func TestStreamWriteResults_PreservesRecordOrder(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "out.csv")

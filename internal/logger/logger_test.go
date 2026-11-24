@@ -20,6 +20,7 @@ func newTestLogger(t *testing.T) *Logger {
 	return l
 }
 
+// TestPubSub: a subscriber receives lines logged after it subscribes.
 func TestPubSub(t *testing.T) {
 	l := newTestLogger(t)
 
@@ -41,6 +42,7 @@ func TestPubSub(t *testing.T) {
 	}
 }
 
+// TestTail: a new subscriber is primed with the last lines of the file.
 func TestTail(t *testing.T) {
 	l := newTestLogger(t)
 
@@ -70,6 +72,7 @@ func TestTail(t *testing.T) {
 	}
 }
 
+// TestLifecycle: closing a logger closes its subscriber channels and is safe to repeat.
 func TestLifecycle(t *testing.T) {
 	l := newTestLogger(t)
 
@@ -96,6 +99,7 @@ func TestLifecycle(t *testing.T) {
 	l.Close() // idempotent
 }
 
+// TestUnsubscribe: an unsubscribed channel is closed and stops receiving lines.
 func TestUnsubscribe(t *testing.T) {
 	l := newTestLogger(t)
 
@@ -108,6 +112,7 @@ func TestUnsubscribe(t *testing.T) {
 	}
 }
 
+// TestLevelDial: the level dial hides lines below the set level.
 func TestLevelDial(t *testing.T) {
 	l := newTestLogger(t)
 
@@ -147,6 +152,7 @@ func TestLevelDial(t *testing.T) {
 	}
 }
 
+// TestWithSharesFileAndDial: a child logger writes to the parent file and follows its dial.
 func TestWithSharesFileAndDial(t *testing.T) {
 	l := newTestLogger(t)
 
@@ -177,6 +183,7 @@ func TestWithSharesFileAndDial(t *testing.T) {
 	}
 }
 
+// TestNilLoggerIsSafe: every method is safe on a nil logger.
 func TestNilLoggerIsSafe(t *testing.T) {
 	var l *Logger
 	l.Info("no panic")
@@ -194,6 +201,7 @@ func TestNilLoggerIsSafe(t *testing.T) {
 	l.Unsubscribe(ch)
 }
 
+// TestFileFormat: log lines on disk use the date, level, and message format.
 func TestFileFormat(t *testing.T) {
 	dir := t.TempDir()
 	l, err := New("fmt.log", WithDir(dir))
@@ -222,6 +230,7 @@ func TestFileFormat(t *testing.T) {
 	}
 }
 
+// TestMultipleSubscribers: every subscriber receives each logged line.
 func TestMultipleSubscribers(t *testing.T) {
 	l := newTestLogger(t)
 
@@ -244,6 +253,7 @@ func TestMultipleSubscribers(t *testing.T) {
 	}
 }
 
+// TestDiscard: a discarded logger writes nothing and accepts no subscribers.
 func TestDiscard(t *testing.T) {
 	s := Discard()
 	s.Info("writes nowhere")
@@ -257,6 +267,7 @@ func TestDiscard(t *testing.T) {
 	s.Close()
 }
 
+// TestParseLevel: level names parse case-insensitively and unknown names fail.
 func TestParseLevel(t *testing.T) {
 	for name, want := range map[string]slog.Level{
 		"debug":   slog.LevelDebug,
@@ -280,6 +291,7 @@ func TestParseLevel(t *testing.T) {
 	}
 }
 
+// TestSetLevelAppliesToEveryLogger: one dial change reaches loggers that share a sink.
 func TestSetLevelAppliesToEveryLogger(t *testing.T) {
 	s := Discard()
 
@@ -296,6 +308,7 @@ func TestSetLevelAppliesToEveryLogger(t *testing.T) {
 	s.Close()
 }
 
+// TestConcurrentCloseAndLog: logging while another goroutine closes the logger does not race or panic.
 func TestConcurrentCloseAndLog(t *testing.T) {
 	l, err := New("race.log", WithDir(t.TempDir()), WithLevel(slog.LevelDebug))
 	if err != nil {

@@ -1,4 +1,9 @@
-// Package dns provides types for DNS-based scanning and tunneling.
+// Package dns provides types and services for DNS-based scanning
+// and tunneling. Each tunnel protocol (VayDNS, DNSTT, Slipstream,
+// MasterDNS, StormDNS, and TheFeed) has a service that stores its
+// TOML config files in its own directory and opens tunnels through
+// a chosen resolver. Config validation errors are reported per
+// field through the Field type.
 package dns
 
 import (
@@ -226,6 +231,8 @@ const (
 	ResolverProxySSH   ResolverProxyType = "ssh"
 )
 
+// IsValid reports whether t is a supported proxy type. The check
+// is case-insensitive and ignores surrounding whitespace.
 func (t ResolverProxyType) IsValid() bool {
 	switch strings.ToLower(strings.TrimSpace(string(t))) {
 	case string(ResolverProxySOCKS), string(ResolverProxySSH):
@@ -235,6 +242,9 @@ func (t ResolverProxyType) IsValid() bool {
 	}
 }
 
+// ParseResolverProxyType parses a proxy type. Parsing is
+// case-insensitive and ignores surrounding whitespace. Unknown
+// values return an empty ResolverProxyType.
 func ParseResolverProxyType(s string) ResolverProxyType {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case string(ResolverProxySOCKS):
@@ -259,6 +269,8 @@ const (
 	EncAES256GCM
 )
 
+// String returns the display label for the encryption method.
+// Unknown values return "Unknown".
 func (e EncMethod) String() string {
 	switch e {
 	case EncNone:

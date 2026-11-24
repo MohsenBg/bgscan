@@ -90,8 +90,11 @@ type Options struct {
 	Factory socketFactory // Optional, for testing.
 }
 
-// NewICMPProbe creates an ICMPProbe, filling in real Clock/Factory when
-// opts leaves them nil.
+// NewICMPProbe creates an ICMPProbe and opens its ICMP sockets.
+// It fills in a real clock and socket factory when opts leaves them
+// nil. It returns an error when the IPv4 socket cannot be opened. A
+// missing IPv6 socket is not an error; IPv6 targets fail in Run
+// instead.
 func NewICMPProbe(opts Options) (*ICMPProbe, error) {
 	if opts.Clock == nil {
 		opts.Clock = realClock{}
@@ -121,6 +124,7 @@ func NewICMPProbe(opts Options) (*ICMPProbe, error) {
 	}, nil
 }
 
+// Schema returns the result schema for ICMP probes.
 func (p *ICMPProbe) Schema() result.ResultSchema {
 	return Schema
 }
@@ -322,6 +326,7 @@ func destination(ip netip.Addr, mode string) net.Addr {
 	return &net.IPAddr{IP: stdIP}
 }
 
+// Input returns target.KindIP, the only target kind Run accepts.
 func (*ICMPProbe) Input() target.Kind {
 	return target.KindIP
 }

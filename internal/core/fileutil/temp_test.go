@@ -9,6 +9,7 @@ import (
 	"testing"
 )
 
+// TestCreateSystemTempFile_CreatesFile covers create system temp file creates file.
 func TestCreateSystemTempFile_CreatesFile(t *testing.T) {
 	f, path, err := CreateSystemTempFile("test-*")
 	if err != nil {
@@ -53,6 +54,7 @@ func TestCreateSystemTempFile_CreatesFile(t *testing.T) {
 	}
 }
 
+// TestCreateSystemTempFile_UsesPattern covers create system temp file uses pattern.
 func TestCreateSystemTempFile_UsesPattern(t *testing.T) {
 	f, path, err := CreateSystemTempFile("bgscan-test-*")
 	if err != nil {
@@ -77,6 +79,7 @@ func TestCreateSystemTempFile_UsesPattern(t *testing.T) {
 	}
 }
 
+// TestCreateSystemTempFile_ReturnsWritableFile covers create system temp file returns writable file.
 func TestCreateSystemTempFile_ReturnsWritableFile(t *testing.T) {
 	f, path, err := CreateSystemTempFile("write-*")
 	if err != nil {
@@ -99,6 +102,7 @@ func TestCreateSystemTempFile_ReturnsWritableFile(t *testing.T) {
 	}
 }
 
+// TestCreateSystemTempJSONFile_WritesJSON covers create system temp jsonfile writes json.
 func TestCreateSystemTempJSONFile_WritesJSON(t *testing.T) {
 	data := map[string]any{
 		"name":    "bgscan",
@@ -145,6 +149,7 @@ func TestCreateSystemTempJSONFile_WritesJSON(t *testing.T) {
 	}
 }
 
+// TestCreateSystemTempJSONFile_ReturnsAbsolutePath covers create system temp jsonfile returns absolute path.
 func TestCreateSystemTempJSONFile_ReturnsAbsolutePath(t *testing.T) {
 	path, err := CreateSystemTempJSONFile(
 		"absolute-*",
@@ -168,6 +173,7 @@ func TestCreateSystemTempJSONFile_ReturnsAbsolutePath(t *testing.T) {
 	}
 }
 
+// TestCreateSystemTempJSONFile_CreatesReadableClosedFile covers create system temp jsonfile creates readable closed file.
 func TestCreateSystemTempJSONFile_CreatesReadableClosedFile(t *testing.T) {
 	path, err := CreateSystemTempJSONFile(
 		"closed-*",
@@ -199,6 +205,7 @@ func TestCreateSystemTempJSONFile_CreatesReadableClosedFile(t *testing.T) {
 	}
 }
 
+// TestCreateSystemTempJSONFile_InvalidJSONValue covers create system temp jsonfile invalid jsonvalue.
 func TestCreateSystemTempJSONFile_InvalidJSONValue(t *testing.T) {
 	// channels cannot be JSON encoded
 	invalid := make(chan int)
@@ -234,6 +241,7 @@ func TestCreateSystemTempJSONFile_InvalidJSONValue(t *testing.T) {
 	}
 }
 
+// TestCreateTempIn_UsesDirectory covers create temp in uses directory.
 func TestCreateTempIn_UsesDirectory(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "sub")
 

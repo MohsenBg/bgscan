@@ -38,10 +38,12 @@ type TheFeedResult struct {
 // Key returns the identity of the probed target with probe index prefix.
 func (r TheFeedResult) Key() string { return r.Entry.Key() }
 
+// KeyType returns the kind of the probed target.
 func (r TheFeedResult) KeyType() target.Kind {
 	return r.Entry.Kind
 }
 
+// Equal reports whether rs has the same key as r.
 func (r TheFeedResult) Equal(rs result.Result) bool {
 	return r.Key() == rs.Key()
 }

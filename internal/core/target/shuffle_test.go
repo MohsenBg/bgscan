@@ -54,6 +54,7 @@ func entryAddrs(entries []Entry) []string {
 	return out
 }
 
+// TestSaturatingAdd: saturatingAdd clamps at MaxUint64 instead of wrapping.
 func TestSaturatingAdd(t *testing.T) {
 	t.Parallel()
 
@@ -82,6 +83,7 @@ func TestSaturatingAdd(t *testing.T) {
 	}
 }
 
+// TestAddOffsetToAddr_IPv4: an offset lands on the expected IPv4 address.
 func TestAddOffsetToAddr_IPv4(t *testing.T) {
 	t.Parallel()
 
@@ -94,6 +96,7 @@ func TestAddOffsetToAddr_IPv4(t *testing.T) {
 	}
 }
 
+// TestAddOffsetToAddr_CarryAcrossOctets: an offset carries across IPv4 octets.
 func TestAddOffsetToAddr_CarryAcrossOctets(t *testing.T) {
 	t.Parallel()
 
@@ -106,6 +109,7 @@ func TestAddOffsetToAddr_CarryAcrossOctets(t *testing.T) {
 	}
 }
 
+// TestAddOffsetToAddr_IPv6: an offset lands on the expected IPv6 address.
 func TestAddOffsetToAddr_IPv6(t *testing.T) {
 	t.Parallel()
 
@@ -118,6 +122,7 @@ func TestAddOffsetToAddr_IPv6(t *testing.T) {
 	}
 }
 
+// TestAddBigOffset: a big.Int offset lands on the expected address.
 func TestAddBigOffset(t *testing.T) {
 	t.Parallel()
 
@@ -132,6 +137,7 @@ func TestAddBigOffset(t *testing.T) {
 	}
 }
 
+// TestCIDRBlockAt: cidrBlockAt finds the block and address for a global index.
 func TestCIDRBlockAt(t *testing.T) {
 	t.Parallel()
 
@@ -174,6 +180,7 @@ func TestCIDRBlockAt(t *testing.T) {
 	}
 }
 
+// TestReadEntryAtCSVOffset: a row is read back from its recorded byte offset.
 func TestReadEntryAtCSVOffset(t *testing.T) {
 	t.Parallel()
 
@@ -212,6 +219,7 @@ func TestReadEntryAtCSVOffset(t *testing.T) {
 	}
 }
 
+// TestReadEntryAtCSVOffset_InvalidIP: a row with a bad address at the offset returns an error.
 func TestReadEntryAtCSVOffset_InvalidIP(t *testing.T) {
 	t.Parallel()
 
@@ -234,6 +242,7 @@ func TestReadEntryAtCSVOffset_InvalidIP(t *testing.T) {
 	}
 }
 
+// TestNewMasterIndexer_EmptyFile: an empty file builds an index with a zero total.
 func TestNewMasterIndexer_EmptyFile(t *testing.T) {
 	t.Parallel()
 
@@ -255,6 +264,7 @@ func TestNewMasterIndexer_EmptyFile(t *testing.T) {
 	}
 }
 
+// TestNewMasterIndexer_SinglesOnly: a file of single addresses indexes each one as a point.
 func TestNewMasterIndexer_SinglesOnly(t *testing.T) {
 	t.Parallel()
 
@@ -286,6 +296,7 @@ func TestNewMasterIndexer_SinglesOnly(t *testing.T) {
 	}
 }
 
+// TestNewMasterIndexer_CIDRsAndSingles: ranges and single addresses share one index and total.
 func TestNewMasterIndexer_CIDRsAndSingles(t *testing.T) {
 	t.Parallel()
 
@@ -320,6 +331,7 @@ func TestNewMasterIndexer_CIDRsAndSingles(t *testing.T) {
 	}
 }
 
+// TestPermuter_IsBijection: the permuter maps each input to a distinct output.
 func TestPermuter_IsBijection(t *testing.T) {
 	t.Parallel()
 
@@ -346,6 +358,7 @@ func TestPermuter_IsBijection(t *testing.T) {
 	}
 }
 
+// TestPermuter_MixesOrder: the permuter does not return its inputs in order.
 func TestPermuter_MixesOrder(t *testing.T) {
 	t.Parallel()
 
@@ -362,6 +375,7 @@ func TestPermuter_MixesOrder(t *testing.T) {
 	}
 }
 
+// TestPermuter_SingleTarget: a one-target range permutes to itself.
 func TestPermuter_SingleTarget(t *testing.T) {
 	t.Parallel()
 
@@ -373,6 +387,7 @@ func TestPermuter_SingleTarget(t *testing.T) {
 	}
 }
 
+// TestStreamActiveShuffled_Empty: shuffled streaming of an empty list sends nothing.
 func TestStreamActiveShuffled_Empty(t *testing.T) {
 	t.Parallel()
 
@@ -396,6 +411,7 @@ func TestStreamActiveShuffled_Empty(t *testing.T) {
 	}
 }
 
+// TestStreamActiveShuffled_SingleIPs_NoDuplicates: shuffled streaming sends each single address once.
 func TestStreamActiveShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 	t.Parallel()
 
@@ -441,6 +457,7 @@ func TestStreamActiveShuffled_SingleIPs_NoDuplicates(t *testing.T) {
 	}
 }
 
+// TestStreamActiveShuffled_MixedDataset: shuffled streaming covers a mix of ranges and singles once each.
 func TestStreamActiveShuffled_MixedDataset(t *testing.T) {
 	t.Parallel()
 
@@ -485,6 +502,7 @@ func TestStreamActiveShuffled_MixedDataset(t *testing.T) {
 	}
 }
 
+// TestStreamActiveShuffled_DomainAndCIDRMixed: shuffled streaming covers domains and range addresses once each.
 func TestStreamActiveShuffled_DomainAndCIDRMixed(t *testing.T) {
 	t.Parallel()
 
@@ -534,6 +552,7 @@ func TestStreamActiveShuffled_DomainAndCIDRMixed(t *testing.T) {
 	}
 }
 
+// TestStreamActiveShuffled_KeepsPortAndPath: shuffled streaming keeps the port and path of each row.
 func TestStreamActiveShuffled_KeepsPortAndPath(t *testing.T) {
 	t.Parallel()
 
@@ -576,6 +595,7 @@ func TestStreamActiveShuffled_KeepsPortAndPath(t *testing.T) {
 	}
 }
 
+// TestStreamActiveShuffled_Limit: shuffled streaming stops at the limit.
 func TestStreamActiveShuffled_Limit(t *testing.T) {
 	t.Parallel()
 
@@ -606,6 +626,7 @@ func TestStreamActiveShuffled_Limit(t *testing.T) {
 	}
 }
 
+// TestStreamActiveShuffled_ContextCanceled: shuffled streaming stops when the context is cancelled.
 func TestStreamActiveShuffled_ContextCanceled(t *testing.T) {
 	t.Parallel()
 

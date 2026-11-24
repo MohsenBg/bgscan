@@ -7,6 +7,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/config"
 )
 
+// TestTCPConfig checks ValidateTCP and NormalizeTCP on valid and invalid TCP configs.
 func TestTCPConfig(t *testing.T) {
 	def := config.DefaultTCPConfig(nil)
 	tests := []struct {

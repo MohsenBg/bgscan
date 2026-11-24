@@ -15,6 +15,8 @@ const slipstreamDir = "slipstream"
 // identity.
 type SlipstreamConfigFile = ConfigFile[SlipstreamConfig]
 
+// CongestionControl names the congestion control algorithm used
+// by the Slipstream tunnel client.
 type CongestionControl string
 
 const (
@@ -34,6 +36,8 @@ func (c CongestionControl) IsValid() bool {
 	}
 }
 
+// DNSResolution selects the resolution mode the Slipstream client
+// uses for its queries.
 type DNSResolution string
 
 const (
@@ -73,7 +77,7 @@ type SlipstreamConfig struct {
 	DNSResolution     DNSResolution     `toml:"dns_resolution" comment:"DNS resolution mode: recursive or authoritative."`
 	GSO               bool              `toml:"gso" comment:"Enable UDP generic segmentation offload."`
 	CongestionControl CongestionControl `toml:"congestion_control" comment:"Congestion control: bbr or cubic. Empty = library default."`
-	KeepAliveInterval uint16            `toml:"-"`
+	KeepAliveInterval uint16            `toml:"-"` // Keep-alive interval in seconds. Set at runtime, not stored.
 
 	ProxyType      ResolverProxyType `toml:"proxy_type" comment:"Proxy type in front of the resolver: socks or ssh."`
 	ProxyPort      uint16            `toml:"proxy_port" comment:"Proxy port on the resolver host."`
@@ -107,6 +111,8 @@ func DefaultSlipstreamConfig() SlipstreamConfig {
 	}
 }
 
+// Validate returns all validation errors for c, keyed by
+// configuration field. The map is empty when the config is valid.
 func (c SlipstreamConfig) Validate() map[Field]error {
 	errs := make(map[Field]error)
 
@@ -138,12 +144,29 @@ func (c SlipstreamConfig) Validate() map[Field]error {
 
 // SlipstreamService manages Slipstream configurations and tunnels.
 type SlipstreamService interface {
+	// SaveConfig validates config and writes it as a new file named
+	// name. It returns an error when the name is already in use or
+	// the config is invalid.
 	SaveConfig(config SlipstreamConfig, name string) error
+	// EditConfig validates config and replaces the stored config
+	// named originalName. It returns an error when that config does
+	// not exist or the config is invalid.
 	EditConfig(config SlipstreamConfig, originalName string) error
+	// LoadConfig reads and returns the stored config named name.
 	LoadConfig(name string) (SlipstreamConfig, error)
+	// GetAllConfigFiles returns every stored config that loads and
+	// validates. Files that fail either check are skipped.
 	GetAllConfigFiles() ([]SlipstreamConfigFile, error)
+	// ValidateAllConfigs returns one result for each stored file
+	// that fails to load or validate. Valid files are not included.
 	ValidateAllConfigs() ([]ConfigValidationResult, error)
+	// RenameConfig renames the stored config oldName to newName.
+	// It returns an error when oldName does not exist or newName is
+	// already in use.
 	RenameConfig(oldName, newName string) error
+	// RunTunnel starts a Slipstream tunnel to the resolver at
+	// resolverIP and returns the running client. keepAlive
+	// overrides the config keep-alive interval when non-zero.
 	RunTunnel(
 		ctx context.Context,
 		config SlipstreamConfig,
@@ -222,26 +245,32 @@ func NewSlipstreamService(
 	return service, nil
 }
 
+// SaveConfig saves the config through the shared config store.
 func (s *slipstreamService) SaveConfig(config SlipstreamConfig, name string) error {
 	return s.configs.SaveConfig(config, name)
 }
 
+// EditConfig replaces the stored config through the shared config store.
 func (s *slipstreamService) EditConfig(config SlipstreamConfig, originalName string) error {
 	return s.configs.EditConfig(config, originalName)
 }
 
+// LoadConfig loads the config through the shared config store.
 func (s *slipstreamService) LoadConfig(name string) (SlipstreamConfig, error) {
 	return s.configs.LoadConfig(name)
 }
 
+// GetAllConfigFiles lists stored configs through the shared config store.
 func (s *slipstreamService) GetAllConfigFiles() ([]SlipstreamConfigFile, error) {
 	return s.configs.GetAllConfigFiles()
 }
 
+// ValidateAllConfigs validates stored configs through the shared config store.
 func (s *slipstreamService) ValidateAllConfigs() ([]ConfigValidationResult, error) {
 	return s.configs.ValidateAllConfigs()
 }
 
+// RenameConfig renames the config through the shared config store.
 func (s *slipstreamService) RenameConfig(oldName, newName string) error {
 	return s.configs.RenameConfig(oldName, newName)
 }

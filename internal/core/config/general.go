@@ -20,6 +20,10 @@ type GeneralConfig struct {
 	ProbeBurst       int        `toml:"probe_burst" comment:"Max probes allowed in a burst. Range: 1-10000. Keep low on Android (10-50)."`
 }
 
+// DefaultGeneralConfig returns the default general settings for the detected
+// platform and resource tier. When the defaults table has no entry
+// for the detected platform or tier, it logs a warning and falls
+// back to the Desktop platform or the Mid tier.
 func DefaultGeneralConfig(log *logger.Logger) GeneralConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())

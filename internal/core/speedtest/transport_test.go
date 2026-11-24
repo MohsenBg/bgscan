@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// TestNewHTTPClient_SOCKS5 covers the new httpclient socks5 scenario.
 func TestNewHTTPClient_SOCKS5(t *testing.T) {
 	client, err := newHTTPClient(httpClientConfig{
 		ProxyPort: 1080,
@@ -54,6 +55,7 @@ func TestNewHTTPClient_SOCKS5(t *testing.T) {
 	assertHTTPTransportConfig(t, transport)
 }
 
+// TestNewHTTPClient_DialContext covers the new httpclient dial context scenario.
 func TestNewHTTPClient_DialContext(t *testing.T) {
 	dialer := func(
 		ctx context.Context,
@@ -93,6 +95,7 @@ func TestNewHTTPClient_DialContext(t *testing.T) {
 	assertHTTPTransportConfig(t, transport)
 }
 
+// TestNewHTTPClient_DialContextTakesPrecedence covers the new httpclient dial context takes precedence scenario.
 func TestNewHTTPClient_DialContextTakesPrecedence(t *testing.T) {
 	dialer := func(
 		ctx context.Context,
@@ -127,12 +130,14 @@ func TestNewHTTPClient_DialContextTakesPrecedence(t *testing.T) {
 	}
 }
 
+// TestNewHTTPClient_RequiresDialContextOrProxyPort covers the new httpclient requires dial context or proxy port scenario.
 func TestNewHTTPClient_RequiresDialContextOrProxyPort(t *testing.T) {
 	if _, err := newHTTPClient(httpClientConfig{}); err == nil {
 		t.Fatal("expected an error when both DialContext and ProxyPort are unset")
 	}
 }
 
+// TestNewHTTPClient_DialContextGetsConnectTimeout covers the new httpclient dial context gets connect timeout scenario.
 func TestNewHTTPClient_DialContextGetsConnectTimeout(t *testing.T) {
 	var deadline time.Time
 	var hasDeadline bool

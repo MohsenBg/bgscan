@@ -41,6 +41,7 @@ func TestNewStore_UsesDefaultDirectory(t *testing.T) {
 	}
 }
 
+// TestNewStore_UsesConfiguredDirectory checks that NewStore uses the directory given by WithSettingsDir.
 func TestNewStore_UsesConfiguredDirectory(t *testing.T) {
 	dir := t.TempDir()
 
@@ -51,6 +52,7 @@ func TestNewStore_UsesConfiguredDirectory(t *testing.T) {
 	}
 }
 
+// TestStoreLoad_CreatesDefaultFiles checks that store load creates default files.
 func TestStoreLoad_CreatesDefaultFiles(t *testing.T) {
 	store := newTestStore(t)
 
@@ -89,6 +91,7 @@ func TestStoreLoad_CreatesDefaultFiles(t *testing.T) {
 	}
 }
 
+// TestStoreLoad_ReturnsErrorForInvalidFile checks that store load returns error for invalid file.
 func TestStoreLoad_ReturnsErrorForInvalidFile(t *testing.T) {
 	store := newTestStore(t)
 	path := store.path(generalFile)
@@ -103,6 +106,7 @@ func TestStoreLoad_ReturnsErrorForInvalidFile(t *testing.T) {
 	}
 }
 
+// TestStoreSave_WritesAllConfigurations checks that the Save methods write every section to its file.
 func TestStoreSave_WritesAllConfigurations(t *testing.T) {
 	store := newTestStore(t)
 	want := defaultScannerConfig()
@@ -139,6 +143,7 @@ func TestStoreSave_WritesAllConfigurations(t *testing.T) {
 	}
 }
 
+// TestStoreSave_ReturnsErrorWhenDirectoryIsAFile checks that store save returns error when directory is a file.
 func TestStoreSave_ReturnsErrorWhenDirectoryIsAFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "not-a-directory")
 

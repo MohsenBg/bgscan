@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestNew: New builds an IP entry and only enable 1 turns it on.
 func TestNew(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -55,6 +56,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
+// TestNewEnabledAndNewDisabled: the enabled and disabled helpers set Enable as named.
 func TestNewEnabledAndNewDisabled(t *testing.T) {
 	tests := []struct {
 		name string
@@ -98,6 +100,7 @@ func TestNewEnabledAndNewDisabled(t *testing.T) {
 	}
 }
 
+// TestEntry_IsSingle: IsSingle is true only for full-length prefixes.
 func TestEntry_IsSingle(t *testing.T) {
 	tests := []struct {
 		name string
@@ -151,6 +154,7 @@ func TestEntry_IsSingle(t *testing.T) {
 	}
 }
 
+// TestEntry_IsSingleDomain: a domain entry is never a single address.
 func TestEntry_IsSingleDomain(t *testing.T) {
 	t.Parallel()
 
@@ -159,6 +163,7 @@ func TestEntry_IsSingleDomain(t *testing.T) {
 	}
 }
 
+// TestEntry_EncodeCSV: EncodeCSV writes value, port, path, and enable in order.
 func TestEntry_EncodeCSV(t *testing.T) {
 	tests := []struct {
 		name string

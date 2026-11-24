@@ -10,39 +10,46 @@ import (
 type Platform string
 
 const (
-	Android Platform = "android"
-	Desktop Platform = "desktop"
-	Server  Platform = "server"
+	Android Platform = "android" // Android is a phone or a Termux environment.
+	Desktop Platform = "desktop" // Desktop is a regular desktop or laptop system.
+	Server  Platform = "server"  // Server is a headless Linux system, such as a container host.
 )
 
 // Tier represents the resource tier for configuration defaults.
 type Tier string
 
 const (
-	Low  Tier = "low"
-	Mid  Tier = "mid"
-	High Tier = "high"
+	Low  Tier = "low"  // Low is for systems with few cores or a low file limit.
+	Mid  Tier = "mid"  // Mid is for average desktop and server systems.
+	High Tier = "high" // High is for systems with many cores and a high file limit.
 )
 
 // SystemResources holds detected system capabilities.
 type SystemResources struct {
 	CPUCores int
-	FDLimit  uint64
+	FDLimit  uint64 // FDLimit is the max number of open files the process may hold.
 }
 
-// EnvReader abstracts environment access for testing.
+// EnvReader abstracts environment access for testing. It reads
+// environment variables and files, so tests can fake the system
+// environment that DetectPlatform inspects.
 type EnvReader interface {
+	// Getenv returns the value of the named environment variable.
 	Getenv(key string) string
+	// Stat returns file info for the named path.
 	Stat(name string) (os.FileInfo, error)
+	// ReadFile returns the full contents of the named file.
 	ReadFile(name string) ([]byte, error)
 }
 
+// osEnv is the EnvReader implementation backed by the os package.
 type osEnv struct{}
 
 func (o osEnv) Getenv(key string) string              { return os.Getenv(key) }
 func (o osEnv) Stat(name string) (os.FileInfo, error) { return os.Stat(name) }
 func (o osEnv) ReadFile(name string) ([]byte, error)  { return os.ReadFile(name) }
 
+// Option adjusts how DetectPlatform detects the platform.
 type Option func(*detectOptions)
 
 type detectOptions struct {
@@ -50,6 +57,8 @@ type detectOptions struct {
 	goos string
 }
 
+// WithEnvReader sets the EnvReader used for detection. A nil value
+// is ignored and the default os-backed reader stays in place.
 func WithEnvReader(env EnvReader) Option {
 	return func(o *detectOptions) {
 		if env != nil {
@@ -58,6 +67,8 @@ func WithEnvReader(env EnvReader) Option {
 	}
 }
 
+// WithGOOS overrides the operating system name used for detection.
+// Tests use it to simulate other platforms.
 func WithGOOS(goos string) Option {
 	return func(o *detectOptions) {
 		o.goos = goos

@@ -9,6 +9,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
+// TestMigrateTargets_V1OneColumn covers migrate targets v1 one column.
 func TestMigrateTargets_V1OneColumn(t *testing.T) {
 	base := t.TempDir()
 	path := targetPath(base, target.KindIP, "one.csv")
@@ -28,6 +29,7 @@ func TestMigrateTargets_V1OneColumn(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_V1TwoColumns covers migrate targets v1 two columns.
 func TestMigrateTargets_V1TwoColumns(t *testing.T) {
 	base := t.TempDir()
 	path := targetPath(base, target.KindIP, "two.csv")
@@ -47,6 +49,7 @@ func TestMigrateTargets_V1TwoColumns(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_V2Untouched covers migrate targets v2 untouched.
 func TestMigrateTargets_V2Untouched(t *testing.T) {
 	base := t.TempDir()
 	path := targetPath(base, target.KindIP, "canonical.csv")
@@ -65,6 +68,7 @@ func TestMigrateTargets_V2Untouched(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_DropsInvalidRows covers migrate targets drops invalid rows.
 func TestMigrateTargets_DropsInvalidRows(t *testing.T) {
 	base := t.TempDir()
 	path := targetPath(base, target.KindIP, "mixed.csv")
@@ -84,6 +88,7 @@ func TestMigrateTargets_DropsInvalidRows(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_DropsInvalidEnableValues covers migrate targets drops invalid enable values.
 func TestMigrateTargets_DropsInvalidEnableValues(t *testing.T) {
 	base := t.TempDir()
 	path := targetPath(base, target.KindIP, "enable.csv")
@@ -98,6 +103,7 @@ func TestMigrateTargets_DropsInvalidEnableValues(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_DeletesFileWithNoValidRows covers migrate targets deletes file with no valid rows.
 func TestMigrateTargets_DeletesFileWithNoValidRows(t *testing.T) {
 	base := t.TempDir()
 	path := targetPath(base, target.KindIP, "useless.csv")
@@ -112,6 +118,7 @@ func TestMigrateTargets_DeletesFileWithNoValidRows(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_DeletesEmptyFile covers migrate targets deletes empty file.
 func TestMigrateTargets_DeletesEmptyFile(t *testing.T) {
 	base := t.TempDir()
 	path := targetPath(base, target.KindIP, "empty.csv")
@@ -126,6 +133,7 @@ func TestMigrateTargets_DeletesEmptyFile(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_IgnoresNonCSVFiles covers migrate targets ignores non csvfiles.
 func TestMigrateTargets_IgnoresNonCSVFiles(t *testing.T) {
 	base := t.TempDir()
 	ipDir := filepath.Join(base, target.IPListDir)
@@ -145,6 +153,7 @@ func TestMigrateTargets_IgnoresNonCSVFiles(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_LeavesDomainDirectoryAlone covers migrate targets leaves domain directory alone.
 func TestMigrateTargets_LeavesDomainDirectoryAlone(t *testing.T) {
 	base := t.TempDir()
 	path := targetPath(base, target.KindDomain, "domains.csv")
@@ -160,6 +169,7 @@ func TestMigrateTargets_LeavesDomainDirectoryAlone(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_WritesMarkerAfterPass covers migrate targets writes marker after pass.
 func TestMigrateTargets_WritesMarkerAfterPass(t *testing.T) {
 	base := t.TempDir()
 	mustWriteFile(t, targetPath(base, target.KindIP, "list.csv"), "1.1.1.1,1\n")
@@ -174,6 +184,7 @@ func TestMigrateTargets_WritesMarkerAfterPass(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_MarkerStopsSecondPass covers migrate targets marker stops second pass.
 func TestMigrateTargets_MarkerStopsSecondPass(t *testing.T) {
 	base := t.TempDir()
 	path := targetPath(base, target.KindIP, "list.csv")
@@ -198,6 +209,7 @@ func TestMigrateTargets_MarkerStopsSecondPass(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_RejectsNewerMarkerVersion covers migrate targets rejects newer marker version.
 func TestMigrateTargets_RejectsNewerMarkerVersion(t *testing.T) {
 	base := t.TempDir()
 	if err := WriteVersion(filepath.Join(base, filepath.Dir(target.IPListDir)), TargetVersion+1); err != nil {
@@ -209,6 +221,7 @@ func TestMigrateTargets_RejectsNewerMarkerVersion(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_MovesLegacyIPLists covers migrate targets moves legacy iplists.
 func TestMigrateTargets_MovesLegacyIPLists(t *testing.T) {
 	base := t.TempDir()
 	legacy := filepath.Join(base, legacyIPDir, "legacy.csv")
@@ -236,6 +249,7 @@ func TestMigrateTargets_MovesLegacyIPLists(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_LegacyMoveDoesNotOverwrite covers migrate targets legacy move does not overwrite.
 func TestMigrateTargets_LegacyMoveDoesNotOverwrite(t *testing.T) {
 	base := t.TempDir()
 	src := filepath.Join(base, legacyIPDir, "same.csv")
@@ -256,6 +270,7 @@ func TestMigrateTargets_LegacyMoveDoesNotOverwrite(t *testing.T) {
 	}
 }
 
+// TestMigrateTargets_LegacyMoveSkippedWhenMarkerCurrent covers migrate targets legacy move skipped when marker current.
 func TestMigrateTargets_LegacyMoveSkippedWhenMarkerCurrent(t *testing.T) {
 	base := t.TempDir()
 	if err := WriteVersion(filepath.Join(base, filepath.Dir(target.IPListDir)), TargetVersion); err != nil {

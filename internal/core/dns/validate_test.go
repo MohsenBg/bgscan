@@ -27,6 +27,7 @@ var testPEMKey = func() string {
 	return string(pem.EncodeToMemory(block))
 }()
 
+// TestValidateProxyAuth checks validateProxyAuth on valid and invalid proxy and auth settings.
 func TestValidateProxyAuth(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -179,6 +180,7 @@ type proxyAuthFields struct {
 	knownHostsFile string
 }
 
+// TestValidateRPS checks that validateRPS accepts values from 0 to 500 and rejects others.
 func TestValidateRPS(t *testing.T) {
 	tests := []struct {
 		rps    float64
@@ -203,6 +205,7 @@ func TestValidateRPS(t *testing.T) {
 	}
 }
 
+// TestValidateFingerprint checks that validateFingerprint accepts known labels and rejects empty or unknown ones.
 func TestValidateFingerprint(t *testing.T) {
 	if err := validateFingerprint(""); err == nil {
 		t.Error("empty fingerprint should fail")
@@ -217,6 +220,7 @@ func TestValidateFingerprint(t *testing.T) {
 	}
 }
 
+// TestValidatePubKey checks that validatePubKey accepts a 64 character hex key and rejects others.
 func TestValidatePubKey(t *testing.T) {
 	valid := strings.Repeat("a", 64)
 
@@ -243,6 +247,7 @@ func TestValidatePubKey(t *testing.T) {
 	}
 }
 
+// TestValidateKnownHostsFile checks validateKnownHostsFile on existing, missing, and malformed files.
 func TestValidateKnownHostsFile(t *testing.T) {
 	if err := validateKnownHostsFile(""); err == nil {
 		t.Error("empty path should fail")

@@ -43,6 +43,7 @@ func tmpPath(t *testing.T, name string) string {
 	return filepath.Join(t.TempDir(), name)
 }
 
+// TestSortFile_SmallFile covers sort file small file.
 func TestSortFile_SmallFile(t *testing.T) {
 	input := tmpPath(t, "input.txt")
 	output := tmpPath(t, "output.txt")
@@ -63,6 +64,7 @@ func TestSortFile_SmallFile(t *testing.T) {
 	}
 }
 
+// TestSortFile_AlreadySorted covers sort file already sorted.
 func TestSortFile_AlreadySorted(t *testing.T) {
 	input := tmpPath(t, "input.txt")
 	output := tmpPath(t, "output.txt")
@@ -82,6 +84,7 @@ func TestSortFile_AlreadySorted(t *testing.T) {
 	}
 }
 
+// TestSortFile_ReverseSorted covers sort file reverse sorted.
 func TestSortFile_ReverseSorted(t *testing.T) {
 	input := tmpPath(t, "input.txt")
 	output := tmpPath(t, "output.txt")
@@ -98,6 +101,7 @@ func TestSortFile_ReverseSorted(t *testing.T) {
 	}
 }
 
+// TestSortFile_SingleLine covers sort file single line.
 func TestSortFile_SingleLine(t *testing.T) {
 	input := tmpPath(t, "input.txt")
 	output := tmpPath(t, "output.txt")
@@ -114,6 +118,7 @@ func TestSortFile_SingleLine(t *testing.T) {
 	}
 }
 
+// TestSortFile_DuplicateLines covers sort file duplicate lines.
 func TestSortFile_DuplicateLines(t *testing.T) {
 	input := tmpPath(t, "input.txt")
 	output := tmpPath(t, "output.txt")
@@ -133,6 +138,7 @@ func TestSortFile_DuplicateLines(t *testing.T) {
 	}
 }
 
+// TestSortFile_CreatesOutputDir covers sort file creates output dir.
 func TestSortFile_CreatesOutputDir(t *testing.T) {
 	input := tmpPath(t, "input.txt")
 	// nested dir that does not exist yet
@@ -149,6 +155,7 @@ func TestSortFile_CreatesOutputDir(t *testing.T) {
 	}
 }
 
+// TestSortFile_InputNotFound covers sort file input not found.
 func TestSortFile_InputNotFound(t *testing.T) {
 	err := SortFile(context.Background(), "/nonexistent/input.txt", tmpPath(t, "output.txt"))
 	if err == nil {
@@ -156,6 +163,7 @@ func TestSortFile_InputNotFound(t *testing.T) {
 	}
 }
 
+// TestSortFile_CancelledContext covers sort file cancelled context.
 func TestSortFile_CancelledContext(t *testing.T) {
 	input := tmpPath(t, "input.txt")
 	writeLines(t, input, []string{"b", "a"})
@@ -169,6 +177,7 @@ func TestSortFile_CancelledContext(t *testing.T) {
 	}
 }
 
+// TestSortFile_ExternalSort covers sort file external sort.
 func TestSortFile_ExternalSort(t *testing.T) {
 	input := tmpPath(t, "input.txt")
 	output := tmpPath(t, "output.txt")
@@ -193,6 +202,7 @@ func TestSortFile_ExternalSort(t *testing.T) {
 	}
 }
 
+// TestSortFile_PreservesAllLines covers sort file preserves all lines.
 func TestSortFile_PreservesAllLines(t *testing.T) {
 	input := tmpPath(t, "input.txt")
 	output := tmpPath(t, "output.txt")
@@ -225,6 +235,7 @@ func TestSortFile_PreservesAllLines(t *testing.T) {
 	}
 }
 
+// TestSortFile_EmptyInputStaysEmpty covers sort file empty input stays empty.
 func TestSortFile_EmptyInputStaysEmpty(t *testing.T) {
 	input := tmpPath(t, "input.txt")
 	output := tmpPath(t, "output.txt")

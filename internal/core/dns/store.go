@@ -38,6 +38,8 @@ func normalizeConfigName(name string) string {
 
 // tunnelConfig is the validation contract for tunnel configurations.
 type tunnelConfig interface {
+	// Validate returns the config's validation errors by field.
+	// An empty map means the config is valid.
 	Validate() map[Field]error
 }
 
@@ -61,6 +63,9 @@ func newConfigStore[C tunnelConfig](dir, kind string) configStore[C] {
 	return configStore[C]{dir: dir, kind: kind}
 }
 
+// configPath returns the file path for a config name. It rejects
+// names with path separators so a name cannot point outside the
+// store directory.
 func (s *configStore[C]) configPath(name string) (string, error) {
 	if name == "" || name == "." || name == ".." ||
 		name != filepath.Base(name) ||
@@ -70,6 +75,9 @@ func (s *configStore[C]) configPath(name string) (string, error) {
 	return filepath.Join(s.dir, normalizeConfigName(name)+".toml"), nil
 }
 
+// SaveConfig validates config and writes it as a new TOML file
+// named name. It returns an error when a file with that name
+// already exists or the config is invalid.
 func (s *configStore[C]) SaveConfig(config C, name string) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("config name is required")
@@ -95,6 +103,9 @@ func (s *configStore[C]) SaveConfig(config C, name string) error {
 	return nil
 }
 
+// EditConfig validates config and rewrites the file named
+// originalName. It returns an error when that file does not exist
+// or the config is invalid.
 func (s *configStore[C]) EditConfig(config C, originalName string) error {
 	if strings.TrimSpace(originalName) == "" {
 		return fmt.Errorf("original config name is required")
@@ -120,6 +131,8 @@ func (s *configStore[C]) EditConfig(config C, originalName string) error {
 	return nil
 }
 
+// LoadConfig reads the TOML file named name and returns its
+// config.
 func (s *configStore[C]) LoadConfig(name string) (C, error) {
 	path, err := s.configPath(name)
 	if err != nil {
@@ -169,6 +182,8 @@ func (s *configStore[C]) GetAllConfigFiles() ([]ConfigFile[C], error) {
 	return configs, nil
 }
 
+// ValidateAllConfigs returns one result for each stored file that
+// fails to load or validate. Valid files are not included.
 func (s *configStore[C]) ValidateAllConfigs() ([]ConfigValidationResult, error) {
 	if err := fileutil.EnsureDir(s.dir); err != nil {
 		return nil, err
@@ -207,6 +222,9 @@ func (s *configStore[C]) ValidateAllConfigs() ([]ConfigValidationResult, error) 
 	return results, nil
 }
 
+// RenameConfig moves the file named oldName to newName. It
+// returns an error when oldName does not exist or newName is
+// already in use.
 func (s *configStore[C]) RenameConfig(oldName, newName string) error {
 	oldPath, err := s.configPath(oldName)
 	if err != nil {

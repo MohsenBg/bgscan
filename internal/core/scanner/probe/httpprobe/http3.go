@@ -72,13 +72,14 @@ func (p *HTTP3Probe) transportFor(sni string) roundTripCloser {
 	return t
 }
 
-// Input implements probe.Probe.
+// Input returns the target kind the configured mode accepts.
 func (p *HTTP3Probe) Input() target.Kind { return p.mode.Input() }
 
-// Init implements probe.Probe. It is a no-op.
+// Init does nothing. Transports are created on first use in Run.
 func (p *HTTP3Probe) Init(context.Context) error { return nil }
 
-// Close implements probe.Probe, releasing the underlying QUIC transports.
+// Close releases the underlying QUIC transports and returns the
+// joined close errors, if any.
 func (p *HTTP3Probe) Close() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -97,12 +98,14 @@ func (p *HTTP3Probe) Close() error {
 	return nil
 }
 
-// Schema implements probe.Probe.
+// Schema returns the result schema shared by the HTTP probes.
 func (p *HTTP3Probe) Schema() result.ResultSchema { return Schema }
 
-// Run executes an HTTP/3 HEAD request for the entry. If the request has a
-// DialIP, the QUIC connection is forced to it while the original host is
-// kept in the Host header for virtual hosting.
+// Run executes an HTTP/3 HEAD request for the entry. If the request
+// has a DialIP, the QUIC connection is forced to it while the
+// original host is kept in the Host header for virtual hosting. It
+// returns probe.ErrBadResponse when the response status code is not
+// accepted.
 func (p *HTTP3Probe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

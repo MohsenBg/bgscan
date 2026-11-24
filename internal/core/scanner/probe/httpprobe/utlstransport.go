@@ -94,6 +94,10 @@ func newUTLSRoundTripper(
 	}
 }
 
+// RoundTrip sends the request over plain HTTP or over a uTLS
+// connection chosen by the ALPN result of a first bootstrap
+// connection. It returns an error for any scheme other than http
+// and https.
 func (rt *utlsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	switch req.URL.Scheme {
 	case "http":

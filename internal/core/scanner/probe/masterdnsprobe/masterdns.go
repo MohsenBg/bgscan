@@ -32,10 +32,12 @@ type MasterDNSProbe struct {
 	tries            int
 }
 
+// Input returns target.KindIP, the only target kind Run accepts.
 func (p *MasterDNSProbe) Input() target.Kind {
 	return target.KindIP
 }
 
+// Option sets one field of a MasterDNSProbe during construction.
 type Option func(*MasterDNSProbe)
 
 // WithLogger sets the logger for probe lifecycle events (nil-safe).
@@ -45,6 +47,8 @@ func WithLogger(log *logger.Logger) Option {
 	}
 }
 
+// WithMasterDNSService sets the MasterDNS service the probe uses.
+// A nil service is ignored, so the default service stays in place.
 func WithMasterDNSService(service dns.MasterDNSService) Option {
 	return func(p *MasterDNSProbe) {
 		if service != nil {
@@ -53,6 +57,8 @@ func WithMasterDNSService(service dns.MasterDNSService) Option {
 	}
 }
 
+// WithSocksService sets the SOCKS service the probe uses.
+// A nil service is ignored, so the default service stays in place.
 func WithSocksService(service socks.Service) Option {
 	return func(p *MasterDNSProbe) {
 		if service != nil {
@@ -61,6 +67,8 @@ func WithSocksService(service socks.Service) Option {
 	}
 }
 
+// WithSpeedtestService sets the speed test service the probe uses.
+// A nil service is ignored, so the default service stays in place.
 func WithSpeedtestService(service speedtest.Service) Option {
 	return func(p *MasterDNSProbe) {
 		if service != nil {
@@ -79,6 +87,9 @@ func WithTries(n int) Option {
 	}
 }
 
+// NewMasterDNSProbe creates a MasterDNSProbe with default services, then
+// applies opts. It returns an error when pm is nil or the config
+// fails validation.
 func NewMasterDNSProbe(
 	config dns.MasterDNSConfig,
 	timeout time.Duration,
@@ -117,10 +128,12 @@ func NewMasterDNSProbe(
 	return p, nil
 }
 
+// Schema returns the result schema for MasterDNS probes.
 func (p *MasterDNSProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
+// Init is a no-op: the probe starts its tunnel inside Run.
 func (p *MasterDNSProbe) Init(context.Context) error {
 	return nil
 }

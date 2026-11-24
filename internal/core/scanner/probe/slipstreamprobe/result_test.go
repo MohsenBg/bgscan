@@ -26,6 +26,7 @@ func mustParseIP(t *testing.T, s string) netip.Addr {
 	return ip
 }
 
+// TestSchema checks schema.
 func TestSchema(t *testing.T) {
 	t.Parallel()
 
@@ -66,6 +67,7 @@ func TestSchema(t *testing.T) {
 	}
 }
 
+// TestSlipstreamResultKey checks slipstream result key.
 func TestSlipstreamResultKey(t *testing.T) {
 	t.Parallel()
 
@@ -78,6 +80,7 @@ func TestSlipstreamResultKey(t *testing.T) {
 	}
 }
 
+// TestSlipstreamResultKeyType checks slipstream result key type.
 func TestSlipstreamResultKeyType(t *testing.T) {
 	t.Parallel()
 
@@ -88,6 +91,7 @@ func TestSlipstreamResultKeyType(t *testing.T) {
 	}
 }
 
+// TestSlipstreamResultEqual checks slipstream result equal.
 func TestSlipstreamResultEqual(t *testing.T) {
 	t.Parallel()
 
@@ -104,6 +108,7 @@ func TestSlipstreamResultEqual(t *testing.T) {
 	}
 }
 
+// TestSlipstreamResultToRecord checks slipstream result to record.
 func TestSlipstreamResultToRecord(t *testing.T) {
 	t.Parallel()
 
@@ -127,6 +132,7 @@ func TestSlipstreamResultToRecord(t *testing.T) {
 	}
 }
 
+// TestSlipstreamResultScore checks slipstream result score.
 func TestSlipstreamResultScore(t *testing.T) {
 	t.Parallel()
 

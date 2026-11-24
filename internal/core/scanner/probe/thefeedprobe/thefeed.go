@@ -28,8 +28,11 @@ func (p *TheFeedProbe) Input() target.Kind {
 	return target.KindIP
 }
 
+// Option configures a TheFeedProbe.
 type Option func(*TheFeedProbe)
 
+// WithTheFeedService sets the thefeed service the probe uses.
+// A nil service is ignored.
 func WithTheFeedService(service dns.TheFeedService) Option {
 	return func(p *TheFeedProbe) {
 		if service != nil {
@@ -48,6 +51,8 @@ func WithTries(n int) Option {
 	}
 }
 
+// NewTheFeedProbe creates a TheFeedProbe from config and timeout.
+// It returns an error when config fails validation.
 func NewTheFeedProbe(
 	config dns.TheFeedConfig,
 	timeout time.Duration,
@@ -82,10 +87,12 @@ func joinConfigErrors(errs map[dns.Field]error) error {
 	return joined
 }
 
+// Schema returns the result schema for TheFeed results.
 func (p *TheFeedProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
+// Init does nothing because the probe needs no setup.
 func (p *TheFeedProbe) Init(context.Context) error {
 	return nil
 }

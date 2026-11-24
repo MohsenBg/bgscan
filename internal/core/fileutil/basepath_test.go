@@ -16,6 +16,7 @@ func makeFile(t *testing.T, path string) {
 	}
 }
 
+// TestIsGoRunTempBinary covers is go run temp binary.
 func TestIsGoRunTempBinary(t *testing.T) {
 	sep := string(os.PathSeparator)
 	tests := []struct {
@@ -39,6 +40,7 @@ func TestIsGoRunTempBinary(t *testing.T) {
 	}
 }
 
+// TestBasePathFor_RealBinary covers base path for real binary.
 func TestBasePathFor_RealBinary(t *testing.T) {
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "app")
@@ -55,6 +57,7 @@ func TestBasePathFor_RealBinary(t *testing.T) {
 	}
 }
 
+// TestBasePathFor_Symlink covers base path for symlink.
 func TestBasePathFor_Symlink(t *testing.T) {
 	realDir := t.TempDir()
 	bin := filepath.Join(realDir, "app")
@@ -76,6 +79,7 @@ func TestBasePathFor_Symlink(t *testing.T) {
 	}
 }
 
+// TestBasePathFor_GoRunBinary covers base path for go run binary.
 func TestBasePathFor_GoRunBinary(t *testing.T) {
 	bin := filepath.Join(t.TempDir(), "go-build123", "b001", "exe", "app")
 	makeFile(t, bin)
@@ -91,6 +95,7 @@ func TestBasePathFor_GoRunBinary(t *testing.T) {
 	}
 }
 
+// TestBasePathFor_UnresolvableFallsBack covers base path for unresolvable falls back.
 func TestBasePathFor_UnresolvableFallsBack(t *testing.T) {
 	dir := t.TempDir()
 	missing := filepath.Join(dir, "does-not-exist")
@@ -106,6 +111,7 @@ func TestBasePathFor_UnresolvableFallsBack(t *testing.T) {
 	}
 }
 
+// TestBasePath_Smoke covers base path smoke.
 func TestBasePath_Smoke(t *testing.T) {
 	got, err := BasePath()
 	if err != nil {

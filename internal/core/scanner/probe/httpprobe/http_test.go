@@ -63,6 +63,7 @@ func mustParseAddr(s string) netip.Addr {
 	return netip.MustParseAddr(s)
 }
 
+// TestNewHTTPProbe_ReturnsProbe covers new HTTP probe returns probe.
 func TestNewHTTPProbe_ReturnsProbe(t *testing.T) {
 	s := Settings{Timeout: 5 * time.Second}
 	mode := staticMode{req: Request{URL: "http://example.com:80"}}
@@ -73,6 +74,7 @@ func TestNewHTTPProbe_ReturnsProbe(t *testing.T) {
 	}
 }
 
+// TestNewHTTPProbe_WithAcceptedCodes covers new HTTP probe with accepted codes.
 func TestNewHTTPProbe_WithAcceptedCodes(t *testing.T) {
 	s := Settings{Timeout: time.Second}
 	p := NewHTTPProbe(
@@ -93,6 +95,7 @@ func TestNewHTTPProbe_WithAcceptedCodes(t *testing.T) {
 	}
 }
 
+// TestNewHTTPProbe_EmptyCodesAcceptsAll covers new HTTP probe empty codes accepts all.
 func TestNewHTTPProbe_EmptyCodesAcceptsAll(t *testing.T) {
 	s := Settings{Timeout: time.Second}
 	p := NewHTTPProbe(
@@ -109,6 +112,7 @@ func TestNewHTTPProbe_EmptyCodesAcceptsAll(t *testing.T) {
 	}
 }
 
+// TestHTTPProbe_Init covers HTTP probe init.
 func TestHTTPProbe_Init(t *testing.T) {
 	p := &HTTPProbe{}
 	if err := p.Init(context.Background()); err != nil {
@@ -116,6 +120,7 @@ func TestHTTPProbe_Init(t *testing.T) {
 	}
 }
 
+// TestHTTPProbe_Close covers HTTP probe close.
 func TestHTTPProbe_Close(t *testing.T) {
 	p := &HTTPProbe{}
 	if err := p.Close(); err != nil {
@@ -123,6 +128,7 @@ func TestHTTPProbe_Close(t *testing.T) {
 	}
 }
 
+// TestHTTPProbe_Schema covers HTTP probe schema.
 func TestHTTPProbe_Schema(t *testing.T) {
 	p := &HTTPProbe{}
 	s := p.Schema()
@@ -138,6 +144,7 @@ func TestHTTPProbe_Schema(t *testing.T) {
 	}
 }
 
+// TestRun_Success_200 covers run success 200.
 func TestRun_Success_200(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -172,6 +179,7 @@ func TestRun_Success_200(t *testing.T) {
 	}
 }
 
+// TestRun_Success_301 covers run success 301.
 func TestRun_Success_301(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMovedPermanently)
@@ -191,6 +199,7 @@ func TestRun_Success_301(t *testing.T) {
 	}
 }
 
+// TestRun_Success_WithFilter covers run success with filter.
 func TestRun_Success_WithFilter(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
@@ -210,6 +219,7 @@ func TestRun_Success_WithFilter(t *testing.T) {
 	}
 }
 
+// TestRun_UsesHEADMethod covers run uses HEAD method.
 func TestRun_UsesHEADMethod(t *testing.T) {
 	var gotMethod string
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -230,6 +240,7 @@ func TestRun_UsesHEADMethod(t *testing.T) {
 	}
 }
 
+// TestRun_StatusNotAccepted covers run status not accepted.
 func TestRun_StatusNotAccepted(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -252,6 +263,7 @@ func TestRun_StatusNotAccepted(t *testing.T) {
 	}
 }
 
+// TestRun_ContextCancelled covers run context cancelled.
 func TestRun_ContextCancelled(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -269,6 +281,7 @@ func TestRun_ContextCancelled(t *testing.T) {
 	}
 }
 
+// TestRun_ConnectionRefused covers run connection refused.
 func TestRun_ConnectionRefused(t *testing.T) {
 	p := &HTTPProbe{
 		settings: Settings{Timeout: time.Second},
@@ -294,6 +307,7 @@ func TestRun_ConnectionRefused(t *testing.T) {
 	}
 }
 
+// TestRun_ServerTimeout covers run server timeout.
 func TestRun_ServerTimeout(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(3 * time.Second)
@@ -325,6 +339,7 @@ func TestRun_ServerTimeout(t *testing.T) {
 	}
 }
 
+// TestRun_TLS_Success covers run TLS success.
 func TestRun_TLS_Success(t *testing.T) {
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -348,6 +363,7 @@ func TestRun_TLS_Success(t *testing.T) {
 	}
 }
 
+// TestTLSNextProto_H1 covers TLS next proto H1.
 func TestTLSNextProto_H1(t *testing.T) {
 	m := tlsNextProto(HTTPVersionH1)
 	if m == nil {
@@ -358,6 +374,7 @@ func TestTLSNextProto_H1(t *testing.T) {
 	}
 }
 
+// TestTLSNextProto_H2 covers TLS next proto H2.
 func TestTLSNextProto_H2(t *testing.T) {
 	m := tlsNextProto(HTTPVersionH2)
 	if m != nil {
@@ -365,6 +382,7 @@ func TestTLSNextProto_H2(t *testing.T) {
 	}
 }
 
+// TestTLSNextProto_H1H2 covers TLS next proto H1 H2.
 func TestTLSNextProto_H1H2(t *testing.T) {
 	m := tlsNextProto(HTTPVersionH1H2)
 	if m != nil {
@@ -372,6 +390,7 @@ func TestTLSNextProto_H1H2(t *testing.T) {
 	}
 }
 
+// TestBuildClient_TransportConfig covers build client transport config.
 func TestBuildClient_TransportConfig(t *testing.T) {
 	p := &HTTPProbe{
 		settings: Settings{
@@ -417,6 +436,7 @@ func TestBuildClient_TransportConfig(t *testing.T) {
 	}
 }
 
+// TestBuildClient_H2_ForcesHTTP2 covers build client H2 forces HTTP2.
 func TestBuildClient_H2_ForcesHTTP2(t *testing.T) {
 	p := &HTTPProbe{
 		settings: Settings{
@@ -443,6 +463,7 @@ func TestBuildClient_H2_ForcesHTTP2(t *testing.T) {
 	}
 }
 
+// TestBuildClient_H1H2NegotiatesHTTP2 covers build client H1 H2 negotiates HTTP2.
 func TestBuildClient_H1H2NegotiatesHTTP2(t *testing.T) {
 	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -530,6 +551,7 @@ func TestBuildClient_DialRedirectsToIP(t *testing.T) {
 	}
 }
 
+// TestRun_ResultImplementsInterface covers run result implements interface.
 func TestRun_ResultImplementsInterface(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -551,6 +573,7 @@ func TestRun_ResultImplementsInterface(t *testing.T) {
 	}
 }
 
+// TestRun_MultipleCalls covers run multiple calls.
 func TestRun_MultipleCalls(t *testing.T) {
 	callCount := 0
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

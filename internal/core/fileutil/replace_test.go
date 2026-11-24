@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestReplaceFile_NewDestination covers replace file new destination.
 func TestReplaceFile_NewDestination(t *testing.T) {
 	tmpDir := t.TempDir()
 	src := filepath.Join(tmpDir, "src.csv")
@@ -30,6 +31,7 @@ func TestReplaceFile_NewDestination(t *testing.T) {
 	}
 }
 
+// TestReplaceFile_OverwriteExisting covers replace file overwrite existing.
 func TestReplaceFile_OverwriteExisting(t *testing.T) {
 	tmpDir := t.TempDir()
 	src := filepath.Join(tmpDir, "src.csv")
@@ -48,6 +50,7 @@ func TestReplaceFile_OverwriteExisting(t *testing.T) {
 	}
 }
 
+// TestReplaceFile_NonexistentSource covers replace file nonexistent source.
 func TestReplaceFile_NonexistentSource(t *testing.T) {
 	tmpDir := t.TempDir()
 	src := filepath.Join(tmpDir, "nonexistent.csv")

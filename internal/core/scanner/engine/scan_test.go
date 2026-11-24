@@ -13,6 +13,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/target"
 )
 
+// TestRunScan_EmptyInput covers run scan empty input.
 func TestRunScan_EmptyInput(t *testing.T) {
 	path := ipFile(t)
 	prb := &mockProbe{}
@@ -45,6 +46,7 @@ func TestRunScan_EmptyInput(t *testing.T) {
 	}
 }
 
+// TestRunScan_ScansAllIPs covers run scan scans all I ps.
 func TestRunScan_ScansAllIPs(t *testing.T) {
 	ips := []string{"1.2.3.4", "5.6.7.8", "9.10.11.12"}
 	path := ipFile(t, ips...)
@@ -82,6 +84,7 @@ func TestRunScan_ScansAllIPs(t *testing.T) {
 	}
 }
 
+// TestRunScan_ProbeInitError covers run scan probe init error.
 func TestRunScan_ProbeInitError(t *testing.T) {
 	path := ipFile(t, "1.2.3.4")
 	prb := &mockProbe{initErr: errors.New("init failed")}
@@ -109,6 +112,7 @@ func TestRunScan_ProbeInitError(t *testing.T) {
 	}
 }
 
+// TestRunScan_ProbeRunError covers run scan probe run error.
 func TestRunScan_ProbeRunError(t *testing.T) {
 	path := ipFile(t, "1.2.3.4", "2.3.4.5")
 	prb := &mockProbe{runErr: errors.New("probe failure")}
@@ -145,6 +149,7 @@ func TestRunScan_ProbeRunError(t *testing.T) {
 	}
 }
 
+// TestRunScan_WriterWriteErrorIsFatal covers run scan writer write error is fatal.
 func TestRunScan_WriterWriteErrorIsFatal(t *testing.T) {
 	ips := make([]string, 200)
 	for i := range ips {
@@ -176,6 +181,7 @@ func TestRunScan_WriterWriteErrorIsFatal(t *testing.T) {
 	}
 }
 
+// TestRunScan_WriterWriteErrorIsIgnored covers run scan writer write error is ignored.
 func TestRunScan_WriterWriteErrorIsIgnored(t *testing.T) {
 	ips := make([]string, 200)
 	for i := range ips {
@@ -218,6 +224,7 @@ func TestRunScan_WriterWriteErrorIsIgnored(t *testing.T) {
 	}
 }
 
+// TestRunScan_WriterCloseErrorIsIgnored covers run scan writer close error is ignored.
 func TestRunScan_WriterCloseErrorIsIgnored(t *testing.T) {
 	path := ipFile(t, "1.2.3.4")
 	prb := &mockProbe{}
@@ -242,6 +249,7 @@ func TestRunScan_WriterCloseErrorIsIgnored(t *testing.T) {
 	}
 }
 
+// TestRunScan_WriterStartError covers run scan writer start error.
 func TestRunScan_WriterStartError(t *testing.T) {
 	path := ipFile(t, "1.2.3.4")
 	prb := &mockProbe{}
@@ -266,6 +274,7 @@ func TestRunScan_WriterStartError(t *testing.T) {
 	}
 }
 
+// TestRunScan_WriterStartErrorIsIgnored covers run scan writer start error is ignored.
 func TestRunScan_WriterStartErrorIsIgnored(t *testing.T) {
 	path := ipFile(t, "1.2.3.4")
 	prb := &mockProbe{}
@@ -296,6 +305,7 @@ func TestRunScan_WriterStartErrorIsIgnored(t *testing.T) {
 	}
 }
 
+// TestRunScan_ContextCancellation covers run scan context cancellation.
 func TestRunScan_ContextCancellation(t *testing.T) {
 	ips := make([]string, 500)
 	for i := range ips {
@@ -340,6 +350,7 @@ func TestRunScan_ContextCancellation(t *testing.T) {
 	}
 }
 
+// TestRunScan_MaxIPLimit covers run scan max IP limit.
 func TestRunScan_MaxIPLimit(t *testing.T) {
 	ips := []string{"1.1.1.1", "2.2.2.2", "3.3.3.3", "4.4.4.4", "5.5.5.5"}
 	path := ipFile(t, ips...)
@@ -371,6 +382,7 @@ func TestRunScan_MaxIPLimit(t *testing.T) {
 	}
 }
 
+// TestRunScan_PauseAndResumeDuringRun covers run scan pause and resume during run.
 func TestRunScan_PauseAndResumeDuringRun(t *testing.T) {
 	ips := make([]string, 20)
 	for i := range ips {
@@ -416,6 +428,7 @@ func TestRunScan_PauseAndResumeDuringRun(t *testing.T) {
 	}
 }
 
+// TestRunScan_OnProgressCallback covers run scan on progress callback.
 func TestRunScan_OnProgressCallback(t *testing.T) {
 	ips := make([]string, 10)
 	for i := range ips {
@@ -462,6 +475,7 @@ func TestRunScan_OnProgressCallback(t *testing.T) {
 	}
 }
 
+// TestWorkerPool_ConcurrencyRespected covers worker pool concurrency respected.
 func TestWorkerPool_ConcurrencyRespected(t *testing.T) {
 	const workerCount = 4
 	ips := make([]string, 40)
@@ -523,6 +537,7 @@ func TestWorkerPool_ConcurrencyRespected(t *testing.T) {
 	}
 }
 
+// TestWorkerPool_ZeroWorkersDefaultsToOne covers worker pool zero workers defaults to one.
 func TestWorkerPool_ZeroWorkersDefaultsToOne(t *testing.T) {
 	path := ipFile(t, "1.2.3.4")
 	prb := &mockProbe{}
@@ -555,6 +570,7 @@ func TestWorkerPool_ZeroWorkersDefaultsToOne(t *testing.T) {
 	}
 }
 
+// TestProgress_FieldsViaScan covers progress fields via scan.
 func TestProgress_FieldsViaScan(t *testing.T) {
 	ips := make([]string, 5)
 	for i := range ips {

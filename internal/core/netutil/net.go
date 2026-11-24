@@ -247,6 +247,8 @@ func ValidateDomain(domain string) error {
 	return nil
 }
 
+// NormalizePath returns path with exactly one leading slash.
+// NormalizePath returns an empty string for empty input.
 func NormalizePath(path string) string {
 	path = strings.TrimSpace(path)
 	if path == "" {
@@ -256,6 +258,8 @@ func NormalizePath(path string) string {
 	return "/" + strings.TrimLeft(path, "/")
 }
 
+// ValidatePath checks that path has no query, fragment, or whitespace.
+// ValidatePath accepts an empty path.
 func ValidatePath(path string) error {
 	if path == "" {
 		return nil

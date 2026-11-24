@@ -1,3 +1,6 @@
+// Package ffi has small helpers for calling C libraries from Go
+// without cgo. It loads shared libraries, converts strings between
+// Go and C form, and keeps Go memory alive while C code uses it.
 package ffi
 
 import "unsafe"

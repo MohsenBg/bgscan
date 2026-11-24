@@ -6,6 +6,7 @@ import (
 	"github.com/miekg/dns"
 )
 
+// TestResolverTypeIsValid checks that ResolverType.IsValid accepts the known transports in any case.
 func TestResolverTypeIsValid(t *testing.T) {
 	tests := []struct {
 		input ResolverType
@@ -32,6 +33,7 @@ func TestResolverTypeIsValid(t *testing.T) {
 	}
 }
 
+// TestParseResolverType checks that ParseResolverType parses known transports and falls back for unknown values.
 func TestParseResolverType(t *testing.T) {
 	tests := []struct {
 		input string
@@ -64,6 +66,7 @@ func TestParseResolverType(t *testing.T) {
 	}
 }
 
+// TestRecordTypeIsValid checks that RecordType.IsValid accepts the known record types.
 func TestRecordTypeIsValid(t *testing.T) {
 	tests := []struct {
 		input RecordType
@@ -96,6 +99,7 @@ func TestRecordTypeIsValid(t *testing.T) {
 	}
 }
 
+// TestParseRecordType checks that ParseRecordType parses known record types and falls back for unknown values.
 func TestParseRecordType(t *testing.T) {
 	tests := []struct {
 		input string
@@ -133,6 +137,7 @@ func TestParseRecordType(t *testing.T) {
 	}
 }
 
+// TestToMiekgDNS checks that toMiekgDNS maps each record type to the miekg/dns query type.
 func TestToMiekgDNS(t *testing.T) {
 	tests := []struct {
 		input RecordType
@@ -162,6 +167,7 @@ func TestToMiekgDNS(t *testing.T) {
 	}
 }
 
+// TestParseDNSRcode checks that ParseDNSRcode parses response code names.
 func TestParseDNSRcode(t *testing.T) {
 	tests := []struct {
 		input string
@@ -210,6 +216,7 @@ func TestParseDNSRcode(t *testing.T) {
 	}
 }
 
+// TestAuthMethodIsValid checks that AuthMethod.IsValid accepts the known methods.
 func TestAuthMethodIsValid(t *testing.T) {
 	tests := []struct {
 		input AuthMethod
@@ -234,6 +241,7 @@ func TestAuthMethodIsValid(t *testing.T) {
 	}
 }
 
+// TestParseAuthMethod checks that ParseAuthMethod parses known methods and returns AuthNone for unknown values.
 func TestParseAuthMethod(t *testing.T) {
 	tests := []struct {
 		input string
@@ -262,6 +270,7 @@ func TestParseAuthMethod(t *testing.T) {
 	}
 }
 
+// TestResolverProxyTypeIsValid checks that ResolverProxyType.IsValid accepts socks and ssh in any case.
 func TestResolverProxyTypeIsValid(t *testing.T) {
 	tests := []struct {
 		input ResolverProxyType
@@ -284,6 +293,7 @@ func TestResolverProxyTypeIsValid(t *testing.T) {
 	}
 }
 
+// TestParseResolverProxyType checks that ParseResolverProxyType parses known types and returns an empty value for unknown ones.
 func TestParseResolverProxyType(t *testing.T) {
 	tests := []struct {
 		input string
@@ -309,6 +319,7 @@ func TestParseResolverProxyType(t *testing.T) {
 	}
 }
 
+// TestEncMethodString checks that enc method string.
 func TestEncMethodString(t *testing.T) {
 	tests := []struct {
 		method EncMethod
@@ -331,6 +342,7 @@ func TestEncMethodString(t *testing.T) {
 	}
 }
 
+// TestParseEncMethod checks that parse enc method.
 func TestParseEncMethod(t *testing.T) {
 	tests := []struct {
 		input string

@@ -24,7 +24,7 @@ var Schema = result.ResultSchema{
 	Parser: parseXrayResult,
 }
 
-// XrayResult represents the outcome of a single Xray probe.
+// XrayResult holds the outcome of a single Xray probe.
 // Download and Upload are zero when the corresponding test mode is disabled.
 type XrayResult struct {
 	Entry    target.Entry // The row that produced this result.
@@ -36,7 +36,7 @@ type XrayResult struct {
 // Key returns the identity of the probed target with probe index prefix.
 func (r XrayResult) Key() string { return r.Entry.Key() }
 
-// KeyType implements result.Result, identifying this as an IP-based key.
+// KeyType returns the kind of the probed target.
 func (r XrayResult) KeyType() target.Kind { return r.Entry.Kind }
 
 // Equal reports whether r and other point at the same target.
@@ -76,7 +76,7 @@ func (r XrayResult) Score() float64 {
 // speeds to zero if parsing fails.
 func parseXrayResult(record []string) (result.Result, error) {
 	// Record layout: the target's CSV fields first (value, port, path,
-	// enable — must match len(target.Entry.EncodeCSV())), then the
+	// enable, must match len(target.Entry.EncodeCSV())), then the
 	// result's own fields (latency, download, upload).
 	const entryFields = 4
 	const resultFields = 3

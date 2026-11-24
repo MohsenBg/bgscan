@@ -9,8 +9,15 @@ import (
 	"syscall"
 )
 
+// Expected probe failures. NormalizeErr maps low-level errors to
+// these values, and the engine counts failures by them.
+//
+//   - ErrTimeout: the probe passed its deadline.
+//   - ErrRefused: the target refused the connection.
+//   - ErrUnreachable: the target host could not be reached.
+//   - ErrBadResponse: the target answered, but the answer failed the
+//     probe checks, such as a rejected status code.
 var (
-	// Expected probe failures.
 	ErrTimeout     = errors.New("timeout")
 	ErrRefused     = errors.New("connection refused")
 	ErrUnreachable = errors.New("host unreachable")
@@ -22,6 +29,10 @@ var (
 	ErrDomainTarget = errors.New("domain target needs DNS resolution")
 )
 
+// NormalizeErr maps a low-level probe error to one of the shared
+// sentinel errors in this package, wrapped around the original error.
+// Timeouts, refused connections, and unreachable hosts are mapped.
+// Any other error, and nil, is returned unchanged.
 func NormalizeErr(err error) error {
 	if err == nil {
 		return nil

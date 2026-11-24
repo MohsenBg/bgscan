@@ -15,19 +15,25 @@ import (
 	"github.com/ebitengine/purego"
 )
 
+// DNSResolution is the DNS resolution mode passed to the native library.
 type DNSResolution int32
 
 const (
-	ModeRecursive     DNSResolution = 1
+	// ModeRecursive selects recursive DNS resolution.
+	ModeRecursive DNSResolution = 1
+	// ModeAuthoritative selects authoritative DNS resolution.
 	ModeAuthoritative DNSResolution = 2
 )
 
+// Resolver is one DNS resolver the tunnel can use.
 type Resolver struct {
 	Host string
 	Port uint16
 	Mode DNSResolution
 }
 
+// Config holds the settings for one Slipstream client.
+// Resolvers must hold at least one entry or Lib.Start returns an error.
 type Config struct {
 	ListenHost        string
 	ListenPort        uint16
@@ -62,7 +68,7 @@ type cConfig struct {
 	DebugStreams      bool
 }
 
-// Lib is a loaded libslipstream.
+// Lib is a loaded libslipstream library with its functions bound.
 type Lib struct {
 	version func() uintptr
 	start   func(cfg unsafe.Pointer) uintptr
@@ -70,9 +76,14 @@ type Lib struct {
 	running func(client uintptr) bool
 }
 
-// Client represents a running Slipstream tunnel.
+// Client is a running Slipstream tunnel.
+// Callers must call Stop when done to free the native client.
 type Client interface {
+	// Running reports whether the tunnel is still running.
+	// Running returns false after Stop.
 	Running() bool
+	// Stop stops the tunnel and frees the native client.
+	// Stop is safe to call more than once.
 	Stop() error
 }
 
@@ -123,11 +134,15 @@ func Load() (*Lib, error) {
 	return l, nil
 }
 
+// Version returns the version string reported by the native library.
 func (l *Lib) Version() string {
 	return ffi.GoString(l.version())
 }
 
-// Start creates and starts a client.
+// Start creates and starts a client from cfg.
+// Start returns an error when cfg has no resolvers or when the native
+// start call fails. The caller owns the returned Client and must call
+// Stop on it when done.
 func (l *Lib) Start(cfg Config) (Client, error) {
 	if len(cfg.Resolvers) == 0 {
 		return nil, errors.New("at least one resolver is required")
@@ -219,6 +234,8 @@ func (c *client) Stop() error {
 	return nil
 }
 
+// Kill stops the client and frees it, like Stop.
+// Kill lets client satisfy kill-style interfaces used by process tracking.
 func (c *client) Kill() error {
 	return c.Stop()
 }
@@ -266,7 +283,10 @@ func libFilePatterns() []string {
 	}
 }
 
-// FindLibSlipstream locates libslipstream in the known locations.
+// FindLibSlipstream locates the libslipstream library file in the known
+// install locations.
+// FindLibSlipstream returns an error on unsupported platforms and when
+// no matching library file exists.
 func FindLibSlipstream() (string, error) {
 	patterns := libFilePatterns()
 
@@ -313,6 +333,8 @@ func FindLibSlipstream() (string, error) {
 }
 
 // VerifyLibSlipstream loads the library and reports its version.
+// VerifyLibSlipstream returns an error when the library cannot be loaded
+// or reports an empty version.
 func VerifyLibSlipstream() (string, error) {
 	lib, err := Load()
 	if err != nil {

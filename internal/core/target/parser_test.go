@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+// TestParseRecord: ParseRecord accepts valid rows and rejects bad ports, paths, and enable values.
 func TestParseRecord(t *testing.T) {
 	t.Parallel()
 
@@ -194,6 +195,7 @@ func TestParseRecord(t *testing.T) {
 	}
 }
 
+// TestParseInputRecord: ParseInputRecord fills the missing fields of short import rows.
 func TestParseInputRecord(t *testing.T) {
 	t.Parallel()
 
@@ -254,6 +256,7 @@ func TestParseInputRecord(t *testing.T) {
 	}
 }
 
+// TestStreamActiveSequential: sequential streaming skips disabled rows and expands CIDR ranges.
 func TestStreamActiveSequential(t *testing.T) {
 	t.Parallel()
 
@@ -307,6 +310,7 @@ func TestStreamActiveSequential(t *testing.T) {
 	})
 }
 
+// TestStreamActiveSequential_PortAndPathTravelWithTheEntry: sequential streaming keeps the port and path of each row.
 func TestStreamActiveSequential_PortAndPathTravelWithTheEntry(t *testing.T) {
 	t.Parallel()
 
@@ -330,6 +334,7 @@ func TestStreamActiveSequential_PortAndPathTravelWithTheEntry(t *testing.T) {
 	}
 }
 
+// TestStreamActive_DomainIsOneTarget: a domain row streams as one target and is not expanded.
 func TestStreamActive_DomainIsOneTarget(t *testing.T) {
 	t.Parallel()
 
@@ -357,6 +362,7 @@ func TestStreamActive_DomainIsOneTarget(t *testing.T) {
 	}
 }
 
+// TestStreamActive_DisabledDomainSkipped: a disabled domain row is not streamed.
 func TestStreamActive_DisabledDomainSkipped(t *testing.T) {
 	t.Parallel()
 

@@ -15,6 +15,8 @@ import (
 )
 
 // ErrResultLimitReached signals that the target success goal has been met.
+// ErrWriterFatal signals that a result writer failed and the scan must
+// stop. It wraps the writer error that caused the failure.
 var (
 	ErrResultLimitReached = errors.New("result limit reached")
 	ErrWriterFatal        = errors.New("writer fatal")

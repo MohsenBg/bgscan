@@ -30,10 +30,12 @@ type VayDNSProbe struct {
 	tries            int
 }
 
+// Input returns the target kind the probe accepts.
 func (v *VayDNSProbe) Input() target.Kind {
 	return target.KindHost
 }
 
+// Option configures a VayDNSProbe.
 type Option func(*VayDNSProbe)
 
 // WithLogger sets the logger for probe lifecycle events (nil-safe).
@@ -43,6 +45,8 @@ func WithLogger(log *logger.Logger) Option {
 	}
 }
 
+// WithVayDNSService sets the VayDNS service the probe uses.
+// A nil service is ignored.
 func WithVayDNSService(service dns.VayDNSService) Option {
 	return func(p *VayDNSProbe) {
 		if service != nil {
@@ -51,6 +55,8 @@ func WithVayDNSService(service dns.VayDNSService) Option {
 	}
 }
 
+// WithSSHService sets the SSH service the probe uses.
+// A nil service is ignored.
 func WithSSHService(service ssh.SSHService) Option {
 	return func(p *VayDNSProbe) {
 		if service != nil {
@@ -59,6 +65,8 @@ func WithSSHService(service ssh.SSHService) Option {
 	}
 }
 
+// WithSocksService sets the SOCKS service the probe uses.
+// A nil service is ignored.
 func WithSocksService(service socks.Service) Option {
 	return func(p *VayDNSProbe) {
 		if service != nil {
@@ -67,6 +75,8 @@ func WithSocksService(service socks.Service) Option {
 	}
 }
 
+// WithSpeedtestService sets the speed test service the probe uses.
+// A nil service is ignored.
 func WithSpeedtestService(service speedtest.Service) Option {
 	return func(p *VayDNSProbe) {
 		if service != nil {
@@ -85,6 +95,9 @@ func WithTries(n int) Option {
 	}
 }
 
+// NewVayDNSProbe creates a VayDNSProbe from config and timeout.
+// It returns an error when config fails validation. Services that
+// no option sets get their default implementations.
 func NewVayDNSProbe(
 	config dns.VayDNSConfig,
 	timeout time.Duration,
@@ -124,10 +137,12 @@ func NewVayDNSProbe(
 	return p, nil
 }
 
+// Schema returns the result schema for VayDNS results.
 func (v *VayDNSProbe) Schema() result.ResultSchema {
 	return Schema
 }
 
+// Init does nothing because the probe needs no setup.
 func (v *VayDNSProbe) Init(context.Context) error {
 	return nil
 }

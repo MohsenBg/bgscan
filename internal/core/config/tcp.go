@@ -15,6 +15,10 @@ type TCPConfig struct {
 	OutputPrefix string     `toml:"output_prefix" comment:"Filename prefix for result files."`
 }
 
+// DefaultTCPConfig returns the default TCP settings for the detected
+// platform and resource tier. When the defaults table has no entry
+// for the detected platform or tier, it logs a warning and falls
+// back to the Desktop platform or the Mid tier.
 func DefaultTCPConfig(log *logger.Logger) TCPConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())

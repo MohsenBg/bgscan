@@ -187,6 +187,7 @@ func newTestProbe(
 	return p
 }
 
+// TestNewDNSTTProbeValidation covers new DNSTT probe validation.
 func TestNewDNSTTProbeValidation(t *testing.T) {
 	config := validConfig()
 	config.Domain = ""
@@ -197,6 +198,7 @@ func TestNewDNSTTProbeValidation(t *testing.T) {
 	}
 }
 
+// TestNewDNSTTProbeAppliesOptions covers new DNSTT probe applies options.
 func TestNewDNSTTProbeAppliesOptions(t *testing.T) {
 	dnstt := &fakeDNSTTService{}
 	socksService := &fakeSOCKSService{}
@@ -228,6 +230,7 @@ func TestNewDNSTTProbeAppliesOptions(t *testing.T) {
 	}
 }
 
+// TestNewDNSTTProbeIgnoresNilOptions covers new DNSTT probe ignores nil options.
 func TestNewDNSTTProbeIgnoresNilOptions(t *testing.T) {
 	dnstt := &fakeDNSTTService{}
 	socksService := &fakeSOCKSService{}
@@ -267,6 +270,8 @@ func TestNewDNSTTProbeIgnoresNilOptions(t *testing.T) {
 	_ = speedtestService
 }
 
+// TestRunReturnsCanceledContextBeforeCreatingTunnel covers run returns canceled context before
+// creating tunnel.
 func TestRunReturnsCanceledContextBeforeCreatingTunnel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -290,6 +295,7 @@ func TestRunReturnsCanceledContextBeforeCreatingTunnel(t *testing.T) {
 	}
 }
 
+// TestRunReturnsTunnelError covers run returns tunnel error.
 func TestRunReturnsTunnelError(t *testing.T) {
 	expectedErr := errors.New("create tunnel failed")
 
@@ -357,6 +363,7 @@ func TestRunPassesTargetIPAsResolverAddr(t *testing.T) {
 	}
 }
 
+// TestRunReturnsUnsupportedProxyType covers run returns unsupported proxy type.
 func TestRunReturnsUnsupportedProxyType(t *testing.T) {
 	config := validConfig()
 	config.ProxyType = dns.ResolverProxyType("")
@@ -384,6 +391,7 @@ func TestRunReturnsUnsupportedProxyType(t *testing.T) {
 	}
 }
 
+// TestRunSSHRequiresAuthentication covers run SSH requires authentication.
 func TestRunSSHRequiresAuthentication(t *testing.T) {
 	config := validConfig()
 	config.ProxyType = dns.ResolverProxySSH
@@ -406,6 +414,7 @@ func TestRunSSHRequiresAuthentication(t *testing.T) {
 	}
 }
 
+// TestRunSOCKSRejectsKeyAuthentication covers run SOCKS rejects key authentication.
 func TestRunSOCKSRejectsKeyAuthentication(t *testing.T) {
 	config := validConfig()
 	config.ProxyType = dns.ResolverProxySOCKS
@@ -428,6 +437,7 @@ func TestRunSOCKSRejectsKeyAuthentication(t *testing.T) {
 	}
 }
 
+// TestRunSOCKSConnectError covers run SOCKS connect error.
 func TestRunSOCKSConnectError(t *testing.T) {
 	expectedErr := errors.New("SOCKS connection failed")
 
@@ -481,6 +491,7 @@ func TestRunSOCKSConnectError(t *testing.T) {
 	}
 }
 
+// TestRunSOCKSSuccess covers run SOCKS success.
 func TestRunSOCKSSuccess(t *testing.T) {
 	config := validConfig()
 	config.ProxyType = dns.ResolverProxySOCKS
@@ -626,6 +637,7 @@ func TestRunSOCKSSuccess(t *testing.T) {
 	}
 }
 
+// TestRunReturnsLatencyError covers run returns latency error.
 func TestRunReturnsLatencyError(t *testing.T) {
 	expectedErr := errors.New("latency failed")
 
@@ -665,6 +677,7 @@ func TestRunReturnsLatencyError(t *testing.T) {
 	}
 }
 
+// TestClose covers close.
 func TestClose(t *testing.T) {
 	p := &DNSTTProbe{}
 

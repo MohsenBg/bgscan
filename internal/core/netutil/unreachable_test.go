@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestIsUnreachable_Errnos covers is unreachable errnos.
 func TestIsUnreachable_Errnos(t *testing.T) {
 	t.Parallel()
 
@@ -35,6 +36,7 @@ func TestIsUnreachable_Errnos(t *testing.T) {
 	}
 }
 
+// TestIsUnreachable_Wrapped covers is unreachable wrapped.
 func TestIsUnreachable_Wrapped(t *testing.T) {
 	t.Parallel()
 

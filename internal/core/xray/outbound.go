@@ -126,7 +126,7 @@ func setOutboundAddress(outbound map[string]any, addr string, port uint16) error
 	return nil
 }
 
-// setAddressAt applies a scanned IP to one address location
+// setAddressAt applies a scanned IP to one address location.
 func setAddressAt(outbound map[string]any, loc addressLocation, addr string, port uint16) error {
 	node := any(outbound)
 
@@ -205,6 +205,10 @@ func applyOutboundTemplate(templatePath string, addr string, port uint16) (any, 
 	return outbound, nil
 }
 
+// SaveOutboundFromFile reads an outbound from the file at src, which
+// may be a bare outbound, an array of outbounds, or a full config, and
+// saves its main outbound as a template under name. It returns an error
+// if a template with that name already exists.
 func SaveOutboundFromFile(log *logger.Logger, src, name string) (*OutboundFile, error) {
 	info, err := os.Stat(src)
 	if err != nil {
@@ -260,6 +264,8 @@ func ParseLink(link string) (*Outbound, error) {
 	return outbound, nil
 }
 
+// SaveOutboundFromLink parses a sharing link and saves the outbound it
+// describes as a template under name.
 func SaveOutboundFromLink(log *logger.Logger, link, name string) (*OutboundFile, error) {
 	outbound, err := ParseLink(link)
 	if err != nil {
@@ -310,11 +316,15 @@ func saveOutboundTemplate(log *logger.Logger, name string, outbound *Outbound) (
 	return loadOutboundFileMetadata(dst)
 }
 
+// GetOutboundTemplateByName returns the metadata of the saved template
+// with the given name.
 func GetOutboundTemplateByName(name string) (*OutboundFile, error) {
 	path := filepath.Join(templateDir(), normalizeTemplateName(name))
 	return loadOutboundFileMetadata(path)
 }
 
+// ListOutboundTemplates returns the metadata of every saved template.
+// A template that fails to parse is logged and skipped.
 func ListOutboundTemplates(log *logger.Logger) ([]OutboundFile, error) {
 	files, err := fileutil.ListFiles(templateDir(), func(name string, info os.FileInfo) bool {
 		return !info.IsDir() && filepath.Ext(name) == ".json"
@@ -338,6 +348,9 @@ func ListOutboundTemplates(log *logger.Logger) ([]OutboundFile, error) {
 	return templates, nil
 }
 
+// RenameOutboundTemplate renames a saved template and returns the
+// metadata of the renamed file. It returns an error if a template
+// already uses newName.
 func RenameOutboundTemplate(oldName, newName string) (*OutboundFile, error) {
 	oldFile, err := GetOutboundTemplateByName(oldName)
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestWriteVersion_ThenRead covers write version then read.
 func TestWriteVersion_ThenRead(t *testing.T) {
 	dir := t.TempDir()
 
@@ -25,6 +26,7 @@ func TestWriteVersion_ThenRead(t *testing.T) {
 	}
 }
 
+// TestWriteVersion_CreatesDirectory covers write version creates directory.
 func TestWriteVersion_CreatesDirectory(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "nested", "result")
 
@@ -37,6 +39,7 @@ func TestWriteVersion_CreatesDirectory(t *testing.T) {
 	}
 }
 
+// TestWriteVersion_ContentIsOneInteger covers write version content is one integer.
 func TestWriteVersion_ContentIsOneInteger(t *testing.T) {
 	dir := t.TempDir()
 
@@ -53,6 +56,7 @@ func TestWriteVersion_ContentIsOneInteger(t *testing.T) {
 	}
 }
 
+// TestWriteVersion_RejectsNonPositive covers write version rejects non positive.
 func TestWriteVersion_RejectsNonPositive(t *testing.T) {
 	for _, version := range []int{0, -1} {
 		if err := WriteVersion(t.TempDir(), version); err == nil {
@@ -61,6 +65,7 @@ func TestWriteVersion_RejectsNonPositive(t *testing.T) {
 	}
 }
 
+// TestReadVersion_MissingMarker covers read version missing marker.
 func TestReadVersion_MissingMarker(t *testing.T) {
 	version, found, err := ReadVersion(t.TempDir())
 	if err != nil {
@@ -74,6 +79,7 @@ func TestReadVersion_MissingMarker(t *testing.T) {
 	}
 }
 
+// TestReadVersion_EmptyMarker covers read version empty marker.
 func TestReadVersion_EmptyMarker(t *testing.T) {
 	dir := t.TempDir()
 	writeMarker(t, dir, "")
@@ -83,6 +89,7 @@ func TestReadVersion_EmptyMarker(t *testing.T) {
 	}
 }
 
+// TestReadVersion_MalformedMarker covers read version malformed marker.
 func TestReadVersion_MalformedMarker(t *testing.T) {
 	dir := t.TempDir()
 	writeMarker(t, dir, "two\n")
@@ -92,6 +99,7 @@ func TestReadVersion_MalformedMarker(t *testing.T) {
 	}
 }
 
+// TestReadVersion_RejectsZero covers read version rejects zero.
 func TestReadVersion_RejectsZero(t *testing.T) {
 	dir := t.TempDir()
 	writeMarker(t, dir, "0\n")
@@ -101,6 +109,7 @@ func TestReadVersion_RejectsZero(t *testing.T) {
 	}
 }
 
+// TestReadVersion_TrimsWhitespace covers read version trims whitespace.
 func TestReadVersion_TrimsWhitespace(t *testing.T) {
 	dir := t.TempDir()
 	writeMarker(t, dir, "  4  \n")
@@ -114,6 +123,7 @@ func TestReadVersion_TrimsWhitespace(t *testing.T) {
 	}
 }
 
+// TestReadVersion_RequiresDirectory covers read version requires directory.
 func TestReadVersion_RequiresDirectory(t *testing.T) {
 	if _, _, err := ReadVersion(""); err == nil {
 		t.Fatal("expected error for empty directory")

@@ -96,12 +96,29 @@ func (c DNSTTConfig) Validate() map[Field]error {
 
 // DNSTTService manages DNSTT configurations and tunnels.
 type DNSTTService interface {
+	// SaveConfig validates config and writes it as a new file named
+	// name. It returns an error when the name is already in use or
+	// the config is invalid.
 	SaveConfig(config DNSTTConfig, name string) error
+	// EditConfig validates config and replaces the stored config
+	// named originalName. It returns an error when that config does
+	// not exist or the config is invalid.
 	EditConfig(config DNSTTConfig, originalName string) error
+	// LoadConfig reads and returns the stored config named name.
 	LoadConfig(name string) (DNSTTConfig, error)
+	// GetAllConfigFiles returns every stored config that loads and
+	// validates. Files that fail either check are skipped.
 	GetAllConfigFiles() ([]DNSTTConfigFile, error)
+	// ValidateAllConfigs returns one result for each stored file
+	// that fails to load or validate. Valid files are not included.
 	ValidateAllConfigs() ([]ConfigValidationResult, error)
+	// RenameConfig renames the stored config oldName to newName.
+	// It returns an error when oldName does not exist or newName is
+	// already in use.
 	RenameConfig(oldName, newName string) error
+	// NewTunnel opens a tunnel stream to the resolver at
+	// resolverAddr. The caller closes the returned connection when
+	// done.
 	NewTunnel(ctx context.Context, config DNSTTConfig, resolverAddr string) (net.Conn, error)
 }
 
@@ -122,6 +139,8 @@ func WithDNSTTDir(dir string) DNSTTServiceOption {
 	}
 }
 
+// NewDNSTTService returns a DNSTTService that stores configs in
+// the default DNSTT directory unless an option changes it.
 func NewDNSTTService(options ...DNSTTServiceOption) DNSTTService {
 	service := &dnsttService{
 		configs: newConfigStore[DNSTTConfig](tunnelConfigDir(dnsttDir), "DNSTT"),
@@ -134,26 +153,32 @@ func NewDNSTTService(options ...DNSTTServiceOption) DNSTTService {
 	return service
 }
 
+// SaveConfig saves the config through the shared config store.
 func (s *dnsttService) SaveConfig(config DNSTTConfig, name string) error {
 	return s.configs.SaveConfig(config, name)
 }
 
+// EditConfig replaces the stored config through the shared config store.
 func (s *dnsttService) EditConfig(config DNSTTConfig, originalName string) error {
 	return s.configs.EditConfig(config, originalName)
 }
 
+// LoadConfig loads the config through the shared config store.
 func (s *dnsttService) LoadConfig(name string) (DNSTTConfig, error) {
 	return s.configs.LoadConfig(name)
 }
 
+// GetAllConfigFiles lists stored configs through the shared config store.
 func (s *dnsttService) GetAllConfigFiles() ([]DNSTTConfigFile, error) {
 	return s.configs.GetAllConfigFiles()
 }
 
+// ValidateAllConfigs validates stored configs through the shared config store.
 func (s *dnsttService) ValidateAllConfigs() ([]ConfigValidationResult, error) {
 	return s.configs.ValidateAllConfigs()
 }
 
+// RenameConfig renames the config through the shared config store.
 func (s *dnsttService) RenameConfig(oldName, newName string) error {
 	return s.configs.RenameConfig(oldName, newName)
 }

@@ -1,3 +1,8 @@
+// Package portmgr hands out local TCP ports from a fixed pool.
+// Tunnel probes use it to get a free port for a local listener and
+// return the port when they finish. A Manager is safe for concurrent
+// use, and Get blocks until a port is free, the context is cancelled,
+// or the manager is closed.
 package portmgr
 
 import (
@@ -11,17 +16,35 @@ import (
 	"time"
 )
 
+// ErrClosed is returned by Get after the port manager is closed.
 var ErrClosed = errors.New("port manager closed")
 
+// Generated pools stay below ephemeralPort, the first port of the
+// usual ephemeral range, so they do not collide with ports the system
+// hands out for outgoing connections. minPort is the lowest start
+// port RandomBase may pick.
 const (
 	minPort       = 20000
 	ephemeralPort = 49152
 )
 
+// Manager hands out and reclaims local TCP ports from a pool.
 type Manager interface {
+	// Get returns a port that is free at the time of the check.
+	// It blocks until a port is free and returns ErrClosed after
+	// Close, or the context error when ctx is cancelled.
 	Get(context.Context) (uint16, error)
+
+	// Release returns a port to the pool. It does nothing after
+	// Close or when the pool is already full.
 	Release(uint16)
+
+	// Close shuts the manager down. Later Get calls return
+	// ErrClosed. Close is safe to call more than once.
 	Close()
+
+	// WaitOpen polls addr until a TCP connection succeeds or the
+	// timeout passes, and returns the context error on timeout.
 	WaitOpen(ctx context.Context, addr string, timeout time.Duration) error
 }
 

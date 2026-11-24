@@ -15,6 +15,7 @@ func entryOf(addr netip.Addr) target.Entry {
 	return target.NewEnabled(netip.PrefixFrom(addr, addr.BitLen()))
 }
 
+// TestHTTPResult_Key covers HTTP result key.
 func TestHTTPResult_Key(t *testing.T) {
 	tests := []struct {
 		name string
@@ -36,6 +37,7 @@ func TestHTTPResult_Key(t *testing.T) {
 	}
 }
 
+// TestHTTPResult_KeyType covers HTTP result key type.
 func TestHTTPResult_KeyType(t *testing.T) {
 	r := HTTPResult{}
 	if got := r.KeyType(); got != target.KindIP {
@@ -43,6 +45,7 @@ func TestHTTPResult_KeyType(t *testing.T) {
 	}
 }
 
+// TestHTTPResult_Equal covers HTTP result equal.
 func TestHTTPResult_Equal(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -85,6 +88,7 @@ func TestHTTPResult_Equal(t *testing.T) {
 	}
 }
 
+// TestHTTPResult_ToRecord_Full covers HTTP result to record full.
 func TestHTTPResult_ToRecord_Full(t *testing.T) {
 	r := HTTPResult{
 		Entry:       entryOf(netip.MustParseAddr("93.184.216.34")),
@@ -108,6 +112,7 @@ func TestHTTPResult_ToRecord_Full(t *testing.T) {
 	}
 }
 
+// TestHTTPResult_ToRecord_NoTLS covers HTTP result to record no TLS.
 func TestHTTPResult_ToRecord_NoTLS(t *testing.T) {
 	r := HTTPResult{
 		Entry:       entryOf(netip.MustParseAddr("10.0.0.1")),
@@ -148,6 +153,7 @@ func TestHTTPResult_ToRecord_ZeroStatusCode(t *testing.T) {
 	}
 }
 
+// TestHTTPResult_ToRecord_VariousStatusCodes covers HTTP result to record various status codes.
 func TestHTTPResult_ToRecord_VariousStatusCodes(t *testing.T) {
 	codes := []int{100, 204, 301, 403, 404, 500, 503}
 	for _, code := range codes {
@@ -166,6 +172,7 @@ func TestHTTPResult_ToRecord_VariousStatusCodes(t *testing.T) {
 	}
 }
 
+// TestHTTPResult_Score covers HTTP result score.
 func TestHTTPResult_Score(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -191,6 +198,7 @@ func TestHTTPResult_Score(t *testing.T) {
 	}
 }
 
+// TestHTTPResult_Score_SubMillisecond_Clamped covers HTTP result score sub millisecond clamped.
 func TestHTTPResult_Score_SubMillisecond_Clamped(t *testing.T) {
 	r := HTTPResult{Latency: 500 * time.Microsecond}
 	got := r.Score()
@@ -199,6 +207,7 @@ func TestHTTPResult_Score_SubMillisecond_Clamped(t *testing.T) {
 	}
 }
 
+// TestHTTPResult_Score_ZeroLatency_Clamped covers HTTP result score zero latency clamped.
 func TestHTTPResult_Score_ZeroLatency_Clamped(t *testing.T) {
 	r := HTTPResult{Latency: 0}
 	got := r.Score()
@@ -207,6 +216,7 @@ func TestHTTPResult_Score_ZeroLatency_Clamped(t *testing.T) {
 	}
 }
 
+// TestHTTPResult_Score_Ordering covers HTTP result score ordering.
 func TestHTTPResult_Score_Ordering(t *testing.T) {
 	fast := HTTPResult{Latency: 10 * time.Millisecond}
 	slow := HTTPResult{Latency: 500 * time.Millisecond}
@@ -216,6 +226,7 @@ func TestHTTPResult_Score_Ordering(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_FullRecord covers parse HTTP result full record.
 func TestParseHTTPResult_FullRecord(t *testing.T) {
 	record := []string{"93.184.216.34", "0", "", "1", "150.00ms", "200", "HTTP/2.0", "true"}
 
@@ -253,6 +264,7 @@ func TestParseHTTPResult_LegacyShortRecordRejected(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_FiveFieldsRejected covers parse HTTP result five fields rejected.
 func TestParseHTTPResult_FiveFieldsRejected(t *testing.T) {
 	record := []string{"1.2.3.4", "10ms", "200", "HTTP/1.1", "true"}
 
@@ -261,6 +273,7 @@ func TestParseHTTPResult_FiveFieldsRejected(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_NoTLS covers parse HTTP result no TLS.
 func TestParseHTTPResult_NoTLS(t *testing.T) {
 	record := []string{"172.16.0.1", "0", "", "1", "30ms", "404", "HTTP/1.1", "false"}
 
@@ -281,6 +294,7 @@ func TestParseHTTPResult_NoTLS(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_LatencyRounded covers parse HTTP result latency rounded.
 func TestParseHTTPResult_LatencyRounded(t *testing.T) {
 	record := []string{"1.2.3.4", "0", "", "1", "42.6ms", "200", "HTTP/1.1", "true"}
 
@@ -295,6 +309,7 @@ func TestParseHTTPResult_LatencyRounded(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_LatencyClampedToMinimum covers parse HTTP result latency clamped to minimum.
 func TestParseHTTPResult_LatencyClampedToMinimum(t *testing.T) {
 	record := []string{"1.2.3.4", "0", "", "1", "0s", "200", "HTTP/1.1", "true"}
 
@@ -309,6 +324,7 @@ func TestParseHTTPResult_LatencyClampedToMinimum(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_TooFewFields covers parse HTTP result too few fields.
 func TestParseHTTPResult_TooFewFields(t *testing.T) {
 	_, err := parseHTTPResult([]string{"1.2.3.4"})
 	if err == nil {
@@ -316,6 +332,7 @@ func TestParseHTTPResult_TooFewFields(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_EmptyRecord covers parse HTTP result empty record.
 func TestParseHTTPResult_EmptyRecord(t *testing.T) {
 	_, err := parseHTTPResult(nil)
 	if err == nil {
@@ -323,6 +340,7 @@ func TestParseHTTPResult_EmptyRecord(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_InvalidIP covers parse HTTP result invalid IP.
 func TestParseHTTPResult_InvalidIP(t *testing.T) {
 	_, err := parseHTTPResult([]string{"not-an-ip", "0", "", "1", "42ms", "200", "HTTP/1.1", "true"})
 	if err == nil {
@@ -330,6 +348,7 @@ func TestParseHTTPResult_InvalidIP(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_InvalidLatency covers parse HTTP result invalid latency.
 func TestParseHTTPResult_InvalidLatency(t *testing.T) {
 	_, err := parseHTTPResult([]string{"1.2.3.4", "0", "", "1", "garbage", "200", "HTTP/1.1", "true"})
 	if err == nil {
@@ -337,6 +356,7 @@ func TestParseHTTPResult_InvalidLatency(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_InvalidStatusCode covers parse HTTP result invalid status code.
 func TestParseHTTPResult_InvalidStatusCode(t *testing.T) {
 	record := []string{"1.2.3.4", "0", "", "1", "10ms", "not-a-number", "HTTP/1.1", "true"}
 	_, err := parseHTTPResult(record)
@@ -345,6 +365,7 @@ func TestParseHTTPResult_InvalidStatusCode(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_InvalidTLS covers parse HTTP result invalid TLS.
 func TestParseHTTPResult_InvalidTLS(t *testing.T) {
 	record := []string{"1.2.3.4", "0", "", "1", "10ms", "200", "HTTP/1.1", "maybe"}
 	_, err := parseHTTPResult(record)
@@ -353,6 +374,7 @@ func TestParseHTTPResult_InvalidTLS(t *testing.T) {
 	}
 }
 
+// TestParseHTTPResult_IPv6 covers parse HTTP result I pv6.
 func TestParseHTTPResult_IPv6(t *testing.T) {
 	record := []string{"2001:db8::42", "0", "", "1", "55ms", "200", "HTTP/2.0", "true"}
 
@@ -430,6 +452,7 @@ func TestHTTPResult_RoundTrip_ZeroStatus(t *testing.T) {
 	}
 }
 
+// TestHTTPResult_RoundTrip_IPv6 covers HTTP result round trip I pv6.
 func TestHTTPResult_RoundTrip_IPv6(t *testing.T) {
 	original := HTTPResult{
 		Entry:       entryOf(netip.MustParseAddr("::1")),
@@ -451,6 +474,7 @@ func TestHTTPResult_RoundTrip_IPv6(t *testing.T) {
 	}
 }
 
+// TestSchema_Fields covers schema fields.
 func TestSchema_Fields(t *testing.T) {
 	if Schema.Name != "HTTP" {
 		t.Errorf("Name = %q, want %q", Schema.Name, "HTTP")
@@ -460,6 +484,7 @@ func TestSchema_Fields(t *testing.T) {
 	}
 }
 
+// TestSchema_Columns covers schema columns.
 func TestSchema_Columns(t *testing.T) {
 	want := []struct {
 		name  string
@@ -486,12 +511,14 @@ func TestSchema_Columns(t *testing.T) {
 	}
 }
 
+// TestSchema_ParserNotNil covers schema parser not nil.
 func TestSchema_ParserNotNil(t *testing.T) {
 	if Schema.Parser == nil {
 		t.Fatal("Schema.Parser is nil")
 	}
 }
 
+// TestSchema_ParserWorks covers schema parser works.
 func TestSchema_ParserWorks(t *testing.T) {
 	res, err := Schema.Parser([]string{"1.1.1.1", "0", "", "1", "20ms", "200", "HTTP/1.1", "true"})
 	if err != nil {

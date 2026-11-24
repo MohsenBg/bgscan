@@ -15,6 +15,10 @@ type WriterConfig struct {
 	IgnoreErr          bool       `toml:"ignore_err" comment:"Ignore writer errors and continue processing results."`
 }
 
+// DefaultWriterConfig returns the default writer settings for the detected
+// platform and resource tier. When the defaults table has no entry
+// for the detected platform or tier, it logs a warning and falls
+// back to the Desktop platform or the Mid tier.
 func DefaultWriterConfig(log *logger.Logger) WriterConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())

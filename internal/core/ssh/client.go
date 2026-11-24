@@ -12,12 +12,15 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
+// Client is an alias for ssh.Client from golang.org/x/crypto/ssh.
 type Client = ssh.Client
 
 // handshakeTimeout bounds the SSH transport handshake so a hung peer
 // can't block forever when the caller's context has no deadline.
 const handshakeTimeout = 30 * time.Second
 
+// SSHConfig holds the settings for one SSH connection. At least
+// one of Password and PrivateKey must be set.
 type SSHConfig struct {
 	User           string
 	Password       string
@@ -33,13 +36,21 @@ type SSHConfig struct {
 	InsecureIgnoreHostKey bool
 }
 
+// SSHService is the SSH client interface used by probes.
 type SSHService interface {
+	// Connect performs the SSH handshake and authentication over
+	// conn. On error it closes conn. On success the caller owns
+	// the returned client and must close it.
 	Connect(ctx context.Context, conn net.Conn, addr string, config SSHConfig) (*ssh.Client, error)
+	// SSHDialContext returns a dial function that opens connections
+	// through client and honors context cancellation.
 	SSHDialContext(client *ssh.Client) func(context.Context, string, string) (net.Conn, error)
 }
 
 type sshService struct{}
 
+// NewSSHService returns an SSHService backed by
+// golang.org/x/crypto/ssh.
 func NewSSHService() SSHService {
 	return &sshService{}
 }
@@ -49,6 +60,7 @@ func NewSSHService() SSHService {
 // On any error (including context cancellation) the supplied conn is closed.
 // On success the caller owns the returned *ssh.Client and is responsible for
 // closing it.
+// Connect implements SSHService.
 func (s *sshService) Connect(
 	ctx context.Context,
 	conn net.Conn,
@@ -147,6 +159,8 @@ func handshakeTimeoutFor(config SSHConfig) time.Duration {
 	return handshakeTimeout
 }
 
+// SSHDialContext implements SSHService.
+//
 // SSHDialContext returns a dial function suitable for use as a
 // net.Dialer replacement that dials through the SSH client.
 //

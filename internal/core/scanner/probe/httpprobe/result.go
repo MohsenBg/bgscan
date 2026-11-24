@@ -54,7 +54,7 @@ type HTTPResult struct {
 // Key returns the identity of the probed target with probe index prefix.
 func (r HTTPResult) Key() string { return r.Entry.Key() }
 
-// KeyType implements result.Result, identifying this as an IP-based key.
+// KeyType returns the kind of the entry that produced this result.
 func (r HTTPResult) KeyType() target.Kind {
 	return r.Entry.Kind
 }

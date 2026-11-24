@@ -21,12 +21,23 @@ var (
 	ErrAboveMaximum = errors.New("speedtest: above maximum latency")
 )
 
+// Service measures latency and transfer speed through a proxy or a
+// caller supplied dial function.
 type Service interface {
+	// MeasureLatency times one HTTP request to the configured URL.
+	// It returns ErrAboveMaximum when the round trip passes the
+	// configured maximum.
 	MeasureLatency(context.Context, LatencyConfig) (LatencyResult, error)
+	// MeasureDownloadSpeed downloads the configured byte count and
+	// returns ErrBelowMinimum when the speed is under the minimum.
 	MeasureDownloadSpeed(context.Context, DownloadConfig) (SpeedResult, error)
+	// MeasureUploadSpeed uploads the configured byte count and
+	// returns ErrBelowMinimum when the speed is under the minimum.
 	MeasureUploadSpeed(context.Context, UploadConfig) (SpeedResult, error)
 }
 
+// Test endpoint URLs. The download URL has one %d verb for the
+// requested byte count.
 const (
 	CloudflareTraceHTTP    = "http://speed.cloudflare.com/cdn-cgi/trace"
 	CloudflareTraceHTTPS   = "https://speed.cloudflare.com/cdn-cgi/trace"
@@ -43,6 +54,8 @@ type service struct {
 	clientFactory  func(cfg httpClientConfig) (*http.Client, error)
 }
 
+// NewService returns a Service that measures against the
+// Cloudflare speed test endpoints.
 func NewService() Service {
 	return &service{
 		downloadURLFmt: CloudflareDownloadURL,
@@ -52,6 +65,7 @@ func NewService() Service {
 	}
 }
 
+// MeasureLatency implements Service.
 func (s *service) MeasureLatency(
 	ctx context.Context,
 	cfg LatencyConfig,
@@ -127,6 +141,7 @@ func (s *service) MeasureLatency(
 	return result, nil
 }
 
+// MeasureDownloadSpeed implements Service.
 func (s *service) MeasureDownloadSpeed(
 	ctx context.Context,
 	cfg DownloadConfig,
@@ -218,6 +233,7 @@ func (s *service) MeasureDownloadSpeed(
 	return result, nil
 }
 
+// MeasureUploadSpeed implements Service.
 func (s *service) MeasureUploadSpeed(
 	ctx context.Context,
 	cfg UploadConfig,

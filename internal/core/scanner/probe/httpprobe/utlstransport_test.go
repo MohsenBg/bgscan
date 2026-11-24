@@ -27,6 +27,8 @@ func startRecordingServer(t *testing.T, ln net.Listener, hit chan<- string) {
 	t.Cleanup(func() { _ = srv.Close() })
 }
 
+// TestUTLSHTTPClient_PlainHTTPConnectsToTargetIP covers the uTLS HTTP client connecting to the
+// target IP over plain HTTP.
 func TestUTLSHTTPClient_PlainHTTPConnectsToTargetIP(t *testing.T) {
 	targetLn, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

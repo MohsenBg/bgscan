@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestBitsPerSec_String covers the bits per sec string scenario.
 func TestBitsPerSec_String(t *testing.T) {
 	tests := []struct {
 		input    BitsPerSec
@@ -29,6 +30,7 @@ func TestBitsPerSec_String(t *testing.T) {
 	}
 }
 
+// TestBitsPerSec_Uint64 covers the bits per sec uint64 scenario.
 func TestBitsPerSec_Uint64(t *testing.T) {
 	val := BitsPerSec(5000)
 	if val.Uint64() != 5000 {
@@ -36,6 +38,7 @@ func TestBitsPerSec_Uint64(t *testing.T) {
 	}
 }
 
+// TestBelowMinimum covers the below minimum scenario.
 func TestBelowMinimum(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -73,6 +76,7 @@ func TestBelowMinimum(t *testing.T) {
 	}
 }
 
+// TestBitsPerSecCalc covers the bits per sec calc scenario.
 func TestBitsPerSecCalc(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -98,6 +102,7 @@ func TestBitsPerSecCalc(t *testing.T) {
 	}
 }
 
+// TestParseBitsPerSec covers the parse bits per sec scenario.
 func TestParseBitsPerSec(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -139,6 +144,7 @@ func TestParseBitsPerSec(t *testing.T) {
 	}
 }
 
+// TestParseBitsPerSec_OverflowBoundary covers the parse bits per sec overflow boundary scenario.
 func TestParseBitsPerSec_OverflowBoundary(t *testing.T) {
 	tests := []struct {
 		name     string

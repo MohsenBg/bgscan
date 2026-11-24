@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// TestWriteCSVFile_And_StreamCSV covers write csvfile and stream csv.
 func TestWriteCSVFile_And_StreamCSV(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "nested", "test.csv")
@@ -38,6 +39,7 @@ func TestWriteCSVFile_And_StreamCSV(t *testing.T) {
 	}
 }
 
+// TestStreamCSV_SkipsHeader covers stream csv skips header.
 func TestStreamCSV_SkipsHeader(t *testing.T) {
 	path := createTempCSV(t, "name,age\nbob,20\nalice,30\n")
 
@@ -63,6 +65,7 @@ func TestStreamCSV_SkipsHeader(t *testing.T) {
 	}
 }
 
+// TestStreamCSV_HandlerError covers stream csv handler error.
 func TestStreamCSV_HandlerError(t *testing.T) {
 	path := createTempCSV(t, "a,b\n1,2\n")
 
@@ -77,6 +80,7 @@ func TestStreamCSV_HandlerError(t *testing.T) {
 	}
 }
 
+// TestStreamCSV_InvalidFile covers stream csv invalid file.
 func TestStreamCSV_InvalidFile(t *testing.T) {
 	err := StreamCSV(
 		"does-not-exist.csv",
@@ -91,6 +95,7 @@ func TestStreamCSV_InvalidFile(t *testing.T) {
 	}
 }
 
+// TestWriteCSVFile_CustomDelimiter covers write csvfile custom delimiter.
 func TestWriteCSVFile_CustomDelimiter(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "data.csv")
@@ -123,6 +128,7 @@ func TestWriteCSVFile_CustomDelimiter(t *testing.T) {
 	}
 }
 
+// TestAppendCSVRows_AppendsData covers append csvrows appends data.
 func TestAppendCSVRows_AppendsData(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "append.csv")
 
@@ -172,6 +178,7 @@ func TestAppendCSVRows_AppendsData(t *testing.T) {
 	}
 }
 
+// TestStreamWriteCSV_WritesUsingCallback covers stream write csv writes using callback.
 func TestStreamWriteCSV_WritesUsingCallback(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "stream.csv")
 
@@ -205,6 +212,7 @@ func TestStreamWriteCSV_WritesUsingCallback(t *testing.T) {
 	}
 }
 
+// TestStreamCSVWithOffset_ReturnsCorrectOffsets covers stream csvwith offset returns correct offsets.
 func TestStreamCSVWithOffset_ReturnsCorrectOffsets(t *testing.T) {
 	path := createTempCSV(
 		t,
@@ -250,6 +258,7 @@ func TestStreamCSVWithOffset_ReturnsCorrectOffsets(t *testing.T) {
 	}
 }
 
+// TestStreamCSVWithOffset_SkipsCommentsAndBlankLines covers stream csvwith offset skips comments and blank lines.
 func TestStreamCSVWithOffset_SkipsCommentsAndBlankLines(t *testing.T) {
 	path := createTempCSV(
 		t,
@@ -279,6 +288,7 @@ func TestStreamCSVWithOffset_SkipsCommentsAndBlankLines(t *testing.T) {
 	}
 }
 
+// TestStreamCSVToChan covers stream csvto chan.
 func TestStreamCSVToChan(t *testing.T) {
 	path := createTempCSV(
 		t,

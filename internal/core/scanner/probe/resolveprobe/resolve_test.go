@@ -67,6 +67,7 @@ func TestNewResolverProbe_TriesNormalized(t *testing.T) {
 	}
 }
 
+// TestInit checks init.
 func TestInit(t *testing.T) {
 	p := probeWith(baseRequest(), stubQuery(0, nil))
 	if err := p.Init(context.Background()); err != nil {
@@ -74,6 +75,7 @@ func TestInit(t *testing.T) {
 	}
 }
 
+// TestClose checks close.
 func TestClose(t *testing.T) {
 	p := probeWith(baseRequest(), stubQuery(0, nil))
 	if err := p.Close(); err != nil {
@@ -81,6 +83,7 @@ func TestClose(t *testing.T) {
 	}
 }
 
+// TestRun_CanceledContext checks run canceled context.
 func TestRun_CanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -92,6 +95,7 @@ func TestRun_CanceledContext(t *testing.T) {
 	}
 }
 
+// TestRun_Success checks run success.
 func TestRun_Success(t *testing.T) {
 	p := probeWith(baseRequest(), stubQuery(0, nil))
 
@@ -117,6 +121,7 @@ func TestRun_Success(t *testing.T) {
 	}
 }
 
+// TestRun_NoAcceptedResponse checks run no accepted response.
 func TestRun_NoAcceptedResponse(t *testing.T) {
 	req := baseRequest()
 	req.AcceptedRcodes = []uint16{0}
@@ -241,6 +246,7 @@ func TestRun_FallsBackToNextCheckType(t *testing.T) {
 	}
 }
 
+// TestRun_MultipleAcceptedRcodes checks run multiple accepted rcodes.
 func TestRun_MultipleAcceptedRcodes(t *testing.T) {
 	req := baseRequest()
 	req.AcceptedRcodes = []uint16{0, 3} // NOERROR and NXDOMAIN both ok

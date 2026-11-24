@@ -66,6 +66,7 @@ func mustTargetPath(t *testing.T, name string, kind Kind) string {
 	return path
 }
 
+// TestImport_MapPath_DedupesAndMasks: the in-memory import path drops duplicates and masks prefixes.
 func TestImport_MapPath_DedupesAndMasks(t *testing.T) {
 	setBaseDir(t)
 
@@ -108,6 +109,7 @@ func TestImport_MapPath_DedupesAndMasks(t *testing.T) {
 	}
 }
 
+// TestImport_DiskPath_DedupesAndSorts: the on-disk import path sorts the file and drops duplicates.
 func TestImport_DiskPath_DedupesAndSorts(t *testing.T) {
 	setBaseDir(t)
 
@@ -146,6 +148,7 @@ func TestImport_DiskPath_DedupesAndSorts(t *testing.T) {
 	}
 }
 
+// TestImport_DiskPath_DedupesKindPortAndPath: the on-disk path treats kind, port, and path as part of an entry identity.
 func TestImport_DiskPath_DedupesKindPortAndPath(t *testing.T) {
 	setBaseDir(t)
 
@@ -194,6 +197,7 @@ func TestImport_DiskPath_DedupesKindPortAndPath(t *testing.T) {
 	}
 }
 
+// TestImport_MapPath_RespectsMaxInMemoryEntries: the in-memory path fails once the entry cap is passed.
 func TestImport_MapPath_RespectsMaxInMemoryEntries(t *testing.T) {
 	setBaseDir(t)
 
@@ -221,6 +225,7 @@ func TestImport_MapPath_RespectsMaxInMemoryEntries(t *testing.T) {
 	}
 }
 
+// TestImport_MapPath_DedupesKindPortAndPath: the in-memory path treats kind, port, and path as part of an entry identity.
 func TestImport_MapPath_DedupesKindPortAndPath(t *testing.T) {
 	setBaseDir(t)
 
@@ -268,6 +273,7 @@ func TestImport_MapPath_DedupesKindPortAndPath(t *testing.T) {
 	}
 }
 
+// TestImport_RejectsExistingTarget: import refuses a name that already has a target list.
 func TestImport_RejectsExistingTarget(t *testing.T) {
 	for _, existingKind := range []Kind{KindIP, KindDomain} {
 		t.Run(existingKind.String(), func(t *testing.T) {
@@ -295,6 +301,7 @@ func TestImport_RejectsExistingTarget(t *testing.T) {
 	}
 }
 
+// TestImport_NoValidTargets: import fails when the source has no valid targets.
 func TestImport_NoValidTargets(t *testing.T) {
 	setBaseDir(t)
 
@@ -311,6 +318,7 @@ func TestImport_NoValidTargets(t *testing.T) {
 	}
 }
 
+// TestImport_DomainOnlyDoesNotCreateIPFile: a domain-only import writes no IP list file.
 func TestImport_DomainOnlyDoesNotCreateIPFile(t *testing.T) {
 	setBaseDir(t)
 
@@ -334,6 +342,7 @@ func TestImport_DomainOnlyDoesNotCreateIPFile(t *testing.T) {
 	}
 }
 
+// TestCountAll_DomainCountsAsOne: a domain entry counts as exactly one target.
 func TestCountAll_DomainCountsAsOne(t *testing.T) {
 	t.Parallel()
 
@@ -357,6 +366,7 @@ func TestCountAll_DomainCountsAsOne(t *testing.T) {
 	}
 }
 
+// TestImport_AcceptsFlexibleInput: import accepts the short row forms that ParseInputRecord allows.
 func TestImport_AcceptsFlexibleInput(t *testing.T) {
 	setBaseDir(t)
 
@@ -393,6 +403,7 @@ func TestImport_AcceptsFlexibleInput(t *testing.T) {
 	}
 }
 
+// TestLoadAll: LoadAll reads every entry of a list into memory.
 func TestLoadAll(t *testing.T) {
 	t.Parallel()
 
@@ -422,6 +433,7 @@ func TestLoadAll(t *testing.T) {
 	}
 }
 
+// TestCountAll: CountAll expands prefixes into address counts.
 func TestCountAll(t *testing.T) {
 	t.Parallel()
 
@@ -446,6 +458,7 @@ func TestCountAll(t *testing.T) {
 	}
 }
 
+// TestCountActive: CountActive counts only enabled entries.
 func TestCountActive(t *testing.T) {
 	t.Parallel()
 
@@ -471,6 +484,7 @@ func TestCountActive(t *testing.T) {
 	}
 }
 
+// TestCountIPEntry: countEntry counts one address per host bit of a prefix.
 func TestCountIPEntry(t *testing.T) {
 	t.Parallel()
 

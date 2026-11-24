@@ -1,3 +1,9 @@
+// Package httpprobe checks targets with HTTP requests.
+// HTTPProbe covers HTTP/1.1 and HTTP/2 over TCP, and HTTP3Probe
+// covers HTTP/3 over QUIC. A Mode decides how each target entry
+// becomes a request: host mode dials many IPs for one fixed host,
+// and direct mode requests each entry as written. Both probes send
+// HEAD requests and accept only the configured status codes.
 package httpprobe
 
 import (
@@ -55,21 +61,22 @@ func NewHTTPProbe(s Settings, mode Mode, acceptedCodes []int, log *logger.Logger
 	return p
 }
 
-// Input implements probe.Probe.
+// Input returns the target kind the configured mode accepts.
 func (p *HTTPProbe) Input() target.Kind { return p.mode.Input() }
 
-// Init implements probe.Probe. It is a no-op.
+// Init does nothing. Each Run call builds its own client.
 func (p *HTTPProbe) Init(context.Context) error { return nil }
 
-// Close implements probe.Probe. It is a no-op.
+// Close does nothing. Clients are released at the end of each Run call.
 func (p *HTTPProbe) Close() error { return nil }
 
-// Schema implements probe.Probe.
+// Schema returns the result schema shared by the HTTP probes.
 func (p *HTTPProbe) Schema() result.ResultSchema { return Schema }
 
-// Run executes an HTTP HEAD request for the entry. It returns an HTTPResult
-// on success, or an error if the request fails or the response status code
-// is not accepted.
+// Run executes an HTTP HEAD request for the entry. It returns an
+// HTTPResult on success. It returns probe.ErrBadResponse when the
+// response status code is not accepted, and a normalized probe error
+// when the request itself fails.
 func (p *HTTPProbe) Run(ctx context.Context, entry target.Entry) (result.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

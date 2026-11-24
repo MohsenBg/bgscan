@@ -234,6 +234,7 @@ func newTestScanner(t *testing.T, opts ...ScannerOption) (Scanner, error) {
 	return NewScanner(context.Background(), "", opts...)
 }
 
+// TestNewScanner_NilContext covers new scanner nil context.
 func TestNewScanner_NilContext(t *testing.T) {
 	var ctx context.Context = nil
 	s, err := NewScanner(ctx, "127.0.0.1") //nolint:staticcheck
@@ -245,6 +246,7 @@ func TestNewScanner_NilContext(t *testing.T) {
 	}
 }
 
+// TestNewScanner_WithConfig covers new scanner with config.
 func TestNewScanner_WithConfig(t *testing.T) {
 	cfg := config.ScannerConfig{}
 	// Use mocks to avoid real service creation
@@ -298,6 +300,7 @@ func TestNewScanner_WithConfig(t *testing.T) {
 	}
 }
 
+// TestNewScanner_WithPauseController covers new scanner with pause controller.
 func TestNewScanner_WithPauseController(t *testing.T) {
 	custom := engine.NewPauseController()
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithPauseController(custom))
@@ -314,6 +317,8 @@ func TestNewScanner_WithPauseController(t *testing.T) {
 	}
 }
 
+// TestNewScanner_WithPauseController_NilIgnored covers new scanner with pause controller nil
+// ignored.
 func TestNewScanner_WithPauseController_NilIgnored(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithPauseController(nil))
 	if err != nil {
@@ -330,6 +335,7 @@ func TestNewScanner_WithPauseController_NilIgnored(t *testing.T) {
 	}
 }
 
+// TestNewScanner_WithPortManager covers new scanner with port manager.
 func TestNewScanner_WithPortManager(t *testing.T) {
 	pm, err := portmgr.New(portmgr.RandomBase(64), 64)
 	if err != nil {
@@ -352,6 +358,7 @@ func TestNewScanner_WithPortManager(t *testing.T) {
 	}
 }
 
+// TestNewScanner_WithPortManager_NilIgnored covers new scanner with port manager nil ignored.
 func TestNewScanner_WithPortManager_NilIgnored(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithPortManager(nil))
 	if err != nil {
@@ -368,6 +375,7 @@ func TestNewScanner_WithPortManager_NilIgnored(t *testing.T) {
 	}
 }
 
+// TestNewScanner_WithWriterFactory covers new scanner with writer factory.
 func TestNewScanner_WithWriterFactory(t *testing.T) {
 	factory := func(ctx context.Context, opts result.WriterOptions) (result.Writer, error) {
 		return nil, nil
@@ -387,6 +395,7 @@ func TestNewScanner_WithWriterFactory(t *testing.T) {
 	}
 }
 
+// TestNewScanner_WithWriterFactory_NilIgnored covers new scanner with writer factory nil ignored.
 func TestNewScanner_WithWriterFactory_NilIgnored(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), WithWriterFactory(nil))
 	if err != nil {
@@ -400,6 +409,7 @@ func TestNewScanner_WithWriterFactory_NilIgnored(t *testing.T) {
 	}
 }
 
+// TestNewScanner_WithDNSTTService_NilIgnored covers new scanner with DNSTT service nil ignored.
 func TestNewScanner_WithDNSTTService_NilIgnored(t *testing.T) {
 	s, err := NewScanner(
 		context.Background(), "",
@@ -419,6 +429,8 @@ func TestNewScanner_WithDNSTTService_NilIgnored(t *testing.T) {
 	}
 }
 
+// TestNewScanner_WithSlipstreamService_NilIgnored covers new scanner with slipstream service nil
+// ignored.
 func TestNewScanner_WithSlipstreamService_NilIgnored(t *testing.T) {
 	mock := &mockSlipstreamService{}
 	s, err := NewScanner(
@@ -440,6 +452,7 @@ func TestNewScanner_WithSlipstreamService_NilIgnored(t *testing.T) {
 	}
 }
 
+// TestNewScanner_WithVayDNSService_NilIgnored covers new scanner with VayDNS service nil ignored.
 func TestNewScanner_WithVayDNSService_NilIgnored(t *testing.T) {
 	s, err := NewScanner(
 		context.Background(), "",
@@ -459,6 +472,7 @@ func TestNewScanner_WithVayDNSService_NilIgnored(t *testing.T) {
 	}
 }
 
+// TestNewScanner_NilOptionSkipped covers new scanner nil option skipped.
 func TestNewScanner_NilOptionSkipped(t *testing.T) {
 	var nilOpt ScannerOption
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), nilOpt)
@@ -470,6 +484,7 @@ func TestNewScanner_NilOptionSkipped(t *testing.T) {
 
 // AddStage / GetStages
 
+// TestGetStages_Empty covers get stages empty.
 func TestGetStages_Empty(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -486,6 +501,7 @@ func TestGetStages_Empty(t *testing.T) {
 	}
 }
 
+// TestAddStage_GetStages covers add stage get stages.
 func TestAddStage_GetStages(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -515,6 +531,7 @@ func TestAddStage_GetStages(t *testing.T) {
 	}
 }
 
+// TestAddStage_AfterClose covers add stage after close.
 func TestAddStage_AfterClose(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -528,6 +545,7 @@ func TestAddStage_AfterClose(t *testing.T) {
 	}
 }
 
+// TestAddStage_AfterStarted covers add stage after started.
 func TestAddStage_AfterStarted(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -546,6 +564,7 @@ func TestAddStage_AfterStarted(t *testing.T) {
 
 // StageConfig.AddHooks
 
+// TestStageConfig_AddHooks covers stage config add hooks.
 func TestStageConfig_AddHooks(t *testing.T) {
 	s := StageConfig{Workers: 7}
 	hooks := engine.ScanHooks{}
@@ -561,6 +580,7 @@ func TestStageConfig_AddHooks(t *testing.T) {
 
 // Run error paths
 
+// TestRun_Closed covers run closed.
 func TestRun_Closed(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -573,6 +593,7 @@ func TestRun_Closed(t *testing.T) {
 	}
 }
 
+// TestRun_AlreadyStarted covers run already started.
 func TestRun_AlreadyStarted(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -588,6 +609,7 @@ func TestRun_AlreadyStarted(t *testing.T) {
 	}
 }
 
+// TestRun_CancelledContext covers run cancelled context.
 func TestRun_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s, err := NewScanner(
@@ -611,6 +633,7 @@ func TestRun_CancelledContext(t *testing.T) {
 	}
 }
 
+// TestRun_NoStages covers run no stages.
 func TestRun_NoStages(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -625,6 +648,7 @@ func TestRun_NoStages(t *testing.T) {
 
 // Pause / Resume / IsPaused / PausedDuration
 
+// TestPause_Resume covers pause resume.
 func TestPause_Resume(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -666,6 +690,7 @@ func TestPause_Resume(t *testing.T) {
 	}
 }
 
+// TestPause_Resume_Idempotent covers pause resume idempotent.
 func TestPause_Resume_Idempotent(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -686,6 +711,7 @@ func TestPause_Resume_Idempotent(t *testing.T) {
 	}
 }
 
+// TestPause_AccumulatesAcrossCycles covers pause accumulates across cycles.
 func TestPause_AccumulatesAcrossCycles(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -714,6 +740,7 @@ func TestPause_AccumulatesAcrossCycles(t *testing.T) {
 
 // Close
 
+// TestClose_Idempotent covers close idempotent.
 func TestClose_Idempotent(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -728,6 +755,7 @@ func TestClose_Idempotent(t *testing.T) {
 	}
 }
 
+// TestClose_CancelsContext covers close cancels context.
 func TestClose_CancelsContext(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -743,6 +771,7 @@ func TestClose_CancelsContext(t *testing.T) {
 	}
 }
 
+// TestClose_MarksClosed covers close marks closed.
 func TestClose_MarksClosed(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -805,6 +834,7 @@ func (r *fakeRunner) RunChain(ctx context.Context, input string, cfg engine.Chai
 	return err
 }
 
+// TestRun_OneStageUsesSingleRunner covers run one stage uses single runner.
 func TestRun_OneStageUsesSingleRunner(t *testing.T) {
 	runner := &fakeRunner{}
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), withScanRunner(runner))
@@ -837,6 +867,7 @@ func TestRun_OneStageUsesSingleRunner(t *testing.T) {
 	}
 }
 
+// TestRun_MultipleStagesUsesChainRunner covers run multiple stages uses chain runner.
 func TestRun_MultipleStagesUsesChainRunner(t *testing.T) {
 	runner := &fakeRunner{}
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), withScanRunner(runner))
@@ -870,6 +901,7 @@ func TestRun_MultipleStagesUsesChainRunner(t *testing.T) {
 	}
 }
 
+// TestClose_WaitsForActiveRun covers close waits for active run.
 func TestClose_WaitsForActiveRun(t *testing.T) {
 	runner := &fakeRunner{started: make(chan struct{}), wait: true}
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), withScanRunner(runner))
@@ -895,6 +927,7 @@ func TestClose_WaitsForActiveRun(t *testing.T) {
 	}
 }
 
+// TestNewWriter_FactoryError covers new writer factory error.
 func TestNewWriter_FactoryError(t *testing.T) {
 	factory := func(ctx context.Context, opts result.WriterOptions) (result.Writer, error) {
 		return nil, errors.New("boom")
@@ -915,6 +948,7 @@ func TestNewWriter_FactoryError(t *testing.T) {
 	}
 }
 
+// TestNewWriter_Success covers new writer success.
 func TestNewWriter_Success(t *testing.T) {
 	fw := &fakeWriter{path: "/tmp/x"}
 	factory := func(ctx context.Context, opts result.WriterOptions) (result.Writer, error) {
@@ -941,6 +975,7 @@ func TestNewWriter_Success(t *testing.T) {
 
 // newStage
 
+// TestNewStage_NoHooks covers new stage no hooks.
 func TestNewStage_NoHooks(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -966,6 +1001,7 @@ func TestNewStage_NoHooks(t *testing.T) {
 	}
 }
 
+// TestNewStage_WithHooks covers new stage with hooks.
 func TestNewStage_WithHooks(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -989,6 +1025,7 @@ func TestNewStage_WithHooks(t *testing.T) {
 	}
 }
 
+// TestNewStage_OnlyFirstHooksArgumentUsed covers new stage only first hooks argument used.
 func TestNewStage_OnlyFirstHooksArgumentUsed(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -1017,6 +1054,7 @@ func TestNewStage_OnlyFirstHooksArgumentUsed(t *testing.T) {
 
 // isHTTP3
 
+// TestIsHTTP3 covers is HTTP3.
 func TestIsHTTP3(t *testing.T) {
 	cases := map[string]bool{
 		"h3":    true,
@@ -1038,6 +1076,7 @@ func TestIsHTTP3(t *testing.T) {
 
 // buildXrayPreScanStage
 
+// TestBuildXrayPreScanStage_None covers build xray pre scan stage none.
 func TestBuildXrayPreScanStage_None(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -1058,6 +1097,7 @@ func TestBuildXrayPreScanStage_None(t *testing.T) {
 	}
 }
 
+// TestBuildXrayPreScanStage_Unsupported covers build xray pre scan stage unsupported.
 func TestBuildXrayPreScanStage_Unsupported(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -1081,6 +1121,7 @@ func TestBuildXrayPreScanStage_Unsupported(t *testing.T) {
 
 // UpdateStageHooks
 
+// TestUpdateStageHooks_Success covers update stage hooks success.
 func TestUpdateStageHooks_Success(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -1118,6 +1159,7 @@ func TestUpdateStageHooks_Success(t *testing.T) {
 	}
 }
 
+// TestUpdateStageHooks_OutOfRange covers update stage hooks out of range.
 func TestUpdateStageHooks_OutOfRange(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -1135,6 +1177,7 @@ func TestUpdateStageHooks_OutOfRange(t *testing.T) {
 	}
 }
 
+// TestUpdateStageHooks_AfterClose covers update stage hooks after close.
 func TestUpdateStageHooks_AfterClose(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -1149,6 +1192,7 @@ func TestUpdateStageHooks_AfterClose(t *testing.T) {
 	}
 }
 
+// TestUpdateStageHooks_AfterStarted covers update stage hooks after started.
 func TestUpdateStageHooks_AfterStarted(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -1166,6 +1210,7 @@ func TestUpdateStageHooks_AfterStarted(t *testing.T) {
 	}
 }
 
+// TestUpdateStageHooks_NoStages covers update stage hooks no stages.
 func TestUpdateStageHooks_NoStages(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -1178,6 +1223,7 @@ func TestUpdateStageHooks_NoStages(t *testing.T) {
 	}
 }
 
+// TestUpdateStageHooks_OverwritesPreviousHooks covers update stage hooks overwrites previous hooks.
 func TestUpdateStageHooks_OverwritesPreviousHooks(t *testing.T) {
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}))
 	if err != nil {
@@ -1208,6 +1254,7 @@ func TestUpdateStageHooks_OverwritesPreviousHooks(t *testing.T) {
 	}
 }
 
+// TestUpdateStageHooks_HooksPassedToRunner covers update stage hooks hooks passed to runner.
 func TestUpdateStageHooks_HooksPassedToRunner(t *testing.T) {
 	runner := &fakeRunner{}
 	s, err := newTestScanner(t, WithConfig(config.ScannerConfig{}), withScanRunner(runner))
@@ -1243,6 +1290,7 @@ func TestUpdateStageHooks_HooksPassedToRunner(t *testing.T) {
 	}
 }
 
+// TestBuildDNSTTStage covers build DNSTT stage.
 func TestBuildDNSTTStage(t *testing.T) {
 	mock := &mockDNSTTService{
 		loadFunc: func(name string) (dns.DNSTTConfig, error) {
@@ -1299,6 +1347,7 @@ func TestBuildDNSTTStage(t *testing.T) {
 	}
 }
 
+// TestBuildSlipStreamStage covers build slip stream stage.
 func TestBuildSlipStreamStage(t *testing.T) {
 	mock := &mockSlipstreamService{
 		loadFunc: func(name string) (dns.SlipstreamConfig, error) {
@@ -1353,6 +1402,7 @@ func TestBuildSlipStreamStage(t *testing.T) {
 	}
 }
 
+// TestBuildVayDNSStage covers build VayDNS stage.
 func TestBuildVayDNSStage(t *testing.T) {
 	mock := &mockVayDNSService{
 		loadFunc: func(name string) (dns.VayDNSConfig, error) {
@@ -1407,6 +1457,7 @@ func TestBuildVayDNSStage(t *testing.T) {
 	}
 }
 
+// TestBuildMasterDNSStage covers build MasterDNS stage.
 func TestBuildMasterDNSStage(t *testing.T) {
 	mock := &mockMasterDNSService{
 		loadFunc: func(name string) (dns.MasterDNSConfig, error) {
@@ -1456,6 +1507,7 @@ func TestBuildMasterDNSStage(t *testing.T) {
 	}
 }
 
+// TestBuildStormDNSStage covers build StormDNS stage.
 func TestBuildStormDNSStage(t *testing.T) {
 	mock := &mockStormDNSService{
 		loadFunc: func(name string) (dns.StormDNSConfig, error) {

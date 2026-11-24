@@ -27,6 +27,7 @@ func newWriterForTest(t *testing.T, ctx context.Context, cfg config.WriterConfig
 	return w
 }
 
+// TestNewWriter_NilContextUsesBackground covers new writer nil context uses background.
 func TestNewWriter_NilContextUsesBackground(t *testing.T) {
 	w := newWriterForTest(t, nil, defaultTestWriterConfig(t))
 	if err := w.Close(); err != nil {
@@ -34,6 +35,7 @@ func TestNewWriter_NilContextUsesBackground(t *testing.T) {
 	}
 }
 
+// TestNewWriter_RejectsInvalidConfig covers new writer rejects invalid config.
 func TestNewWriter_RejectsInvalidConfig(t *testing.T) {
 	_, err := NewWriter(context.Background(), WriterOptions{
 		ResultPrefix: "test_",
@@ -45,6 +47,7 @@ func TestNewWriter_RejectsInvalidConfig(t *testing.T) {
 	}
 }
 
+// TestNewWriter_RejectsInvalidSchema covers new writer rejects invalid schema.
 func TestNewWriter_RejectsInvalidSchema(t *testing.T) {
 	_, err := NewWriter(context.Background(), WriterOptions{
 		ResultPrefix: "test_",
@@ -55,6 +58,7 @@ func TestNewWriter_RejectsInvalidSchema(t *testing.T) {
 	}
 }
 
+// TestWriter_StartAndStopAreIdempotent covers writer start and stop are idempotent.
 func TestWriter_StartAndStopAreIdempotent(t *testing.T) {
 	w := newWriterForTest(t, context.Background(), defaultTestWriterConfig(t))
 
@@ -72,6 +76,7 @@ func TestWriter_StartAndStopAreIdempotent(t *testing.T) {
 	}
 }
 
+// TestWriter_StopWithoutStart covers writer stop without start.
 func TestWriter_StopWithoutStart(t *testing.T) {
 	w := newWriterForTest(t, context.Background(), defaultTestWriterConfig(t))
 
@@ -80,6 +85,7 @@ func TestWriter_StopWithoutStart(t *testing.T) {
 	}
 }
 
+// TestWriter_WriteFlushesOnStop covers writer write flushes on stop.
 func TestWriter_WriteFlushesOnStop(t *testing.T) {
 	w := newWriterForTest(t, context.Background(), defaultTestWriterConfig(t))
 	if err := w.Start(); err != nil {
@@ -106,6 +112,7 @@ func TestWriter_WriteFlushesOnStop(t *testing.T) {
 	}
 }
 
+// TestWriter_FlushErrorFailsByDefault covers writer flush error fails by default.
 func TestWriter_FlushErrorFailsByDefault(t *testing.T) {
 	cfg := defaultTestWriterConfig(t)
 	cfg.BatchSize = 1 // flush on every write
@@ -146,6 +153,7 @@ func TestWriter_FlushErrorFailsByDefault(t *testing.T) {
 	}
 }
 
+// TestWriter_IgnoreErrContinuesAfterFlushError covers writer ignore err continues after flush error.
 func TestWriter_IgnoreErrContinuesAfterFlushError(t *testing.T) {
 	cfg := defaultTestWriterConfig(t)
 	cfg.IgnoreErr = true
@@ -199,6 +207,7 @@ func TestWriter_IgnoreErrContinuesAfterFlushError(t *testing.T) {
 	}
 }
 
+// TestWriter_SortsResultsByScore covers writer sorts results by score.
 func TestWriter_SortsResultsByScore(t *testing.T) {
 	w := newWriterForTest(t, context.Background(), defaultTestWriterConfig(t))
 	if err := w.Start(); err != nil {
@@ -229,6 +238,7 @@ func TestWriter_SortsResultsByScore(t *testing.T) {
 	}
 }
 
+// TestWriter_WriteAfterStopIsDropped covers writer write after stop is dropped.
 func TestWriter_WriteAfterStopIsDropped(t *testing.T) {
 	w := newWriterForTest(t, context.Background(), defaultTestWriterConfig(t))
 	if err := w.Start(); err != nil {
@@ -246,6 +256,7 @@ func TestWriter_WriteAfterStopIsDropped(t *testing.T) {
 	}
 }
 
+// TestWriter_ConcurrentWrites covers writer concurrent writes.
 func TestWriter_ConcurrentWrites(t *testing.T) {
 	w := newWriterForTest(t, context.Background(), defaultTestWriterConfig(t))
 	if err := w.Start(); err != nil {
@@ -270,6 +281,7 @@ func TestWriter_ConcurrentWrites(t *testing.T) {
 	}
 }
 
+// TestWriter_ContextCancelFlushesQueuedResults covers writer context cancel flushes queued results.
 func TestWriter_ContextCancelFlushesQueuedResults(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	w := newWriterForTest(t, ctx, defaultTestWriterConfig(t))

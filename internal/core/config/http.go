@@ -8,11 +8,12 @@ import (
 	"github.com/MohsenBg/bgscan/internal/logger"
 )
 
+// HTTPMode selects how the HTTP probe picks the host it connects to.
 type HTTPMode string
 
 const (
-	HTTPModeTarget HTTPMode = "target"
-	HTTPModeHost   HTTPMode = "host"
+	HTTPModeTarget HTTPMode = "target" // HTTPModeTarget uses each target's own address and port.
+	HTTPModeHost   HTTPMode = "host"   // HTTPModeHost connects to the configured Host for every target.
 )
 
 // ParseHTTPMode converts a raw mode string into an HTTPMode.
@@ -55,6 +56,10 @@ type HTTPConfig struct {
 	AcceptedStatusCodes []int      `toml:"accepted_status_codes" comment:"HTTP status codes to accept. Empty = accept all."`
 }
 
+// DefaultHTTPConfig returns the default HTTP settings for the detected
+// platform and resource tier. When the defaults table has no entry
+// for the detected platform or tier, it logs a warning and falls
+// back to the Desktop platform or the Mid tier.
 func DefaultHTTPConfig(log *logger.Logger) HTTPConfig {
 	platform := DetectPlatform()
 	tier := SelectTier(CheckResources())
@@ -75,8 +80,8 @@ func DefaultHTTPConfig(log *logger.Logger) HTTPConfig {
 	return cfg
 }
 
-// httpBase holds fields shared across every platform/tier — only Workers
-// and Timeout actually vary by platform/tier for HTTP probing.
+// httpBase holds fields shared across every platform and tier.
+// Only Workers and Timeout vary by platform and tier for HTTP probing.
 func httpBase() HTTPConfig {
 	return HTTPConfig{
 		Host:                "www.cloudflare.com",

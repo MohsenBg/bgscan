@@ -13,6 +13,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/fileutil"
 )
 
+// List directories below the base path, one per target kind.
 var (
 	IPListDir     = path.Join("targets", KindIP.Dir())
 	DomainListDir = path.Join("targets", KindDomain.Dir())

@@ -104,10 +104,12 @@ func NewHostMode(cfg config.HTTPConfig, s Settings) (*HostMode, error) {
 	}, nil
 }
 
-// Input implements Mode: host mode only takes addresses.
+// Input returns target.KindIP. Host mode only takes addresses.
 func (m *HostMode) Input() target.Kind { return target.KindIP }
 
-// Build implements Mode.
+// Build returns a Request that dials the entry address while asking
+// for the fixed host. It rejects domain entries with
+// probe.ErrDomainTarget.
 func (m *HostMode) Build(e target.Entry) (Request, error) {
 	if e.Kind != target.KindIP {
 		return Request{}, fmt.Errorf("%w: %s", probe.ErrDomainTarget, e.Value())
@@ -136,17 +138,19 @@ type DirectMode struct {
 
 // NewDirectMode builds a DirectMode. Only the path comes from config.
 func NewDirectMode(cfg config.HTTPConfig, s Settings) *DirectMode {
-	// path came form target
+	// The request path comes from each target entry, not from config.
 	return &DirectMode{
 		settings: s,
 		sni:      cfg.ServerName,
 	}
 }
 
-// Input implements Mode: direct mode takes an IP or a domain.
+// Input returns target.KindHost. Direct mode takes an IP or a domain.
 func (m *DirectMode) Input() target.Kind { return target.KindHost }
 
-// Build implements Mode.
+// Build returns a Request for the entry as written. An IP entry is
+// pinned as the dial address. A domain entry has no dial address, so
+// the normal dialer resolves it.
 func (m *DirectMode) Build(e target.Entry) (Request, error) {
 	var (
 		host   string

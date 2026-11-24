@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// TestCount_ValidRecords covers count valid records.
 func TestCount_ValidRecords(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
@@ -17,6 +18,7 @@ func TestCount_ValidRecords(t *testing.T) {
 	}
 }
 
+// TestCount_EmptyFile covers count empty file.
 func TestCount_EmptyFile(t *testing.T) {
 	path := writeTempCSV(t, "")
 	schema := validSchema(t)
@@ -30,6 +32,7 @@ func TestCount_EmptyFile(t *testing.T) {
 	}
 }
 
+// TestCount_SkipsInvalidRecords covers count skips invalid records.
 func TestCount_SkipsInvalidRecords(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9\nbadfield\n5.6.7.8,0.5\n")
 	schema := validSchema(t)
@@ -43,6 +46,7 @@ func TestCount_SkipsInvalidRecords(t *testing.T) {
 	}
 }
 
+// TestCount_NonexistentFile covers count nonexistent file.
 func TestCount_NonexistentFile(t *testing.T) {
 	schema := validSchema(t)
 
@@ -52,6 +56,7 @@ func TestCount_NonexistentFile(t *testing.T) {
 	}
 }
 
+// TestCount_LargeFile covers count large file.
 func TestCount_LargeFile(t *testing.T) {
 	var lines string
 	const n = 500
@@ -70,6 +75,7 @@ func TestCount_LargeFile(t *testing.T) {
 	}
 }
 
+// TestCount_AllInvalidRecords covers count all invalid records.
 func TestCount_AllInvalidRecords(t *testing.T) {
 	path := writeTempCSV(t, "bad\nalso_bad\n")
 	schema := validSchema(t)
@@ -83,6 +89,7 @@ func TestCount_AllInvalidRecords(t *testing.T) {
 	}
 }
 
+// TestCount_SingleRecord covers count single record.
 func TestCount_SingleRecord(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,1.0\n")
 	schema := validSchema(t)
@@ -96,6 +103,7 @@ func TestCount_SingleRecord(t *testing.T) {
 	}
 }
 
+// TestCount_ExtraFieldsIgnored covers count extra fields ignored.
 func TestCount_ExtraFieldsIgnored(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0.9,extra,fields\n")
 	schema := validSchema(t)
@@ -109,6 +117,7 @@ func TestCount_ExtraFieldsIgnored(t *testing.T) {
 	}
 }
 
+// TestCount_ScoreZero covers count score zero.
 func TestCount_ScoreZero(t *testing.T) {
 	path := writeTempCSV(t, "1.2.3.4,0\n")
 	schema := validSchema(t)

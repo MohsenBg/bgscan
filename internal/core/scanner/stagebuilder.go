@@ -558,6 +558,9 @@ func (s *scanner) newWriter(ctx context.Context, prefix string, schema result.Re
 	return writer, nil
 }
 
+// newStage assembles a StageConfig. Only the first hooks value is
+// used. The Build methods accept a variadic list so callers may pass
+// zero or one value, and any extra values are ignored.
 func (s *scanner) newStage(
 	workers int,
 	prb probe.Probe,

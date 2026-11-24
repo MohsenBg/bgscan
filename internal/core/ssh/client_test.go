@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// TestSSHService_Connect_Success covers the sshservice connect success scenario.
 func TestSSHService_Connect_Success(t *testing.T) {
 	serverConfig, err := newTestServerConfig("testuser", "secret123")
 	if err != nil {
@@ -77,6 +78,7 @@ func TestSSHService_Connect_Success(t *testing.T) {
 	}
 }
 
+// TestSSHService_Connect_AuthenticationFailure covers the sshservice connect authentication failure scenario.
 func TestSSHService_Connect_AuthenticationFailure(t *testing.T) {
 	serverConfig, err := newTestServerConfig("testuser", "secret123")
 	if err != nil {
@@ -167,6 +169,7 @@ func runMockServer(conn net.Conn, config *ssh.ServerConfig) error {
 	return nil
 }
 
+// TestSSHService_Connect_RequiresKnownHosts covers the sshservice connect requires known hosts scenario.
 func TestSSHService_Connect_RequiresKnownHosts(t *testing.T) {
 	service := NewSSHService()
 

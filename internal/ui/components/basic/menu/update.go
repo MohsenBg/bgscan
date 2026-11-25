@@ -7,6 +7,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
+// Update handles key input, resize, theme changes, and animation ticks.
+// Update forwards other messages to the help child.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	// The menu reads the theme live from env, so only the help child
 	// (which bakes styled lines into its viewport) needs the signal.

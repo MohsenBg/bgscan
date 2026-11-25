@@ -29,7 +29,8 @@ type Model struct {
 }
 
 // New creates the Slipstream config form, either for a new config or to edit
-// an existing one described by original.
+// an existing one described by original. New returns an error when the
+// Slipstream service cannot be created.
 func New(
 	session *ui.Session,
 	original *dns.DNSTunConfigFile,

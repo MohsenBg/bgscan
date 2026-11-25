@@ -1,4 +1,6 @@
-// Package settings exposes grouped configuration inspectors for scanner settings.
+// Package settings is the menu that opens one settings inspector per
+// config group, such as general, ICMP, TCP, HTTP, Xray, DNS, and UI
+// settings.
 package settings
 
 import (
@@ -70,22 +72,27 @@ func New(session *ui.Session) *Model {
 	}
 }
 
+// Init starts the component and returns no command.
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
+// ID returns the unique identifier of the component.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
+// Name returns the display name of the component.
 func (m *Model) Name() string {
 	return m.name
 }
 
+// OnClose runs when the component closes and returns no command.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
+// Mode returns the key mode the component uses while it is active.
 func (m *Model) Mode() ui.KeyMode {
 	return ui.KeyModeNormal
 }

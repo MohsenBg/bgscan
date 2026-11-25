@@ -9,6 +9,8 @@ import (
 
 var invalidCharsRe = regexp.MustCompile(`[<>:"/\\|?*\x00]`)
 
+// The Windows device names are rejected on every platform so a name
+// picked here stays usable when the file moves to Windows.
 var reservedNames = []string{
 	"CON", "PRN", "AUX", "NUL",
 	"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",

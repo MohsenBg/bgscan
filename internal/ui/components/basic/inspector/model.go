@@ -1,3 +1,8 @@
+// Package inspector provides a tabbed field list for viewing and
+// editing settings. Fields are grouped into tabs by Field.Group.
+// Each row shows the last committed value, and the edit key opens
+// the field input in a dialog. Format helpers in this package
+// render common value types for display.
 package inspector
 
 import (
@@ -17,9 +22,15 @@ import (
 // helpHeight is the vertical space reserved for the short help footer.
 const helpHeight = 3
 
+// FieldInput is the input contract a field editor must meet.
+// It extends the dialog input with an untyped value getter and
+// setter, so fields with different value types share one list.
 type FieldInput interface {
 	input.Dialog
+	// Value returns the current input value.
 	Value() any
+	// SetValue sets the input value. Implementations ignore a
+	// value whose type does not match the input value type.
 	SetValue(any)
 }
 
@@ -29,8 +40,10 @@ type Field struct {
 	Description string
 	Group       string
 	Input       FieldInput
-	Visible     func() bool
-	Format      func(any) string
+	// Visible reports whether the field is shown. A nil func means the field is always shown.
+	Visible func() bool
+	// Format renders a value for display. A nil func means fmt.Sprint is used.
+	Format func(any) string
 
 	snapshot *any
 }
@@ -52,10 +65,12 @@ func (f Field) visible() bool {
 	return f.Visible == nil || f.Visible()
 }
 
+// FieldItem wraps a Field as an item for the bubbles list.
 type FieldItem struct {
 	Field Field
 }
 
+// FilterValue returns the text the list filters on, the field name.
 func (i FieldItem) FilterValue() string { return i.Field.Name }
 
 // fieldDelegate renders "Name  value" rows with an optional description line.
@@ -95,6 +110,7 @@ type Model struct {
 	name string
 	env  *ui.Env
 
+	// Title is the label of the active group tab.
 	Title string
 
 	groups map[string][]Field
@@ -109,8 +125,10 @@ type Model struct {
 	heightOverride int
 }
 
+// Option configures a Model at construction time.
 type Option func(*Model)
 
+// WithWidth sets a fixed inspector width. A width of zero or less is ignored.
 func WithWidth(width int) Option {
 	return func(m *Model) {
 		if width > 0 {
@@ -119,6 +137,7 @@ func WithWidth(width int) Option {
 	}
 }
 
+// WithHeight sets a fixed inspector height. A height of zero or less is ignored.
 func WithHeight(height int) Option {
 	return func(m *Model) {
 		if height > 0 {
@@ -207,17 +226,30 @@ func visibleItems(fields []Field) []list.Item {
 	return items
 }
 
+// Init starts the tab component and returns its initial command.
 func (m *Model) Init() tea.Cmd {
 	if m.tabs == nil {
 		return nil
 	}
 	return m.tabs.Init()
 }
+
+// ID returns the component ID.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
-func (m *Model) Fields() []Field    { return m.groups[m.Title] }
+
+// Name returns the component name.
+func (m *Model) Name() string { return m.name }
+
+// OnClose returns no command. The inspector holds no resources to free.
+func (m *Model) OnClose() tea.Cmd { return nil }
+
+// Mode returns the key mode the component uses.
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
+
+// Fields returns the fields in the active group.
+func (m *Model) Fields() []Field { return m.groups[m.Title] }
+
+// SelectedField returns the highlighted field and whether one is selected.
 func (m *Model) SelectedField() (Field, bool) {
 	item, ok := m.list.SelectedItem().(FieldItem)
 	if !ok {
@@ -226,6 +258,7 @@ func (m *Model) SelectedField() (Field, bool) {
 	return item.Field, true
 }
 
+// Width returns the inspector width, from the override or the layout.
 func (m *Model) Width() int {
 	if m.widthOverride > 0 {
 		return m.widthOverride
@@ -233,6 +266,7 @@ func (m *Model) Width() int {
 	return min(m.maxWidth, m.env.Layout.Body().Width)
 }
 
+// Height returns the list height after the tabs, title, and help rows are removed from the total height.
 func (m *Model) Height() int {
 	total := m.heightOverride
 	if total <= 0 {
@@ -253,6 +287,7 @@ func (m *Model) Height() int {
 	return max(15, total-taken)
 }
 
+// SetWidth sets the width and passes it to the tabs, list, and help child.
 func (m *Model) SetWidth(width int) {
 	m.widthOverride = width
 	if tb, ok := m.tabs.(*tabs.Model[[]Field]); ok {
@@ -264,11 +299,13 @@ func (m *Model) SetWidth(width int) {
 	}
 }
 
+// SetHeight sets the total height and resizes the list to match.
 func (m *Model) SetHeight(height int) {
 	m.heightOverride = height
 	m.list.SetHeight(m.Height())
 }
 
+// CloseCmd returns a command that closes the component.
 func (m *Model) CloseCmd() tea.Cmd {
 	return func() tea.Msg {
 		return ui.CloseComponentMsg{ID: m.ID()}

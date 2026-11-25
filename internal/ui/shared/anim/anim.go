@@ -1,4 +1,6 @@
-// Package anim provides timing, easing, and color helpers for animated TUI components.
+// Package anim provides timing, easing, and color helpers for animated
+// TUI components. The helpers are pure functions. Callers drive the
+// animation loop and pass progress values in.
 package anim
 
 import (
@@ -6,8 +8,10 @@ import (
 	"time"
 )
 
-// Animation timing constants.
 const (
+	// FrameInterval is the delay between animation frames. At about
+	// 16 ms it gives roughly 60 frames per second, which matches a
+	// terminal redraw.
 	FrameInterval = 16 * time.Millisecond
 )
 
@@ -41,7 +45,9 @@ func EaseInOutCubic(t float64) float64 {
 	return 1 - u*u*u/2
 }
 
-// Progress returns normalized elapsed progress for an animation.
+// Progress returns the normalized elapsed progress for an animation.
+// It returns 1 when start is zero or d is not positive, so a missing or
+// bad duration finishes the animation at once instead of stalling it.
 func Progress(start time.Time, d time.Duration) float64 {
 	if start.IsZero() || d <= 0 {
 		return 1
@@ -76,6 +82,9 @@ func Mix(a, b color.Color, t float64) color.Color {
 	}
 }
 
+// nrgba converts c to non-premultiplied 8-bit channels. color.Color
+// returns premultiplied values, so the channels are scaled back up by
+// the alpha before Mix blends them.
 func nrgba(c color.Color) (r, g, b, a uint8) {
 	if c == nil {
 		return 0, 0, 0, 0

@@ -29,7 +29,8 @@ const (
 	paddingY       = -2
 )
 
-// Model is the scanner screen
+// Model is the scanner screen component. It holds one scanStage per scan
+// stage and the tab bar that switches between them.
 type Model struct {
 	id      ui.ComponentID
 	name    string
@@ -78,10 +79,18 @@ func New(session *ui.Session, scanner scanner.Scanner) *Model {
 	return m
 }
 
+// ID returns the component ID assigned at creation.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeManage }
-func (m *Model) OnClose() tea.Cmd   { return nil }
+
+// Name returns the component display name.
+func (m *Model) Name() string { return m.name }
+
+// Mode returns the key mode the component uses, which is manage mode.
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeManage }
+
+// OnClose runs when the component closes. Closing the scan itself goes
+// through closeScan, so OnClose returns nil.
+func (m *Model) OnClose() tea.Cmd { return nil }
 
 // Init registers scanner hooks and starts the scan run plus periodic UI ticks.
 func (m *Model) Init() tea.Cmd {

@@ -7,6 +7,10 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
+// Update handles theme changes, window resizes, and the help key.
+// In short mode the help key opens the long help dialog, and in long
+// mode it closes the dialog. Other messages go to the viewport in
+// long mode.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	if _, ok := msg.(theme.ThemeChanged); ok {
 		m.rebuild()

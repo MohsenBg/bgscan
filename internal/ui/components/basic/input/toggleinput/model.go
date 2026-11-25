@@ -1,3 +1,7 @@
+// Package toggleinput provides a boolean toggle input for dialogs.
+// It wraps a huh confirm field and implements input.Input for bool
+// values. Callers set the initial value, labels, validation, and
+// change or submit callbacks with the With options passed to New.
 package toggleinput
 
 import (
@@ -38,6 +42,8 @@ type Model struct {
 	onSubmit func(bool) tea.Cmd
 }
 
+// New creates a toggle input with the given title and options.
+// New returns the input as an input.Input for bool values.
 func New(
 	env *ui.Env,
 	title string,
@@ -121,17 +127,22 @@ func WithOnSubmit(fn func(bool) tea.Cmd) Option {
 	}
 }
 
+// Init returns no initial command.
 func (m *Model) Init() tea.Cmd { return nil }
 
+// ID returns the component ID.
 func (m *Model) ID() ui.ComponentID { return m.id }
 
+// Name returns the component name.
 func (m *Model) Name() string { return m.name }
 
+// Mode returns the key mode the component uses.
 func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
 
 // Title returns the input prompt as raw data for the dialog frame.
 func (m *Model) Title() string { return m.title }
 
+// DialogHints returns the key hints shown in the dialog frame.
 func (m *Model) DialogHints() keys.Hints {
 	k := m.env.Keys.ToggleInput
 	tl := k.Toggle
@@ -149,16 +160,19 @@ func (m *Model) DialogHints() keys.Hints {
 	return hints
 }
 
+// Width returns the input width, capped at 50 columns.
 func (m *Model) Width() int {
 	return min(50, m.env.Layout.Body().Width)
 }
 
+// CloseCmd returns a command that closes the component.
 func (m *Model) CloseCmd() tea.Cmd {
 	return func() tea.Msg {
 		return ui.CloseComponentMsg{ID: m.ID()}
 	}
 }
 
+// OnClose returns no command. The toggle holds no resources to free.
 func (m *Model) OnClose() tea.Cmd { return nil }
 
 // rebuild recreates the huh field from the live theme: huh's WithTheme is
@@ -182,21 +196,28 @@ func (m *Model) rebuild() {
 	}
 }
 
+// Value returns the current toggle state.
 func (m *Model) Value() bool { return m.value }
 
+// SetValue sets the toggle state and updates the inner field.
 func (m *Model) SetValue(value bool) {
 	m.value = value
 	m.huhInput = m.huhInput.Value(&m.value)
 }
 
+// ReadOnly reports whether the input is read only.
 func (m *Model) ReadOnly() bool { return m.readOnly }
 
+// SetReadOnly sets whether the input is read only.
 func (m *Model) SetReadOnly(ro bool) { m.setReadOnly(ro) }
 
+// OnValidate sets the function used to validate the value on submit.
 func (m *Model) OnValidate(fn func(bool) error) { m.validationFunc = fn }
 
+// OnChange sets the callback that runs when the value changes.
 func (m *Model) OnChange(fn func(bool) tea.Cmd) { m.onChange = fn }
 
+// OnSubmit sets the callback that runs when the value is submitted.
 func (m *Model) OnSubmit(fn func(bool) tea.Cmd) { m.onSubmit = fn }
 
 // AppendOnSubmit chains fn after any previously registered onSubmit

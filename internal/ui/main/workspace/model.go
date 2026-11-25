@@ -1,4 +1,7 @@
-// Package workspace composes the root application screen.
+// Package workspace composes the root application screen. It holds the
+// body and footer components, forwards every message to both, and joins
+// their views inside the outer frame. The body owns the effective key
+// mode, so the workspace reads its mode from the body.
 package workspace
 
 import (
@@ -19,7 +22,7 @@ type model struct {
 	footer ui.Component
 }
 
-// New builds the workspace root component.
+// New builds the workspace root component with a body and a footer.
 func New(session *ui.Session) ui.Component {
 	env := session.Env()
 	return &model{
@@ -31,13 +34,17 @@ func New(session *ui.Session) ui.Component {
 	}
 }
 
+// ID returns the workspace component ID.
 func (m *model) ID() ui.ComponentID { return m.id }
-func (m *model) Name() string       { return m.name }
+
+// Name returns the workspace component name.
+func (m *model) Name() string { return m.name }
 
 // Mode delegates to the body, whose topmost open component owns the
 // effective key mode.
 func (m *model) Mode() ui.KeyMode { return m.body.Mode() }
 
+// Init initializes the body and the footer.
 func (m *model) Init() tea.Cmd {
 	return tea.Batch(m.body.Init(), m.footer.Init())
 }

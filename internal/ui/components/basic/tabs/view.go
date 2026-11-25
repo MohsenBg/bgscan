@@ -9,6 +9,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+// View renders the tab labels with the underline or the sliding accent.
+// It returns an empty string when there are no tabs.
 func (m *Model[T]) View() string {
 	if len(m.tabs) == 0 {
 		return ""

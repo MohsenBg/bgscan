@@ -1,4 +1,7 @@
-// Package dialog provides dialog frames and open/close transitions.
+// Package dialog provides dialog frames and open and close transitions.
+// RenderFrame draws the frame around dialog content, Composite places
+// the framed dialog over the screen behind it, and the Animation values
+// control how much of the dialog is visible during a transition.
 package dialog
 
 import (
@@ -17,8 +20,10 @@ const FrameInterval = anim.FrameInterval
 // Animation is a dialog reveal transition.
 type Animation uint8
 
-// Dialog transitions.
+// Dialog transitions. AnimNone shows the dialog at once, and the other
+// values reveal it with a growing rectangle.
 const (
+	// AnimNone shows the full dialog with no transition.
 	AnimNone Animation = iota
 	AnimExpand
 	AnimDropIn

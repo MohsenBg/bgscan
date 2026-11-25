@@ -1,3 +1,7 @@
+// Package splash renders the animated logo shown when the app starts.
+// The logo plays a glitch animation, then holds with the app version
+// below it. The screen ends after a fixed number of frames, or at once
+// when the user presses any key, and reports that with SplashDoneMsg.
 package splash
 
 import (
@@ -37,11 +41,15 @@ var logoWidth = func() int {
 const (
 	tickInterval = 30 * time.Millisecond
 
+	// Frame counts for the two phases. The animation runs for animFrames
+	// ticks, then the finished logo holds for holdFrames ticks.
 	animFrames  = 80
 	holdFrames  = 150
 	totalFrames = animFrames + holdFrames
 )
 
+// Glitch tuning values. Chances are probabilities per rune or per line,
+// checked on every frame.
 const (
 	sweepStartProgress = 0.72
 	sweepSpan          = 1 - sweepStartProgress
@@ -71,6 +79,7 @@ func (m model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
 func (m model) Name() string       { return m.name }
 func (m model) OnClose() tea.Cmd   { return nil }
 
+// New creates the splash screen component.
 func New(session *ui.Session) ui.Component {
 	return &model{
 		id:      ui.NewComponentID(),

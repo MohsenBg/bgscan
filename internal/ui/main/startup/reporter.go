@@ -51,6 +51,8 @@ func (r *reporter) report(status categoryStatus, msg string) {
 		line:       msg,
 	}
 
+	// Info lines report with catRunning, so a running report must not
+	// erase a final status that an earlier line already set.
 	if status != catRunning || r.status == catRunning {
 		r.status = status
 	}

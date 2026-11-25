@@ -4,6 +4,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// messageStyle returns the style of the dialog message text.
 func (m *Model) messageStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).

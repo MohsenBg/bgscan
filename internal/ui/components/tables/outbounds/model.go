@@ -1,3 +1,7 @@
+// Package outbounds shows the saved Xray outbound templates in a CRUD
+// table. The user can add, rename, delete, and pick a template. Adding
+// imports a template from a JSON file or a share link, and each import
+// asks for a name before it saves.
 package outbounds
 
 import (
@@ -36,11 +40,20 @@ func New(session *ui.Session, onSelect func(*xray.OutboundFile) tea.Cmd) *Model 
 	return m
 }
 
-func (m *Model) Init() tea.Cmd      { return m.crudTable.Init() }
+// Init starts the underlying CRUD table and returns its first command.
+func (m *Model) Init() tea.Cmd { return m.crudTable.Init() }
+
+// ID returns the component ID assigned at creation.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return "outbounds" }
-func (m *Model) OnClose() tea.Cmd   { return m.crudTable.OnClose() }
-func (m *Model) Mode() ui.KeyMode   { return m.crudTable.Mode() }
+
+// Name returns the component display name.
+func (m *Model) Name() string { return "outbounds" }
+
+// OnClose forwards the close to the underlying CRUD table.
+func (m *Model) OnClose() tea.Cmd { return m.crudTable.OnClose() }
+
+// Mode returns the key mode of the underlying CRUD table.
+func (m *Model) Mode() ui.KeyMode { return m.crudTable.Mode() }
 
 // showAdditionMethodCmd returns a command that triggers the add menu in Update.
 // This avoids mutating component state from inside a tea.Cmd.

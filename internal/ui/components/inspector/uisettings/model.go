@@ -31,6 +31,9 @@ const (
 	descLogLevel        = "Minimum severity written to log files. Debug logs every probe error with the full target IP."
 )
 
+// Model is the settings inspector component for the UI appearance
+// settings. It holds the session and delegates editing, updates, and
+// rendering to the wrapped inspector.
 type Model struct {
 	session   *ui.Session
 	name      string
@@ -38,12 +41,25 @@ type Model struct {
 	inspector ui.Component
 }
 
+// ID returns the component ID that New assigned to the model.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Init() tea.Cmd      { return m.inspector.Init() }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
 
+// Init returns the init command of the wrapped inspector.
+func (m *Model) Init() tea.Cmd { return m.inspector.Init() }
+
+// Mode returns ui.KeyModeNormal, the key mode this component always uses.
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
+
+// Name returns the display name passed to New.
+func (m *Model) Name() string { return m.name }
+
+// OnClose returns nil. The component has nothing to clean up on close.
+func (m *Model) OnClose() tea.Cmd { return nil }
+
+// New creates the inspector for the UI appearance settings. Each
+// input applies its change to the environment settings and saves them
+// when the user submits it. A stored theme or log level that no longer
+// exists falls back to the default instead of showing a blank value.
 func New(session *ui.Session, name string) *Model {
 	cfg := session.Env().Settings
 	themes := theme.List()

@@ -11,6 +11,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
+// Update forwards the message to the tabs, list, and help child.
+// Update opens the edit dialog or the description notice on the matching keys.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	var cmds []tea.Cmd
 

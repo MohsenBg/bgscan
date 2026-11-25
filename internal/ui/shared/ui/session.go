@@ -9,10 +9,17 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
+// Program is the part of the running Bubble Tea program that the
+// session needs. It lets code outside the update loop send a message
+// into the program.
 type Program interface {
+	// Send delivers msg to the program's update loop.
 	Send(msg tea.Msg)
 }
 
+// Session holds the state shared by the whole TUI run. Config and Store
+// are set during startup, after NewSession returns, so components must
+// not read them before startup fills them in.
 type Session struct {
 	env    *Env
 	Config *config.ScannerConfig
@@ -30,6 +37,9 @@ type Env struct {
 	Program  Program
 }
 
+// NewSession builds a Session with an Env derived from settings. The ui
+// logger goes into the Env for components, and the core logger is kept
+// apart for scanner and config code. See CoreLog.
 func NewSession(settings UISettings, ui logger.Logger, core logger.Logger) *Session {
 	env := newEnv(settings, ui)
 	return &Session{env: env, core: core}
@@ -47,6 +57,9 @@ func newEnv(setting UISettings, log logger.Logger) *Env {
 	return e
 }
 
+// Env returns the session environment. A nil session, or one built
+// without an environment, returns a fresh default environment instead
+// of nil, so callers can always read fields from the result.
 func (s *Session) Env() *Env {
 	if s == nil || s.env == nil {
 		return newEnv(DefaultUISettings(), *logger.Discard())
@@ -79,6 +92,8 @@ func (s *Session) SetTheme(name string) (tea.Cmd, error) {
 	return theme.ThemeChangedCmd(), nil
 }
 
+// SetProgram records the running program in the Env so components can
+// send messages to it. Startup calls it once the program exists.
 func (s *Session) SetProgram(program Program) {
 	s.Env().Program = program
 }

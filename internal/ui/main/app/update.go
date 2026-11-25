@@ -16,6 +16,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Update routes msg to the dialog stack and the active stage, and handles
+// stage changes, dialog open and close requests, and global keys.
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -45,8 +47,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case splash.SplashDoneMsg:
-		// prevent run twice startup init
-		// it can happend if pressed key last frame splash screen
+		// The stage guard stops a second startup Init when a key press on
+		// the last splash frame sends SplashDoneMsg again.
 		if m.stage < StageStartUP {
 			m.stage = StageStartUP
 			cmds = append(cmds, m.splash.OnClose(), m.startup.Init())
@@ -71,7 +73,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Closing layers stay on the stack until their exit animation finishes.
 		cmds = append(cmds, m.expire(now)...)
 
-		// Reappear only while something is visible idle stacks need no timers.
+		// Tick again only while a layer is still moving. An idle stack
+		// needs no timer.
 		if m.animating(now) {
 			cmds = append(cmds, tickDialogFrames())
 		}
@@ -133,6 +136,10 @@ func (m *model) closeTopDialog(msg tea.KeyMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
+// dumpGoroutines returns a stack dump limited to goroutines that look
+// blocked, such as ones waiting on a channel, a lock, or IO.
+// The buffer doubles until the full dump fits, because runtime.Stack
+// truncates its output at the buffer size.
 func dumpGoroutines() string {
 	buf := make([]byte, 1<<20)
 	for {

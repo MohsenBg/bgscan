@@ -4,6 +4,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// View renders the current directory header above the file list.
 func (m *Model) View() string {
 	width := pickerWidth(m.env)
 	height := pickerHeight(m.env)

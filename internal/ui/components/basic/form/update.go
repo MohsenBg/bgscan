@@ -7,6 +7,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
+// Update handles window resizes and the form save and cancel keys,
+// and passes every other message to the wrapped inspector.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:

@@ -8,6 +8,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/meter"
 )
 
+// TestTierColorFallback covers tier colors on themes that set no tier
+// colors, set one override, and the plain tier that gets no color.
 func TestTierColorFallback(t *testing.T) {
 	// Zero-value theme falls back to generic tokens.
 	var empty Theme
@@ -33,6 +35,8 @@ func TestTierColorFallback(t *testing.T) {
 	}
 }
 
+// TestThemesHaveTierGood checks that every registered built-in theme
+// sets a TierGood color of its own.
 func TestThemesHaveTierGood(t *testing.T) {
 	Init()
 

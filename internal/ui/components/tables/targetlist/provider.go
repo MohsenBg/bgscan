@@ -14,6 +14,7 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
+// source adapts the target package to the crud.Source interface.
 type source struct {
 	title   string
 	session *ui.Session
@@ -64,6 +65,8 @@ func (s *source) RenderRow(item target.FileInfo) table.Row {
 	}
 }
 
+// Identity prefixes the name with the kind because an IP list and a domain
+// list can share the same name.
 func (s *source) Identity(item target.FileInfo) string {
 	return item.Kind.String() + ":" + item.Name
 }

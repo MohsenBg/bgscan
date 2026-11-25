@@ -1,3 +1,6 @@
+// Package resultlist shows the saved scan result files in a CRUD table.
+// The user can rename, delete, and pick a file. Picking a file opens its
+// results in the IP viewer, capped at the maxIPs limit given to New.
 package resultlist
 
 import (
@@ -12,6 +15,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Model is the result file table component. It wraps a CRUD table of
+// result files.
 type Model struct {
 	id        ui.ComponentID
 	name      string
@@ -20,6 +25,10 @@ type Model struct {
 	crudTable *crud.Model[result.ResultFile]
 }
 
+// New creates the result file table bound to session with the given
+// table title. maxIPs caps how many results OpenResultIP loads from a
+// picked file. A nil onSelect means picking a file opens it in the IP
+// viewer. A non-nil onSelect is called with the picked file instead.
 func New(session *ui.Session, title string, maxIPs uint32, onSelect func(*result.ResultFile) tea.Cmd) *Model {
 	m := &Model{
 		id:      ui.NewComponentID(),
@@ -37,13 +46,23 @@ func New(session *ui.Session, title string, maxIPs uint32, onSelect func(*result
 	return m
 }
 
-func (m *Model) Init() tea.Cmd      { return m.crudTable.Init() }
-func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return m.crudTable.OnClose() }
-func (m *Model) Mode() ui.KeyMode   { return m.crudTable.Mode() }
+// Init starts the underlying CRUD table and returns its first command.
+func (m *Model) Init() tea.Cmd { return m.crudTable.Init() }
 
-// defaultSelectHandler automatically opens the matching IP details viewer component
+// ID returns the component ID assigned at creation.
+func (m *Model) ID() ui.ComponentID { return m.id }
+
+// Name returns the component display name.
+func (m *Model) Name() string { return m.name }
+
+// OnClose forwards the close to the underlying CRUD table.
+func (m *Model) OnClose() tea.Cmd { return m.crudTable.OnClose() }
+
+// Mode returns the key mode of the underlying CRUD table.
+func (m *Model) Mode() ui.KeyMode { return m.crudTable.Mode() }
+
+// defaultSelectHandler reads the picked file and opens its results in
+// the IP viewer. It is the select handler New uses when onSelect is nil.
 func (m *Model) defaultSelectHandler(file *result.ResultFile) tea.Cmd {
 	ips, err := result.ReadResultFile(file.Path, file.Schema)
 	if err != nil {

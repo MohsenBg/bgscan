@@ -6,7 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// View renders the textarea component: title, field, validation error, and key hints.
+// View renders the textarea component: title, field, and validation error.
 func (m *Model) View() string {
 	content := make([]string, 0, 4)
 	if m.title != "" {

@@ -9,6 +9,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/core/speedtest"
 )
 
+// FormatInt formats a string that holds an integer with comma separators.
+// FormatInt returns an empty string when the value is not a numeric string.
 func FormatInt(v any) string {
 	s, ok := v.(string)
 	if !ok {
@@ -37,6 +39,8 @@ func FormatInt(v any) string {
 	return sign + b.String()
 }
 
+// FormatIntOrUnlimited formats a numeric string like FormatInt.
+// FormatIntOrUnlimited returns "unlimited" when the value is zero.
 func FormatIntOrUnlimited(v any) string {
 	if format := FormatInt(v); format == "0" {
 		return "unlimited"
@@ -45,6 +49,8 @@ func FormatIntOrUnlimited(v any) string {
 	}
 }
 
+// FormatDurationMS formats a numeric string that holds milliseconds as a duration.
+// FormatDurationMS returns an empty string when the value is not a numeric string.
 func FormatDurationMS(v any) string {
 	s, ok := v.(string)
 	if !ok {
@@ -57,6 +63,8 @@ func FormatDurationMS(v any) string {
 	return (time.Duration(ms) * time.Millisecond).String()
 }
 
+// FormatBool formats a bool as "Active" or "Disabled".
+// FormatBool returns an empty string when the value is not a bool.
 func FormatBool(v any) string {
 	b, ok := v.(bool)
 	if !ok {
@@ -68,6 +76,9 @@ func FormatBool(v any) string {
 	return "Disabled"
 }
 
+// FormatStringList joins a string list with commas and cuts it at 20 columns.
+// FormatStringList adds a count of the hidden items when the list is cut.
+// FormatStringList returns "-" for an empty list and an empty string for other types.
 func FormatStringList(value any) string {
 	const width = 20
 	items, ok := value.([]string)
@@ -93,6 +104,8 @@ func FormatStringList(value any) string {
 	return b.String()
 }
 
+// FormatIntList formats an int list like FormatStringList.
+// FormatIntList returns an empty string when the value is not an int list.
 func FormatIntList(value any) string {
 	items, ok := value.([]int)
 	if !ok {
@@ -105,6 +118,8 @@ func FormatIntList(value any) string {
 	return FormatStringList(l)
 }
 
+// FormatDataSpeed formats a numeric string that holds kilobits per second as a data speed.
+// FormatDataSpeed returns an empty string when the value is not a numeric string.
 func FormatDataSpeed(v any) string {
 	s, ok := v.(string)
 	if !ok {
@@ -117,6 +132,8 @@ func FormatDataSpeed(v any) string {
 	return speedtest.BitsPerSec(kbps * 1000).String()
 }
 
+// FormatHex formats a string with a 0x prefix and cuts it after 15 characters.
+// FormatHex returns an empty string when the value is not a string.
 func FormatHex(v any) string {
 	s, ok := v.(string)
 	if !ok {
@@ -125,6 +142,8 @@ func FormatHex(v any) string {
 	return "0x" + s[:min(len(s), 15)] + "..."
 }
 
+// FormatPublicKey shortens a public key string to its first and last characters.
+// FormatPublicKey returns short values unchanged and an empty string for other types.
 func FormatPublicKey(v any) string {
 	s, ok := v.(string)
 	if !ok {
@@ -163,6 +182,8 @@ func FormatPrivateKey(v any) string {
 	return "🔑 " + keyType
 }
 
+// FormatZeroAsAuto returns "Auto" when a numeric string is zero.
+// FormatZeroAsAuto returns the input string unchanged in all other cases.
 func FormatZeroAsAuto(v any) string {
 	s, ok := v.(string)
 	if !ok {
@@ -178,6 +199,8 @@ func FormatZeroAsAuto(v any) string {
 	return s
 }
 
+// FormatEmptyStringAuto returns "Auto" for an empty string.
+// FormatEmptyStringAuto returns an empty string when the value is not a string.
 func FormatEmptyStringAuto(v any) string {
 	s, ok := v.(string)
 	if !ok {
@@ -189,6 +212,8 @@ func FormatEmptyStringAuto(v any) string {
 	return s
 }
 
+// FormatUTLS returns "Native TLS" for an empty string, which means no uTLS fingerprint is set.
+// FormatUTLS returns an empty string when the value is not a string.
 func FormatUTLS(v any) string {
 	s, ok := v.(string)
 	if !ok {
@@ -200,6 +225,8 @@ func FormatUTLS(v any) string {
 	return s
 }
 
+// FormatEmptyString returns "<empty>" for an empty string and the string itself otherwise.
+// FormatEmptyString uses String for fmt.Stringer values and returns an empty string for other types.
 func FormatEmptyString(v any) string {
 	switch val := v.(type) {
 	case string:
@@ -214,6 +241,8 @@ func FormatEmptyString(v any) string {
 	}
 }
 
+// FormatSeconds formats a numeric string that holds seconds as a duration.
+// FormatSeconds returns "<empty>" for an empty string and an empty string for bad or negative values.
 func FormatSeconds(v any) string {
 	s, ok := v.(string)
 	if !ok || s == "" {

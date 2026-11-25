@@ -13,6 +13,7 @@ func (m *Model) titleStyle(width int) lipgloss.Style {
 		BorderForeground(m.env.Theme.BorderActive)
 }
 
+// ContainerStyle returns the centered style that wraps each log view section.
 func ContainerStyle(width int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Width(width).

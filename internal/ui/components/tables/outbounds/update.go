@@ -15,6 +15,9 @@ type openAddMenuMsg struct{}
 
 const dialogTitle = "Add Outbound"
 
+// Update opens the add menu on request, starts the file or link import
+// when the user picks an import method, and forwards all other messages
+// to the CRUD table.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
 	case openAddMenuMsg:

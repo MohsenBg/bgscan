@@ -1,3 +1,7 @@
+// Package ipviewer shows scan results in a table built from a result
+// schema. It colors metric cells by tier, caps the rows shown at maxRow,
+// and copies the selected row's host value to the clipboard when the
+// user presses enter.
 package ipviewer
 
 import (
@@ -15,6 +19,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Model is the result table component. It wraps a basic table and keeps
+// the rendered rows so unchanged results skip a table update.
 type Model struct {
 	id     ui.ComponentID
 	name   string
@@ -32,16 +38,23 @@ type Model struct {
 	filterEnabled bool
 }
 
+// Option changes a Model at creation time. Options are passed to New.
 type Option func(*Model)
 
+// WithWidth sets the table width. A zero width leaves the table at its
+// default width.
 func WithWidth(w int) Option {
 	return func(m *Model) { m.width = w }
 }
 
+// WithHeight sets the table height. A zero height leaves the table at
+// its default height.
 func WithHeight(h int) Option {
 	return func(m *Model) { m.height = h }
 }
 
+// WithMaxRow sets the maximum number of rows shown. A zero max is
+// ignored, so the current limit stays in place.
 func WithMaxRow(max uint32) Option {
 	return func(m *Model) {
 		if max > 0 {
@@ -60,17 +73,31 @@ func WithLongHints(hints ...keys.Hint) Option {
 	return func(m *Model) { m.longHints = hints }
 }
 
-// WithFiltering enables or disables table filtering. The default is enabled.
+// WithFiltering sets whether the user can filter the table rows.
+// Filtering stays off unless WithFiltering(true) is passed.
 func WithFiltering(enabled bool) Option {
 	return func(m *Model) { m.filterEnabled = enabled }
 }
 
+// ID returns the component ID assigned at creation.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
-func (m *Model) Mode() ui.KeyMode   { return m.table.Mode() }
-func (m *Model) Init() tea.Cmd      { return m.table.Init() }
 
+// Name returns the component display name.
+func (m *Model) Name() string { return m.name }
+
+// OnClose runs when the component closes. It has nothing to clean up and
+// returns nil.
+func (m *Model) OnClose() tea.Cmd { return nil }
+
+// Mode returns the key mode of the underlying table.
+func (m *Model) Mode() ui.KeyMode { return m.table.Mode() }
+
+// Init starts the underlying table and returns its first command.
+func (m *Model) Init() tea.Cmd { return m.table.Init() }
+
+// New creates a result table with columns taken from schema and fills it
+// with rows. The row cap comes from the environment settings, or the
+// default cap when the setting is zero, unless WithMaxRow overrides it.
 func New(env *ui.Env, name string, rows []result.Result, schema result.ResultSchema, opts ...Option) *Model {
 	cols := make([]table.Column, 0, len(schema.Columns))
 	for _, col := range schema.Columns {
@@ -129,10 +156,15 @@ func New(env *ui.Env, name string, rows []result.Result, schema result.ResultSch
 	return m
 }
 
+// SetRows replaces the results shown in the table. Rows past the row
+// cap are dropped, and a call with rows equal to the current ones does
+// nothing.
 func (m *Model) SetRows(rows []result.Result) {
 	m.updateRows(rows)
 }
 
+// Table returns the underlying table model, or nil when the wrapped
+// component is not a table model.
 func (m *Model) Table() *table.Model {
 	if t, ok := m.table.(*table.Model); ok {
 		return t
@@ -140,6 +172,7 @@ func (m *Model) Table() *table.Model {
 	return nil
 }
 
+// SetWidth sets the table width and forwards it to the underlying table.
 func (m *Model) SetWidth(w int) {
 	m.width = w
 	if t := m.Table(); t != nil {
@@ -147,6 +180,8 @@ func (m *Model) SetWidth(w int) {
 	}
 }
 
+// SetHeight sets the table height and forwards it to the underlying
+// table.
 func (m *Model) SetHeight(h int) {
 	m.height = h
 	if t := m.Table(); t != nil {

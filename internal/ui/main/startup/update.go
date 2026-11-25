@@ -10,6 +10,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
+// Update applies messages from the checks goroutine, the spinner, and
+// the progress bar, and handles scrolling and the continue key.
 func (m *model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	if _, ok := msg.(theme.ThemeChanged); ok {
 		m.progressBar = rebuildProgressBar(m.session, m.progressBar)

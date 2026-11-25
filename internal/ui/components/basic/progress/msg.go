@@ -12,6 +12,7 @@ type UpdateProgressMsg struct {
 	Progress float64
 }
 
+// Cmd returns a command that emits the message itself.
 func (m UpdateProgressMsg) Cmd() tea.Cmd {
 	return func() tea.Msg { return m }
 }

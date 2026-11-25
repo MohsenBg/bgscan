@@ -68,7 +68,9 @@ const (
 	descStatusCodeSpecific = "Fine-tune which specific status codes within the selected groups are accepted. Only codes belonging to an active group are shown here."
 )
 
-// Model represents the HTTP settings inspector component.
+// Model is the settings inspector component for the HTTP config
+// section. It holds the session and delegates editing, updates, and
+// rendering to the wrapped inspector.
 type Model struct {
 	session   *ui.Session
 	name      string
@@ -76,11 +78,20 @@ type Model struct {
 	inspector ui.Component
 }
 
+// ID returns the component ID that New assigned to the model.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Init() tea.Cmd      { return m.inspector.Init() }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
+
+// Init returns the init command of the wrapped inspector.
+func (m *Model) Init() tea.Cmd { return m.inspector.Init() }
+
+// Mode returns ui.KeyModeNormal, the key mode this component always uses.
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
+
+// Name returns the display name passed to New.
+func (m *Model) Name() string { return m.name }
+
+// OnClose returns nil. The component has nothing to clean up on close.
+func (m *Model) OnClose() tea.Cmd { return nil }
 
 // saveHTTP saves the current HTTP configuration and returns a notification command on error.
 func saveHTTP(session *ui.Session) tea.Cmd {
@@ -227,6 +238,8 @@ func filterCodesByActiveGroups(codes []int, activeGroups []string) []int {
 }
 
 func groupStatusCodes(codes []int) map[string][]int {
+	// An empty stored list means the user never picked codes, so
+	// every group starts with all of its codes selected.
 	if len(codes) == 0 {
 		res := make(map[string][]int, len(statusGroups))
 		for k, v := range statusGroups {
@@ -268,6 +281,10 @@ func groupStatusCodes(codes []int) map[string][]int {
 	return groups
 }
 
+// New creates the inspector for the HTTP section of the session
+// config. Every input validates the new value and saves the HTTP
+// section when the user submits it. When the selected status code
+// groups change, the per-group code selectors refresh to match.
 func New(session *ui.Session, name string) *Model {
 	cfg := &session.Config.HTTP
 

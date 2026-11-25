@@ -1,3 +1,7 @@
+// Package notice provides a small message dialog for errors, info,
+// and success feedback. NewNoticeCmd opens the dialog with a frame
+// style that matches the level. The message scrolls when it is
+// taller than the viewport, and the continue key closes the dialog.
 package notice
 
 import (
@@ -12,8 +16,11 @@ import (
 type LEVEL int
 
 const (
+	// NOTICE_ERROR marks an error notice. It uses the danger dialog frame.
 	NOTICE_ERROR LEVEL = iota
+	// NOTICE_INFO marks an information notice. It uses the info dialog frame.
 	NOTICE_INFO
+	// NOTICE_SUCCESS marks a success notice. It uses the success dialog frame.
 	NOTICE_SUCCESS
 )
 
@@ -57,18 +64,22 @@ func new(env *ui.Env, message string, level LEVEL) *Model {
 	return m
 }
 
+// Init starts the inner viewport.
 func (m *Model) Init() tea.Cmd {
 	return m.viewport.Init()
 }
 
+// Name returns the component name.
 func (m *Model) Name() string {
 	return m.name
 }
 
+// ID returns the component ID.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
+// OnClose returns no command. The notice holds no resources to free.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
@@ -103,12 +114,14 @@ func (m *Model) UpdateSize() {
 	m.viewport.SetHeight(m.viewportHeight)
 }
 
+// CloseCmd returns a command that closes the component.
 func (m *Model) CloseCmd() tea.Cmd {
 	return func() tea.Msg {
 		return ui.CloseComponentMsg{ID: m.ID()}
 	}
 }
 
+// Mode returns the key mode the component uses.
 func (m *Model) Mode() ui.KeyMode {
 	return ui.KeyModeNormal
 }

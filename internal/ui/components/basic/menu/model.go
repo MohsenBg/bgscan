@@ -1,4 +1,8 @@
-// Package menu contains the selection menus used by bgscan.
+// Package menu provides the selection menu component used by bgscan.
+// A menu shows a list of MenuItem rows with an optional icon column,
+// shortcut chips, and a help bar. When items have descriptions and
+// the menu is wide enough, View adds a detail pane for the selected
+// item. Rows fade in on creation when animation is enabled.
 package menu
 
 import (
@@ -65,11 +69,20 @@ func (i MenuItem) WithDescription(desc string) MenuItem {
 	return i
 }
 
-func (i MenuItem) Title() string       { return i.title }
-func (i MenuItem) Icon() string        { return i.icon }
+// Title returns the item title.
+func (i MenuItem) Title() string { return i.title }
+
+// Icon returns the item icon.
+func (i MenuItem) Icon() string { return i.icon }
+
+// Description returns the item description.
 func (i MenuItem) Description() string { return i.desc }
-func (i MenuItem) Shortcut() string    { return i.shortcut }
-func (i MenuItem) Action() tea.Cmd     { return i.action }
+
+// Shortcut returns the key that selects the item directly.
+func (i MenuItem) Shortcut() string { return i.shortcut }
+
+// Action returns the command that runs when the item is selected and no select callback is set.
+func (i MenuItem) Action() tea.Cmd { return i.action }
 
 // Option configures a menu.
 type Option func(*Model)
@@ -188,10 +201,17 @@ func (m *Model) Init() tea.Cmd {
 	return m.nextFrame()
 }
 
+// ID returns the component ID.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
+
+// Mode returns the key mode the component uses.
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
+
+// Name returns the component name.
+func (m *Model) Name() string { return m.name }
+
+// OnClose returns no command. The menu holds no resources to free.
+func (m *Model) OnClose() tea.Cmd { return nil }
 
 // Title returns the menu heading.
 func (m *Model) Title() string { return m.title }
@@ -368,6 +388,7 @@ func (m *Model) LongHints() keys.Hints {
 	return hints
 }
 
+// DialogHints returns the hints a dialog frame shows for a menu.
 func DialogHints(k keys.MenuKeys) keys.Hints {
 	hints := keys.Hints{
 		keys.Combine("move", k.Up, k.Down),

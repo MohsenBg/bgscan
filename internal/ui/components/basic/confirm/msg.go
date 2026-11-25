@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// ConfirmHints returns the footer hints for the confirmation dialog.
 func ConfirmHints(k keys.Keys) keys.Hints {
 	return keys.Hints{
 		keys.Combine("move", k.Nav.Left, k.Nav.Right),

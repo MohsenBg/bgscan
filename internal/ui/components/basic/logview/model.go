@@ -1,3 +1,7 @@
+// Package logview provides a scrollable viewer for the app logger.
+// Model subscribes to a logger, buffers lines in batches, and renders
+// them in a viewport with level colors. OnClose cancels the reader
+// goroutine and unsubscribes, so callers must run it on removal.
 package logview
 
 import (
@@ -15,7 +19,7 @@ import (
 )
 
 const (
-	// max reading line
+	// maxLine is the number of past log lines a new subscription loads from the log file.
 	maxLine = 2000
 
 	// maxBuffer is how many log lines the view keeps.
@@ -31,7 +35,10 @@ type logEntry struct {
 	rows []string
 }
 
-// Model is a scrollable log viewer. It subscribes to the application logger,
+// Model is a scrollable log viewer. It subscribes to the application
+// logger in Init, batches new lines in a background goroutine, and
+// keeps at most maxBuffer lines. Model is not safe for concurrent use.
+// The Bubble Tea loop owns it, and OnClose stops the background work.
 type Model struct {
 	id    ui.ComponentID
 	name  string
@@ -66,6 +73,8 @@ type Model struct {
 	cancel context.CancelFunc
 }
 
+// New creates a log viewer for the given logger with the given title.
+// New sizes the viewport from the current layout.
 func New(env *ui.Env, log *logger.Logger, title string) *Model {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -220,7 +229,9 @@ func (m *Model) appendLines(lines []string) {
 	}
 }
 
-// rebuildRows renders the lines that have no rows yet, drops the oldest
+// rebuildRows renders the lines that have no rows yet and drops the oldest
+// entries past maxBuffer. It returns all display rows and the number of
+// rows dropped since the last call, so the caller can keep the scroll offset.
 func (m *Model) rebuildRows() (lines []string, dropped int) {
 	width := m.contentWidth()
 	rewrap := width != m.renderWidth
@@ -268,10 +279,12 @@ func (m *Model) pushRows() {
 	}
 }
 
+// ID returns the component ID.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
+// Name returns the component name, which is the viewer title.
 func (m *Model) Name() string {
 	return m.name
 }

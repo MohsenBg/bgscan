@@ -12,6 +12,7 @@ import (
 
 const ellipsis = "…"
 
+// View renders the help view and reuses the cached text while nothing has changed.
 func (m *Model) View() string {
 	if m.dirty {
 		m.cache = m.render()
@@ -51,7 +52,7 @@ func (m *Model) shortContentWidth() int {
 	return max(1, m.shortHelpWidth-2*m.shortPadding())
 }
 
-// shortLine is one packed row of hints. used is the number of hints
+// shortLine is one packed row of hints, and used counts the hints in it.
 type shortLine struct {
 	text string
 	used int

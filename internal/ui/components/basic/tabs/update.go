@@ -7,6 +7,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
+// Update handles theme changes, animation frames, and tab keys.
 func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
 	case theme.ThemeChanged:

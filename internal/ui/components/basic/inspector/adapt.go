@@ -7,8 +7,10 @@ type fieldInputAdapter[T any] struct {
 	input.Input[T]
 }
 
+// Value returns the inner input value as any.
 func (a fieldInputAdapter[T]) Value() any { return a.Input.Value() }
 
+// SetValue sets the inner input value when v has type T. Other types are ignored.
 func (a fieldInputAdapter[T]) SetValue(v any) {
 	tv, ok := v.(T)
 	if !ok {

@@ -4,6 +4,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// View renders the form title above the wrapped inspector.
 func (m *Model) View() string {
 	title := m.renderTitle()
 

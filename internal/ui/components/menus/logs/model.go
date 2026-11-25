@@ -1,3 +1,6 @@
+// Package logs is the menu that lets the user open a log viewer for
+// one log source. It offers the core log and the UI log, and each item
+// opens a logview component for that source.
 package logs
 
 import (
@@ -8,7 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Model represents the main logs menu component.
+// Model is the logs menu component.
 type Model struct {
 	id      ui.ComponentID
 	name    string
@@ -26,12 +29,12 @@ func (m *Model) Name() string {
 	return m.name
 }
 
-// OnClose is called when the component is closed.
+// OnClose runs when the component closes and returns no command.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
-// New creates and returns a new logs menu model.
+// New creates the logs menu for the given session.
 func New(session *ui.Session) *Model {
 	return &Model{
 		id:      ui.NewComponentID(),
@@ -41,6 +44,7 @@ func New(session *ui.Session) *Model {
 	}
 }
 
+// Init starts the component and returns no command.
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
@@ -71,6 +75,7 @@ func newLogsMenu(session *ui.Session) *menu.Model {
 	return menu.New(items, "Logs Menu", env)
 }
 
+// Mode returns the key mode the component uses while it is active.
 func (m *Model) Mode() ui.KeyMode {
 	return ui.KeyModeNormal
 }

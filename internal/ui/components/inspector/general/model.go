@@ -49,6 +49,9 @@ const (
 	descIgnoreErr          = "Continue processing results when the writer encounters an error instead of stopping the scan."
 )
 
+// Model is the settings inspector component for the general and
+// writer config sections. It holds the session and delegates editing,
+// updates, and rendering to the wrapped inspector.
 type Model struct {
 	session   *ui.Session
 	name      string
@@ -56,11 +59,20 @@ type Model struct {
 	inspector ui.Component
 }
 
+// ID returns the component ID that New assigned to the model.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Init() tea.Cmd      { return m.inspector.Init() }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
+
+// Init returns the init command of the wrapped inspector.
+func (m *Model) Init() tea.Cmd { return m.inspector.Init() }
+
+// Mode returns ui.KeyModeNormal, the key mode this component always uses.
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
+
+// Name returns the display name passed to New.
+func (m *Model) Name() string { return m.name }
+
+// OnClose returns nil. The component has nothing to clean up on close.
+func (m *Model) OnClose() tea.Cmd { return nil }
 
 func saveGeneral(session *ui.Session) tea.Cmd {
 	if err := session.Store.SaveGeneral(session.Config.General); err != nil {
@@ -110,6 +122,9 @@ func durationMSInput(session *ui.Session, title string, value time.Duration, val
 	)
 }
 
+// New creates the inspector for the general and writer sections of
+// the session config. Every input validates the new value against its
+// section rules and saves that section when the user submits it.
 func New(session *ui.Session, name string) *Model {
 	cfg := session.Config
 

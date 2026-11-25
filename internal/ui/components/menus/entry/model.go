@@ -1,4 +1,6 @@
-// Package entry is the root main-menu component that opens app sections.
+// Package entry is the root main menu of the app. Each item opens one
+// section, such as running a scan, browsing target or result files,
+// settings, or logs.
 package entry
 
 import (
@@ -39,10 +41,12 @@ func (m *Model) Init() tea.Cmd {
 	return m.menu.Init()
 }
 
+// ID returns the unique identifier of the component.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
+// Name returns the display name of the component.
 func (m *Model) Name() string {
 	return m.name
 }
@@ -52,6 +56,7 @@ func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
+// Mode returns the key mode the component uses while it is active.
 func (m *Model) Mode() ui.KeyMode {
 	return ui.KeyModeNormal
 }

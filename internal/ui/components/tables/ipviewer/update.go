@@ -11,6 +11,8 @@ import (
 	"github.com/atotto/clipboard"
 )
 
+// Update copies the selected host to the clipboard on enter and forwards
+// all other messages to the underlying table.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	if key, ok := msg.(tea.KeyMsg); ok && key.String() == "enter" {
 		if cmd := m.copySelectedIP(); cmd != nil {

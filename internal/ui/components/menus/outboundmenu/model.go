@@ -1,4 +1,6 @@
-// Package outboundmenu prompts the user to choose how to import an outbound config.
+// Package outboundmenu is the menu that asks how to import an outbound
+// config, from a sharing link or from a JSON file. It reports the choice
+// to its caller with a MsgSelectImportMethod message.
 package outboundmenu
 
 import (
@@ -11,11 +13,14 @@ import (
 type ImportMethod string
 
 const (
+	// MethodLink identifies an import from a sharing link.
 	MethodLink ImportMethod = "link"
+	// MethodJSON identifies an import from a raw JSON file.
 	MethodJSON ImportMethod = "json"
 )
 
-// MsgSelectImportMethod reports the user's chosen import method.
+// MsgSelectImportMethod reports the import method the user selected.
+// The Method field holds the selected method.
 type MsgSelectImportMethod struct{ Method ImportMethod }
 
 // title is the dialog heading for this menu.
@@ -35,11 +40,20 @@ func New(session *ui.Session) *Model {
 	}
 }
 
+// ID returns the unique identifier of the component.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return title }
-func (m *Model) OnClose() tea.Cmd   { return nil }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
-func (m *Model) Init() tea.Cmd      { return m.menu.Init() }
+
+// Name returns the display name of the component.
+func (m *Model) Name() string { return title }
+
+// OnClose runs when the component closes and returns no command.
+func (m *Model) OnClose() tea.Cmd { return nil }
+
+// Mode returns the key mode the component uses while it is active.
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
+
+// Init starts the inner menu and returns its first command.
+func (m *Model) Init() tea.Cmd { return m.menu.Init() }
 
 func newMenu(env *ui.Env) *menu.Model {
 	items := []menu.MenuItem{

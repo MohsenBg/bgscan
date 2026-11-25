@@ -19,16 +19,20 @@ const (
 	TierPlain Tier = iota
 	// TierFail represents missing or invalid measurements.
 	TierFail
+	// TierExcellent represents values in the best band for the probe.
 	TierExcellent
+	// TierGood represents values in the second band for the probe.
 	TierGood
+	// TierFair represents values in the third band for the probe.
 	TierFair
+	// TierPoor represents values in the fourth band for the probe.
 	TierPoor
 	// TierOver represents values beyond the configured quality bounds.
 	TierOver
 )
 
-// Resolve returns the quality tier for a metric cell.
-// Non-metric columns and unknown probes return TierPlain.
+// Resolve returns the quality tier for a metric cell. It returns
+// TierPlain for non-metric columns and for unknown probes.
 func Resolve(schema string, ctype result.ColumnType, cell string) Tier {
 	schema = strings.ToLower(schema)
 
@@ -116,7 +120,9 @@ var bandwidth = map[string][4]speedtest.BitsPerSec{
 	"xray": {10 * speedtest.Mbps, 4 * speedtest.Mbps, 1 * speedtest.Mbps, 250 * speedtest.Kbps},
 }
 
-// Duration parses the duration format produced by result.FormatDuration,
+// Duration parses the duration format produced by result.FormatDuration.
+// It reports false for empty cells, the "-" placeholder, and values it
+// cannot parse.
 func Duration(cell string) (time.Duration, bool) {
 	cell = strings.TrimSpace(cell)
 	if cell == "" || cell == "-" {

@@ -237,6 +237,8 @@ func checkXrayHealth(r *reporter, log *logger.Logger) {
 	r.success("Health check completed successfully")
 }
 
+// checkAppHealth is the last check. It only waits: Update accepts the
+// continue key once the checks are done.
 func checkAppHealth(r *reporter) {
 	r.wait("Press Enter to continue...")
 }

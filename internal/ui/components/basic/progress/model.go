@@ -22,25 +22,31 @@ type Model struct {
 	percent float64
 }
 
+// Option configures a Model.
 type Option func(*Model)
 
+// WithProgressVisable sets whether the bar shows its percentage text.
 func WithProgressVisable(show bool) Option {
 	return func(m *Model) {
 		m.progress.ShowPercentage = show
 	}
 }
 
+// WithWidth sets the preferred bar width in cells.
 func WithWidth(width int) Option {
 	return func(m *Model) {
 		m.width = width
 	}
 }
 
+// SetWidth sets the bar width in cells, capped at the layout body width.
 func (m *Model) SetWidth(width int) {
 	m.width = width
 	m.progress.SetWidth(min(width, m.env.Layout.Body().Width))
 }
 
+// New creates a progress bar that uses the theme gradient colors and
+// starts at zero percent.
 func New(env *ui.Env, opts ...Option) *Model {
 	p := progress.New(
 		progress.WithScaled(true),
@@ -84,22 +90,27 @@ func (m *Model) rebuild() {
 	m.progress = p
 }
 
+// Init returns no command, because the bar only changes on messages.
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
+// ID returns the component ID.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
+// Name returns the component name.
 func (m *Model) Name() string {
 	return m.name
 }
 
+// OnClose returns no command, because the bar has nothing to release.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
+// Mode returns the normal key mode, because the bar takes no key input.
 func (m *Model) Mode() ui.KeyMode {
 	return ui.KeyModeNormal
 }

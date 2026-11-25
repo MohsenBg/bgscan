@@ -22,7 +22,7 @@ type Model struct {
 	// smoothing controls the EMA weight of new samples. Zero disables it.
 	smoothing float64
 
-	// Render cache — invalidated whenever samples/width change.
+	// Render cache, invalidated whenever samples or width change.
 	dirty bool
 	cache string
 
@@ -78,7 +78,10 @@ func WithSmoothing(alpha float64) Option {
 	}
 }
 
+// ID returns the component ID.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
+
+// Name returns the component name.
+func (m *Model) Name() string { return m.name }
 
 func (m *Model) capacity() int { return m.width * 2 }

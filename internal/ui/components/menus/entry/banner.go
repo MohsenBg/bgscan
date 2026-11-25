@@ -7,7 +7,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
-// bannerHeight is the row budget the banner block
+// bannerHeight is the number of rows reserved for the banner at the
+// top of the body region.
 const bannerHeight = 8
 
 var bannerStr = strings.TrimSpace(`
@@ -19,7 +20,8 @@ var bannerStr = strings.TrimSpace(`
 ╚═════╝  ╚═════╝      ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝
 `)
 
-// bannerStyle paints the banner into the top of the body region
+// bannerStyle centers the banner text in the given size and colors it
+// with the theme success color.
 func bannerStyle(env *ui.Env, width, height int) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Align(lipgloss.Center, lipgloss.Center).

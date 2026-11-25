@@ -12,10 +12,16 @@ import (
 
 const uiSettingsFile = "ui_settings.toml"
 
+// DefaultMaxRow is the default cap on rows kept for display in result
+// tables.
 const DefaultMaxRow = 10_000
 
+// DefaultLogLevel is the log level used when settings name none, or one
+// that does not parse.
 const DefaultLogLevel = "info"
 
+// UISettings holds the user preferences persisted in ui_settings.toml.
+// The toml tags are the on-disk field names.
 type UISettings struct {
 	ThemeName       string `toml:"theme" comment:"Color theme name. Empty = auto-detect."`
 	SolidBackground bool   `toml:"solid_background" comment:"Paint the theme background color behind the app root view."`
@@ -24,6 +30,8 @@ type UISettings struct {
 	LogLevel        string `toml:"log_level" comment:"Minimum severity written to log files: debug, info, warn or error."`
 }
 
+// DefaultUISettings returns the settings used when no file exists or a
+// stored value cannot be read.
 func DefaultUISettings() UISettings {
 	return UISettings{
 		ThemeName:       "",
@@ -61,7 +69,8 @@ func LoadSettings(log logger.Logger) UISettings {
 	return normalize(cfg)
 }
 
-// SaveSettings writes normalized settings to disk. Write errors are ignored.
+// SaveSettings writes normalized settings to disk and returns any write
+// error, or an error when the settings path cannot be determined.
 func SaveSettings(s UISettings) error {
 	path := uiSettingsPath()
 	if path == "" {

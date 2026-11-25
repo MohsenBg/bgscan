@@ -2,6 +2,7 @@ package theme
 
 import "charm.land/lipgloss/v2"
 
+// BGScanDark is the default dark palette.
 var BGScanDark = Theme{
 	Name:          "bgscan-dark",
 	Primary:       lipgloss.Color("#D75FD7"),
@@ -28,6 +29,7 @@ var BGScanDark = Theme{
 	TierPoor:      lipgloss.Color("#FF8700"),
 }
 
+// BGScanLight is the default light palette.
 var BGScanLight = Theme{
 	Name:          "bgscan-light",
 	Primary:       lipgloss.Color("#D75FD7"),
@@ -54,6 +56,7 @@ var BGScanLight = Theme{
 	TierPoor:      lipgloss.Color("#D75F00"),
 }
 
+// TokyoNight is the popular Tokyo Night palette.
 var TokyoNight = Theme{
 	Name:          "tokyo-night",
 	Primary:       lipgloss.Color("#7AA2F7"),

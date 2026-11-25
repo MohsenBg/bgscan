@@ -6,7 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// View renders the select component: title, options, validation error, and key hints.
+// View renders the select component: title, options, and validation error.
 func (m *Model[T]) View() string {
 	content := make([]string, 0, 4)
 

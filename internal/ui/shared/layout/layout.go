@@ -1,5 +1,11 @@
+// Package layout computes the terminal screen geometry for the app. A
+// Layout holds the raw terminal size and the precomputed regions for
+// the content, body, and footer, so render code reads sizes instead of
+// recalculating them. Callers update it on every terminal resize.
 package layout
 
+// frameBorderWidth is the number of cells the content frame border uses
+// across the width, one cell on each side.
 const frameBorderWidth = 2
 
 // Layout represents the terminal screen geometry and component regions.
@@ -24,19 +30,19 @@ type TerminalSize struct {
 type ContentSize struct {
 	Width   int
 	Height  int
-	Padding int
+	Padding int // Padding is the margin inside the content area, in cells.
 }
 
 // ComponentSize describes a UI component's position and size in terminal cells.
 type ComponentSize struct {
 	Width  int
 	Height int
-	X      int
-	Y      int
+	X      int // X is the column of the top left corner, in cells.
+	Y      int // Y is the row of the top left corner, in cells.
 }
 
-// New returns a Layout with fallback terminal dimensions. It should be
-// updated with the real terminal size via Update before use.
+// New returns a Layout with fallback terminal dimensions. Callers update
+// it with the real terminal size through Update before use.
 func New() *Layout {
 	l := &Layout{
 		terminal: TerminalSize{
@@ -79,8 +85,8 @@ func (l *Layout) recalculate() {
 	}
 }
 
-// Update recalculates regions from the current terminal dimensions.
-// Call this on tea.WindowSizeMsg.
+// Update recalculates the regions from the given terminal dimensions.
+// Callers call it when a tea.WindowSizeMsg arrives.
 func (l *Layout) Update(termWidth, termHeight int) {
 	l.terminal.Width = termWidth
 	l.terminal.Height = termHeight

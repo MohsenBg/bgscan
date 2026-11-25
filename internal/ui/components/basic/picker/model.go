@@ -1,3 +1,7 @@
+// Package picker provides a file picker overlay for dialogs.
+// Model wraps the bubbles file picker, limits files by extension
+// when the caller passes allowed types, and reports the chosen
+// path through the OnSelect callback before it closes.
 package picker
 
 import (
@@ -13,11 +17,13 @@ import (
 
 // Model is a file picker overlay.
 type Model struct {
-	id         ui.ComponentID
-	name       string
-	env        *ui.Env
+	id   ui.ComponentID
+	name string
+	env  *ui.Env
+	// FilePicker is the inner bubbles file picker.
 	FilePicker filepicker.Model
-	OnSelect   OnSelect
+	// OnSelect runs with the chosen path when the user selects a file.
+	OnSelect OnSelect
 }
 
 // New creates a file picker overlay.
@@ -55,11 +61,20 @@ func New(env *ui.Env, title, baseDir string, allowedTypes []string, onSelect OnS
 	}
 }
 
-func (m *Model) Init() tea.Cmd      { return m.FilePicker.Init() }
+// Init starts the inner file picker.
+func (m *Model) Init() tea.Cmd { return m.FilePicker.Init() }
+
+// ID returns the component ID.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
+
+// Name returns the picker title, which is also the component name.
+func (m *Model) Name() string { return m.name }
+
+// OnClose returns no command. The picker holds no resources to free.
+func (m *Model) OnClose() tea.Cmd { return nil }
+
+// Mode returns the key mode the component uses.
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
 
 // DialogHints describes picker keys for the dialog frame.
 func (m *Model) DialogHints() keys.Hints {

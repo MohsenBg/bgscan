@@ -17,6 +17,9 @@ import (
 	"charm.land/huh/v2"
 )
 
+// ConfigNameField builds the config name input shared by all tunnel
+// forms. It validates the value as a file name and stores the trimmed
+// value on submit.
 func ConfigNameField(env *ui.Env, name string, set func(string)) input.Input[string] {
 	return textinput.New(
 		env, "Enter config name",
@@ -124,6 +127,8 @@ func Uint16Field[C TunnelConfig](
 	}, func(n uint64) { set(cfg, uint16(n)) }, opts...)
 }
 
+// FloatField binds a numeric input to a float64 config field,
+// validating through a copy of the whole config keyed by errKey.
 func FloatField[C TunnelConfig](
 	env *ui.Env,
 	cfg *C,

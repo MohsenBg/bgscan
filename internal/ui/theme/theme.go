@@ -7,6 +7,10 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/meter"
 )
 
+// Theme is one named color palette. Each field is the color for one
+// role in the UI, such as body text, borders or status messages. A nil
+// field means the palette sets no color for that role, and code that
+// reads it must handle nil.
 type Theme struct {
 	Name string `toml:"-"`
 
@@ -77,6 +81,9 @@ var (
 	order    []string
 )
 
+// Register adds themes to the registry under their names. It skips
+// themes with an empty name. Registering a name that already exists
+// replaces the palette and keeps its place in the List order.
 func Register(themes ...Theme) {
 	for _, t := range themes {
 		if t.Name == "" {
@@ -148,6 +155,7 @@ type UnknownThemeError struct {
 	Name string
 }
 
+// Error returns the message naming the unknown theme.
 func (e *UnknownThemeError) Error() string {
 	return "unknown theme " + e.Name
 }

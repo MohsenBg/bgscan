@@ -24,26 +24,32 @@ type (
 	ValidationFunc func(*Model) error
 )
 
+// WithName sets the form title.
 func WithName(name string) Option {
 	return func(m *Model) { m.name = name }
 }
 
+// WithWidth sets the form width, before the minimum size applies.
 func WithWidth(width int) Option {
 	return func(m *Model) { m.width = width }
 }
 
+// WithHeight sets the form height, before the minimum size applies.
 func WithHeight(height int) Option {
 	return func(m *Model) { m.height = height }
 }
 
+// WithValidation sets the check that Save runs before saving.
 func WithValidation(fn ValidationFunc) Option {
 	return func(m *Model) { m.validation = fn }
 }
 
+// WithSave sets the command that runs when the form is saved.
 func WithSave(cmd tea.Cmd) Option {
 	return func(m *Model) { m.onSave = cmd }
 }
 
+// WithCancel sets the command that runs when the form is cancelled.
 func WithCancel(cmd tea.Cmd) Option {
 	return func(m *Model) { m.onCancel = cmd }
 }
@@ -61,6 +67,8 @@ type Model struct {
 	onCancel   tea.Cmd
 }
 
+// New creates a form around insp, sized to the layout body at first
+// and then adjusted by opts and the minimum size.
 func New(env *ui.Env, insp *inspector.Model, opts ...Option) *Model {
 	m := &Model{
 		id:        ui.NewComponentID(),
@@ -78,27 +86,40 @@ func New(env *ui.Env, insp *inspector.Model, opts ...Option) *Model {
 	return m
 }
 
+// ID returns the unique identifier of the component.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeManage }
+
+// Name returns the form title.
+func (m *Model) Name() string { return m.name }
+
+// Mode returns KeyModeManage, as the form owns save and cancel keys.
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeManage }
 
 // Title returns the raw form heading for dialog frames.
 func (m *Model) Title() string { return m.name }
 
+// SetName changes the form title.
 func (m *Model) SetName(name string) { m.name = name }
 
+// Width returns the current form width.
 func (m *Model) Width() int { return m.width }
+
+// SetWidth changes the form width and resizes the inspector.
 func (m *Model) SetWidth(width int) {
 	m.width = width
 	m.recalculateSize()
 }
 
+// Height returns the current form height.
 func (m *Model) Height() int { return m.height }
+
+// SetHeight changes the form height and resizes the inspector.
 func (m *Model) SetHeight(height int) {
 	m.height = height
 	m.recalculateSize()
 }
 
+// Init starts the wrapped inspector, or returns nil without one.
 func (m *Model) Init() tea.Cmd {
 	if m.inspector == nil {
 		return nil
@@ -106,6 +127,8 @@ func (m *Model) Init() tea.Cmd {
 	return m.inspector.Init()
 }
 
+// OnClose forwards the close to the wrapped inspector, or returns
+// nil without one.
 func (m *Model) OnClose() tea.Cmd {
 	if m.inspector == nil {
 		return nil

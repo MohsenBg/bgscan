@@ -15,6 +15,8 @@ import (
 	"charm.land/huh/v2"
 )
 
+// ProxyInputs holds the inputs of the proxy and auth section built by
+// BuildProxy.
 type ProxyInputs struct {
 	Type       input.Input[string]
 	Port       input.Input[string]
@@ -37,7 +39,7 @@ type ProxyVisibility struct {
 // slipstream: proxy type with automatic port switching (SOCKS -> 1080, SSH
 // -> 22), auth method and dependent fields. known_hosts_file is
 // intentionally not editable here.
-// TODO: expose a known_hosts_file field in the proxy forms.
+// TODO(mohsen): expose a known_hosts_file field in the proxy forms.
 func BuildProxy[C TunnelConfig](
 	env *ui.Env,
 	cfg *C,

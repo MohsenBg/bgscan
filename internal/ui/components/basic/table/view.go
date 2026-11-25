@@ -7,6 +7,8 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// View renders the title, filter line, table, status line, and help as
+// one centered block.
 func (m *Model) View() string {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -6,8 +6,9 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
-// gradientStyles returns one style per cell, fading from ProgressStart on the
-// oldest (left) cell to ProgressEnd on the newest (right) cell.
+// gradientStyles returns one style per cell, blending from the theme
+// primary color on the oldest (left) cell to the info color on the
+// newest (right) cell.
 //
 // The color depends on the cell's position on screen, not on the sample, so it
 // can never flicker while the chart scrolls.

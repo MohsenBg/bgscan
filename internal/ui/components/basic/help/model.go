@@ -1,4 +1,7 @@
-// Package help renders short and long keyboard help panels.
+// Package help renders keyboard help for a component.
+// A Model shows a HelpSet in short mode as a few compact rows, or in
+// long mode as a scrollable list with wrapped labels. In short mode
+// the help key opens the long view in a dialog.
 package help
 
 import (
@@ -24,18 +27,21 @@ const (
 	shortHelpPadding       = 1
 )
 
+// HelpSet holds the hints shown in the short and long help views.
 type HelpSet struct {
-	Short keys.Hints
-	Long  keys.Hints
+	Short keys.Hints // Short holds the hints shown in the short help view.
+	Long  keys.Hints // Long holds the hints shown in the long help view.
 }
 
+// HelpMode selects which help view a Model renders.
 type HelpMode string
 
 const (
-	ShortHelp HelpMode = "short"
-	LongHelp  HelpMode = "long"
+	ShortHelp HelpMode = "short" // ShortHelp shows a compact set of hints in a few rows.
+	LongHelp  HelpMode = "long"  // LongHelp shows every hint in a scrollable list.
 )
 
+// Model is a help component that renders a HelpSet as short or long help.
 type Model struct {
 	id    ui.ComponentID
 	title string
@@ -56,6 +62,7 @@ type Model struct {
 	cache string
 }
 
+// Option configures a Model at construction time.
 type Option func(*Model)
 
 // New creates a help component.
@@ -87,22 +94,29 @@ func New(env *ui.Env, title string, set HelpSet, opts ...Option) *Model {
 	return m
 }
 
+// ID returns the component ID of the model.
 func (m *Model) ID() ui.ComponentID { return m.id }
 
+// Init returns no initial command.
 func (m *Model) Init() tea.Cmd { return nil }
 
+// Mode returns the key mode of the component, which is always normal mode.
 func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
 
+// Name returns a name built from the help mode and the title.
 func (m *Model) Name() string {
 	return "help/" + string(m.mode) + "/" + m.title
 }
 
+// OnClose returns no command when the component closes.
 func (m *Model) OnClose() tea.Cmd { return nil }
 
+// WithMode sets the help mode the model starts in.
 func WithMode(mode HelpMode) Option {
 	return func(m *Model) { m.mode = mode }
 }
 
+// WithShortHelpWidth sets a fixed short help width and turns off automatic width sizing.
 func WithShortHelpWidth(width int) Option {
 	return func(m *Model) {
 		m.shortHelpWidth = max(1, width)
@@ -110,14 +124,17 @@ func WithShortHelpWidth(width int) Option {
 	}
 }
 
+// WithShortHelpHeight sets the maximum number of rows in the short help view.
 func WithShortHelpHeight(height int) Option {
 	return func(m *Model) { m.shortHelpHeight = max(1, height) }
 }
 
+// WithLongHelpWidth sets the preferred width of the long help view.
 func WithLongHelpWidth(width int) Option {
 	return func(m *Model) { m.longHelpWidth = max(1, width) }
 }
 
+// WithLongHelpHeight sets the preferred height of the long help view.
 func WithLongHelpHeight(height int) Option {
 	return func(m *Model) { m.longHelpHeight = max(1, height) }
 }

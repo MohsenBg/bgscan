@@ -26,8 +26,10 @@ import (
 )
 
 type (
+	// Column is an alias for the bubbles table column type.
 	Column = table.Column
-	Row    = table.Row
+	// Row is an alias for the bubbles table row type.
+	Row = table.Row
 )
 
 const (
@@ -91,12 +93,15 @@ type Model struct {
 	cacheStatus string
 }
 
+// Option configures a Model.
 type Option func(*Model)
 
+// WithTitle sets the table title.
 func WithTitle(title string) Option {
 	return func(m *Model) { m.title = title }
 }
 
+// WithColumns sets the table columns.
 func WithColumns(cols []Column) Option {
 	return func(m *Model) { m.originalCols = slices.Clone(cols) }
 }
@@ -106,6 +111,7 @@ func WithColumnTypes(types ...result.ColumnType) Option {
 	return func(m *Model) { m.colTypes = slices.Clone(types) }
 }
 
+// WithRows sets the initial rows.
 func WithRows(rows []Row) Option {
 	return func(m *Model) { m.originalRows = cloneRows(rows) }
 }
@@ -130,10 +136,12 @@ func WithMaxHeight(h int) Option {
 	return func(m *Model) { m.maxHeight = h }
 }
 
+// WithKeyShortHints adds hints to the short help line.
 func WithKeyShortHints(hints ...keys.Hint) Option {
 	return func(m *Model) { m.additionalShortHints = slices.Clone(hints) }
 }
 
+// WithKeyLongHints adds hints to the long help view.
 func WithKeyLongHints(hints ...keys.Hint) Option {
 	return func(m *Model) { m.additionalLongHints = slices.Clone(hints) }
 }
@@ -170,6 +178,8 @@ func WithUnsortableColumns(cols ...int) Option {
 	}
 }
 
+// New creates a table with filtering enabled and the default empty and
+// loading messages.
 func New(env *ui.Env, opts ...Option) *Model {
 	filter := textinput.New()
 	filter.Prompt = ""
@@ -215,6 +225,8 @@ func New(env *ui.Env, opts ...Option) *Model {
 	return m
 }
 
+// Init returns the spinner tick command when the table starts in the
+// loading state, and returns nil otherwise.
 func (m *Model) Init() tea.Cmd {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -226,10 +238,18 @@ func (m *Model) Init() tea.Cmd {
 	return m.spinner.Tick
 }
 
+// ID returns the component ID.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return nil }
 
+// Name returns the component name.
+func (m *Model) Name() string { return m.name }
+
+// OnClose returns no command, because the table has nothing to release.
+func (m *Model) OnClose() tea.Cmd { return nil }
+
+// Mode returns the manage key mode while the table is loading, the
+// filter input is open, or a filter value is set, and returns the normal
+// mode otherwise.
 func (m *Model) Mode() ui.KeyMode {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -384,6 +404,8 @@ func (m *Model) SetMaxHeight(h int) {
 	m.updateTableSizeLocked()
 }
 
+// AppendRow adds a copy of row to the end of the table and refreshes
+// the display.
 func (m *Model) AppendRow(row Row) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -477,6 +499,7 @@ func (m *Model) toggleSortDirectionLocked() {
 	m.refreshDisplayLocked(true)
 }
 
+// Filtering reports whether the filter input is open.
 func (m *Model) Filtering() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

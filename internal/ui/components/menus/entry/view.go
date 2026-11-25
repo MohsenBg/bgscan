@@ -4,6 +4,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// View renders the banner above the menu, sized to the body region.
 func (m *Model) View() string {
 	env := m.session.Env()
 	term := env.Layout.Body()

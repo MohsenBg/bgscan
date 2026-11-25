@@ -12,6 +12,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
+// View renders the active stage with any open dialogs composited above
+// it. It renders a resize warning instead when the terminal is too small.
 func (m *model) View() tea.View {
 	env := m.session.Env()
 	th := env.Theme

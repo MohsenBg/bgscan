@@ -1,4 +1,8 @@
-// Package keys provides key bindings and help hints.
+// Package keys provides the key bindings for the whole app. A Binding
+// ties an Action to the keys that trigger it and to the text shown in
+// help. Default returns the built-in binding set, and the Keys struct
+// groups the bindings by area so components can read them from the
+// shared environment.
 package keys
 
 import (
@@ -10,7 +14,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Binding ties one Action to the keys that trigger it. A binding with
+// no keys never matches. Disabled bindings never match and are left out
+// of all help.
 type Binding struct {
+	// Action is the action this binding triggers.
 	Action Action
 	Keys   []string // Keys matched by Bubble Tea, e.g. ["up", "k"].
 
@@ -25,11 +33,14 @@ type Binding struct {
 	CaseSensitive bool
 }
 
+// Hint is one help entry. Key is the display form of the key, such as
+// "ctrl+c", and Label is the text shown next to it.
 type Hint struct {
 	Key   string
 	Label string
 }
 
+// Hints is a list of help entries in display order.
 type Hints []Hint
 
 // Matches reports whether the pressed key triggers this binding.
@@ -123,8 +134,8 @@ func (b Binding) longKey() string {
 	return strings.Join(displayed, "/")
 }
 
-// Combine merges several bindings into one short help entry.
-// Example: "←/→ move".
+// Combine merges several bindings into one short help entry, such as
+// "←/→ move". It skips disabled bindings and repeats of the same key.
 func Combine(label string, bs ...Binding) Hint {
 	seen := make(map[string]struct{}, len(bs))
 	keys := make([]string, 0, len(bs))

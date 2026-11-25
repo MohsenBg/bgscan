@@ -8,6 +8,8 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
+// View renders the footer, or returns the cached render when nothing
+// changed since the last render.
 func (m *Model) View() string {
 	if !m.diry {
 		return m.cache

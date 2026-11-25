@@ -33,6 +33,8 @@ func (m *Model[T]) showNotice(title, msg string, level notice.LEVEL) tea.Cmd {
 	return notice.NewNoticeCmd(m.env, title, msg, level)
 }
 
+// Update handles refresh results and key presses, and passes every
+// other message to the wrapped table.
 func (m *Model[T]) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
 	case RefreshMsg:

@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Update forwards the message to the underlying CRUD table.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	updatedCrud, cmd := m.crudTable.Update(msg)
 	m.crudTable = updatedCrud.(*crud.Model[result.ResultFile])

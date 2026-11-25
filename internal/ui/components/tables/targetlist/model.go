@@ -1,3 +1,7 @@
+// Package targetlist provides the target list screen for the TUI.
+// It wraps the generic CRUD table with a source and hooks backed by the
+// target package, so users can list, import, rename, delete, and select
+// target list files that hold IP addresses or domains.
 package targetlist
 
 import (
@@ -15,7 +19,7 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/validation"
 )
 
-// Model wraps the generic CRUD table for managing IP list files.
+// Model wraps the generic CRUD table for managing target list files.
 type Model struct {
 	id        ui.ComponentID
 	name      string
@@ -23,6 +27,8 @@ type Model struct {
 	crudTable *crud.Model[target.FileInfo]
 }
 
+// New creates the target list model with its CRUD table.
+// A nil onSelect disables the select action.
 func New(session *ui.Session, title string, onSelect func(*target.FileInfo) tea.Cmd) *Model {
 	m := &Model{
 		id:      ui.NewComponentID(),
@@ -33,22 +39,27 @@ func New(session *ui.Session, title string, onSelect func(*target.FileInfo) tea.
 	return m
 }
 
+// Init starts the wrapped CRUD table.
 func (m *Model) Init() tea.Cmd {
 	return m.crudTable.Init()
 }
 
+// ID returns the component ID of the model.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
+// Name returns the display name of the component.
 func (m *Model) Name() string {
 	return m.name
 }
 
+// OnClose runs the close work of the wrapped CRUD table.
 func (m *Model) OnClose() tea.Cmd {
 	return m.crudTable.OnClose()
 }
 
+// Mode returns the key mode of the wrapped CRUD table.
 func (m *Model) Mode() ui.KeyMode {
 	return m.crudTable.Mode()
 }

@@ -1,3 +1,8 @@
+// Package app holds the root Bubble Tea model of the TUI.
+// It moves the program through the splash, startup, and workspace stages,
+// routes messages to the active stage, and draws open dialogs as animated
+// layers above the stage. Key messages go to the top dialog only, while
+// other messages go to every dialog layer.
 package app
 
 import (
@@ -16,6 +21,9 @@ import (
 // Application is the root Bubble Tea model.
 type Application interface {
 	tea.Model
+
+	// SetProgram stores the running program so commands can send messages
+	// back into the update loop.
 	SetProgram(program ui.Program)
 }
 
@@ -38,6 +46,8 @@ type model struct {
 	isNonLatinDialogOpen bool
 	dialogStack
 
+	// base caches the last workspace render, with the time it was made, so
+	// View can reuse it while a dialog is open.
 	base   string
 	baseAt time.Time
 	baseOK bool

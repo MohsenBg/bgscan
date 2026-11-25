@@ -1,3 +1,7 @@
+// Package dnstun shows the saved DNS tunnel configs in a CRUD table.
+// The user can add, rename, delete, and pick a config. Adding goes
+// through a protocol picker menu, and each protocol has its own edit
+// form, which opens as a dialog.
 package dnstun
 
 import (
@@ -19,8 +23,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Model coordinates outbound configuration additions, list table management,
-// and multi-step dialog sequencing paths within the UI stack.
+// Model is the DNS tunnel config table component. It wraps a CRUD table
+// and opens the protocol picker menu and the per-protocol edit forms.
 type Model struct {
 	id         ui.ComponentID
 	name       string
@@ -29,6 +33,9 @@ type Model struct {
 	dnsTunMenu ui.Component
 }
 
+// New creates the DNS tunnel config table bound to session. A nil
+// onSelect means picking a row opens that config in its edit form. A
+// non-nil onSelect is called with the picked config instead.
 func New(session *ui.Session, title string, onSelect func(*dns.DNSTunConfigFile) tea.Cmd) *Model {
 	m := &Model{
 		id:      ui.NewComponentID(),
@@ -44,11 +51,20 @@ func New(session *ui.Session, title string, onSelect func(*dns.DNSTunConfigFile)
 	return m
 }
 
-func (m *Model) Init() tea.Cmd      { return m.crudTable.Init() }
+// Init starts the underlying CRUD table and returns its first command.
+func (m *Model) Init() tea.Cmd { return m.crudTable.Init() }
+
+// ID returns the component ID assigned at creation.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) OnClose() tea.Cmd   { return m.crudTable.OnClose() }
-func (m *Model) Mode() ui.KeyMode   { return m.crudTable.Mode() }
+
+// Name returns the component display name.
+func (m *Model) Name() string { return m.name }
+
+// OnClose forwards the close to the underlying CRUD table.
+func (m *Model) OnClose() tea.Cmd { return m.crudTable.OnClose() }
+
+// Mode returns the key mode of the underlying CRUD table.
+func (m *Model) Mode() ui.KeyMode { return m.crudTable.Mode() }
 
 func (m *Model) selectDNSTunMethod() tea.Cmd {
 	protoMenu := dnstunmenu.New(m.session)
@@ -61,7 +77,8 @@ func (m *Model) selectDNSTunMethod() tea.Cmd {
 	}
 }
 
-// openFormDialog opens a formkit-based form as a dialog
+// openFormDialog opens a form as a dialog with the standard form hints
+// and expand animation.
 func openFormDialog(formKeys keys.FormKeys, frm ui.Component, opts ...dialog.DialogOption) dialog.OpenDialogMsg {
 	base := []dialog.DialogOption{
 		dialog.WithAnimation(dialog.AnimExpand),

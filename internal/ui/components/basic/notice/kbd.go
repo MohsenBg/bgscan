@@ -2,7 +2,8 @@ package notice
 
 import "unicode"
 
-// IsNonLatin reports whether typed text contains characters outside ASCII
+// IsNonLatin reports whether typed text contains characters outside ASCII.
+// Latin letters and ASCII hex digits do not count as non Latin.
 func IsNonLatin(text string) bool {
 	for _, r := range text {
 		switch {

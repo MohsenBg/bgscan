@@ -62,6 +62,9 @@ func (m *model) renderContent() string {
 	)
 }
 
+// syncViewport refreshes the log content. It scrolls to the bottom only
+// when the user was already there, so scrolling up to read is not undone
+// by new lines.
 func (m *model) syncViewport() {
 	atBottom := m.viewport.AtBottom()
 	m.viewport.SetContent(m.renderContent())
@@ -85,6 +88,8 @@ func (m *model) fatalView() string {
 	return m.fatalOverlayStyle().Render(content)
 }
 
+// View renders the title, progress bar, category sidebar, and log view,
+// or the fatal error screen when a check failed critically.
 func (m *model) View() string {
 	if m.fatal != nil {
 		return lipgloss.Place(

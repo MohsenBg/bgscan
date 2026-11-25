@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// NoticeHints returns the hints a dialog frame shows for a notice.
 func NoticeHints(k keys.Keys) keys.Hints {
 	return keys.Hints{
 		k.Notice.Continue.ShortItem(),

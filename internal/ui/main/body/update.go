@@ -12,6 +12,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Update handles stack messages, back and quit keys, and transition
+// frames, and forwards everything else to the top screen.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	n := len(m.screens)
 	if n == 0 {
@@ -51,6 +53,8 @@ func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 
 	case tea.KeyPressMsg:
+		// Keys are dropped during a transition so a press cannot act on a
+		// screen that is halfway off the viewport.
 		if m.swap != nil && !m.swap.settled(time.Now()) {
 			return m, nil
 		}

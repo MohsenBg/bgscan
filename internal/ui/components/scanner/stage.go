@@ -21,8 +21,11 @@ import (
 type StageStatus int
 
 const (
+	// StatusWaiting means the stage has not reported progress yet.
 	StatusWaiting StageStatus = iota + 1
+	// StatusScanning means the stage is running.
 	StatusScanning
+	// StatusEnded means the stage has finished.
 	StatusEnded
 )
 

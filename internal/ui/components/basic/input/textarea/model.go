@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Option configures a Model at construction time.
 type Option func(*Model)
 
 // Model is the multi-line string implementation of [input.Input].
@@ -37,6 +38,7 @@ type Model struct {
 	allowNewline bool
 }
 
+// New creates a text area field with the given title and options and returns it as an [input.Input].
 func New(
 	env *ui.Env,
 	title string,
@@ -68,6 +70,7 @@ func New(
 	return m
 }
 
+// WithPlaceholder sets the placeholder text shown while the field is empty.
 func WithPlaceholder(p string) Option {
 	return func(m *Model) {
 		m.placeholder = p
@@ -75,24 +78,28 @@ func WithPlaceholder(p string) Option {
 	}
 }
 
+// WithValue sets the initial text of the field.
 func WithValue(value string) Option {
 	return func(m *Model) {
 		m.textarea.SetValue(value)
 	}
 }
 
+// WithValidation sets the function used to validate the text.
 func WithValidation(fn func(string) error) Option {
 	return func(m *Model) {
 		m.validationFunc = fn
 	}
 }
 
+// WithCharLimit sets the maximum number of characters the field accepts.
 func WithCharLimit(limit int) Option {
 	return func(m *Model) {
 		m.textarea.CharLimit = limit
 	}
 }
 
+// WithHeight sets the maximum height of the field in rows.
 func WithHeight(height int) Option {
 	return func(m *Model) {
 		m.height = height
@@ -135,18 +142,22 @@ func WithOnSubmit(fn func(string) tea.Cmd) Option {
 	}
 }
 
+// Init returns no initial command.
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
+// ID returns the component ID of the model.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
+// Name returns the component name.
 func (m *Model) Name() string {
 	return m.name
 }
 
+// Mode returns the key mode of the component, which is always input mode.
 func (m *Model) Mode() ui.KeyMode {
 	return ui.KeyModeInput
 }
@@ -154,6 +165,7 @@ func (m *Model) Mode() ui.KeyMode {
 // Title returns the input prompt as raw data for the dialog frame.
 func (m *Model) Title() string { return m.title }
 
+// DialogHints returns the key hints shown in the dialog frame for this field.
 func (m *Model) DialogHints() keys.Hints {
 	return DialogHints(m.env.Keys.TextArea)
 }
@@ -202,44 +214,54 @@ func (m *Model) keyMap() textarea.KeyMap {
 	return defaultKeyMap
 }
 
+// Width returns the field width in cells, capped at 50 and at the body width.
 func (m *Model) Width() int {
 	return min(50, m.env.Layout.Body().Width)
 }
 
+// CloseCmd returns a command that closes this component.
 func (m *Model) CloseCmd() tea.Cmd {
 	return func() tea.Msg {
 		return ui.CloseComponentMsg{ID: m.ID()}
 	}
 }
 
+// OnClose returns no command when the component closes.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
+// Value returns the current text.
 func (m *Model) Value() string {
 	return m.textarea.Value()
 }
 
+// SetValue replaces the current text.
 func (m *Model) SetValue(value string) {
 	m.textarea.SetValue(value)
 }
 
+// ReadOnly reports whether the field is read-only.
 func (m *Model) ReadOnly() bool {
 	return m.readOnly
 }
 
+// SetReadOnly sets the read-only state of the field.
 func (m *Model) SetReadOnly(ro bool) {
 	m.setReadOnly(ro)
 }
 
+// OnValidate registers the function used to validate the text.
 func (m *Model) OnValidate(fn func(string) error) {
 	m.validationFunc = fn
 }
 
+// OnChange registers a callback that runs when the text changes.
 func (m *Model) OnChange(fn func(string) tea.Cmd) {
 	m.onChange = fn
 }
 
+// OnSubmit registers a callback that runs when the text is submitted.
 func (m *Model) OnSubmit(fn func(string) tea.Cmd) {
 	m.onSubmit = fn
 }

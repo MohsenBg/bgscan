@@ -6,6 +6,8 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/shared/ui"
 )
 
+// Update forwards the message to the inner file picker.
+// Update runs OnSelect and closes the picker when a file is chosen.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	if _, ok := msg.(tea.WindowSizeMsg); ok {
 		m.FilePicker.SetHeight(pickerHeight(m.env))

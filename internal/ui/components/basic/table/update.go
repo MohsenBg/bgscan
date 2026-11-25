@@ -9,6 +9,9 @@ import (
 	"github.com/MohsenBg/bgscan/internal/ui/theme"
 )
 
+// Update applies messages to the table, its help component, and the
+// filter input, and marks the render cache dirty when the table state
+// changes.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -9,6 +9,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Update handles protocol picks from the picker menu by closing the menu
+// and opening the matching form, and forwards all other messages to the
+// CRUD table.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
 

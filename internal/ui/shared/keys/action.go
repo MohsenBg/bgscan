@@ -1,8 +1,11 @@
 package keys
 
+// Action names a user action that a key binding can trigger. The string
+// value groups actions by area, such as "nav.up", so bindings and logs
+// stay readable. Components switch on the Action, not on the raw key.
 type Action string
 
-// Global
+// Global actions, available in every mode.
 const (
 	ActionQuit           Action = "global.quit_normal"
 	ActionForceQuit      Action = "global.quit_force"
@@ -12,7 +15,7 @@ const (
 	ActionBackFromInput  Action = "global.back_from_input"
 )
 
-// Navigation
+// Navigation actions for moving a cursor or selection.
 const (
 	ActionUp       Action = "nav.up"
 	ActionDown     Action = "nav.down"
@@ -26,7 +29,7 @@ const (
 	ActionPrevTab  Action = "nav.prev_tab"
 )
 
-// Table
+// Table actions for result tables.
 const (
 	ActionTableHalfPageUp   Action = "table.half_page_up"
 	ActionTableHalfPageDown Action = "table.half_page_down"
@@ -35,7 +38,7 @@ const (
 	ActionTableFilter       Action = "table.filter"
 )
 
-// CRUD
+// CRUD actions for list editing.
 const (
 	ActionCrudSelect Action = "crud.select"
 	ActionCrudAdd    Action = "crud.add"
@@ -43,58 +46,58 @@ const (
 	ActionCrudRename Action = "crud.rename"
 )
 
-// Confirm
+// Confirm actions for confirm prompts.
 const (
 	ActionAccept Action = "confirm.accept"
 )
 
-// Notice
+// Notice actions for notice dialogs.
 const (
 	ActionContinue Action = "notice.continue"
 )
 
-// Dialog
+// Dialog actions for dialog overlays.
 const (
 	ActionDialogCancel Action = "dialog.cancel"
 )
 
-// Menu
+// Menu actions for menus.
 const (
 	ActionMenuSelect Action = "menu.select"
 )
 
-// Form
+// Form actions for forms.
 const (
 	ActionFormSave   Action = "form.save"
 	ActionFormCancel Action = "form.cancel"
 )
 
-// Scan
+// Scan actions for a running scan.
 const (
 	ActionScanPause  Action = "scan.pause"
 	ActionScanLogs   Action = "scan.logs"
 	ActionScanCancel Action = "scan.cancel"
 )
 
-// Log view
+// Log view actions for scrolling the log view.
 const (
 	ActionLogViewHalfPageUp   Action = "logview.half_page_up"
 	ActionLogViewHalfPageDown Action = "logview.half_page_down"
 )
 
-// Inspector
+// Inspector actions for the inspector panel.
 const (
 	ActionInspectorEdit        Action = "inspector.edit"
 	ActionInspectorDescription Action = "inspector.description"
 )
 
-// Tab
+// Tab actions for moving between tabs.
 const (
 	ActionTabNext     Action = "tab.next"
 	ActionTabPrevious Action = "tab.previous"
 )
 
-// Text input
+// Text input actions for single line text input.
 const (
 	ActionTextInputSubmit                  Action = "textinput.submit"
 	ActionTextInputCharacterForward        Action = "textinput.character_forward"
@@ -112,7 +115,7 @@ const (
 	ActionTextInputPaste                   Action = "textinput.paste"
 )
 
-// Toggle input
+// Toggle input actions for toggle inputs.
 const (
 	ActionToggleInputPrev   Action = "toggleinput.prev"
 	ActionToggleInputNext   Action = "toggleinput.next"
@@ -122,7 +125,7 @@ const (
 	ActionToggleInputReject Action = "toggleinput.reject"
 )
 
-// Picker
+// Picker actions for the file picker.
 const (
 	ActionPickerGotoTop  Action = "picker.goto_top"
 	ActionPickerGotoLast Action = "picker.goto_last"
@@ -135,7 +138,7 @@ const (
 	ActionPickerSelect   Action = "picker.select"
 )
 
-// Select input
+// Select input actions for select inputs.
 const (
 	ActionSelectInputSubmit       Action = "selectinput.submit"
 	ActionSelectInputPrev         Action = "selectinput.prev"
@@ -153,7 +156,7 @@ const (
 	ActionSelectInputClearFilter  Action = "selectinput.clear_filter"
 )
 
-// Multi select input
+// Multi select input actions for multi select inputs.
 const (
 	ActionMultiSelectSubmit       Action = "multiselect.submit"
 	ActionMultiSelectPrev         Action = "multiselect.prev"
@@ -172,7 +175,7 @@ const (
 	ActionMultiSelectSelectNone   Action = "multiselect.select_none"
 )
 
-// Text area
+// Text area actions for multi line text areas.
 const (
 	ActionTextAreaSubmit                     Action = "textarea.submit"
 	ActionTextAreaNewLine                    Action = "textarea.newline"

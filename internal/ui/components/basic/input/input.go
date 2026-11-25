@@ -1,4 +1,8 @@
 // input.go
+// Package input defines the shared types for form field components.
+// The Input interface is the contract every field implements, and the
+// Dialog interface lets a field run inside a dialog frame. Concrete
+// fields live in the subpackages of this package.
 package input
 
 import (

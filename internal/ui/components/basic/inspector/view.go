@@ -2,6 +2,7 @@ package inspector
 
 import "charm.land/lipgloss/v2"
 
+// View renders the tabs, the group title, the field list, and the help bar.
 func (m *Model) View() string {
 	sections := make([]string, 0, 4)
 

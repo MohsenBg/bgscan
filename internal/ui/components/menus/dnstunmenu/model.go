@@ -1,4 +1,6 @@
-// Package dnstunmenu selects a DNS tunnel protocol.
+// Package dnstunmenu is the menu that lets the user pick a DNS tunnel
+// protocol. It wraps a basic menu and reports the choice to its caller
+// with a MsgSelectProtocol message.
 package dnstunmenu
 
 import (
@@ -9,12 +11,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// MsgSelectProtocol is fired when a protocol is selected.
+// MsgSelectProtocol reports the DNS tunnel protocol the user selected.
 type MsgSelectProtocol struct {
 	Protocol dns.DNSTunProtocol
 }
 
-// Model is the DNS tunnel protocol selection menu.
+// Model is the DNS tunnel protocol selection menu component.
 type Model struct {
 	id      ui.ComponentID
 	name    string
@@ -22,7 +24,7 @@ type Model struct {
 	session *ui.Session
 }
 
-// New creates the DNS tunnel protocol menu.
+// New creates the DNS tunnel protocol menu for the given session.
 func New(session *ui.Session) *Model {
 	m := &Model{
 		id:      ui.NewComponentID(),
@@ -33,27 +35,32 @@ func New(session *ui.Session) *Model {
 	return m
 }
 
+// ID returns the unique identifier of the component.
 func (m *Model) ID() ui.ComponentID {
 	return m.id
 }
 
+// Name returns the display name of the component.
 func (m *Model) Name() string {
 	return m.name
 }
 
+// OnClose runs when the component closes and returns no command.
 func (m *Model) OnClose() tea.Cmd {
 	return nil
 }
 
+// Mode returns the key mode the component uses while it is active.
 func (m *Model) Mode() ui.KeyMode {
 	return ui.KeyModeNormal
 }
 
+// Init starts the inner menu and returns its first command.
 func (m *Model) Init() tea.Cmd {
 	return m.menu.Init()
 }
 
-// Title is the dialog-frame title for the DNS tunnel protocol menu.
+// Title is the dialog title shown at the top of the menu.
 const Title = "Select Protocol"
 
 func newMenu(session *ui.Session) *menu.Model {

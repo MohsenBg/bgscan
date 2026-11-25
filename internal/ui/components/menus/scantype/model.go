@@ -1,4 +1,7 @@
-// Package scantype presents scan type selection and builds the requested scanner.
+// Package scantype is the menu that lets the user pick a scan type.
+// When the user picks a type, the package builds the scanner for it and
+// opens the scanner screen. Some types first open a picker for an Xray
+// template or a DNS tunnel config.
 package scantype
 
 import (
@@ -22,14 +25,22 @@ import (
 type ScanType uint8
 
 const (
+	// ICMPScan is the ICMP ping scan.
 	ICMPScan ScanType = iota
+	// TCPScan is the TCP port scan.
 	TCPScan
+	// HTTPScan is the HTTP reachability scan.
 	HTTPScan
+	// XRAYScan is the scan that tests Xray outbounds.
 	XRAYScan
+	// DNSResolveScan is the scan that resolves targets with DNS.
 	DNSResolveScan
+	// DNSTun is the scan that runs through a DNS tunnel.
 	DNSTun
 )
 
+// String returns the display name of the scan type.
+// String returns "ScanType(n)" for a value outside the known types.
 func (s ScanType) String() string {
 	switch s {
 	case ICMPScan:
@@ -62,7 +73,8 @@ type Model struct {
 	scanner      scanner.Scanner
 }
 
-// New creates the scan type selector.
+// New creates the scan type selector for the given session.
+// The input argument is the scan target source passed to the scanner.
 func New(session *ui.Session, input string) *Model {
 	m := &Model{
 		id:           ui.NewComponentID(),
@@ -83,10 +95,17 @@ func New(session *ui.Session, input string) *Model {
 	return m
 }
 
-func (m *Model) Init() tea.Cmd      { return m.menu.Init() }
+// Init starts the inner menu and returns its first command.
+func (m *Model) Init() tea.Cmd { return m.menu.Init() }
+
+// ID returns the unique identifier of the component.
 func (m *Model) ID() ui.ComponentID { return m.id }
-func (m *Model) Name() string       { return m.name }
-func (m *Model) Mode() ui.KeyMode   { return ui.KeyModeNormal }
+
+// Name returns the display name of the component.
+func (m *Model) Name() string { return m.name }
+
+// Mode returns the key mode the component uses while it is active.
+func (m *Model) Mode() ui.KeyMode { return ui.KeyModeNormal }
 
 // OnClose closes the active scanner if this menu opened it.
 func (m *Model) OnClose() tea.Cmd {
@@ -109,6 +128,8 @@ func (m *Model) open(mode ScanType) tea.Cmd {
 			return m.errorCmd("scanner error", err.Error())
 		}
 
+		// The scanner screen owns the scanner after the handoff, so
+		// OnClose must not close it.
 		m.closeScanner = false
 		return ui.OpenComponentCmd(scannerUi.New(m.session, scn))()
 	}

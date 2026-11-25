@@ -10,6 +10,7 @@ import (
 	lipgloss "charm.land/lipgloss/v2"
 )
 
+// View renders the logo for the current frame, centered in the terminal.
 func (m model) View() string {
 	progress, intensity := 1.0, 0.0
 	holding := m.frame >= animFrames

@@ -12,6 +12,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Update handles key presses, window resizes, theme changes, pulse ticks,
+// and the internal scan messages, then forwards anything else to the
+// stage components.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	switch msg := msg.(type) {
 

@@ -1,4 +1,8 @@
 // Package startup runs preflight checks before entering the workspace.
+// The checks run in a background goroutine, one category at a time, and
+// send their log lines to the model over a channel. A critical failure
+// stops the run and shows a fatal error screen. When all checks finish,
+// the user presses Enter and the app moves to the workspace.
 package startup
 
 import (
@@ -18,6 +22,8 @@ import (
 
 type categoryStatus int
 
+// Category statuses. The order matters: overallStatus takes the largest
+// value as the worst status.
 const (
 	catRunning categoryStatus = iota
 	catWait
@@ -198,6 +204,8 @@ func (m *model) Init() tea.Cmd {
 	)
 }
 
+// listenForLogs waits for the next message from the checks goroutine.
+// A closed channel means the run is over, so it reports allChecksDoneMsg.
 func listenForLogs(ch <-chan tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		msg, ok := <-ch

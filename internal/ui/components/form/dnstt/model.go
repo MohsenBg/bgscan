@@ -1,3 +1,6 @@
+// Package dnstt provides the configuration form for DNSTT tunnels. The
+// form edits a dns.DNSTTConfig through the shared formkit fields and
+// saves it with the DNSTT service.
 package dnstt
 
 import (

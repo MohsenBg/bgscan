@@ -2,6 +2,8 @@ package body
 
 import "charm.land/lipgloss/v2"
 
+// View renders the running transition, or the top screen when no
+// transition is active.
 func (m *Model) View() string {
 	env := m.session.Env()
 	term := env.Layout.Body()

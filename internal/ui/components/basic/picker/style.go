@@ -1,4 +1,3 @@
-// style.go
 package picker
 
 import (

@@ -15,6 +15,7 @@ type Tab[T any] struct {
 	Value T
 }
 
+// NewTab creates a tab with the given label and value.
 func NewTab[T any](label string, value T) Tab[T] {
 	return Tab[T]{Label: label, Value: value}
 }
@@ -45,8 +46,11 @@ type Model[T any] struct {
 	title      string
 }
 
+// Option configures a Model.
 type Option[T any] func(*Model[T])
 
+// WithActiveStyle sets the style of the selected tab label and keeps
+// it across theme changes.
 func WithActiveStyle[T any](s lipgloss.Style) Option[T] {
 	return func(m *Model[T]) {
 		m.activeStyle = &s
@@ -54,6 +58,8 @@ func WithActiveStyle[T any](s lipgloss.Style) Option[T] {
 	}
 }
 
+// WithInactiveStyle sets the style of unselected tab labels and keeps
+// it across theme changes.
 func WithInactiveStyle[T any](s lipgloss.Style) Option[T] {
 	return func(m *Model[T]) {
 		m.inactiveStyle = &s
@@ -61,22 +67,27 @@ func WithInactiveStyle[T any](s lipgloss.Style) Option[T] {
 	}
 }
 
+// WithSeparator sets the string drawn between tab labels.
 func WithSeparator[T any](sep string) Option[T] {
 	return func(m *Model[T]) { m.separator = sep }
 }
 
+// WithMaxWidth caps the width of the tab row in cells.
 func WithMaxWidth[T any](width int) Option[T] {
 	return func(m *Model[T]) { m.SetMaxWidth(width) }
 }
 
+// WithUnderline sets whether the row draws an underline below the labels.
 func WithUnderline[T any](enabled bool) Option[T] {
 	return func(m *Model[T]) { m.underline = enabled }
 }
 
+// WithTitle sets a title drawn at the right end of the tab row.
 func WithTitle[T any](title string) Option[T] {
 	return func(m *Model[T]) { m.title = title }
 }
 
+// SetTitle sets the title drawn at the right end of the tab row.
 func (m *Model[T]) SetTitle(title string) {
 	m.title = title
 }
@@ -91,6 +102,9 @@ func WithSlideAccent[T any]() Option[T] {
 	}
 }
 
+// New creates a tab row with the given tabs and selection callback.
+// The callback may be nil, in which case selection changes run no
+// command.
 func New[T any](
 	env *ui.Env,
 	tabs []Tab[T],
@@ -122,15 +136,26 @@ func New[T any](
 	return m
 }
 
+// ID returns the component ID.
 func (m *Model[T]) ID() ui.ComponentID { return m.id }
-func (m *Model[T]) Name() string       { return "tabs" }
-func (m *Model[T]) Mode() ui.KeyMode   { return ui.KeyModeNormal }
-func (m *Model[T]) OnClose() tea.Cmd   { return nil }
 
+// Name returns the component name.
+func (m *Model[T]) Name() string { return "tabs" }
+
+// Mode returns the normal key mode.
+func (m *Model[T]) Mode() ui.KeyMode { return ui.KeyModeNormal }
+
+// OnClose returns no command, because the tab row has nothing to release.
+func (m *Model[T]) OnClose() tea.Cmd { return nil }
+
+// Init returns the first animation tick command, or nil when there is
+// nothing to animate.
 func (m *Model[T]) Init() tea.Cmd {
 	return m.tick()
 }
 
+// CurrentTab returns the selected tab, or nil when the selected index
+// is out of range.
 func (m *Model[T]) CurrentTab() *Tab[T] {
 	if m.idx < 0 || m.idx >= len(m.tabs) {
 		return nil
@@ -138,6 +163,8 @@ func (m *Model[T]) CurrentTab() *Tab[T] {
 	return &m.tabs[m.idx]
 }
 
+// SetMaxWidth caps the width of the tab row in cells. A zero width
+// means no cap, and negative values are treated as zero.
 func (m *Model[T]) SetMaxWidth(width int) {
 	if width < 0 {
 		width = 0
@@ -155,6 +182,8 @@ func (m *Model[T]) SelectTab(idx int) *Tab[T] {
 	return &m.tabs[idx]
 }
 
+// NextTab moves the selection to the next tab and wraps to the first
+// tab after the last one.
 func (m *Model[T]) NextTab() {
 	if len(m.tabs) == 0 {
 		return
@@ -163,6 +192,8 @@ func (m *Model[T]) NextTab() {
 	m.startSlide()
 }
 
+// BackTab moves the selection to the previous tab and wraps to the
+// last tab before the first one.
 func (m *Model[T]) BackTab() {
 	if len(m.tabs) == 0 {
 		return

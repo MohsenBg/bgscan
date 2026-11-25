@@ -8,6 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Update forwards msg to the wrapped CRUD table and stores the updated
+// table when it returns one.
 func (m *Model) Update(msg tea.Msg) (ui.Component, tea.Cmd) {
 	updated, cmd := m.crudTable.Update(msg)
 	if table, ok := updated.(*crud.Model[target.FileInfo]); ok {

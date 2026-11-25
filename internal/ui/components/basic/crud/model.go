@@ -53,12 +53,20 @@ func New[T any](
 	return m
 }
 
+// Init starts loading the items from the source.
 func (m *Model[T]) Init() tea.Cmd {
 	m.table.SetLoading(true)
 	return tea.Batch(m.refreshCmd, m.table.Init())
 }
 
+// ID returns the unique identifier of the component.
 func (m *Model[T]) ID() ui.ComponentID { return m.id }
-func (m *Model[T]) Name() string       { return m.source.Title() }
-func (m *Model[T]) OnClose() tea.Cmd   { return nil }
-func (m *Model[T]) Mode() ui.KeyMode   { return m.table.Mode() }
+
+// Name returns the source title.
+func (m *Model[T]) Name() string { return m.source.Title() }
+
+// OnClose returns no command, as the model holds nothing to release.
+func (m *Model[T]) OnClose() tea.Cmd { return nil }
+
+// Mode returns the key mode of the wrapped table.
+func (m *Model[T]) Mode() ui.KeyMode { return m.table.Mode() }

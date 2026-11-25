@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Option configures a Base.
 type Option func(*Base)
 
 // WithMaxHeight overrides the default maximum form body height.
@@ -64,21 +65,28 @@ func NewBase(
 	return b
 }
 
+// Layout returns the layout of the session environment.
 func (b *Base) Layout() *layout.Layout {
 	env := b.Session().Env()
 	return &env.Layout
 }
 
+// Session returns the session the form belongs to.
 func (b *Base) Session() *ui.Session { return b.session }
 
+// Env returns the environment of the session.
 func (b *Base) Env() *ui.Env { return b.session.Env() }
 
+// Name returns the current config name.
 func (b *Base) Name() string { return b.name }
 
+// SetName sets the current config name.
 func (b *Base) SetName(name string) { b.name = name }
 
+// ID returns the component ID.
 func (b *Base) ID() ui.ComponentID { return b.id }
 
+// Mode returns the manage key mode.
 func (b *Base) Mode() ui.KeyMode { return ui.KeyModeManage }
 
 // CalculateSize derives the form body size from the layout.
@@ -140,6 +148,7 @@ func (b *Base) Refresh() tea.Cmd {
 	return nil
 }
 
+// Init initializes the inner form. It returns nil before BuildForm runs.
 func (b *Base) Init() tea.Cmd {
 	if b.form == nil {
 		return nil
@@ -147,6 +156,8 @@ func (b *Base) Init() tea.Cmd {
 	return b.form.Init()
 }
 
+// OnClose forwards the close to the inner form. It returns nil before
+// BuildForm runs.
 func (b *Base) OnClose() tea.Cmd {
 	if b.form == nil {
 		return nil
@@ -154,6 +165,8 @@ func (b *Base) OnClose() tea.Cmd {
 	return b.form.OnClose()
 }
 
+// View renders the inner form. It returns an empty string before
+// BuildForm runs.
 func (b *Base) View() string {
 	if b.form == nil {
 		return ""

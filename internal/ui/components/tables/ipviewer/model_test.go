@@ -8,6 +8,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+// TestKeepRowBackground checks that a colored cell ends with SGR 39
+// instead of a full reset, so a selected row keeps its background after
+// the colored cell.
 func TestKeepRowBackground(t *testing.T) {
 	v := lipgloss.NewStyle().Foreground(lipgloss.Color("#00D787")).Render("25.31ms")
 

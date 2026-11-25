@@ -41,6 +41,7 @@ type Model[T comparable] struct {
 	required bool
 }
 
+// New creates a multi-select field with the given title and options and returns it as an [input.Input].
 func New[T comparable](
 	env *ui.Env,
 	title string,
@@ -130,17 +131,22 @@ func WithOnSubmit[T comparable](fn func([]T) tea.Cmd) Option[T] {
 	}
 }
 
+// Init returns no initial command.
 func (m *Model[T]) Init() tea.Cmd { return nil }
 
+// ID returns the component ID of the model.
 func (m *Model[T]) ID() ui.ComponentID { return m.id }
 
+// Name returns the component name.
 func (m *Model[T]) Name() string { return m.name }
 
+// Mode returns the key mode of the component, which is always normal mode.
 func (m *Model[T]) Mode() ui.KeyMode { return ui.KeyModeNormal }
 
 // Title returns the raw dialog-frame title.
 func (m *Model[T]) Title() string { return m.title }
 
+// DialogHints returns the key hints shown in the dialog frame for this field.
 func (m *Model[T]) DialogHints() keys.Hints {
 	return DialogHints(m.env.Keys.MultiSelectInput)
 }
@@ -172,16 +178,19 @@ func (m *Model[T]) keyMap() *huh.KeyMap {
 	return km
 }
 
+// Width returns the field width in cells, capped at 50 and at the body width.
 func (m *Model[T]) Width() int {
 	return min(50, m.env.Layout.Body().Width)
 }
 
+// CloseCmd returns a command that closes this component.
 func (m *Model[T]) CloseCmd() tea.Cmd {
 	return func() tea.Msg {
 		return ui.CloseComponentMsg{ID: m.ID()}
 	}
 }
 
+// OnClose returns no command when the component closes.
 func (m *Model[T]) OnClose() tea.Cmd { return nil }
 
 // rebuild recreates the huh field from the live theme: huh's WithTheme is
@@ -204,21 +213,28 @@ func (m *Model[T]) rebuild() {
 	}
 }
 
+// Value returns the currently selected values.
 func (m *Model[T]) Value() []T { return m.value }
 
+// SetValue replaces the currently selected values.
 func (m *Model[T]) SetValue(value []T) {
 	m.value = value
 	m.huhInput = m.huhInput.Value(&m.value)
 }
 
+// ReadOnly reports whether the field is read-only.
 func (m *Model[T]) ReadOnly() bool { return m.readOnly }
 
+// SetReadOnly sets the read-only state of the field.
 func (m *Model[T]) SetReadOnly(ro bool) { m.setReadOnly(ro) }
 
+// OnValidate registers the function used to validate the selected values.
 func (m *Model[T]) OnValidate(fn func([]T) error) { m.validationFunc = fn }
 
+// OnChange registers a callback that runs when the selection changes.
 func (m *Model[T]) OnChange(fn func([]T) tea.Cmd) { m.onChange = fn }
 
+// OnSubmit registers a callback that runs when the selection is submitted.
 func (m *Model[T]) OnSubmit(fn func([]T) tea.Cmd) { m.onSubmit = fn }
 
 // AppendOnSubmit chains fn after any previously registered onSubmit
@@ -255,6 +271,7 @@ func (m *Model[T]) validation() error {
 	return nil
 }
 
+// WithRequired makes validation fail when no option is selected.
 func WithRequired[T comparable]() Option[T] {
 	return func(m *Model[T]) {
 		m.required = true
